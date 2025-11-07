@@ -1,0 +1,286 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MODÈLES PRINCIPAUX
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          String    @default("ADMIN")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Player {
+  id                String              @id @default(cuid())
+  firstName         String
+  lastName          String
+  nickname          String              @unique
+  email             String?
+  avatar            String?
+  status            PlayerStatus        @default(ACTIVE)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  tournamentPlayers TournamentPlayer[]
+  eliminations      Elimination[]       @relation("Eliminator")
+  eliminatedBy      Elimination[]       @relation("Eliminated")
+
+  @@index([status])
+  @@index([nickname])
+}
+
+model Season {
+  id                    String      @id @default(cuid())
+  name                  String
+  year                  Int
+  startDate             DateTime
+  endDate               DateTime?
+  status                SeasonStatus @default(ACTIVE)
+
+  // Paramètres de scoring
+  pointsFirst           Int         @default(1500)
+  pointsSecond          Int         @default(1000)
+  pointsThird           Int         @default(700)
+  pointsFourth          Int         @default(500)
+  pointsFifth           Int         @default(400)
+  pointsSixth           Int         @default(300)
+  pointsSeventh         Int         @default(200)
+  pointsEighth          Int         @default(200)
+  pointsNinth           Int         @default(200)
+  pointsTenth           Int         @default(200)
+  pointsEleventh        Int         @default(100)
+  pointsSixteenth       Int         @default(50)
+
+  eliminationPoints     Int         @default(50)
+  leaderKillerBonus     Int         @default(25)
+
+  // Malus de recave
+  freeRebuysCount       Int         @default(2)
+  rebuyPenaltyTier1     Int         @default(-50)   // 3 recaves
+  rebuyPenaltyTier2     Int         @default(-100)  // 4 recaves
+  rebuyPenaltyTier3     Int         @default(-150)  // 5+ recaves
+
+  // Système de meilleures performances
+  totalTournamentsCount Int?
+  bestTournamentsCount  Int?        // Nombre de tournois à retenir pour le classement
+
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  // Relations
+  tournaments           Tournament[]
+
+  @@index([status])
+  @@index([year])
+}
+
+model Tournament {
+  id                    String              @id @default(cuid())
+  seasonId              String?
+  season                Season?             @relation(fields: [seasonId], references: [id])
+
+  name                  String?
+  date                  DateTime
+  type                  TournamentType      @default(CHAMPIONSHIP)
+  status                TournamentStatus    @default(PLANNED)
+
+  // Configuration générale
+  buyInAmount           Float               @default(10)
+  startingChips         Int                 @default(5000)
+  targetDuration        Int                 @default(180) // en minutes
+
+  // Recave allégée
+  lightRebuyEnabled     Boolean             @default(false)
+  lightRebuyMinBB       Int                 @default(30)
+  lightRebuyAmount      Float               @default(5)
+
+  // Structure
+  levelDuration         Int                 @default(12) // en minutes
+  rebuyEndLevel         Int?                // Niveau où se termine la période de recave
+
+  // Prize pool
+  prizePool             Float?
+  prizeDistribution     Json?               // {1: 50%, 2: 30%, 3: 20%}
+
+  // Données du tournoi
+  totalPlayers          Int?
+  tablesCount           Int?
+  currentLevel          Int                 @default(1)
+  timerStartedAt        DateTime?
+  timerPausedAt         DateTime?
+  timerElapsedSeconds   Int                 @default(0)
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  finishedAt            DateTime?
+
+  // Relations
+  tournamentPlayers     TournamentPlayer[]
+  blindLevels           BlindLevel[]
+  eliminations          Elimination[]
+  tableAssignments      TableAssignment[]
+
+  @@index([seasonId])
+  @@index([status])
+  @@index([date])
+}
+
+model TournamentPlayer {
+  id                String      @id @default(cuid())
+  tournamentId      String
+  tournament        Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  playerId          String
+  player            Player      @relation(fields: [playerId], references: [id])
+
+  // Données de participation
+  finalRank         Int?
+  rebuysCount       Int         @default(0)
+  lightRebuyUsed    Boolean     @default(false)
+  eliminationsCount Int         @default(0)
+  leaderKills       Int         @default(0)
+
+  // Points calculés
+  rankPoints        Int         @default(0)
+  eliminationPoints Int         @default(0)
+  bonusPoints       Int         @default(0)
+  penaltyPoints     Int         @default(0)
+  totalPoints       Int         @default(0)
+
+  // Gains
+  prizeAmount       Float?
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@unique([tournamentId, playerId])
+  @@index([tournamentId])
+  @@index([playerId])
+}
+
+model BlindLevel {
+  id            String      @id @default(cuid())
+  tournamentId  String
+  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  level         Int
+  smallBlind    Int
+  bigBlind      Int
+  ante          Int         @default(0)
+  duration      Int         @default(12) // en minutes
+
+  createdAt     DateTime    @default(now())
+
+  @@unique([tournamentId, level])
+  @@index([tournamentId])
+}
+
+model TableAssignment {
+  id            String      @id @default(cuid())
+  tournamentId  String
+  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  playerId      String
+  tableNumber   Int
+  seatNumber    Int?
+  isActive      Boolean     @default(true)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([tournamentId])
+  @@index([tournamentId, tableNumber])
+}
+
+model Elimination {
+  id              String      @id @default(cuid())
+  tournamentId    String
+  tournament      Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  eliminatedId    String
+  eliminated      Player      @relation("Eliminated", fields: [eliminatedId], references: [id])
+
+  eliminatorId    String
+  eliminator      Player      @relation("Eliminator", fields: [eliminatorId], references: [id])
+
+  rank            Int         // Position de sortie du joueur éliminé
+  level           Int         // Niveau auquel l'élimination a eu lieu
+  isLeaderKill    Boolean     @default(false)
+
+  createdAt       DateTime    @default(now())
+
+  @@index([tournamentId])
+  @@index([eliminatedId])
+  @@index([eliminatorId])
+}
+
+model TournamentTemplate {
+  id            String      @id @default(cuid())
+  name          String
+  description   String?
+
+  targetDuration Int        // en minutes
+  startingChips  Int
+  levelDuration  Int        // en minutes
+  rebuyEndLevel  Int
+
+  structure     Json        // Structure complète des blindes
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([name])
+}
+
+model ChipInventory {
+  id            String      @id @default(cuid())
+  value         Int         @unique
+  quantity      Int
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum PlayerStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum SeasonStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum TournamentType {
+  CHAMPIONSHIP
+  CASUAL
+}
+
+enum TournamentStatus {
+  PLANNED
+  REGISTRATION
+  IN_PROGRESS
+  FINISHED
+  CANCELLED
+}

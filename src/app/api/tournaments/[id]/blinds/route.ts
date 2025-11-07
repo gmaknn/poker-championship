@@ -1,0 +1,125 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { z } from 'zod';
+
+const blindLevelSchema = z.object({
+  level: z.number().int().positive(),
+  smallBlind: z.number().int().positive(),
+  bigBlind: z.number().int().positive(),
+  ante: z.number().int().min(0).default(0),
+  duration: z.number().int().positive().default(12),
+});
+
+const blindStructureSchema = z.object({
+  levels: z.array(blindLevelSchema).min(1),
+});
+
+// GET - Récupérer la structure de blinds d'un tournoi
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const blindLevels = await prisma.blindLevel.findMany({
+      where: { tournamentId: id },
+      orderBy: { level: 'asc' },
+    });
+
+    return NextResponse.json(blindLevels);
+  } catch (error) {
+    console.error('Error fetching blind levels:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch blind levels' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST - Créer ou remplacer la structure de blinds complète
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const validatedData = blindStructureSchema.parse(body);
+
+    // Vérifier que le tournoi existe
+    const tournament = await prisma.tournament.findUnique({
+      where: { id },
+    });
+
+    if (!tournament) {
+      return NextResponse.json(
+        { error: 'Tournament not found' },
+        { status: 404 }
+      );
+    }
+
+    // Supprimer les niveaux existants et créer les nouveaux
+    await prisma.$transaction(async (tx) => {
+      // Supprimer les niveaux existants
+      await tx.blindLevel.deleteMany({
+        where: { tournamentId: id },
+      });
+
+      // Créer les nouveaux niveaux
+      await tx.blindLevel.createMany({
+        data: validatedData.levels.map((level) => ({
+          tournamentId: id,
+          level: level.level,
+          smallBlind: level.smallBlind,
+          bigBlind: level.bigBlind,
+          ante: level.ante,
+          duration: level.duration,
+        })),
+      });
+    });
+
+    // Récupérer les niveaux créés
+    const blindLevels = await prisma.blindLevel.findMany({
+      where: { tournamentId: id },
+      orderBy: { level: 'asc' },
+    });
+
+    return NextResponse.json(blindLevels, { status: 201 });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Validation error', details: error.errors },
+        { status: 400 }
+      );
+    }
+
+    console.error('Error creating blind structure:', error);
+    return NextResponse.json(
+      { error: 'Failed to create blind structure' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Supprimer toute la structure de blinds
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    await prisma.blindLevel.deleteMany({
+      where: { tournamentId: id },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting blind levels:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete blind levels' },
+      { status: 500 }
+    );
+  }
+}

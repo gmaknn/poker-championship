@@ -1,36 +1,194 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Poker Championship - Le Cyclope
 
-## Getting Started
+Application web progressive (PWA) de gestion de championnat de poker Texas Hold'em No Limit.
 
-First, run the development server:
+## Fonctionnalités
+
+### Phase 1 - MVP (Implémenté)
+- ✅ Gestion des joueurs (CRUD)
+- ✅ Authentification administrateur
+- ✅ Dashboard avec vue d'ensemble
+- ✅ Structure de base de données complète
+- ✅ Interface utilisateur moderne avec Tailwind CSS
+
+### À venir
+- Création et gestion de tournois
+- Timer de blindes avec structure personnalisable
+- Vue spectateur pour affichage TV
+- Gestion des recaves et éliminations
+- Système de points et classement
+- Statistiques avancées
+- Export PDF/Images des résultats
+
+## Stack Technologique
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS v4
+- **Backend**: Next.js API Routes
+- **Base de données**: PostgreSQL avec Prisma ORM
+- **Authentification**: NextAuth.js v5
+- **UI Components**: Radix UI, Lucide Icons
+
+## Prérequis
+
+- Node.js 18+
+- PostgreSQL 14+
+- npm ou yarn
+
+## Installation
+
+1. **Cloner le projet** (si applicable)
+   ```bash
+   cd poker-championship
+   ```
+
+2. **Installer les dépendances**
+   ```bash
+   npm install
+   ```
+
+3. **Configuration de la base de données**
+
+   Créez une base de données PostgreSQL :
+   ```sql
+   CREATE DATABASE poker_championship;
+   ```
+
+4. **Variables d'environnement**
+
+   Copiez le fichier `.env.example` en `.env` et configurez :
+   ```bash
+   DATABASE_URL="postgresql://username:password@localhost:5432/poker_championship"
+   NEXTAUTH_URL="http://localhost:3000"
+   NEXTAUTH_SECRET="votre-secret-aleatoire"
+   ```
+
+5. **Initialiser la base de données**
+   ```bash
+   # Générer le client Prisma
+   npm run db:generate
+
+   # Créer les tables
+   npm run db:push
+
+   # Peupler avec les données initiales
+   npm run db:seed
+   ```
+
+6. **Lancer le serveur de développement**
+   ```bash
+   npm run dev
+   ```
+
+7. **Accéder à l'application**
+
+   Ouvrez [http://localhost:3002](http://localhost:3002)
+
+## Identifiants par défaut
+
+Après le seed de la base de données :
+
+- **Email**: `admin@poker.com`
+- **Mot de passe**: `admin123`
+
+⚠️ **Important**: Changez ces identifiants en production !
+
+## Scripts disponibles
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev          # Lancer le serveur de développement
+npm run build        # Compiler pour la production
+npm run start        # Lancer en production
+npm run db:generate  # Générer le client Prisma
+npm run db:push      # Pousser le schéma vers la DB
+npm run db:seed      # Peupler la base de données
+npm run db:studio    # Ouvrir Prisma Studio (GUI)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Structure du projet
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+poker-championship/
+├── prisma/
+│   ├── schema.prisma      # Schéma de la base de données
+│   └── seed.ts            # Script d'initialisation
+├── src/
+│   ├── app/
+│   │   ├── api/           # Routes API
+│   │   ├── dashboard/     # Pages du dashboard
+│   │   ├── login/         # Page de connexion
+│   │   └── layout.tsx     # Layout principal
+│   ├── components/
+│   │   ├── ui/            # Composants UI réutilisables
+│   │   └── layout/        # Composants de layout
+│   ├── lib/
+│   │   ├── auth.ts        # Configuration NextAuth
+│   │   ├── prisma.ts      # Client Prisma
+│   │   └── utils.ts       # Fonctions utilitaires
+│   └── types/
+│       └── index.ts       # Types TypeScript
+└── package.json
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Base de données
 
-## Learn More
+Le schéma Prisma inclut les modèles suivants :
 
-To learn more about Next.js, take a look at the following resources:
+- **User** : Comptes administrateurs
+- **Player** : Joueurs du championnat
+- **Season** : Saisons de championnat
+- **Tournament** : Tournois
+- **TournamentPlayer** : Participation aux tournois
+- **BlindLevel** : Structure des blindes
+- **Elimination** : Historique des éliminations
+- **TableAssignment** : Répartition des tables
+- **TournamentTemplate** : Templates de structures
+- **ChipInventory** : Inventaire des jetons
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Développement
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Ajouter un nouveau joueur
 
-## Deploy on Vercel
+1. Connectez-vous avec les identifiants admin
+2. Allez dans "Joueurs" dans le menu
+3. Cliquez sur "Ajouter un joueur"
+4. Remplissez le formulaire
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Visualiser la base de données
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run db:studio
+```
+
+Ouvre Prisma Studio sur [http://localhost:5555](http://localhost:5555)
+
+## Déploiement
+
+### Prérequis production
+
+1. Base de données PostgreSQL (Supabase, Railway, etc.)
+2. Plateforme d'hébergement (Vercel, Railway, etc.)
+
+### Variables d'environnement production
+
+```bash
+DATABASE_URL=postgresql://...
+NEXTAUTH_URL=https://votre-domaine.com
+NEXTAUTH_SECRET=secret-securise-aleatoire
+NODE_ENV=production
+```
+
+### Build
+
+```bash
+npm run build
+npm run start
+```
+
+## Support
+
+Pour toute question ou problème, consultez le cahier des charges dans `cahier_des_charges_poker_championship.md`
+
+## Licence
+
+Projet privé - Le Cyclope © 2025
