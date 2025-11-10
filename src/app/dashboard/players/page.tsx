@@ -120,15 +120,15 @@ export default function PlayersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border-2 border-border">
         <div>
-          <h1 className="text-3xl font-bold">Joueurs</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold">Joueurs</h1>
+          <p className="text-muted-foreground mt-1 text-base">
             Gérez les joueurs du championnat
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={() => handleOpenDialog()} size="lg">
+          <Plus className="mr-2 h-5 w-5" />
           Ajouter un joueur
         </Button>
       </div>
@@ -148,7 +148,12 @@ export default function PlayersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="bg-muted/20 rounded-lg p-6 border-2 border-border">
+          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+            <Users className="h-6 w-6 text-primary" />
+            Liste des Joueurs ({players.length})
+          </h2>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {players.map((player) => (
             <Card key={player.id}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -198,6 +203,7 @@ export default function PlayersPage() {
               </CardContent>
             </Card>
           ))}
+          </div>
         </div>
       )}
 

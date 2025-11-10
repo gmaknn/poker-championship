@@ -137,6 +137,7 @@ model Tournament {
   blindLevels           BlindLevel[]
   eliminations          Elimination[]
   tableAssignments      TableAssignment[]
+  chipDenominations     ChipDenomination[]
 
   @@index([seasonId])
   @@index([status])
@@ -151,6 +152,7 @@ model TournamentPlayer {
   player            Player      @relation(fields: [playerId], references: [id])
 
   // Données de participation
+  hasPaid           Boolean     @default(false)
   finalRank         Int?
   rebuysCount       Int         @default(0)
   lightRebuyUsed    Boolean     @default(false)
@@ -185,6 +187,7 @@ model BlindLevel {
   bigBlind      Int
   ante          Int         @default(0)
   duration      Int         @default(12) // en minutes
+  isBreak       Boolean     @default(false)
 
   createdAt     DateTime    @default(now())
 
@@ -256,6 +259,25 @@ model ChipInventory {
 
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+}
+
+model ChipDenomination {
+  id              String      @id @default(cuid())
+  tournamentId    String?
+  tournament      Tournament? @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  value           Int         // Valeur du jeton (10, 25, 50, 100, etc.)
+  color           String      // Couleur principale (#HEX ou nom de couleur)
+  colorSecondary  String?     // Couleur secondaire pour jetons bicolores
+  quantity        Int?        // Quantité disponible (optionnel)
+  order           Int         // Ordre d'affichage
+  isDefault       Boolean     @default(false) // Configuration par défaut du championnat
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([tournamentId])
+  @@index([isDefault])
 }
 
 // ============================================

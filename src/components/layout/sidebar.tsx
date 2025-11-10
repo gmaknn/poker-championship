@@ -35,8 +35,8 @@ export function Sidebar() {
       <div className="flex items-center gap-2 border-b px-6 py-4">
         <Spade className="h-8 w-8 text-primary" />
         <div>
-          <h1 className="text-xl font-bold">Poker Championship</h1>
-          <p className="text-xs text-muted-foreground">Le Cyclope</p>
+          <h1 className="text-xl font-bold">WPT VILLELAURE</h1>
+          <p className="text-xs text-muted-foreground">Poker Championship</p>
         </div>
       </div>
 

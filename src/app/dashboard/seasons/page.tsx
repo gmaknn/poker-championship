@@ -207,15 +207,15 @@ export default function SeasonsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border-2 border-border">
         <div>
-          <h1 className="text-3xl font-bold">Saisons</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold">Saisons</h1>
+          <p className="text-muted-foreground mt-1 text-base">
             Gérez les saisons du championnat
           </p>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="mr-2 h-4 w-4" />
+        <Button onClick={() => handleOpenDialog()} size="lg">
+          <Plus className="mr-2 h-5 w-5" />
           Nouvelle saison
         </Button>
       </div>
@@ -237,9 +237,12 @@ export default function SeasonsPage() {
       ) : (
         <>
           {activeSeasons.length > 0 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Saisons actives</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="bg-muted/20 rounded-lg p-6 border-2 border-border">
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <Trophy className="h-6 w-6 text-primary" />
+                Saisons actives
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {activeSeasons.map((season) => (
                   <Card key={season.id}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -301,9 +304,12 @@ export default function SeasonsPage() {
           )}
 
           {archivedSeasons.length > 0 && (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">Saisons archivées</h2>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="bg-muted/20 rounded-lg p-6 border-2 border-border">
+              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+                <Archive className="h-6 w-6 text-muted-foreground" />
+                Saisons archivées
+              </h2>
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {archivedSeasons.map((season) => (
                   <Card key={season.id} className="opacity-75">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

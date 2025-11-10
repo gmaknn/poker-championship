@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
-type TournamentStatus = 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+type TournamentStatus = 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
 
 interface Tournament {
   id: string;
@@ -46,6 +46,7 @@ interface Season {
 const DEFAULT_TOURNAMENT = {
   name: '',
   seasonId: '',
+  type: 'CHAMPIONSHIP',
   date: new Date().toISOString().slice(0, 16),
   buyInAmount: 10,
   startingChips: 5000,
@@ -148,6 +149,7 @@ export default function TournamentsPage() {
     setEditingTournament(tournament);
     setFormData({
       name: tournament.name || '',
+      type: (tournament as any).type || 'CHAMPIONSHIP',
       seasonId: tournament.seasonId || '',
       date: new Date(tournament.date).toISOString().slice(0, 16),
       buyInAmount: tournament.buyInAmount,
@@ -193,10 +195,10 @@ export default function TournamentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border-2 border-border">
         <div>
-          <h1 className="text-3xl font-bold">Tournois</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-4xl font-bold">Tournois</h1>
+          <p className="text-muted-foreground mt-1 text-base">
             Gérez les tournois de poker
           </p>
         </div>
@@ -250,6 +252,20 @@ export default function TournamentsPage() {
                           {season.name} ({season.year})
                         </option>
                       ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="type">Type de tournoi *</Label>
+                    <select
+                      id="type"
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      required
+                    >
+                      <option value="CHAMPIONSHIP">Championnat</option>
+                      <option value="CASUAL">Tournoi libre</option>
                     </select>
                   </div>
 
@@ -377,12 +393,12 @@ export default function TournamentsPage() {
       </div>
 
       {/* Filter by season */}
-      <div className="flex items-center gap-2">
-        <Label>Filtrer par saison:</Label>
+      <div className="flex items-center gap-3 bg-muted/30 rounded-lg p-4 border-2 border-border">
+        <Label className="font-semibold">Filtrer par saison:</Label>
         <select
           value={filterSeasonId}
           onChange={(e) => setFilterSeasonId(e.target.value)}
-          className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex h-10 rounded-md border-2 border-input bg-background px-4 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <option value="all">Toutes les saisons</option>
           {seasons.map((season) => (
@@ -394,7 +410,9 @@ export default function TournamentsPage() {
       </div>
 
       {/* Tournaments list */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="bg-muted/20 rounded-lg p-6 border-2 border-border">
+        <h2 className="text-2xl font-bold mb-6">Liste des Tournois ({filteredTournaments.length})</h2>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {filteredTournaments.map((tournament) => {
           const statusConfig = STATUS_CONFIG[tournament.status];
           return (
@@ -453,7 +471,7 @@ export default function TournamentsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleDelete(tournament.id)}
-                    disabled={tournament.status === 'COMPLETED' || tournament._count.tournamentPlayers > 0}
+                    disabled={tournament.status === 'FINISHED' || tournament._count.tournamentPlayers > 0}
                   >
                     <Trash2 className="h-3 w-3" />
                   </Button>
@@ -462,19 +480,21 @@ export default function TournamentsPage() {
             </Card>
           );
         })}
-      </div>
-
-      {filteredTournaments.length === 0 && (
-        <Card className="p-12">
-          <div className="text-center text-muted-foreground">
-            <Trophy className="mx-auto h-12 w-12 mb-4 opacity-50" />
-            <p>Aucun tournoi trouvé</p>
-            <p className="text-sm mt-2">
-              Créez votre premier tournoi pour commencer
-            </p>
+        {filteredTournaments.length === 0 && (
+          <div className="col-span-full">
+            <Card className="p-12">
+              <div className="text-center text-muted-foreground">
+                <Trophy className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                <p className="text-lg font-semibold">Aucun tournoi trouvé</p>
+                <p className="text-sm mt-2">
+                  Créez votre premier tournoi pour commencer
+                </p>
+              </div>
+            </Card>
           </div>
-        </Card>
-      )}
+        )}
+        </div>
+      </div>
     </div>
   );
 }

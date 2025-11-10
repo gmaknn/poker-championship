@@ -59,6 +59,7 @@ export default function BlindStructureEditor({
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     fetchBlindLevels();
@@ -129,6 +130,7 @@ export default function BlindStructureEditor({
   const handleSave = async () => {
     setIsSaving(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       const response = await fetch(`/api/tournaments/${tournamentId}/blinds`, {
@@ -138,11 +140,16 @@ export default function BlindStructureEditor({
       });
 
       if (response.ok) {
+        setSuccessMessage('Structure sauvegardée avec succès !');
+        setTimeout(() => setSuccessMessage(''), 3000);
         onSave?.();
       } else {
-        setError('Erreur lors de la sauvegarde');
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de la sauvegarde');
+        console.error('Error saving blinds:', data);
       }
     } catch (error) {
+      console.error('Error saving blinds:', error);
       setError('Erreur lors de la sauvegarde');
     } finally {
       setIsSaving(false);
@@ -233,6 +240,12 @@ export default function BlindStructureEditor({
         </div>
       )}
 
+      {successMessage && (
+        <div className="bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-2 rounded">
+          {successMessage}
+        </div>
+      )}
+
       {/* Statistiques */}
       {stats && (
         <div className="grid gap-4 md:grid-cols-4">
@@ -319,7 +332,7 @@ export default function BlindStructureEditor({
         </Card>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_80px] gap-4 px-4 py-2 font-medium text-sm text-muted-foreground">
+          <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_80px] gap-4 px-4 py-3 font-medium text-sm bg-muted/30 rounded-lg">
             <div>Niveau</div>
             <div>Small Blind</div>
             <div>Big Blind</div>

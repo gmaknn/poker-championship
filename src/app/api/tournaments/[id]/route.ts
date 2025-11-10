@@ -10,7 +10,7 @@ const updateTournamentSchema = z.object({
   startingChips: z.number().int().min(1000).optional(),
   estimatedDuration: z.number().int().min(30).optional(),
   maxPlayers: z.number().int().min(2).optional(),
-  status: z.enum(['DRAFT', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
+  status: z.enum(['DRAFT', 'PLANNED', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
   prizePool: z.number().optional(),
@@ -110,7 +110,7 @@ export async function PATCH(
     }
 
     // Prevent editing completed tournaments
-    if (existingTournament.status === 'COMPLETED' && validatedData.status !== 'COMPLETED') {
+    if (existingTournament.status === 'FINISHED' && validatedData.status !== 'FINISHED') {
       return NextResponse.json(
         { error: 'Impossible de modifier un tournoi terminé' },
         { status: 400 }
@@ -207,7 +207,7 @@ export async function DELETE(
     }
 
     // Prevent deletion of completed tournaments
-    if (tournament.status === 'COMPLETED') {
+    if (tournament.status === 'FINISHED') {
       return NextResponse.json(
         { error: 'Impossible de supprimer un tournoi terminé' },
         { status: 400 }

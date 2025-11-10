@@ -2,16 +2,22 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Users, Trophy, Edit2 } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BlindStructureEditor from '@/components/BlindStructureEditor';
+import ChipManager from '@/components/ChipManager';
+import TournamentPlayersManager from '@/components/TournamentPlayersManager';
+import TournamentTimer from '@/components/TournamentTimer';
+import EliminationManager from '@/components/EliminationManager';
+import TableDistribution from '@/components/TableDistribution';
+import TournamentResults from '@/components/TournamentResults';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
-type TournamentStatus = 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+type TournamentStatus = 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
 
 interface Tournament {
   id: string;
@@ -91,7 +97,7 @@ export default function TournamentDetailPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-muted/30 rounded-lg p-6 border-2 border-border">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -103,21 +109,30 @@ export default function TournamentDetailPage({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-3xl font-bold">{tournament.name}</h1>
-              <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+              <Badge variant={statusConfig.variant} className="text-lg px-4 py-1">{statusConfig.label}</Badge>
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground mt-1 text-base">
               {tournament.season?.name} ({tournament.season?.year})
             </p>
           </div>
         </div>
-        <Button variant="outline">
-          <Edit2 className="mr-2 h-4 w-4" />
-          Modifier
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => window.open(`/tv/${tournament.id}`, '_blank')}
+          >
+            <Tv className="mr-2 h-4 w-4" />
+            Vue TV
+          </Button>
+          <Button variant="outline">
+            <Edit2 className="mr-2 h-4 w-4" />
+            Modifier
+          </Button>
+        </div>
       </div>
 
       {/* Info cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Date</CardTitle>
@@ -181,8 +196,11 @@ export default function TournamentDetailPage({
       <Tabs defaultValue="structure" className="w-full">
         <TabsList>
           <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
+          <TabsTrigger value="config">Jetons</TabsTrigger>
           <TabsTrigger value="players">Joueurs inscrits</TabsTrigger>
+          <TabsTrigger value="tables">Tables</TabsTrigger>
           <TabsTrigger value="timer">Timer</TabsTrigger>
+          <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
           <TabsTrigger value="results">Résultats</TabsTrigger>
         </TabsList>
 
@@ -194,34 +212,51 @@ export default function TournamentDetailPage({
           />
         </TabsContent>
 
+        <TabsContent value="config" className="mt-6">
+          <ChipManager
+            tournamentId={tournament.id}
+            onUpdate={() => fetchTournament()}
+          />
+        </TabsContent>
+
         <TabsContent value="players" className="mt-6">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground text-center py-8">
-                Gestion des joueurs inscrits - À venir
-              </p>
-            </CardContent>
-          </Card>
+          <TournamentPlayersManager
+            tournamentId={tournament.id}
+            tournament={{
+              id: tournament.id,
+              status: tournament.status,
+              buyInAmount: tournament.buyInAmount,
+            }}
+            onUpdate={() => fetchTournament()}
+          />
+        </TabsContent>
+
+        <TabsContent value="tables" className="mt-6">
+          <TableDistribution
+            tournamentId={tournament.id}
+            onUpdate={() => fetchTournament()}
+          />
         </TabsContent>
 
         <TabsContent value="timer" className="mt-6">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground text-center py-8">
-                Timer de tournoi - À venir
-              </p>
-            </CardContent>
-          </Card>
+          <TournamentTimer
+            tournamentId={tournament.id}
+            onUpdate={() => fetchTournament()}
+          />
+        </TabsContent>
+
+        <TabsContent value="eliminations" className="mt-6">
+          <EliminationManager
+            tournamentId={tournament.id}
+            onUpdate={() => fetchTournament()}
+          />
         </TabsContent>
 
         <TabsContent value="results" className="mt-6">
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-muted-foreground text-center py-8">
-                Résultats du tournoi - À venir
-              </p>
-            </CardContent>
-          </Card>
+          <TournamentResults
+            tournamentId={tournament.id}
+            onUpdate={() => fetchTournament()}
+          />
         </TabsContent>
       </Tabs>
     </div>

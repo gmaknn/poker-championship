@@ -27,7 +27,7 @@ export function generateBlindStructure(config: BlindGeneratorConfig): BlindLevel
     targetDuration,
     levelDuration,
     startingBB = Math.floor(startingChips / 250), // Par défaut: startingChips / 250
-    anteStartLevel = 5,
+    anteStartLevel = 999, // Désactivé par défaut
   } = config;
 
   const totalLevels = Math.ceil(targetDuration / levelDuration);
@@ -96,7 +96,7 @@ export const PRESET_STRUCTURES = {
       startingChips,
       targetDuration: 120, // 2h
       levelDuration: 8,
-      anteStartLevel: 4,
+      anteStartLevel: 999, // Pas d'antes
     }),
 
   standard: (startingChips: number): BlindLevel[] =>
@@ -104,7 +104,7 @@ export const PRESET_STRUCTURES = {
       startingChips,
       targetDuration: 180, // 3h
       levelDuration: 12,
-      anteStartLevel: 5,
+      anteStartLevel: 999, // Pas d'antes
     }),
 
   deep: (startingChips: number): BlindLevel[] =>
@@ -112,7 +112,7 @@ export const PRESET_STRUCTURES = {
       startingChips,
       targetDuration: 240, // 4h
       levelDuration: 15,
-      anteStartLevel: 6,
+      anteStartLevel: 999, // Pas d'antes
     }),
 };
 

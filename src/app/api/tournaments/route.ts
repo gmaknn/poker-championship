@@ -11,7 +11,7 @@ const tournamentSchema = z.object({
   startingChips: z.number().int().min(1000).default(5000),
   targetDuration: z.number().int().min(30).default(180),
   totalPlayers: z.number().int().min(2).optional(),
-  status: z.enum(['DRAFT', 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).default('PLANNED'),
+  status: z.enum(['DRAFT', 'PLANNED', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).default('PLANNED'),
 });
 
 // GET all tournaments
