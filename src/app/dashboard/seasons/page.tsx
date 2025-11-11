@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Archive, Trophy } from 'lucide-react';
+import { Plus, Pencil, Archive, Trophy, BarChart3 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -46,6 +47,7 @@ const DEFAULT_SEASON_PARAMS = {
 };
 
 export default function SeasonsPage() {
+  const router = useRouter();
   const [seasons, setSeasons] = useState<SeasonWithCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -278,23 +280,34 @@ export default function SeasonsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-2 mt-4">
+                      <div className="flex flex-col gap-2 mt-4">
                         <Button
-                          variant="outline"
+                          variant="default"
                           size="sm"
-                          className="flex-1"
-                          onClick={() => handleOpenDialog(season)}
+                          className="w-full"
+                          onClick={() => router.push(`/dashboard/seasons/${season.id}/leaderboard`)}
                         >
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Modifier
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          Voir le classement
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleArchive(season.id)}
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => handleOpenDialog(season)}
+                          >
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Modifier
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleArchive(season.id)}
+                          >
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -325,6 +338,17 @@ export default function SeasonsPage() {
                           <span className="text-muted-foreground">Tournois : </span>
                           <span className="font-medium">{season._count?.tournaments || 0}</span>
                         </div>
+                      </div>
+                      <div className="mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => router.push(`/dashboard/seasons/${season.id}/leaderboard`)}
+                        >
+                          <BarChart3 className="mr-2 h-4 w-4" />
+                          Voir le classement
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>

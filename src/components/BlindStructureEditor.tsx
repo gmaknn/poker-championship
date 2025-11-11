@@ -195,6 +195,7 @@ export default function BlindStructureEditor({
     return hours > 0 ? `${hours}h${mins > 0 ? mins : ''}` : `${mins}m`;
   };
 
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
