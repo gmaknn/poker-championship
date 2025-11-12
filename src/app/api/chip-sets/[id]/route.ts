@@ -42,6 +42,18 @@ export async function PUT(request: NextRequest, segmentData: { params: Params })
     const body = await request.json();
     const { name, description, isActive } = body;
 
+    // Si on active cette mallette, désactiver toutes les autres
+    if (isActive === true) {
+      await prisma.chipSet.updateMany({
+        where: {
+          id: { not: params.id },
+        },
+        data: {
+          isActive: false,
+        },
+      });
+    }
+
     const chipSet = await prisma.chipSet.update({
       where: { id: params.id },
       data: {

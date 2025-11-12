@@ -21,6 +21,7 @@ import {
   Coins,
   CheckCircle2,
   XCircle,
+  Star,
 } from 'lucide-react';
 
 type ChipDenomination = {
@@ -48,6 +49,7 @@ export default function ChipInventoryPage() {
   const [editingChipSet, setEditingChipSet] = useState<ChipSet | null>(null);
   const [isDenominationDialogOpen, setIsDenominationDialogOpen] = useState(false);
   const [selectedChipSetId, setSelectedChipSetId] = useState<string | null>(null);
+  const [editingDenomination, setEditingDenomination] = useState<ChipDenomination | null>(null);
 
   // Form states
   const [chipSetName, setChipSetName] = useState('');
@@ -57,6 +59,7 @@ export default function ChipInventoryPage() {
   const [denomValue, setDenomValue] = useState('');
   const [denomQuantity, setDenomQuantity] = useState('');
   const [denomColor, setDenomColor] = useState('#000000');
+  const [denomColorSecondary, setDenomColorSecondary] = useState('');
 
   useEffect(() => {
     fetchChipSets();
@@ -150,6 +153,7 @@ export default function ChipInventoryPage() {
           value: parseInt(denomValue),
           quantity: parseInt(denomQuantity),
           color: denomColor,
+          colorSecondary: denomColorSecondary || null,
         }),
       });
 
@@ -160,6 +164,35 @@ export default function ChipInventoryPage() {
       }
     } catch (error) {
       console.error('Error adding denomination:', error);
+    }
+  };
+
+  const handleUpdateDenomination = async () => {
+    if (!selectedChipSetId || !editingDenomination) return;
+
+    try {
+      const response = await fetch(
+        `/api/chip-sets/${selectedChipSetId}/denominations/${editingDenomination.id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            value: parseInt(denomValue),
+            quantity: parseInt(denomQuantity),
+            color: denomColor,
+            colorSecondary: denomColorSecondary || null,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        await fetchChipSets();
+        setIsDenominationDialogOpen(false);
+        resetDenominationForm();
+        setEditingDenomination(null);
+      }
+    } catch (error) {
+      console.error('Error updating denomination:', error);
     }
   };
 
@@ -190,7 +223,37 @@ export default function ChipInventoryPage() {
 
   const openDenominationDialog = (chipSetId: string) => {
     setSelectedChipSetId(chipSetId);
+    setEditingDenomination(null);
+    resetDenominationForm();
     setIsDenominationDialogOpen(true);
+  };
+
+  const openEditDenominationDialog = (chipSetId: string, denomination: ChipDenomination) => {
+    setSelectedChipSetId(chipSetId);
+    setEditingDenomination(denomination);
+    setDenomValue(denomination.value.toString());
+    setDenomQuantity(denomination.quantity.toString());
+    setDenomColor(denomination.color);
+    setDenomColorSecondary(denomination.colorSecondary || '');
+    setIsDenominationDialogOpen(true);
+  };
+
+  const handleToggleDefault = async (chipSetId: string) => {
+    try {
+      const response = await fetch(`/api/chip-sets/${chipSetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isActive: true,
+        }),
+      });
+
+      if (response.ok) {
+        await fetchChipSets();
+      }
+    } catch (error) {
+      console.error('Error setting default chip set:', error);
+    }
   };
 
   const resetChipSetForm = () => {
@@ -203,6 +266,7 @@ export default function ChipInventoryPage() {
     setDenomValue('');
     setDenomQuantity('');
     setDenomColor('#000000');
+    setDenomColorSecondary('');
   };
 
   // Calculate totals by denomination value
@@ -318,6 +382,16 @@ export default function ChipInventoryPage() {
                     )}
                   </div>
                   <div className="flex gap-1">
+                    {!chipSet.isActive && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleToggleDefault(chipSet.id)}
+                        title="Définir comme mallette par défaut"
+                      >
+                        <Star className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
@@ -364,15 +438,26 @@ export default function ChipInventoryPage() {
                               </div>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              handleDeleteDenomination(chipSet.id, denom.id)
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                openEditDenominationDialog(chipSet.id, denom)
+                              }
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() =>
+                                handleDeleteDenomination(chipSet.id, denom.id)
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -456,16 +541,26 @@ export default function ChipInventoryPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Denomination Dialog */}
+      {/* Add/Edit Denomination Dialog */}
       <Dialog
         open={isDenominationDialogOpen}
-        onOpenChange={setIsDenominationDialogOpen}
+        onOpenChange={(open) => {
+          setIsDenominationDialogOpen(open);
+          if (!open) {
+            setEditingDenomination(null);
+            resetDenominationForm();
+          }
+        }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ajouter une dénomination</DialogTitle>
+            <DialogTitle>
+              {editingDenomination ? 'Modifier la dénomination' : 'Ajouter une dénomination'}
+            </DialogTitle>
             <DialogDescription>
-              Ajoutez un nouveau type de jeton à la mallette
+              {editingDenomination
+                ? 'Modifiez les informations du jeton'
+                : 'Ajoutez un nouveau type de jeton à la mallette'}
             </DialogDescription>
           </DialogHeader>
 
@@ -491,7 +586,7 @@ export default function ChipInventoryPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Couleur</label>
+              <label className="text-sm font-medium">Couleur principale</label>
               <div className="flex gap-2">
                 <Input
                   type="color"
@@ -507,20 +602,42 @@ export default function ChipInventoryPage() {
                 />
               </div>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Couleur secondaire (optionnel)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="color"
+                  value={denomColorSecondary || '#ffffff'}
+                  onChange={(e) => setDenomColorSecondary(e.target.value)}
+                  className="w-20"
+                />
+                <Input
+                  type="text"
+                  value={denomColorSecondary}
+                  onChange={(e) => setDenomColorSecondary(e.target.value)}
+                  placeholder="#ffffff (optionnel)"
+                />
+              </div>
+            </div>
           </div>
 
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsDenominationDialogOpen(false)}
+              onClick={() => {
+                setIsDenominationDialogOpen(false);
+                setEditingDenomination(null);
+                resetDenominationForm();
+              }}
             >
               Annuler
             </Button>
             <Button
-              onClick={handleAddDenomination}
+              onClick={editingDenomination ? handleUpdateDenomination : handleAddDenomination}
               disabled={!denomValue || !denomQuantity}
             >
-              Ajouter
+              {editingDenomination ? 'Modifier' : 'Ajouter'}
             </Button>
           </DialogFooter>
         </DialogContent>
