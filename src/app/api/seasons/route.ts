@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { getCurrentPlayer } from '@/lib/auth-helpers';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 const seasonSchema = z.object({
   name: z.string().min(1, 'Le nom est requis'),
@@ -61,6 +63,16 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Vérifier les permissions - seuls les ADMIN peuvent créer des saisons
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer || !hasPermission(currentPlayer.role, PERMISSIONS.CREATE_SEASON)) {
+      return NextResponse.json(
+        { error: 'Vous n\'avez pas la permission de créer des saisons' },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const validatedData = seasonSchema.parse(body);
 
@@ -101,7 +113,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

@@ -2,18 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye } from 'lucide-react';
+import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
+import Image from 'next/image';
 
-type TournamentStatus = 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
+type TournamentStatus = 'PLANNED' | 'REGISTRATION' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
+type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ADMIN';
 
 interface Tournament {
   id: string;
@@ -33,6 +36,18 @@ interface Tournament {
   _count: {
     tournamentPlayers: number;
   };
+  podium?: Array<{
+    finalRank: number;
+    player: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      nickname: string;
+      avatar: string | null;
+    };
+    totalPoints: number;
+    prizeAmount: number | null;
+  }>;
 }
 
 interface Season {
@@ -56,10 +71,10 @@ const DEFAULT_TOURNAMENT = {
 };
 
 const STATUS_CONFIG = {
-  DRAFT: { label: 'Brouillon', variant: 'outline' as const, color: 'text-gray-500' },
   PLANNED: { label: 'Planifié', variant: 'default' as const, color: 'text-blue-500' },
+  REGISTRATION: { label: 'Inscriptions', variant: 'default' as const, color: 'text-cyan-500' },
   IN_PROGRESS: { label: 'En cours', variant: 'default' as const, color: 'text-green-500' },
-  COMPLETED: { label: 'Terminé', variant: 'secondary' as const, color: 'text-gray-500' },
+  FINISHED: { label: 'Terminé', variant: 'secondary' as const, color: 'text-gray-500' },
   CANCELLED: { label: 'Annulé', variant: 'destructive' as const, color: 'text-red-500' },
 };
 
@@ -72,10 +87,94 @@ export default function TournamentsPage() {
   const [formData, setFormData] = useState(DEFAULT_TOURNAMENT);
   const [loading, setLoading] = useState(false);
   const [filterSeasonId, setFilterSeasonId] = useState<string>('all');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [pendingBlindStructure, setPendingBlindStructure] = useState<any[] | null>(null);
+  const [pendingChipConfig, setPendingChipConfig] = useState<any | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<PlayerRole | null>(null);
 
   useEffect(() => {
     fetchTournaments();
     fetchSeasons();
+    loadCurrentUser();
+  }, []);
+
+  const loadCurrentUser = async () => {
+    try {
+      // Lire le cookie player-id
+      const cookies = document.cookie;
+      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+
+      if (playerIdMatch) {
+        const playerId = playerIdMatch[1];
+        const response = await fetch(`/api/players/${playerId}`);
+        if (response.ok) {
+          const player = await response.json();
+          setCurrentUserRole(player.role);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error);
+    }
+  };
+
+  const canCreateTournament = () => {
+    return currentUserRole === 'TOURNAMENT_DIRECTOR' || currentUserRole === 'ADMIN';
+  };
+
+  const canEditTournament = (tournament: Tournament) => {
+    if (currentUserRole === 'ADMIN') return true;
+    if (currentUserRole === 'TOURNAMENT_DIRECTOR') {
+      // TD can only edit their own tournaments
+      return (tournament as any).createdById === getCurrentUserId();
+    }
+    return false;
+  };
+
+  const canDeleteTournament = (tournament: Tournament) => {
+    if (currentUserRole === 'ADMIN') return true;
+    if (currentUserRole === 'TOURNAMENT_DIRECTOR') {
+      // TD can only delete their own tournaments
+      return (tournament as any).createdById === getCurrentUserId();
+    }
+    return false;
+  };
+
+  const getCurrentUserId = () => {
+    const cookies = document.cookie;
+    const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+    return playerIdMatch ? playerIdMatch[1] : null;
+  };
+
+  // Vérifier si on vient de l'assistant jetons
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('create') === 'true') {
+      const storedData = sessionStorage.getItem('recommendedTournament');
+      if (storedData) {
+        try {
+          const data = JSON.parse(storedData);
+          setFormData(prev => ({
+            ...prev,
+            startingChips: data.startingChips,
+            totalPlayers: data.totalPlayers,
+            targetDuration: data.targetDuration,
+          }));
+          // Stocker la structure de blinds pour l'utiliser après la création
+          if (data.blindStructure) {
+            setPendingBlindStructure(data.blindStructure);
+          }
+          // Stocker la configuration des jetons pour l'utiliser après la création
+          if (data.chipConfig) {
+            setPendingChipConfig(data.chipConfig);
+          }
+          setIsDialogOpen(true);
+          // Nettoyer après utilisation
+          sessionStorage.removeItem('recommendedTournament');
+        } catch (error) {
+          console.error('Error parsing recommended tournament data:', error);
+        }
+      }
+    }
   }, []);
 
   const fetchTournaments = async () => {
@@ -130,6 +229,48 @@ export default function TournamentsPage() {
       });
 
       if (response.ok) {
+        const createdTournament = await response.json();
+
+        // Si on a une structure de blinds en attente, la sauvegarder
+        if (!editingTournament && pendingBlindStructure && pendingBlindStructure.length > 0) {
+          try {
+            await fetch(`/api/tournaments/${createdTournament.id}/blinds`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                levels: pendingBlindStructure,
+              }),
+            });
+            setPendingBlindStructure(null);
+          } catch (blindError) {
+            console.error('Error saving blind structure:', blindError);
+            // Ne pas bloquer la création du tournoi si la structure de blinds échoue
+          }
+        }
+
+        // Si on a une configuration de jetons en attente, la sauvegarder
+        if (!editingTournament && pendingChipConfig) {
+          try {
+            console.log('Saving chip config:', pendingChipConfig);
+            const chipConfigResponse = await fetch(`/api/tournaments/${createdTournament.id}/chip-config`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(pendingChipConfig),
+            });
+
+            if (chipConfigResponse.ok) {
+              console.log('Chip config saved successfully');
+            } else {
+              const error = await chipConfigResponse.json();
+              console.error('Error response from chip-config API:', error);
+            }
+            setPendingChipConfig(null);
+          } catch (chipConfigError) {
+            console.error('Error saving chip configuration:', chipConfigError);
+            // Ne pas bloquer la création du tournoi si la config des jetons échoue
+          }
+        }
+
         await fetchTournaments();
         setIsDialogOpen(false);
         resetForm();
@@ -183,6 +324,8 @@ export default function TournamentsPage() {
 
   const resetForm = () => {
     setEditingTournament(null);
+    setPendingBlindStructure(null);
+    setPendingChipConfig(null);
     setFormData({
       ...DEFAULT_TOURNAMENT,
       seasonId: seasons[0]?.id || '',
@@ -202,16 +345,26 @@ export default function TournamentsPage() {
             Gérez les tournois de poker
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Nouveau tournoi
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-3">
+          <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
+            <ToggleGroupItem value="grid" aria-label="Vue grille">
+              <Grid3x3 className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem value="list" aria-label="Vue liste">
+              <List className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
+          {canCreateTournament() && (
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              setIsDialogOpen(open);
+              if (!open) resetForm();
+            }}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Nouveau tournoi
+                </Button>
+              </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -389,7 +542,9 @@ export default function TournamentsPage() {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Filter by season */}
@@ -412,8 +567,11 @@ export default function TournamentsPage() {
       {/* Tournaments list */}
       <div className="bg-muted/20 rounded-lg p-6 border-2 border-border">
         <h2 className="text-2xl font-bold mb-6">Liste des Tournois ({filteredTournaments.length})</h2>
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredTournaments.map((tournament) => {
+
+        {/* Vue Grille */}
+        {viewMode === 'grid' && (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredTournaments.map((tournament) => {
           const statusConfig = STATUS_CONFIG[tournament.status];
           return (
             <Card key={tournament.id} className="p-6">
@@ -422,7 +580,7 @@ export default function TournamentsPage() {
                   <div className="space-y-1">
                     <h3 className="font-semibold">{tournament.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {tournament.season.name} ({tournament.season.year})
+                      {tournament.season?.name} ({tournament.season?.year})
                     </p>
                   </div>
                   <Badge variant={statusConfig.variant}>
@@ -450,6 +608,83 @@ export default function TournamentsPage() {
                   </div>
                 </div>
 
+                {/* Podium pour tournois terminés */}
+                {tournament.status === 'FINISHED' && tournament.podium && tournament.podium.length >= 3 && (
+                  <div className="border-t pt-3">
+                    <div className="flex items-center gap-1 mb-2">
+                      <Trophy className="h-3 w-3 text-yellow-500" />
+                      <span className="text-xs font-semibold text-muted-foreground">Podium</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {/* 1ère place */}
+                      <div className="flex-1 flex flex-col items-center p-2 rounded-md border-2 border-yellow-500 bg-yellow-500/5">
+                        {tournament.podium[0].player.avatar ? (
+                          <Image
+                            src={tournament.podium[0].player.avatar}
+                            alt={tournament.podium[0].player.nickname}
+                            width={40}
+                            height={40}
+                            className="rounded-full border-2 border-yellow-500 mb-1"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-yellow-500 mb-1">
+                            <Users className="h-5 w-5 text-muted-foreground" />
+                          </div>
+                        )}
+                        <Trophy className="h-3 w-3 text-yellow-500 mb-1" />
+                        <span className="text-xs font-bold">#1</span>
+                        <span className="text-xs text-center line-clamp-1" title={tournament.podium[0].player.nickname}>
+                          {tournament.podium[0].player.nickname}
+                        </span>
+                      </div>
+
+                      {/* 2e place */}
+                      <div className="flex-1 flex flex-col items-center p-2 rounded-md border border-gray-400 bg-gray-400/5">
+                        {tournament.podium[1].player.avatar ? (
+                          <Image
+                            src={tournament.podium[1].player.avatar}
+                            alt={tournament.podium[1].player.nickname}
+                            width={32}
+                            height={32}
+                            className="rounded-full border border-gray-400 mb-1"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-gray-400 mb-1">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <Trophy className="h-3 w-3 text-gray-400 mb-1" />
+                        <span className="text-xs font-bold">#2</span>
+                        <span className="text-xs text-center line-clamp-1" title={tournament.podium[1].player.nickname}>
+                          {tournament.podium[1].player.nickname}
+                        </span>
+                      </div>
+
+                      {/* 3e place */}
+                      <div className="flex-1 flex flex-col items-center p-2 rounded-md border border-amber-700 bg-amber-700/5">
+                        {tournament.podium[2].player.avatar ? (
+                          <Image
+                            src={tournament.podium[2].player.avatar}
+                            alt={tournament.podium[2].player.nickname}
+                            width={32}
+                            height={32}
+                            className="rounded-full border border-amber-700 mb-1"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-amber-700 mb-1">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <Trophy className="h-3 w-3 text-amber-700 mb-1" />
+                        <span className="text-xs font-bold">#3</span>
+                        <span className="text-xs text-center line-clamp-1" title={tournament.podium[2].player.nickname}>
+                          {tournament.podium[2].player.nickname}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex gap-2 pt-2">
                   <Button
                     variant="default"
@@ -460,21 +695,25 @@ export default function TournamentsPage() {
                     <Eye className="mr-1 h-3 w-3" />
                     Détails
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleEdit(tournament)}
-                  >
-                    <Edit2 className="h-3 w-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDelete(tournament.id)}
-                    disabled={tournament.status === 'FINISHED' || tournament._count.tournamentPlayers > 0}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  {canEditTournament(tournament) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(tournament)}
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                  )}
+                  {canDeleteTournament(tournament) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDelete(tournament.id)}
+                      disabled={tournament.status === 'FINISHED' || tournament._count.tournamentPlayers > 0}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               </div>
             </Card>
@@ -493,7 +732,173 @@ export default function TournamentsPage() {
             </Card>
           </div>
         )}
-        </div>
+          </div>
+        )}
+
+        {/* Vue Liste */}
+        {viewMode === 'list' && (
+          <div className="space-y-2">
+            {filteredTournaments.map((tournament) => {
+              const statusConfig = STATUS_CONFIG[tournament.status];
+              return (
+                <div
+                  key={tournament.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                >
+                  <div className="flex items-center gap-6 flex-1">
+                    <div className="flex flex-col gap-1 min-w-[180px]">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-lg">{tournament.name}</h3>
+                        <Badge variant={statusConfig.variant} className="text-xs">
+                          {statusConfig.label}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {tournament.season?.name} ({tournament.season?.year})
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-6 flex-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span>
+                          {format(new Date(tournament.date), "d MMMM yyyy 'à' HH'h'mm", { locale: fr })}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span>
+                          {tournament._count.tournamentPlayers} joueur{tournament._count.tournamentPlayers > 1 ? 's' : ''}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm">
+                        <Trophy className="h-4 w-4 text-muted-foreground" />
+                        <span>{tournament.buyInAmount}€ • {tournament.startingChips.toLocaleString()} jetons</span>
+                      </div>
+                    </div>
+
+                    {/* Podium pour tournois terminés (vue liste) */}
+                    {tournament.status === 'FINISHED' && tournament.podium && tournament.podium.length >= 3 && (
+                      <div className="flex items-center gap-3 pl-6 border-l">
+                        <div className="flex items-center gap-1">
+                          <Trophy className="h-3 w-3 text-yellow-500" />
+                          <span className="text-xs font-semibold text-muted-foreground">Podium:</span>
+                        </div>
+                        <div className="flex gap-2">
+                          {/* 1ère place */}
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-md border-2 border-yellow-500 bg-yellow-500/5">
+                            {tournament.podium[0].player.avatar ? (
+                              <Image
+                                src={tournament.podium[0].player.avatar}
+                                alt={tournament.podium[0].player.nickname}
+                                width={24}
+                                height={24}
+                                className="rounded-full border border-yellow-500"
+                              />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center border border-yellow-500">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            )}
+                            <span className="text-xs font-bold text-yellow-600">1st</span>
+                            <span className="text-xs max-w-[80px] truncate" title={tournament.podium[0].player.nickname}>
+                              {tournament.podium[0].player.nickname}
+                            </span>
+                          </div>
+
+                          {/* 2e place */}
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-gray-400 bg-gray-400/5">
+                            {tournament.podium[1].player.avatar ? (
+                              <Image
+                                src={tournament.podium[1].player.avatar}
+                                alt={tournament.podium[1].player.nickname}
+                                width={24}
+                                height={24}
+                                className="rounded-full border border-gray-400"
+                              />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center border border-gray-400">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            )}
+                            <span className="text-xs font-bold text-gray-500">2nd</span>
+                            <span className="text-xs max-w-[80px] truncate" title={tournament.podium[1].player.nickname}>
+                              {tournament.podium[1].player.nickname}
+                            </span>
+                          </div>
+
+                          {/* 3e place */}
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-amber-700 bg-amber-700/5">
+                            {tournament.podium[2].player.avatar ? (
+                              <Image
+                                src={tournament.podium[2].player.avatar}
+                                alt={tournament.podium[2].player.nickname}
+                                width={24}
+                                height={24}
+                                className="rounded-full border border-amber-700"
+                              />
+                            ) : (
+                              <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center border border-amber-700">
+                                <Users className="h-3 w-3 text-muted-foreground" />
+                              </div>
+                            )}
+                            <span className="text-xs font-bold text-amber-700">3rd</span>
+                            <span className="text-xs max-w-[80px] truncate" title={tournament.podium[2].player.nickname}>
+                              {tournament.podium[2].player.nickname}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/tournaments/${tournament.id}`)}
+                    >
+                      <Eye className="mr-1 h-3 w-3" />
+                      Détails
+                    </Button>
+                    {canEditTournament(tournament) && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleEdit(tournament)}
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {canDeleteTournament(tournament) && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleDelete(tournament.id)}
+                        disabled={tournament.status === 'FINISHED' || tournament._count.tournamentPlayers > 0}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {filteredTournaments.length === 0 && (
+              <Card className="p-12">
+                <div className="text-center text-muted-foreground">
+                  <Trophy className="mx-auto h-12 w-12 mb-4 opacity-50" />
+                  <p className="text-lg font-semibold">Aucun tournoi trouvé</p>
+                  <p className="text-sm mt-2">
+                    Créez votre premier tournoi pour commencer
+                  </p>
+                </div>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

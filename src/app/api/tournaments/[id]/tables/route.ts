@@ -166,7 +166,13 @@ export async function POST(
     const shuffledPlayers = [...tournamentPlayers].sort(() => Math.random() - 0.5);
 
     // Créer les assignations
-    const assignments = [];
+    const assignments: Array<{
+      tournamentId: string;
+      playerId: string;
+      tableNumber: number;
+      seatNumber: number;
+      isActive: boolean;
+    }> = [];
     let playerIndex = 0;
 
     for (let tableNumber = 1; tableNumber <= numberOfTables; tableNumber++) {
@@ -254,7 +260,7 @@ export async function POST(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

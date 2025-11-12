@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Trophy, TrendingUp, TrendingDown, Minus, Medal } from 'lucide-react';
+import { ArrowLeft, Trophy, TrendingUp, TrendingDown, Minus, Medal, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -204,6 +204,14 @@ export default function SeasonLeaderboardPage({
             </p>
           </div>
         </div>
+        <Button
+          onClick={() => router.push(`/dashboard/seasons/${id}/exports`)}
+          variant="default"
+          size="lg"
+        >
+          <Download className="h-5 w-5 mr-2" />
+          Exports Visuels
+        </Button>
       </div>
 
       {/* Leaderboard */}

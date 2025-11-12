@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { getCurrentPlayer } from '@/lib/auth-helpers';
+import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 const seasonSchema = z.object({
   name: z.string().min(1, 'Le nom est requis'),
@@ -72,6 +74,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Vérifier les permissions - seuls les ADMIN peuvent modifier des saisons
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer || !hasPermission(currentPlayer.role, PERMISSIONS.EDIT_SEASON)) {
+      return NextResponse.json(
+        { error: 'Vous n\'avez pas la permission de modifier des saisons' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     const validatedData = seasonSchema.parse(body);
@@ -114,7 +126,7 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }
@@ -132,6 +144,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Vérifier les permissions - seuls les ADMIN peuvent supprimer des saisons
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer || !hasPermission(currentPlayer.role, PERMISSIONS.DELETE_SEASON)) {
+      return NextResponse.json(
+        { error: 'Vous n\'avez pas la permission de supprimer des saisons' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
 
     // Archive instead of delete

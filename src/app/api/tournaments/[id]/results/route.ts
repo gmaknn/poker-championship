@@ -22,6 +22,7 @@ export async function GET(
                 firstName: true,
                 lastName: true,
                 nickname: true,
+                avatar: true,
               },
             },
           },

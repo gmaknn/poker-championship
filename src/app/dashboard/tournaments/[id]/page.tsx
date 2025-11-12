@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import BlindStructureEditor from '@/components/BlindStructureEditor';
 import ChipManager from '@/components/ChipManager';
+import ChipConfigDisplay from '@/components/ChipConfigDisplay';
 import TournamentPlayersManager from '@/components/TournamentPlayersManager';
 import TournamentTimer from '@/components/TournamentTimer';
 import EliminationManager from '@/components/EliminationManager';
@@ -17,7 +18,7 @@ import TournamentResults from '@/components/TournamentResults';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
-type TournamentStatus = 'DRAFT' | 'PLANNED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
+type TournamentStatus = 'PLANNED' | 'REGISTRATION' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
 
 interface Tournament {
   id: string;
@@ -42,10 +43,10 @@ interface Tournament {
 }
 
 const STATUS_CONFIG = {
-  DRAFT: { label: 'Brouillon', variant: 'outline' as const },
   PLANNED: { label: 'Planifié', variant: 'default' as const },
+  REGISTRATION: { label: 'Inscriptions', variant: 'default' as const },
   IN_PROGRESS: { label: 'En cours', variant: 'default' as const },
-  COMPLETED: { label: 'Terminé', variant: 'secondary' as const },
+  FINISHED: { label: 'Terminé', variant: 'secondary' as const },
   CANCELLED: { label: 'Annulé', variant: 'destructive' as const },
 };
 
@@ -213,10 +214,16 @@ export default function TournamentDetailPage({
         </TabsContent>
 
         <TabsContent value="config" className="mt-6">
-          <ChipManager
-            tournamentId={tournament.id}
-            onUpdate={() => fetchTournament()}
-          />
+          <div className="space-y-6">
+            <ChipConfigDisplay
+              tournamentId={tournament.id}
+              onUpdate={() => fetchTournament()}
+            />
+            <ChipManager
+              tournamentId={tournament.id}
+              onUpdate={() => fetchTournament()}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="players" className="mt-6">

@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { getCurrentPlayer } from '@/lib/auth-helpers';
+import { canEditTournament, canDeleteTournament } from '@/lib/permissions';
 
 const updateTournamentSchema = z.object({
   name: z.string().min(1).optional(),
@@ -9,8 +11,8 @@ const updateTournamentSchema = z.object({
   buyIn: z.number().int().min(0).optional(),
   startingChips: z.number().int().min(1000).optional(),
   estimatedDuration: z.number().int().min(30).optional(),
-  maxPlayers: z.number().int().min(2).optional(),
-  status: z.enum(['DRAFT', 'PLANNED', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).optional(),
+  maxPlayers: z.number().int().optional(),
+  status: z.enum(['PLANNED', 'REGISTRATION', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
   prizePool: z.number().optional(),
@@ -83,15 +85,19 @@ export async function GET(
 
 // PATCH update tournament
 export async function PATCH(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // TODO: Add authentication check when NextAuth v5 is properly configured
-    // const session = await auth();
-    // if (!session) {
-    //   return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    // }
+    // Vérifier l'utilisateur actuel
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
 
     const { id } = await params;
     const body = await request.json();
@@ -106,6 +112,14 @@ export async function PATCH(
       return NextResponse.json(
         { error: 'Tournoi non trouvé' },
         { status: 404 }
+      );
+    }
+
+    // Vérifier les permissions
+    if (!canEditTournament(currentPlayer.role, existingTournament.createdById, currentPlayer.id)) {
+      return NextResponse.json(
+        { error: 'Vous n\'avez pas la permission de modifier ce tournoi' },
+        { status: 403 }
       );
     }
 
@@ -131,9 +145,20 @@ export async function PATCH(
       }
     }
 
+    // Extract seasonId and prepare data for Prisma
+    const { seasonId, ...updateData } = validatedData;
+    const prismaData = seasonId
+      ? {
+          ...updateData,
+          season: {
+            connect: { id: seasonId }
+          }
+        }
+      : updateData;
+
     const tournament = await prisma.tournament.update({
       where: { id },
-      data: validatedData,
+      data: prismaData,
       include: {
         season: {
           select: {
@@ -154,7 +179,7 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Données invalides', details: error.errors },
+        { error: 'Données invalides', details: error.issues },
         { status: 400 }
       );
     }
@@ -169,15 +194,19 @@ export async function PATCH(
 
 // DELETE tournament
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // TODO: Add authentication check when NextAuth v5 is properly configured
-    // const session = await auth();
-    // if (!session) {
-    //   return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    // }
+    // Vérifier l'utilisateur actuel
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
 
     const { id } = await params;
     const tournament = await prisma.tournament.findUnique({
@@ -195,6 +224,14 @@ export async function DELETE(
       return NextResponse.json(
         { error: 'Tournoi non trouvé' },
         { status: 404 }
+      );
+    }
+
+    // Vérifier les permissions
+    if (!canDeleteTournament(currentPlayer.role, tournament.createdById, currentPlayer.id)) {
+      return NextResponse.json(
+        { error: 'Vous n\'avez pas la permission de supprimer ce tournoi' },
+        { status: 403 }
       );
     }
 

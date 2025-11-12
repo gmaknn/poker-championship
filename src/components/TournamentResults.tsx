@@ -1,17 +1,20 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Calculator, Download, Image, FileText, Share2 } from 'lucide-react';
-import { exportTournamentResults } from '@/lib/exportUtils';
+import { Trophy, Calculator, Download, Image as ImageIcon, FileText, Share2, ExternalLink, Users, MessageCircle } from 'lucide-react';
+import { exportTournamentResults, exportToWhatsAppText, type TournamentResultsData } from '@/lib/exportUtils';
+import NextImage from 'next/image';
 
 type Player = {
   id: string;
   firstName: string;
   lastName: string;
   nickname: string;
+  avatar: string | null;
 };
 
 type TournamentPlayer = {
@@ -59,6 +62,7 @@ type Props = {
 };
 
 export default function TournamentResults({ tournamentId, onUpdate }: Props) {
+  const router = useRouter();
   const [resultsData, setResultsData] = useState<ResultsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -143,6 +147,38 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
     }
   };
 
+  const handleExportWhatsAppText = () => {
+    if (!resultsData) return;
+
+    const { tournament, season, results } = resultsData;
+
+    const exportData: TournamentResultsData = {
+      tournamentName: tournament.name || 'Tournoi',
+      date: new Date(tournament.date),
+      season: season ? {
+        name: season.name,
+        year: season.year,
+      } : undefined,
+      players: results.map((r) => ({
+        finalRank: r.finalRank,
+        player: {
+          nickname: r.player.nickname,
+          firstName: r.player.firstName,
+          lastName: r.player.lastName,
+        },
+        totalPoints: r.totalPoints,
+        eliminationPoints: r.eliminationPoints,
+        bonusPoints: r.bonusPoints,
+        penaltyPoints: r.penaltyPoints,
+        prizeAmount: r.prizeAmount ?? undefined,
+      })),
+      buyIn: tournament.buyInAmount ?? undefined,
+      prizePool: tournament.prizePool ?? undefined,
+    };
+
+    exportToWhatsAppText(exportData);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -202,12 +238,23 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
               <Button
                 variant="outline"
                 size="sm"
+                onClick={handleExportWhatsAppText}
+                disabled={isExporting}
+                title="Copier le texte formaté pour WhatsApp"
+              >
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Texte WhatsApp
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => handleExport('whatsapp')}
                 disabled={isExporting}
-                title="Export optimisé WhatsApp"
+                title="Export image optimisée WhatsApp"
               >
                 <Share2 className="mr-2 h-4 w-4" />
-                WhatsApp
+                Image WhatsApp
               </Button>
 
               <Button
@@ -217,7 +264,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                 disabled={isExporting}
                 title="Export PNG"
               >
-                <Image className="mr-2 h-4 w-4" />
+                <ImageIcon className="mr-2 h-4 w-4" />
                 PNG
               </Button>
 
@@ -235,6 +282,152 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
           )}
         </div>
       </div>
+
+      {/* Podium TOP 3 */}
+      {isCompleted && rankedPlayers.length >= 3 && (
+        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                  <Trophy className="h-6 w-6 text-yellow-500" />
+                  Podium
+                </CardTitle>
+                <CardDescription>Les 3 premiers du tournoi</CardDescription>
+              </div>
+              {season && (
+                <Button
+                  variant="outline"
+                  onClick={() => router.push('/dashboard/leaderboard')}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Voir le classement général
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              {/* 2e place - à gauche */}
+              {rankedPlayers[1] && (
+                <div className="flex flex-col items-center p-6 rounded-lg border-2 border-gray-400 bg-gray-400/5">
+                  <div className="mb-3">
+                    {rankedPlayers[1].player.avatar ? (
+                      <NextImage
+                        src={rankedPlayers[1].player.avatar}
+                        alt={rankedPlayers[1].player.nickname}
+                        width={80}
+                        height={80}
+                        className="rounded-full border-4 border-gray-400"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-4 border-gray-400">
+                        <Users className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <Trophy className="h-8 w-8 text-gray-400 mb-2" />
+                  <div className="text-3xl font-bold mb-1">#2</div>
+                  <div className="font-semibold text-center">
+                    {rankedPlayers[1].player.firstName} {rankedPlayers[1].player.lastName}
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-3">
+                    @{rankedPlayers[1].player.nickname}
+                  </div>
+                  {season && (
+                    <div className="text-2xl font-bold text-gray-400">
+                      {rankedPlayers[1].totalPoints} pts
+                    </div>
+                  )}
+                  {rankedPlayers[1].prizeAmount && (
+                    <div className="text-lg font-semibold text-green-600 mt-1">
+                      {rankedPlayers[1].prizeAmount}€
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 1ère place - au centre, légèrement plus grande */}
+              {rankedPlayers[0] && (
+                <div className="flex flex-col items-center p-6 rounded-lg border-4 border-yellow-500 bg-yellow-500/10 shadow-lg md:scale-110 md:-mt-4 md:z-10">
+                  <div className="mb-3">
+                    {rankedPlayers[0].player.avatar ? (
+                      <NextImage
+                        src={rankedPlayers[0].player.avatar}
+                        alt={rankedPlayers[0].player.nickname}
+                        width={96}
+                        height={96}
+                        className="rounded-full border-4 border-yellow-500"
+                      />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center border-4 border-yellow-500">
+                        <Users className="h-12 w-12 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <Trophy className="h-10 w-10 text-yellow-500 mb-2" />
+                  <div className="text-4xl font-bold mb-1">#1</div>
+                  <div className="font-bold text-lg text-center">
+                    {rankedPlayers[0].player.firstName} {rankedPlayers[0].player.lastName}
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-3">
+                    @{rankedPlayers[0].player.nickname}
+                  </div>
+                  {season && (
+                    <div className="text-3xl font-bold text-yellow-500">
+                      {rankedPlayers[0].totalPoints} pts
+                    </div>
+                  )}
+                  {rankedPlayers[0].prizeAmount && (
+                    <div className="text-xl font-bold text-green-600 mt-1">
+                      {rankedPlayers[0].prizeAmount}€
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 3e place - à droite */}
+              {rankedPlayers[2] && (
+                <div className="flex flex-col items-center p-6 rounded-lg border-2 border-orange-600 bg-orange-600/5">
+                  <div className="mb-3">
+                    {rankedPlayers[2].player.avatar ? (
+                      <NextImage
+                        src={rankedPlayers[2].player.avatar}
+                        alt={rankedPlayers[2].player.nickname}
+                        width={80}
+                        height={80}
+                        className="rounded-full border-4 border-orange-600"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-4 border-orange-600">
+                        <Users className="h-10 w-10 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <Trophy className="h-8 w-8 text-orange-600 mb-2" />
+                  <div className="text-3xl font-bold mb-1">#3</div>
+                  <div className="font-semibold text-center">
+                    {rankedPlayers[2].player.firstName} {rankedPlayers[2].player.lastName}
+                  </div>
+                  <div className="text-sm text-muted-foreground mb-3">
+                    @{rankedPlayers[2].player.nickname}
+                  </div>
+                  {season && (
+                    <div className="text-2xl font-bold text-orange-600">
+                      {rankedPlayers[2].totalPoints} pts
+                    </div>
+                  )}
+                  {rankedPlayers[2].prizeAmount && (
+                    <div className="text-lg font-semibold text-green-600 mt-1">
+                      {rankedPlayers[2].prizeAmount}€
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Zone exportable */}
       <div ref={exportRef} className="space-y-6">

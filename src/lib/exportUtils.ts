@@ -212,10 +212,334 @@ export const exportToPDF = async ({
 };
 
 /**
+ * Tournament results data for text export
+ */
+export interface TournamentResultsData {
+  tournamentName: string;
+  date: Date;
+  season?: {
+    name: string;
+    year: number;
+  };
+  players: Array<{
+    finalRank: number | null;
+    player: {
+      nickname: string;
+      firstName?: string;
+      lastName?: string;
+    };
+    totalPoints: number;
+    eliminationPoints: number;
+    bonusPoints: number;
+    penaltyPoints: number;
+    prizeAmount?: number;
+  }>;
+  buyIn?: number;
+  prizePool?: number;
+}
+
+/**
+ * Export tournament results as formatted text for WhatsApp
+ * Creates a nicely formatted text that can be copy-pasted
+ */
+export const exportToWhatsAppText = (data: TournamentResultsData): void => {
+  const { tournamentName, date, season, players, buyIn, prizePool } = data;
+
+  // Sort players by rank
+  const rankedPlayers = players
+    .filter((p) => p.finalRank !== null)
+    .sort((a, b) => (a.finalRank || 0) - (b.finalRank || 0));
+
+  // Build formatted text
+  let text = `🎰 *${tournamentName}*\n`;
+  text += `📅 ${new Date(date).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })}\n`;
+
+  if (season) {
+    text += `🏆 ${season.name} (${season.year})\n`;
+  }
+
+  text += '\n';
+
+  if (buyIn && prizePool) {
+    text += `💰 Buy-in: ${buyIn}€ | Prize Pool: ${prizePool}€\n`;
+    text += `👥 Joueurs: ${rankedPlayers.length}\n\n`;
+  }
+
+  // Podium
+  if (rankedPlayers.length >= 3) {
+    text += '🏅 *PODIUM*\n';
+    const medals = ['🥇', '🥈', '🥉'];
+    for (let i = 0; i < Math.min(3, rankedPlayers.length); i++) {
+      const p = rankedPlayers[i];
+      text += `${medals[i]} *${p.player.nickname}* - ${p.totalPoints} pts`;
+      if (p.prizeAmount) {
+        text += ` (${p.prizeAmount}€)`;
+      }
+      text += '\n';
+    }
+    text += '\n';
+  }
+
+  // Full rankings
+  text += '📊 *CLASSEMENT COMPLET*\n';
+  rankedPlayers.forEach((p) => {
+    const rank = p.finalRank || 0;
+    text += `${rank}. ${p.player.nickname} - ${p.totalPoints} pts`;
+
+    // Details
+    const details = [];
+    if (p.eliminationPoints > 0) details.push(`${p.eliminationPoints} élim`);
+    if (p.bonusPoints > 0) details.push(`+${p.bonusPoints} bonus`);
+    if (p.penaltyPoints < 0) details.push(`${p.penaltyPoints} pénalité`);
+
+    if (details.length > 0) {
+      text += ` (${details.join(', ')})`;
+    }
+    text += '\n';
+  });
+
+  text += '\n_Généré par Poker Championship Manager_';
+
+  // Copy to clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        alert('✅ Texte copié dans le presse-papiers!\nVous pouvez maintenant le coller dans WhatsApp.');
+      })
+      .catch((error) => {
+        console.error('Error copying to clipboard:', error);
+        // Fallback: open dialog with text
+        showTextDialog(text);
+      });
+  } else {
+    // Fallback for browsers without clipboard API
+    showTextDialog(text);
+  }
+};
+
+/**
+ * Show text in a dialog for manual copy
+ */
+const showTextDialog = (text: string) => {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '50%';
+  textarea.style.top = '50%';
+  textarea.style.transform = 'translate(-50%, -50%)';
+  textarea.style.width = '80%';
+  textarea.style.height = '80%';
+  textarea.style.padding = '20px';
+  textarea.style.fontSize = '14px';
+  textarea.style.fontFamily = 'monospace';
+  textarea.style.border = '2px solid #333';
+  textarea.style.borderRadius = '8px';
+  textarea.style.zIndex = '9999';
+  textarea.style.backgroundColor = '#fff';
+
+  document.body.appendChild(textarea);
+  textarea.select();
+
+  // Add close button
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕ Fermer';
+  closeBtn.style.position = 'fixed';
+  closeBtn.style.top = 'calc(50% - 40% - 30px)';
+  closeBtn.style.right = 'calc(50% - 40%)';
+  closeBtn.style.padding = '8px 16px';
+  closeBtn.style.backgroundColor = '#333';
+  closeBtn.style.color = '#fff';
+  closeBtn.style.border = 'none';
+  closeBtn.style.borderRadius = '4px';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.style.zIndex = '10000';
+
+  closeBtn.onclick = () => {
+    document.body.removeChild(textarea);
+    document.body.removeChild(closeBtn);
+  };
+
+  document.body.appendChild(closeBtn);
+
+  alert('📋 Sélectionnez le texte et copiez-le (Ctrl+C ou Cmd+C)');
+};
+
+/**
+ * Blind structure data for text export
+ */
+export interface BlindStructureData {
+  tournamentName: string;
+  date?: Date;
+  startingChips: number;
+  levels: Array<{
+    level: number;
+    smallBlind: number;
+    bigBlind: number;
+    ante: number;
+    duration: number;
+  }>;
+  totalDuration?: number;
+}
+
+/**
+ * Export blind structure as formatted text for WhatsApp
+ * Creates a nicely formatted text that can be copy-pasted
+ */
+export const exportBlindStructureText = (data: BlindStructureData): void => {
+  const { tournamentName, date, startingChips, levels, totalDuration } = data;
+
+  let text = `🎰 *${tournamentName}*\n`;
+  text += `📊 *STRUCTURE DES BLINDES*\n\n`;
+
+  if (date) {
+    text += `📅 ${new Date(date).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })}\n`;
+  }
+
+  text += `💰 Stack de départ: ${startingChips.toLocaleString('fr-FR')} jetons\n`;
+
+  if (totalDuration) {
+    const hours = Math.floor(totalDuration / 60);
+    const minutes = totalDuration % 60;
+    text += `⏱️ Durée totale: ${hours}h${minutes.toString().padStart(2, '0')}\n`;
+  }
+
+  text += `\n`;
+
+  // Levels table
+  text += `*Niveau | SB/BB | Ante | Durée*\n`;
+  text += `${'─'.repeat(40)}\n`;
+
+  levels.forEach((level) => {
+    const hasAnte = level.ante > 0;
+    const anteStr = hasAnte ? ` | ${level.ante}` : ' | -';
+
+    text += `${level.level.toString().padStart(2, ' ')}. | `;
+    text += `${level.smallBlind.toLocaleString('fr-FR')}/${level.bigBlind.toLocaleString('fr-FR')}`;
+    text += anteStr;
+    text += ` | ${level.duration}min\n`;
+
+    // Add break indicator after every 4 levels (common practice)
+    if (level.level % 4 === 0 && level.level < levels.length) {
+      text += `    ☕ *PAUSE*\n`;
+    }
+  });
+
+  text += '\n_Généré par Poker Championship Manager_';
+
+  // Copy to clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        alert('✅ Structure de blindes copiée!\nVous pouvez maintenant la coller dans WhatsApp.');
+      })
+      .catch((error) => {
+        console.error('Error copying to clipboard:', error);
+        showTextDialog(text);
+      });
+  } else {
+    showTextDialog(text);
+  }
+};
+
+/**
+ * Season leaderboard data for text export
+ */
+export interface SeasonLeaderboardData {
+  seasonName: string;
+  year: number;
+  players: Array<{
+    rank: number;
+    player: {
+      nickname: string;
+      firstName?: string;
+      lastName?: string;
+    };
+    totalPoints: number;
+    tournamentsPlayed: number;
+    firstPlaces: number;
+    secondPlaces: number;
+    thirdPlaces: number;
+  }>;
+  totalTournaments: number;
+}
+
+/**
+ * Export season leaderboard as formatted text for WhatsApp
+ * Creates a nicely formatted text that can be copy-pasted
+ */
+export const exportSeasonLeaderboardText = (data: SeasonLeaderboardData): void => {
+  const { seasonName, year, players, totalTournaments } = data;
+
+  let text = `🏆 *CLASSEMENT ${seasonName.toUpperCase()}*\n`;
+  text += `📅 Année ${year}\n`;
+  text += `🎰 ${totalTournaments} tournoi${totalTournaments > 1 ? 's' : ''} joué${totalTournaments > 1 ? 's' : ''}\n\n`;
+
+  // Podium
+  if (players.length >= 3) {
+    text += '🏅 *PODIUM*\n';
+    const medals = ['🥇', '🥈', '🥉'];
+    for (let i = 0; i < Math.min(3, players.length); i++) {
+      const p = players[i];
+      text += `${medals[i]} *${p.player.nickname}* - ${p.totalPoints} pts`;
+      text += ` (${p.tournamentsPlayed} tournois)\n`;
+    }
+    text += '\n';
+  }
+
+  // Full leaderboard
+  text += '📊 *CLASSEMENT COMPLET*\n';
+  text += `*Rang | Joueur | Points | Tournois*\n`;
+  text += `${'─'.repeat(40)}\n`;
+
+  players.forEach((p) => {
+    text += `${p.rank.toString().padStart(2, ' ')}. ${p.player.nickname.padEnd(15, ' ')} `;
+    text += `${p.totalPoints.toString().padStart(5, ' ')} pts `;
+    text += `(${p.tournamentsPlayed})\n`;
+
+    // Add stats for top 10
+    if (p.rank <= 10 && (p.firstPlaces > 0 || p.secondPlaces > 0 || p.thirdPlaces > 0)) {
+      const stats = [];
+      if (p.firstPlaces > 0) stats.push(`${p.firstPlaces}🥇`);
+      if (p.secondPlaces > 0) stats.push(`${p.secondPlaces}🥈`);
+      if (p.thirdPlaces > 0) stats.push(`${p.thirdPlaces}🥉`);
+      if (stats.length > 0) {
+        text += `     ${stats.join(' ')}\n`;
+      }
+    }
+  });
+
+  text += '\n_Généré par Poker Championship Manager_';
+
+  // Copy to clipboard
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        alert('✅ Classement copié!\nVous pouvez maintenant le coller dans WhatsApp.');
+      })
+      .catch((error) => {
+        console.error('Error copying to clipboard:', error);
+        showTextDialog(text);
+      });
+  } else {
+    showTextDialog(text);
+  }
+};
+
+/**
  * Export tournament results with all formats
  * Provides multiple export options for sharing
  */
-export const exportTournamentResults = async (
+export const exportTournamentResults = (
   element: HTMLElement,
   tournamentName: string
 ) => {

@@ -13,6 +13,12 @@ import {
   Users,
   History,
   Edit,
+  Upload,
+  Loader2,
+  Zap,
+  DollarSign,
+  Percent,
+  ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,9 +43,14 @@ const AVATAR_SEEDS = [
   'River', 'Flop', 'Turn', 'Poker', 'Royal', 'Flush',
 ];
 
-const getAvatarUrl = (seed: string | null) => {
-  if (!seed) return null;
-  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(seed)}`;
+const getAvatarUrl = (avatar: string | null) => {
+  if (!avatar) return null;
+  // If avatar starts with /, it's an uploaded image
+  if (avatar.startsWith('/')) {
+    return avatar;
+  }
+  // Otherwise it's a DiceBear seed
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
 };
 
 export default function PlayerDashboardPage({
@@ -53,6 +64,8 @@ export default function PlayerDashboardPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboard();
@@ -102,6 +115,59 @@ export default function PlayerDashboardPage({
     }
   };
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    setUploadError(null);
+
+    try {
+      // Upload avatar image
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const uploadResponse = await fetch(`/api/players/${playerId}/avatar`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        const error = await uploadResponse.json();
+        throw new Error(error.error || 'Upload failed');
+      }
+
+      const { avatarUrl } = await uploadResponse.json();
+
+      // Update player with new avatar URL
+      const updateResponse = await fetch(`/api/players/${playerId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: data.player.firstName,
+          lastName: data.player.lastName,
+          nickname: data.player.nickname,
+          email: data.player.email || '',
+          avatar: avatarUrl,
+        }),
+      });
+
+      if (updateResponse.ok) {
+        setSelectedAvatar(avatarUrl);
+        setData((prev: any) => ({
+          ...prev,
+          player: { ...prev.player, avatar: avatarUrl },
+        }));
+        setIsAvatarDialogOpen(false);
+      }
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      setUploadError(error.message || 'Erreur lors de l\'upload');
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -118,10 +184,22 @@ export default function PlayerDashboardPage({
     );
   }
 
-  const { player, activeSeason, upcomingTournaments, lastTournament, myRanking, leaderboardTop10, tournamentHistory, funStats } = data;
+  const { player, activeSeason, upcomingTournaments, lastTournament, myRanking, leaderboardTop10, tournamentHistory, funStats, badges } = data;
 
   return (
     <div className="space-y-6 p-6">
+      {/* Bouton retour */}
+      <div className="mb-4">
+        <Button
+          variant="ghost"
+          onClick={() => router.push('/dashboard/players')}
+          className="gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Retour vers la liste des joueurs
+        </Button>
+      </div>
+
       {/* Header */}
       <div className="text-center space-y-4">
         <div className="relative inline-block">
@@ -146,31 +224,78 @@ export default function PlayerDashboardPage({
                 <Edit className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Choisir un avatar</DialogTitle>
                 <DialogDescription>
-                  Sélectionnez un avatar pour personnaliser votre profil
+                  Uploadez votre photo ou sélectionnez un avatar prédéfini
                 </DialogDescription>
               </DialogHeader>
-              <div className="grid grid-cols-6 gap-4 p-4">
-                {AVATAR_SEEDS.map((seed) => (
-                  <button
-                    key={seed}
-                    onClick={() => handleAvatarChange(seed)}
-                    className={`relative rounded-lg border-2 p-2 transition-all hover:scale-105 ${
-                      selectedAvatar === seed
-                        ? 'border-primary bg-primary/10'
-                        : 'border-transparent hover:border-primary/50'
-                    }`}
+
+              {/* Upload section */}
+              <div className="space-y-4 p-4 border-b">
+                <div className="flex items-center gap-4">
+                  <input
+                    type="file"
+                    id="avatar-upload"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleFileUpload}
+                    disabled={isUploadingAvatar}
+                    className="hidden"
+                  />
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                    disabled={isUploadingAvatar}
+                    className="w-full"
                   >
-                    <img
-                      src={getAvatarUrl(seed)!}
-                      alt={seed}
-                      className="w-full h-full rounded"
-                    />
-                  </button>
-                ))}
+                    {isUploadingAvatar ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Upload en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-5 w-5" />
+                        Uploader une photo personnalisée
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {uploadError && (
+                  <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-lg">
+                    {uploadError}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Formats acceptés: JPG, PNG, WebP • Maximum 5MB • L'image sera automatiquement redimensionnée
+                </p>
+              </div>
+
+              {/* Predefined avatars */}
+              <div className="p-4">
+                <h4 className="text-sm font-medium mb-4">Avatars prédéfinis</h4>
+                <div className="grid grid-cols-6 gap-4">
+                  {AVATAR_SEEDS.map((seed) => (
+                    <button
+                      key={seed}
+                      onClick={() => handleAvatarChange(seed)}
+                      disabled={isUploadingAvatar}
+                      className={`relative rounded-lg border-2 p-2 transition-all hover:scale-105 ${
+                        selectedAvatar === seed
+                          ? 'border-primary bg-primary/10'
+                          : 'border-transparent hover:border-primary/50'
+                      } ${isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <img
+                        src={getAvatarUrl(seed)!}
+                        alt={seed}
+                        className="w-full h-full rounded"
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -240,6 +365,44 @@ export default function PlayerDashboardPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Badges Section */}
+      {badges && badges.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5" />
+              Badges & Achievements
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {badges.map((badge: any) => (
+                <div
+                  key={badge.id}
+                  className={`flex items-center gap-3 p-4 border-2 rounded-lg ${
+                    badge.rarity === 'legendary'
+                      ? 'border-yellow-500 bg-yellow-500/5'
+                      : badge.rarity === 'epic'
+                      ? 'border-purple-500 bg-purple-500/5'
+                      : badge.rarity === 'gold'
+                      ? 'border-amber-500 bg-amber-500/5'
+                      : badge.rarity === 'rare'
+                      ? 'border-blue-500 bg-blue-500/5'
+                      : 'border-gray-500 bg-gray-500/5'
+                  }`}
+                >
+                  <div className="text-4xl">{badge.icon}</div>
+                  <div className="flex-1">
+                    <div className="font-bold text-sm">{badge.name}</div>
+                    <div className="text-xs text-muted-foreground">{badge.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Upcoming Tournaments */}
@@ -400,7 +563,7 @@ export default function PlayerDashboardPage({
           </CardHeader>
           <CardContent className="space-y-4">
             {funStats.nemesis && (
-              <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-red-500/5">
                 <div className="flex items-center gap-2">
                   <Skull className="h-5 w-5 text-red-500" />
                   <div>
@@ -416,7 +579,7 @@ export default function PlayerDashboardPage({
             )}
 
             {funStats.favoriteVictim && (
-              <div className="flex items-center justify-between p-3 border rounded-lg">
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-pink-500/5">
                 <div className="flex items-center gap-2">
                   <Heart className="h-5 w-5 text-pink-500" />
                   <div>
@@ -431,14 +594,85 @@ export default function PlayerDashboardPage({
               </div>
             )}
 
-            <div className="pt-2 space-y-2 text-sm text-muted-foreground">
-              <div className="flex justify-between">
-                <span>Total Recaves:</span>
-                <span className="font-medium">{funStats.totalRebuys}</span>
+            {funStats.deadliestTournament && (
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-orange-500/5">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-orange-500" />
+                  <div>
+                    <div className="text-sm font-medium">Tournoi le plus meurtrier</div>
+                    <div className="text-xs text-muted-foreground">
+                      {funStats.deadliestTournament.eliminationsCount} éliminations
+                    </div>
+                  </div>
+                </div>
+                <Badge variant="secondary">{new Date(funStats.deadliestTournament.tournamentDate).toLocaleDateString('fr-FR')}</Badge>
               </div>
-              <div className="flex justify-between">
-                <span>Leader Kills:</span>
-                <span className="font-medium">{funStats.totalLeaderKills}</span>
+            )}
+
+            {funStats.bestComeback && (
+              <div className="flex items-center justify-between p-3 border rounded-lg bg-green-500/5">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-green-500" />
+                  <div>
+                    <div className="text-sm font-medium">Meilleur Comeback</div>
+                    <div className="text-xs text-muted-foreground">
+                      Victoire avec {funStats.bestComeback.rebuysCount} recave{funStats.bestComeback.rebuysCount > 1 ? 's' : ''}
+                    </div>
+                  </div>
+                </div>
+                <Badge variant="secondary">{new Date(funStats.bestComeback.tournamentDate).toLocaleDateString('fr-FR')}</Badge>
+              </div>
+            )}
+
+            <div className="pt-2 space-y-2 text-sm">
+              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                <span className="flex items-center gap-2">
+                  <Percent className="h-4 w-4 text-muted-foreground" />
+                  <span>Taux de victoire</span>
+                </span>
+                <span className="font-bold text-primary">{funStats.winRate}%</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                <span className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-muted-foreground" />
+                  <span>ITM Rate (Top 3)</span>
+                </span>
+                <span className="font-bold text-primary">{funStats.itmRate}%</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                <span className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <span>Gains totaux</span>
+                </span>
+                <span className="font-bold text-green-600">{funStats.totalWinnings.toFixed(2)}€</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                <span className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-muted-foreground" />
+                  <span>Meilleure série (podiums)</span>
+                </span>
+                <span className="font-bold">{funStats.bestStreak}</span>
+              </div>
+              {funStats.bubbleBoyCount > 0 && (
+                <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                  <span className="flex items-center gap-2">
+                    <Skull className="h-4 w-4 text-muted-foreground" />
+                    <span>Bubble Boy (4ème place)</span>
+                  </span>
+                  <span className="font-bold text-yellow-600">{funStats.bubbleBoyCount}×</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                <span className="text-muted-foreground">Tournois sans recave</span>
+                <span className="font-bold">{funStats.ironManTournaments}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                <span className="text-muted-foreground">Total Recaves</span>
+                <span className="font-bold">{funStats.totalRebuys}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                <span className="text-muted-foreground">Leader Kills</span>
+                <span className="font-bold">{funStats.totalLeaderKills}</span>
               </div>
             </div>
           </CardContent>

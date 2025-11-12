@@ -96,7 +96,13 @@ export async function POST(
 
     // Algorithme de rééquilibrage équitable
     // On essaie de minimiser les déplacements tout en équilibrant les tables
-    const newAssignments = [];
+    const newAssignments: Array<{
+      tournamentId: string;
+      playerId: string;
+      tableNumber: number;
+      seatNumber: number;
+      isActive: boolean;
+    }> = [];
     let playerIndex = 0;
 
     // Mélanger légèrement les joueurs pour éviter de garder toujours la même distribution
@@ -202,7 +208,7 @@ export async function POST(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

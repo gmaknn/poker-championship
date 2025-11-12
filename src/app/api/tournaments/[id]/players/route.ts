@@ -81,7 +81,7 @@ export async function POST(
       );
     }
 
-    if (player.isArchived) {
+    if (player.status === 'ARCHIVED') {
       return NextResponse.json(
         { error: 'Cannot enroll archived player' },
         { status: 400 }
@@ -138,7 +138,7 @@ export async function POST(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Validation error', details: error.errors },
+        { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
     }

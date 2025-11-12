@@ -4,13 +4,25 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, TrendingUp, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Trophy, TrendingUp, Users, Calendar } from 'lucide-react';
+import Image from 'next/image';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 type Season = {
   id: string;
   name: string;
   year: number;
   status: string;
+  _count?: {
+    tournaments: number;
+  };
 };
 
 type LeaderboardEntry = {
@@ -20,6 +32,7 @@ type LeaderboardEntry = {
     firstName: string;
     lastName: string;
     nickname: string;
+    avatar: string | null;
   };
   totalPoints: number;
   tournamentsCount: number;
@@ -30,30 +43,45 @@ type LeaderboardEntry = {
 
 export default function LeaderboardPage() {
   const router = useRouter();
-  const [activeSeason, setActiveSeason] = useState<Season | null>(null);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<Season | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchActiveSeason();
+    fetchSeasons();
   }, []);
 
-  const fetchActiveSeason = async () => {
+  const fetchSeasons = async () => {
     try {
       const response = await fetch('/api/seasons');
       if (response.ok) {
-        const seasons = await response.json();
-        const active = seasons.find((s: Season) => s.status === 'ACTIVE');
-        if (active) {
-          setActiveSeason(active);
-          fetchLeaderboard(active.id);
+        const allSeasons = await response.json();
+        setSeasons(allSeasons);
+
+        // Sélectionner la saison active par défaut, sinon la plus récente
+        const active = allSeasons.find((s: Season) => s.status === 'ACTIVE');
+        const defaultSeason = active || allSeasons[0];
+
+        if (defaultSeason) {
+          setSelectedSeason(defaultSeason);
+          fetchLeaderboard(defaultSeason.id);
         } else {
           setIsLoading(false);
         }
       }
     } catch (error) {
-      console.error('Error fetching active season:', error);
+      console.error('Error fetching seasons:', error);
       setIsLoading(false);
+    }
+  };
+
+  const handleSeasonChange = (seasonId: string) => {
+    const season = seasons.find(s => s.id === seasonId);
+    if (season) {
+      setSelectedSeason(season);
+      setIsLoading(true);
+      fetchLeaderboard(seasonId);
     }
   };
 
@@ -71,28 +99,23 @@ export default function LeaderboardPage() {
     }
   };
 
-  if (isLoading) {
+  if (!selectedSeason && !isLoading) {
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Classement</h1>
-          <p className="text-muted-foreground">Chargement...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!activeSeason) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Classement</h1>
-          <p className="text-muted-foreground">Aucune saison active</p>
+          <p className="text-muted-foreground">Aucune saison disponible</p>
         </div>
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Créez une saison active pour voir le classement</p>
+            <p className="text-muted-foreground">Créez une saison pour voir le classement</p>
+            <Button
+              className="mt-4"
+              onClick={() => router.push('/dashboard/seasons')}
+            >
+              Gérer les saisons
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -101,18 +124,73 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Classement</h1>
-        <p className="text-muted-foreground">
-          {activeSeason.name} {activeSeason.year}
-        </p>
+      {/* Header avec filtre de saison */}
+      <div className="flex items-center justify-between bg-muted/30 rounded-lg p-6 border-2 border-border">
+        <div>
+          <h1 className="text-3xl font-bold">Classement</h1>
+          <div className="text-muted-foreground mt-1">
+            {selectedSeason && (
+              <>
+                {selectedSeason.name} {selectedSeason.year}
+                {selectedSeason.status === 'ACTIVE' && (
+                  <Badge variant="default" className="ml-2">En cours</Badge>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Calendar className="h-5 w-5 text-muted-foreground" />
+          <Select
+            value={selectedSeason?.id}
+            onValueChange={handleSeasonChange}
+          >
+            <SelectTrigger className="w-[400px]">
+              <SelectValue placeholder="Sélectionner une saison" />
+            </SelectTrigger>
+            <SelectContent className="w-[400px]">
+              {seasons.map((season) => (
+                <SelectItem key={season.id} value={season.id}>
+                  <div className="flex items-center justify-between w-full gap-3">
+                    <span className="font-medium">
+                      {season.name} {season.year}
+                    </span>
+                    {season.status === 'ACTIVE' && (
+                      <Badge variant="default" className="text-xs">Active</Badge>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {leaderboard.length === 0 ? (
+      {isLoading ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <p className="text-muted-foreground">Chargement du classement...</p>
+          </CardContent>
+        </Card>
+      ) : leaderboard.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Aucun résultat pour le moment</p>
+            <p className="text-muted-foreground text-lg font-medium">
+              Aucun tournoi terminé pour cette saison
+            </p>
+            <p className="text-muted-foreground text-sm mt-2">
+              Le classement sera disponible après le premier tournoi complété
+            </p>
+            {selectedSeason && (
+              <Button
+                className="mt-6"
+                variant="outline"
+                onClick={() => router.push('/dashboard/tournaments')}
+              >
+                Voir les tournois
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -135,11 +213,20 @@ export default function LeaderboardPage() {
                       />
                       <span className="text-3xl font-bold">#{entry.rank}</span>
                     </div>
+                    {entry.player.avatar && (
+                      <Image
+                        src={entry.player.avatar}
+                        alt={entry.player.nickname}
+                        width={64}
+                        height={64}
+                        className="rounded-full"
+                      />
+                    )}
                   </div>
                   <CardTitle className="text-xl">
                     {entry.player.firstName} {entry.player.lastName}
                   </CardTitle>
-                  <CardDescription>{entry.player.nickname}</CardDescription>
+                  <CardDescription>@{entry.player.nickname}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
@@ -184,11 +271,24 @@ export default function LeaderboardPage() {
                       <span className={`text-lg font-bold w-8 ${entry.rank <= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
                         #{entry.rank}
                       </span>
+                      {entry.player.avatar ? (
+                        <Image
+                          src={entry.player.avatar}
+                          alt={entry.player.nickname}
+                          width={40}
+                          height={40}
+                          className="rounded-full"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                          <Users className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
                       <div>
                         <div className="font-medium">
                           {entry.player.firstName} {entry.player.lastName}
                         </div>
-                        <div className="text-sm text-muted-foreground">{entry.player.nickname}</div>
+                        <div className="text-sm text-muted-foreground">@{entry.player.nickname}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-6">

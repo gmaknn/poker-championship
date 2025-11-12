@@ -58,6 +58,15 @@ export async function GET(
       }
     }
 
+    // Limiter le niveau au dernier niveau disponible
+    const maxLevel = tournament.blindLevels[tournament.blindLevels.length - 1]?.level || 1;
+    if (calculatedLevel > maxLevel) {
+      calculatedLevel = maxLevel;
+      // Si on dépasse, le temps dans le niveau est le temps total de ce dernier niveau
+      const lastLevel = tournament.blindLevels[tournament.blindLevels.length - 1];
+      timeIntoCurrentLevel = lastLevel ? lastLevel.duration * 60 : 0;
+    }
+
     // Trouver le niveau actuel dans la liste
     const currentLevelData = tournament.blindLevels.find(
       (bl) => bl.level === calculatedLevel

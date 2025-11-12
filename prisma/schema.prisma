@@ -35,6 +35,7 @@ model Player {
   email             String?
   avatar            String?
   status            PlayerStatus        @default(ACTIVE)
+  role              PlayerRole          @default(PLAYER)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -42,9 +43,11 @@ model Player {
   tournamentPlayers TournamentPlayer[]
   eliminations      Elimination[]       @relation("Eliminator")
   eliminatedBy      Elimination[]       @relation("Eliminated")
+  createdTournaments Tournament[]       @relation("TournamentCreator")
 
   @@index([status])
   @@index([nickname])
+  @@index([role])
 }
 
 model Season {
@@ -97,6 +100,9 @@ model Tournament {
   seasonId              String?
   season                Season?             @relation(fields: [seasonId], references: [id])
 
+  createdById           String?
+  createdBy             Player?             @relation("TournamentCreator", fields: [createdById], references: [id])
+
   name                  String?
   date                  DateTime
   type                  TournamentType      @default(CHAMPIONSHIP)
@@ -138,10 +144,12 @@ model Tournament {
   eliminations          Elimination[]
   tableAssignments      TableAssignment[]
   chipDenominations     ChipDenomination[]
+  chipConfig            TournamentChipConfig?
 
   @@index([seasonId])
   @@index([status])
   @@index([date])
+  @@index([createdById])
 }
 
 model TournamentPlayer {
@@ -261,6 +269,57 @@ model ChipInventory {
   updatedAt     DateTime    @updatedAt
 }
 
+// Mallette de jetons (peut combiner plusieurs mallettes pour un tournoi)
+model ChipSet {
+  id            String              @id @default(cuid())
+  name          String              // "Mallette Principale", "Mallette 2"
+  description   String?
+  isActive      Boolean             @default(true)
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  // Relations
+  denominations ChipSetDenomination[]
+
+  @@index([isActive])
+}
+
+// Dénominations de jetons dans une mallette
+model ChipSetDenomination {
+  id              String      @id @default(cuid())
+  chipSetId       String
+  chipSet         ChipSet     @relation(fields: [chipSetId], references: [id], onDelete: Cascade)
+
+  value           Int         // Valeur du jeton (25, 100, 500, etc.)
+  quantity        Int         // Quantité disponible de cette dénomination
+  color           String      // Couleur principale (#HEX ou nom)
+  colorSecondary  String?     // Couleur secondaire (optionnel)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([chipSetId])
+}
+
+// Configuration de jetons utilisée pour un tournoi spécifique
+model TournamentChipConfig {
+  id                String      @id @default(cuid())
+  tournamentId      String      @unique
+  tournament        Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  chipSetsUsed      Json        // Array des IDs de ChipSet utilisés
+  distribution      Json        // Distribution calculée par joueur
+  playersCount      Int         // Nombre de joueurs au moment du calcul
+  stackSize         Int         // Stack de départ
+  rebuysExpected    Int         @default(0) // Nombre de rebuys attendus
+
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([tournamentId])
+}
+
 model ChipDenomination {
   id              String      @id @default(cuid())
   tournamentId    String?
@@ -280,9 +339,42 @@ model ChipDenomination {
   @@index([isDefault])
 }
 
+model Settings {
+  id                    String      @id @default(cuid())
+
+  // Informations générales
+  championshipName      String      @default("POKER CHAMPIONSHIP")
+  clubName              String      @default("WPT VILLELAURE")
+  clubLogo              String?
+
+  // Paramètres par défaut des tournois
+  defaultBuyIn          Float       @default(10)
+  defaultStartingChips  Int         @default(5000)
+  defaultLevelDuration  Int         @default(12)
+  defaultTargetDuration Int         @default(180)
+
+  // Notifications
+  enableEmailNotifications Boolean  @default(false)
+  enableSmsNotifications   Boolean  @default(false)
+
+  // Affichage
+  theme                 String      @default("dark")
+  language              String      @default("fr")
+
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+}
+
 // ============================================
 // ENUMS
 // ============================================
+
+enum PlayerRole {
+  PLAYER
+  TOURNAMENT_DIRECTOR
+  ANIMATOR
+  ADMIN
+}
 
 enum PlayerStatus {
   ACTIVE

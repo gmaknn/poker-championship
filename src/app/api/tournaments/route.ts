@@ -1,6 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { getCurrentPlayer } from '@/lib/auth-helpers';
+import { canViewAllTournaments, canCreateTournament } from '@/lib/permissions';
 
 // Validation schema for tournament creation
 const tournamentSchema = z.object({
@@ -11,26 +13,49 @@ const tournamentSchema = z.object({
   startingChips: z.number().int().min(1000).default(5000),
   targetDuration: z.number().int().min(30).default(180),
   totalPlayers: z.number().int().min(2).optional(),
-  status: z.enum(['DRAFT', 'PLANNED', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).default('PLANNED'),
+  status: z.enum(['PLANNED', 'REGISTRATION', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).default('PLANNED'),
+  createdById: z.string().optional(), // ID du joueur créateur (Tournament Director ou Admin)
 });
 
 // GET all tournaments
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
-    // TODO: Add authentication check when NextAuth v5 is properly configured
-    // const session = await auth();
-    // if (!session) {
-    //   return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    // }
+    // Vérifier l'utilisateur actuel et ses permissions
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const seasonId = searchParams.get('seasonId');
+    const createdById = searchParams.get('createdById'); // Filter by creator
 
-    const where = seasonId ? { seasonId } : {};
+    const where: any = {};
+    if (seasonId) where.seasonId = seasonId;
+    if (createdById) where.createdById = createdById;
+
+    // Appliquer le filtrage selon les permissions
+    if (!canViewAllTournaments(currentPlayer.role)) {
+      // Si l'utilisateur ne peut pas voir tous les tournois,
+      // filtrer pour ne montrer que ses propres tournois
+      where.createdById = currentPlayer.id;
+    }
 
     const tournaments = await prisma.tournament.findMany({
       where,
       include: {
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            nickname: true,
+          },
+        },
         season: {
           select: {
             id: true,
@@ -43,13 +68,51 @@ export async function GET(request: Request) {
             tournamentPlayers: true,
           },
         },
+        tournamentPlayers: {
+          where: {
+            finalRank: {
+              in: [1, 2, 3],
+            },
+          },
+          include: {
+            player: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                nickname: true,
+                avatar: true,
+              },
+            },
+          },
+          orderBy: {
+            finalRank: 'asc',
+          },
+        },
       },
       orderBy: {
         date: 'desc',
       },
     });
 
-    return NextResponse.json(tournaments);
+    // Transform to include podium only for FINISHED tournaments
+    const tournamentsWithPodium = tournaments.map(tournament => {
+      const { tournamentPlayers, ...rest } = tournament;
+      if (tournament.status === 'FINISHED' && tournamentPlayers.length >= 3) {
+        return {
+          ...rest,
+          podium: tournamentPlayers.map(tp => ({
+            finalRank: tp.finalRank,
+            player: tp.player,
+            totalPoints: tp.totalPoints,
+            prizeAmount: tp.prizeAmount,
+          })),
+        };
+      }
+      return rest;
+    });
+
+    return NextResponse.json(tournamentsWithPodium);
   } catch (error) {
     console.error('Error fetching tournaments:', error);
     return NextResponse.json(
@@ -60,13 +123,24 @@ export async function GET(request: Request) {
 }
 
 // POST create new tournament
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
-    // TODO: Add authentication check when NextAuth v5 is properly configured
-    // const session = await auth();
-    // if (!session) {
-    //   return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    // }
+    // Vérifier l'utilisateur actuel et ses permissions
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
+
+    if (!canCreateTournament(currentPlayer.role)) {
+      return NextResponse.json(
+        { error: 'Vous n\'avez pas la permission de créer des tournois' },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
     const validatedData = tournamentSchema.parse(body);
@@ -92,17 +166,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Extract seasonId and prepare data for Prisma
-    const { seasonId, ...tournamentData } = validatedData;
+    // Extract seasonId, createdById and prepare data for Prisma
+    const { seasonId, createdById, ...tournamentData } = validatedData;
 
+    // Définir le créateur comme étant l'utilisateur actuel
     const tournament = await prisma.tournament.create({
       data: {
         ...tournamentData,
         season: {
           connect: { id: seasonId }
+        },
+        createdBy: {
+          connect: { id: currentPlayer.id }
         }
       },
       include: {
+        createdBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            nickname: true,
+          },
+        },
         season: {
           select: {
             id: true,
@@ -122,7 +208,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Données invalides', details: error.errors },
+        { error: 'Données invalides', details: error.issues },
         { status: 400 }
       );
     }
