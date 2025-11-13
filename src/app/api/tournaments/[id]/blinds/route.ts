@@ -46,8 +46,13 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
+    console.log('[Blinds API] Saving blinds for tournament:', id);
+
     const body = await request.json();
+    console.log('[Blinds API] Received data:', JSON.stringify(body, null, 2));
+
     const validatedData = blindStructureSchema.parse(body);
+    console.log('[Blinds API] Validation successful, levels count:', validatedData.levels.length);
 
     // Vérifier que le tournoi existe
     const tournament = await prisma.tournament.findUnique({
@@ -55,11 +60,14 @@ export async function POST(
     });
 
     if (!tournament) {
+      console.log('[Blinds API] Tournament not found:', id);
       return NextResponse.json(
         { error: 'Tournament not found' },
         { status: 404 }
       );
     }
+
+    console.log('[Blinds API] Tournament found, starting transaction');
 
     // Supprimer les niveaux existants et créer les nouveaux
     await prisma.$transaction(async (tx) => {
@@ -83,24 +91,28 @@ export async function POST(
       });
     });
 
+    console.log('[Blinds API] Transaction completed successfully');
+
     // Récupérer les niveaux créés
     const blindLevels = await prisma.blindLevel.findMany({
       where: { tournamentId: id },
       orderBy: { level: 'asc' },
     });
 
+    console.log('[Blinds API] Returning', blindLevels.length, 'blind levels');
     return NextResponse.json(blindLevels, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.error('[Blinds API] Validation error:', JSON.stringify(error.issues, null, 2));
       return NextResponse.json(
-        { error: 'Validation error', details: error.issues },
+        { error: 'Erreur de validation', details: error.issues },
         { status: 400 }
       );
     }
 
-    console.error('Error creating blind structure:', error);
+    console.error('[Blinds API] Error creating blind structure:', error);
     return NextResponse.json(
-      { error: 'Failed to create blind structure' },
+      { error: 'Échec de la création de la structure de blinds', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

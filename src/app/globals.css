@@ -47,31 +47,25 @@
 }
 
 .dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 47% 11%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 47% 11%;
-  --popover-foreground: 210 40% 98%;
+  --background: 220 18% 12%;
+  --foreground: 210 20% 98%;
+  --card: 220 15% 18%;
+  --card-foreground: 210 20% 98%;
+  --popover: 220 13% 10%;
+  --popover-foreground: 210 20% 98%;
   --primary: 142 71% 45%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 20%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 20%;
-  --muted-foreground: 215 20.2% 70%;
-  --accent: 217.2 32.6% 20%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 20%;
-  --input: 217.2 32.6% 20%;
+  --primary-foreground: 220 15% 8%;
+  --secondary: 220 13% 35%;
+  --secondary-foreground: 210 20% 98%;
+  --muted: 220 13% 12%;
+  --muted-foreground: 215 15% 70%;
+  --accent: 220 13% 30%;
+  --accent-foreground: 210 20% 98%;
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 210 20% 98%;
+  --border: 220 13% 30%;
+  --input: 220 13% 10%;
   --ring: 142 71% 45%;
-
-  /* Custom colors for outline buttons */
-  --outline-border: 142 71% 35%;
-  --outline-bg: 142 71% 12%;
-  --outline-hover-border: 142 71% 45%;
-  --outline-hover-bg: 142 71% 18%;
 }
 
 body {
@@ -89,14 +83,22 @@ body {
     font-weight: 600;
   }
 
-  /* Enhanced outline buttons in dark mode */
-  .dark button[class*="outline"] {
-    border-color: hsl(142 71% 35%) !important;
-    background-color: hsl(142 71% 12%) !important;
+  /* Amélioration de la visibilité en mode sombre */
+  .dark select {
+    background-color: hsl(var(--input));
+    border: 2px solid hsl(var(--border));
+    color: hsl(var(--foreground));
   }
 
-  .dark button[class*="outline"]:hover {
-    border-color: hsl(142 71% 45%) !important;
-    background-color: hsl(142 71% 18%) !important;
+  .dark select:focus {
+    border-color: hsl(var(--primary));
+    outline: none;
+    ring: 2px;
+    ring-color: hsl(var(--ring));
+  }
+
+  /* Amélioration des badges en mode sombre */
+  .dark .badge {
+    border-width: 1px;
   }
 }

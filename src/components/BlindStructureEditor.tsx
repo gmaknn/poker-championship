@@ -167,24 +167,49 @@ export default function BlindStructureEditor({
     setSuccessMessage('');
 
     try {
+      console.log('[Client] Saving blinds, levels count:', levels.length);
+
       const response = await fetch(`/api/tournaments/${tournamentId}/blinds`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ levels }),
       });
 
+      console.log('[Client] Response status:', response.status, response.statusText);
+
       if (response.ok) {
         setSuccessMessage('Structure sauvegardée avec succès !');
         setTimeout(() => setSuccessMessage(''), 3000);
         onSave?.();
       } else {
-        const data = await response.json();
-        setError(data.error || 'Erreur lors de la sauvegarde');
-        console.error('Error saving blinds:', data);
+        let errorMessage = 'Erreur lors de la sauvegarde';
+        try {
+          const data = await response.json();
+          console.error('[Client] Error response:', data);
+
+          if (data.error) {
+            errorMessage = data.error;
+
+            // Si il y a des détails de validation, les afficher
+            if (data.details && Array.isArray(data.details)) {
+              const detailMessages = data.details.map((d: any) =>
+                `${d.path?.join('.')} : ${d.message}`
+              ).join(', ');
+              errorMessage += ` (${detailMessages})`;
+            } else if (data.details) {
+              errorMessage += ` (${data.details})`;
+            }
+          }
+        } catch (parseError) {
+          console.error('[Client] Failed to parse error response:', parseError);
+          errorMessage = `Erreur HTTP ${response.status}: ${response.statusText}`;
+        }
+
+        setError(errorMessage);
       }
     } catch (error) {
-      console.error('Error saving blinds:', error);
-      setError('Erreur lors de la sauvegarde');
+      console.error('[Client] Network or unexpected error:', error);
+      setError(error instanceof Error ? error.message : 'Erreur de connexion');
     } finally {
       setIsSaving(false);
     }

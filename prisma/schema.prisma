@@ -248,10 +248,10 @@ model TournamentTemplate {
   name          String
   description   String?
 
-  targetDuration Int        // en minutes
-  startingChips  Int
-  levelDuration  Int        // en minutes
-  rebuyEndLevel  Int
+  targetDuration Int?       // en minutes (optionnel)
+  startingChips  Int?       // optionnel
+  levelDuration  Int?       // en minutes (optionnel)
+  rebuyEndLevel  Int?       // optionnel
 
   structure     Json        // Structure complète des blindes
 

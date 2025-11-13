@@ -23,7 +23,11 @@ export async function GET() {
 // POST /api/tournament-templates - Créer un nouveau template
 export async function POST(request: NextRequest) {
   try {
+    console.log('[Template API] Creating new tournament template');
+
     const body = await request.json();
+    console.log('[Template API] Received data:', JSON.stringify(body, null, 2));
+
     const {
       name,
       description,
@@ -36,11 +40,14 @@ export async function POST(request: NextRequest) {
 
     // Validation
     if (!name || !structure) {
+      console.log('[Template API] Validation failed: missing name or structure');
       return NextResponse.json(
         { error: 'Le nom et la structure sont requis' },
         { status: 400 }
       );
     }
+
+    console.log('[Template API] Validation passed, creating template');
 
     const template = await prisma.tournamentTemplate.create({
       data: {
@@ -54,11 +61,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    console.log('[Template API] Template created successfully:', template.id);
     return NextResponse.json(template, { status: 201 });
   } catch (error) {
-    console.error('Error creating tournament template:', error);
+    console.error('[Template API] Error creating tournament template:', error);
+    console.error('[Template API] Error details:', error instanceof Error ? error.message : String(error));
     return NextResponse.json(
-      { error: 'Erreur lors de la création du template' },
+      {
+        error: 'Erreur lors de la création du template',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
