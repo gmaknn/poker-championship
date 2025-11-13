@@ -14,7 +14,8 @@ import {
   Users,
   Share2,
 } from 'lucide-react';
-import { toPng } from 'html-to-image';
+import { toPng, toJpeg } from 'html-to-image';
+import JSZip from 'jszip';
 import SeasonLeaderboardChart from '@/components/exports/SeasonLeaderboardChart';
 import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
 import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeaderboardWithEliminations';
@@ -97,6 +98,7 @@ export default function SeasonExportsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState('chart');
+  const [exportFormat, setExportFormat] = useState<'png' | 'jpg'>('png');
 
   const chartRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
@@ -144,24 +146,71 @@ export default function SeasonExportsPage() {
     }
   };
 
-  const handleExportImage = async (ref: React.RefObject<HTMLDivElement | null>, filename: string) => {
+  const handleExportImage = async (ref: React.RefObject<HTMLDivElement | null>, filename: string, format?: 'png' | 'jpg') => {
     if (!ref.current) return;
 
+    const useFormat = format || exportFormat;
     setIsExporting(true);
     try {
-      const dataUrl = await toPng(ref.current, {
+      const exportFunction = useFormat === 'png' ? toPng : toJpeg;
+      const dataUrl = await exportFunction(ref.current, {
         backgroundColor: '#ffffff',
-        pixelRatio: 2,
+        pixelRatio: 3, // Increased for better quality
+        quality: useFormat === 'jpg' ? 0.95 : undefined,
         cacheBust: true,
       });
 
       const link = document.createElement('a');
-      link.download = `${filename}_${new Date().getTime()}.png`;
+      link.download = `${filename}_${new Date().getTime()}.${useFormat}`;
       link.href = dataUrl;
       link.click();
     } catch (error) {
       console.error('Error exporting image:', error);
       alert('Erreur lors de l\'export de l\'image');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportAll = async () => {
+    if (!chartRef.current || !tableRef.current || !eliminationsRef.current || !season) return;
+
+    setIsExporting(true);
+    try {
+      const zip = new JSZip();
+      const exportFunction = exportFormat === 'png' ? toPng : toJpeg;
+      const options = {
+        backgroundColor: '#ffffff',
+        pixelRatio: 3,
+        quality: exportFormat === 'jpg' ? 0.95 : undefined,
+        cacheBust: true,
+      };
+
+      // Export chart
+      const chartDataUrl = await exportFunction(chartRef.current, options);
+      const chartBlob = await (await fetch(chartDataUrl)).blob();
+      zip.file(`${season.name}_sharks.${exportFormat}`, chartBlob);
+
+      // Export table
+      const tableDataUrl = await exportFunction(tableRef.current, options);
+      const tableBlob = await (await fetch(tableDataUrl)).blob();
+      zip.file(`${season.name}_tableau.${exportFormat}`, tableBlob);
+
+      // Export eliminations
+      const eliminationsDataUrl = await exportFunction(eliminationsRef.current, options);
+      const eliminationsBlob = await (await fetch(eliminationsDataUrl)).blob();
+      zip.file(`${season.name}_eliminations.${exportFormat}`, eliminationsBlob);
+
+      // Generate and download ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.download = `${season.name}_exports_${new Date().getTime()}.zip`;
+      link.href = URL.createObjectURL(zipBlob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (error) {
+      console.error('Error exporting all images:', error);
+      alert('Erreur lors de l\'export groupé');
     } finally {
       setIsExporting(false);
     }
@@ -256,20 +305,54 @@ export default function SeasonExportsPage() {
             </p>
           </div>
         </div>
-        <Badge variant="outline" className="text-lg">
-          {leaderboard.length} joueurs
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-lg">
+            {leaderboard.length} joueurs
+          </Badge>
+          <Button
+            onClick={handleExportAll}
+            disabled={isExporting}
+            size="lg"
+            className="gap-2"
+          >
+            <Download className="h-5 w-5" />
+            {isExporting ? 'Export en cours...' : 'Tout télécharger (ZIP)'}
+          </Button>
+        </div>
       </div>
 
       {/* Info card */}
       <Card>
         <CardContent className="pt-6">
-          <p className="text-sm text-muted-foreground">
-            💡 Utilisez ces exports pour partager les stats de la saison sur WhatsApp,
-            Facebook, ou les imprimer. Chaque export met en valeur différentes informations :
-            les Top Sharks 🦈 pour les killers, le tableau détaillé pour l'évolution des points,
-            et le classement avec éliminations pour les rivalités.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-sm text-muted-foreground flex-1">
+              💡 Utilisez ces exports pour partager les stats de la saison sur WhatsApp,
+              Facebook, ou les imprimer. Chaque export met en valeur différentes informations :
+              les Top Sharks 🦈 pour les killers, le tableau détaillé pour l'évolution des points,
+              et le classement avec éliminations pour les rivalités.
+            </p>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-muted-foreground">
+                Format d'export :
+              </label>
+              <div className="flex gap-2">
+                <Button
+                  variant={exportFormat === 'png' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setExportFormat('png')}
+                >
+                  PNG (Meilleure qualité)
+                </Button>
+                <Button
+                  variant={exportFormat === 'jpg' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setExportFormat('jpg')}
+                >
+                  JPG (Fichier plus léger)
+                </Button>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -302,7 +385,7 @@ export default function SeasonExportsPage() {
                     disabled={isExporting}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : 'Télécharger PNG'}
+                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
                   </Button>
                 </div>
               </div>
@@ -333,7 +416,7 @@ export default function SeasonExportsPage() {
                     disabled={isExporting}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : 'Télécharger PNG'}
+                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
                   </Button>
                 </div>
               </div>
@@ -366,7 +449,7 @@ export default function SeasonExportsPage() {
                     disabled={isExporting}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : 'Télécharger PNG'}
+                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
                   </Button>
                 </div>
               </div>
