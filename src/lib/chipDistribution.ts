@@ -77,6 +77,7 @@ export type RevaluationSuggestion = {
   color: string;
   reason: string;
   improvementScore: number;
+  improvedCoverage: number;
 };
 
 // ============================================
@@ -645,12 +646,14 @@ function analyzeRevaluationOpportunities(
       ).length;
 
       if (newMatches > currentMatches) {
+        const improvedCoverage = (newMatches / uniqueBlinds.length) * 100;
         suggestions.push({
           originalValue: chip.value,
           suggestedValue: closestStandard,
           color: chip.color,
           reason: `Améliore la couverture des blinds (${newMatches} niveaux vs ${currentMatches})`,
-          improvementScore: ((newMatches - currentMatches) / uniqueBlinds.length) * 100
+          improvementScore: ((newMatches - currentMatches) / uniqueBlinds.length) * 100,
+          improvedCoverage
         });
       }
     }

@@ -47,7 +47,7 @@ export async function GET() {
     });
 
     // Récupérer le classement de la saison (Top 10)
-    let leaderboard = [];
+    let leaderboard: Array<{ rank: number; player: any; totalPoints: number; tournaments: number }> = [];
     if (activeSeason) {
       const tournamentPlayers = await prisma.tournamentPlayer.findMany({
         where: {

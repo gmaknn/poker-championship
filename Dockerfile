@@ -13,7 +13,8 @@ RUN npm ci
 # Copier le reste du code
 COPY . .
 
-# Générer Prisma Client
+# Générer Prisma Client (DATABASE_URL factice pour la génération)
+ENV DATABASE_URL="file:/tmp/dev.db"
 RUN npx prisma generate
 
 # Builder l'application
@@ -34,6 +35,7 @@ COPY --from=builder /app/prisma ./prisma
 # Variables d'environnement
 ENV NODE_ENV=production
 ENV PORT=3003
+ENV HOSTNAME=0.0.0.0
 ENV DATABASE_URL="file:/data/dev.db"
 
 # Exposer le port
