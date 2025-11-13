@@ -1,0 +1,55 @@
+# Fichiers de développement
+.next
+node_modules
+.git
+.gitignore
+.env
+.env.local
+.env.development
+.env.test
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Base de données locale
+prisma/dev.db
+prisma/dev.db-journal
+
+# Documentation
+*.md
+RECETTE_*.md
+SESSION_*.md
+STATUS_*.md
+TESTS_*.md
+EXPORT_*.md
+IMPLEMENTATION_*.md
+VISUAL_*.md
+SEED_*.md
+
+# Screenshots et exports
+*.png
+*.jpeg
+*.jpg
+bob.png
+export*.jpeg
+dashboard.png
+
+# Fichiers de test
+jest.config.js
+jest.setup.js
+__tests__
+
+# Scripts locaux
+scripts/check-*.js
+scripts/test-*.js
+scripts/generate-*.js
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db

@@ -66,6 +66,12 @@
   --border: 217.2 32.6% 20%;
   --input: 217.2 32.6% 20%;
   --ring: 142 71% 45%;
+
+  /* Custom colors for outline buttons */
+  --outline-border: 142 71% 35%;
+  --outline-bg: 142 71% 12%;
+  --outline-hover-border: 142 71% 45%;
+  --outline-hover-bg: 142 71% 18%;
 }
 
 body {
@@ -81,5 +87,16 @@ body {
 @layer base {
   h1, h2, h3, h4, h5, h6 {
     font-weight: 600;
+  }
+
+  /* Enhanced outline buttons in dark mode */
+  .dark button[class*="outline"] {
+    border-color: hsl(142 71% 35%) !important;
+    background-color: hsl(142 71% 12%) !important;
+  }
+
+  .dark button[class*="outline"]:hover {
+    border-color: hsl(142 71% 45%) !important;
+    background-color: hsl(142 71% 18%) !important;
   }
 }
