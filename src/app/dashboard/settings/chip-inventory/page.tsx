@@ -23,6 +23,7 @@ import {
   XCircle,
   Star,
 } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 
 type ChipDenomination = {
   id: string;
@@ -294,25 +295,24 @@ export default function ChipInventoryPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Inventaire de Jetons</h1>
-          <p className="text-muted-foreground">
-            Gérez vos mallettes de jetons pour les tournois
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            resetChipSetForm();
-            setEditingChipSet(null);
-            setIsDialogOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nouvelle Mallette
-        </Button>
-      </div>
+      <PageHeader
+        title="Inventaire de Jetons"
+        description="Gérez vos mallettes de jetons pour les tournois"
+        icon={<Package className="h-10 w-10" />}
+        variant="simple"
+        actions={
+          <Button
+            onClick={() => {
+              resetChipSetForm();
+              setEditingChipSet(null);
+              setIsDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nouvelle Mallette
+          </Button>
+        }
+      />
 
       {/* Summary Card */}
       {chipSets.filter((cs) => cs.isActive).length > 0 && (

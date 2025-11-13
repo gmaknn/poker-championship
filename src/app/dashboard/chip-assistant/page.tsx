@@ -30,6 +30,7 @@ import {
   Trophy,
 } from 'lucide-react';
 import type { DistributionResult, ChipDistribution, TournamentStructure } from '@/lib/chipDistribution';
+import { PageHeader } from '@/components/PageHeader';
 
 type ChipSet = {
   id: string;
@@ -420,18 +421,11 @@ export default function ChipAssistantPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <div className="p-3 bg-primary/10 rounded-lg">
-          <Calculator className="h-8 w-8 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-3xl font-bold">Assistant Jetons</h1>
-          <p className="text-muted-foreground">
-            Calculez la distribution optimale de jetons pour votre tournoi
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Assistant Jetons"
+        description="Calculez la distribution optimale de jetons pour votre tournoi"
+        icon={<Calculator className="h-10 w-10 text-primary" />}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Left Column - Configuration */}

@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, Eye, Clock, Users, Coins } from 'lucide-react';
+import { Plus, Trash2, Eye, Clock, Users, Coins, FileText } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 
 type TournamentTemplate = {
   id: string;
@@ -89,15 +90,12 @@ export default function TemplatesPage() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Templates de Tournoi</h1>
-          <p className="text-muted-foreground">
-            Sauvegardez et réutilisez vos structures de tournoi favorites
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Templates de Tournoi"
+        description="Sauvegardez et réutilisez vos structures de tournoi favorites"
+        icon={<FileText className="h-10 w-10" />}
+        variant="simple"
+      />
 
       {/* Info Card */}
       <Card className="bg-blue-500/10 border-blue-500/20">

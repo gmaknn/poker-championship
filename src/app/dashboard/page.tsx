@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trophy, Users, Calendar, TrendingUp, Plus } from 'lucide-react';
+import { Trophy, Users, Calendar, TrendingUp, Plus, LayoutDashboard } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 
 interface CurrentPlayer {
   id: string;
@@ -166,24 +167,24 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Vue d'ensemble du championnat
-          </p>
-        </div>
-        {canCreateTournament && (
-          <Button
-            size="lg"
-            onClick={() => router.push('/dashboard/tournaments')}
-            className="gap-2"
-          >
-            <Plus className="h-5 w-5" />
-            Nouveau tournoi
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Vue d'ensemble du championnat"
+        icon={<LayoutDashboard className="h-10 w-10" />}
+        variant="simple"
+        actions={
+          canCreateTournament ? (
+            <Button
+              size="lg"
+              onClick={() => router.push('/dashboard/tournaments')}
+              className="gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Nouveau tournoi
+            </Button>
+          ) : undefined
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

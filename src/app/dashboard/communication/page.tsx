@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { MessageSquare, Image as ImageIcon, Send, Sparkles, FileText, Trophy, Target, TrendingUp, Users, Download, CheckCircle2, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PageHeader } from '@/components/PageHeader';
 
 // Templates de messages prédéfinis
 const MESSAGE_TEMPLATES = [
@@ -272,18 +273,11 @@ export default function CommunicationPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-gradient-to-r from-green-500/10 to-green-500/5 rounded-lg p-6 border-2 border-border">
-        <div>
-          <h1 className="text-4xl font-bold flex items-center gap-3">
-            <MessageSquare className="h-10 w-10 text-green-500" />
-            Communication
-          </h1>
-          <p className="text-muted-foreground mt-1 text-base">
-            Créez et publiez vos messages pour le groupe WhatsApp
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Communication"
+        description="Créez et publiez vos messages pour le groupe WhatsApp"
+        icon={<MessageSquare className="h-10 w-10" />}
+      />
 
       <Tabs defaultValue="compose" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">

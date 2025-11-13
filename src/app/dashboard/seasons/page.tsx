@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Archive, Trophy, BarChart3 } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 import {
   Dialog,
   DialogContent,
@@ -209,18 +210,17 @@ export default function SeasonsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border-2 border-border">
-        <div>
-          <h1 className="text-4xl font-bold">Saisons</h1>
-          <p className="text-muted-foreground mt-1 text-base">
-            Gérez les saisons du championnat
-          </p>
-        </div>
-        <Button onClick={() => handleOpenDialog()} size="lg">
-          <Plus className="mr-2 h-5 w-5" />
-          Nouvelle saison
-        </Button>
-      </div>
+      <PageHeader
+        title="Saisons"
+        description="Gérez les saisons du championnat"
+        icon={<Trophy className="h-10 w-10" />}
+        actions={
+          <Button onClick={() => handleOpenDialog()} size="lg">
+            <Plus className="mr-2 h-5 w-5" />
+            Nouvelle saison
+          </Button>
+        }
+      />
 
       {activeSeasons.length === 0 && archivedSeasons.length === 0 ? (
         <Card>

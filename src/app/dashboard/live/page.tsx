@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, TrendingUp, Calendar, DollarSign, Users, ArrowRight } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 
 interface Tournament {
   id: string;
@@ -59,16 +60,11 @@ export default function LiveDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-yellow-500/10 to-yellow-500/5 rounded-lg p-6 border-2 border-border">
-        <h1 className="text-4xl font-bold flex items-center gap-3">
-          <Trophy className="h-10 w-10 text-yellow-500" />
-          Classements en Direct
-        </h1>
-        <p className="text-muted-foreground mt-1 text-base">
-          Suivez les tournois en cours en temps réel
-        </p>
-      </div>
+      <PageHeader
+        title="Classements en Direct"
+        description="Suivez les tournois en cours en temps réel"
+        icon={<Trophy className="h-10 w-10" />}
+      />
 
       {/* Active Tournaments */}
       {tournaments.length === 0 ? (

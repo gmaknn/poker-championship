@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: ReactNode;
   icon?: ReactNode;
   actions?: ReactNode;
   variant?: 'default' | 'simple';
@@ -40,12 +40,12 @@ export function PageHeader({
               {title}
             </h1>
             {description && (
-              <p className={cn(
+              <div className={cn(
                 'text-muted-foreground',
                 isStyled ? 'mt-1 text-base' : 'mt-1'
               )}>
                 {description}
-              </p>
+              </div>
             )}
           </div>
         </div>
