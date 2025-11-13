@@ -11,7 +11,7 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { chipSetIds, stackSize, playersCount, rebuysExpected, tournamentId } = body;
+    const { chipSetIds, stackSize, playersCount, rebuysExpected, tournamentId, targetDuration, levelDuration } = body;
 
     if (!chipSetIds || chipSetIds.length === 0) {
       return NextResponse.json(
@@ -61,7 +61,9 @@ export async function POST(request: NextRequest) {
       chipSetsData,
       stackSize,
       playersCount,
-      rebuysExpected || 0
+      rebuysExpected || 0,
+      targetDuration,
+      levelDuration || 15
     );
 
     // Générer une structure de tournoi recommandée

@@ -61,6 +61,8 @@ export default function ChipAssistantPage() {
   const [selectedChipSets, setSelectedChipSets] = useState<string[]>([]);
   const [playersCount, setPlayersCount] = useState('10');
   const [stackSize, setStackSize] = useState('5000');
+  const [targetDuration, setTargetDuration] = useState('180'); // 3 heures par défaut
+  const [levelDuration, setLevelDuration] = useState('15'); // 15 min par défaut
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCalculating, setIsCalculating] = useState(false);
@@ -153,6 +155,8 @@ export default function ChipAssistantPage() {
           stackSize: parseInt(stackSize),
           playersCount: players,
           rebuysExpected,
+          targetDuration: parseInt(targetDuration),
+          levelDuration: parseInt(levelDuration),
         }),
       });
 
@@ -553,6 +557,40 @@ export default function ChipAssistantPage() {
                 </p>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="targetDuration">Durée cible (min)</Label>
+                  <Input
+                    id="targetDuration"
+                    type="number"
+                    min="60"
+                    step="30"
+                    value={targetDuration}
+                    onChange={(e) => setTargetDuration(e.target.value)}
+                    placeholder="180"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Durée totale du tournoi
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="levelDuration">Durée niveau (min)</Label>
+                  <Input
+                    id="levelDuration"
+                    type="number"
+                    min="5"
+                    step="5"
+                    value={levelDuration}
+                    onChange={(e) => setLevelDuration(e.target.value)}
+                    placeholder="15"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Durée de chaque niveau
+                  </p>
+                </div>
+              </div>
+
               <Button
                 onClick={handleCalculate}
                 disabled={isCalculating || selectedChipSets.length === 0}
@@ -601,6 +639,39 @@ export default function ChipAssistantPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Metrics (if available) */}
+                  {result.metrics && (
+                    <div className="space-y-2">
+                      <div className="font-semibold text-sm">Qualité de la configuration :</div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="text-center p-3 bg-muted/30 rounded-lg">
+                          <div className="text-xl font-bold text-green-600 dark:text-green-400">
+                            {result.metrics.overallScore.toFixed(1)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Score Global
+                          </div>
+                        </div>
+                        <div className="text-center p-3 bg-muted/30 rounded-lg">
+                          <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+                            {result.metrics.blindCoverageScore.toFixed(1)}%
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Couverture Blinds
+                          </div>
+                        </div>
+                        <div className="text-center p-3 bg-muted/30 rounded-lg">
+                          <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
+                            {result.metrics.playabilityScore.toFixed(1)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Jouabilité
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Distribution */}
                   <div className="space-y-2">
@@ -661,6 +732,36 @@ export default function ChipAssistantPage() {
                           </p>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* Revaluation Suggestions */}
+                  {result.revaluationSuggestions && result.revaluationSuggestions.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="font-semibold text-sm flex items-center gap-2">
+                        <Info className="h-4 w-4" />
+                        Suggestions de revalorisation :
+                      </div>
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg space-y-2">
+                        <p className="text-sm text-blue-800 dark:text-blue-200">
+                          Pour améliorer la configuration, vous pouvez utiliser les jetons avec des valeurs différentes :
+                        </p>
+                        <div className="space-y-2">
+                          {result.revaluationSuggestions.map((suggestion, index) => (
+                            <div key={index} className="text-sm">
+                              <div className="font-semibold text-blue-900 dark:text-blue-100">
+                                Jeton de couleur {suggestion.color}
+                              </div>
+                              <div className="text-blue-700 dark:text-blue-300 ml-4">
+                                Valeur nominale : {suggestion.originalValue} → Utiliser comme : {suggestion.suggestedValue}
+                              </div>
+                              <div className="text-xs text-blue-600 dark:text-blue-400 ml-4">
+                                {suggestion.reason} (+{suggestion.improvedCoverage.toFixed(1)}% couverture)
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
 
