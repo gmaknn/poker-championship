@@ -25,23 +25,24 @@ export default function SeasonLeaderboardChart({
 }: SeasonLeaderboardChartProps) {
   const topPlayers = players.slice(0, maxPlayers);
   const maxKills = Math.max(...topPlayers.map((p) => p.totalEliminations), 1);
+  const maxBarHeight = 650; // Hauteur maximale disponible en pixels
 
   return (
     <div
       id="season-leaderboard-chart"
-      className="relative w-[1600px] h-[1200px] bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8"
+      className="relative w-[1600px] h-[1200px] bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8 pt-12"
       style={{ fontFamily: 'Arial, sans-serif' }}
     >
       {/* Header avec titre et avatars sharks */}
-      <div className="absolute top-0 left-0 right-0 h-40 flex items-center justify-between px-8">
+      <div className="absolute top-8 left-0 right-0 h-24 flex items-center justify-between px-8">
         {/* Avatar gauche */}
-        <div className="relative w-32 h-32">
+        <div className="relative w-20 h-20">
           <div className="absolute inset-0 bg-yellow-400 rounded-full blur-xl opacity-50" />
-          <div className="relative z-10 w-32 h-32 rounded-full bg-gray-800 border-4 border-yellow-400 flex items-center justify-center text-6xl">
+          <div className="relative z-10 w-20 h-20 rounded-full bg-gray-800 border-4 border-yellow-400 flex items-center justify-center text-4xl">
             🦈
           </div>
           {/* Chapeau cowboy */}
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-6xl">
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-4xl">
             🤠
           </div>
         </div>
@@ -49,32 +50,36 @@ export default function SeasonLeaderboardChart({
         {/* Titre */}
         <div className="text-center">
           <h1
-            className="text-6xl font-bold text-yellow-400 mb-2"
+            className="text-5xl font-bold text-yellow-400 mb-1"
             style={{ textShadow: '0 0 20px rgba(234, 179, 8, 0.5)' }}
           >
             🦈 Top Sharks
           </h1>
-          <p className="text-2xl text-gray-400">{seasonName} - Les Tueurs</p>
+          <p className="text-xl text-gray-400">{seasonName} - Les Tueurs</p>
         </div>
 
         {/* Avatar droit */}
-        <div className="relative w-32 h-32">
+        <div className="relative w-20 h-20">
           <div className="absolute inset-0 bg-pink-400 rounded-full blur-xl opacity-50" />
-          <div className="relative z-10 w-32 h-32 rounded-full bg-gray-800 border-4 border-pink-400 flex items-center justify-center text-6xl">
+          <div className="relative z-10 w-20 h-20 rounded-full bg-gray-800 border-4 border-pink-400 flex items-center justify-center text-4xl">
             🦈
           </div>
           {/* Accessoire */}
-          <div className="absolute top-12 right-0 text-4xl">
+          <div className="absolute top-8 right-0 text-3xl">
             👔
           </div>
         </div>
       </div>
 
       {/* Graphique en barres */}
-      <div className="absolute top-48 left-8 right-8 bottom-16">
-        <div className="relative w-full h-full flex items-end justify-around gap-3">
+      <div className="absolute top-36 left-8 right-8 bottom-6">
+        {/* Zone des barres avec ligne de base commune */}
+        <div className="relative w-full h-[calc(100%-100px)] flex items-end justify-around gap-3">
           {topPlayers.map((player, index) => {
-            const barHeight = (player.totalEliminations / maxKills) * 100;
+            // Calcul de la hauteur en pixels (proportionnel aux kills)
+            const barHeightPx = player.totalEliminations > 0
+              ? Math.max((player.totalEliminations / maxKills) * maxBarHeight, 30)
+              : 0;
             const isTop3 = index < 3;
             const barColors = [
               'from-red-500 to-red-700',       // 1er - Rouge sang
@@ -82,9 +87,6 @@ export default function SeasonLeaderboardChart({
               'from-yellow-500 to-yellow-700', // 3ème - Jaune
             ];
             const barColor = isTop3 ? barColors[index] : 'from-gray-500 to-gray-700';
-            const averageKills = player.tournamentsPlayed
-              ? (player.totalEliminations / player.tournamentsPlayed).toFixed(1)
-              : '0';
 
             return (
               <div
@@ -131,31 +133,40 @@ export default function SeasonLeaderboardChart({
                 <div
                   className={`w-full bg-gradient-to-b ${barColor} rounded-t-lg relative transition-all duration-500 shadow-lg`}
                   style={{
-                    height: `${barHeight}%`,
-                    minHeight: '40px',
+                    height: `${barHeightPx}px`,
                     boxShadow: isTop3 ? '0 0 20px rgba(239, 68, 68, 0.6)' : 'none',
                   }}
                 >
                   {/* Effet brillant */}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 rounded-t-lg" />
                 </div>
-
-                {/* Nom du joueur (vertical ou horizontal selon l'espace) */}
-                <div
-                  className="mt-3 text-sm text-gray-300 font-semibold text-center overflow-hidden"
-                  style={{
-                    writingMode: maxPlayers > 15 ? 'vertical-rl' : 'horizontal-tb',
-                    textOrientation: 'mixed',
-                    maxWidth: '100%',
-                  }}
-                >
-                  {player.nickname.length > 12
-                    ? player.nickname.slice(0, 12) + '.'
-                    : player.nickname}
-                </div>
               </div>
             );
           })}
+        </div>
+
+        {/* Zone fixe pour les noms en bas */}
+        <div className="relative w-full h-[100px] flex justify-around gap-3 mt-3">
+          {topPlayers.map((player) => (
+            <div
+              key={`name-${player.rank}`}
+              className="flex items-start justify-center"
+              style={{ width: `${100 / maxPlayers}%` }}
+            >
+              <div
+                className="text-sm text-gray-300 font-semibold text-center overflow-hidden"
+                style={{
+                  writingMode: maxPlayers > 15 ? 'vertical-rl' : 'horizontal-tb',
+                  textOrientation: 'mixed',
+                  maxWidth: '100%',
+                }}
+              >
+                {player.nickname.length > 12
+                  ? player.nickname.slice(0, 12) + '.'
+                  : player.nickname}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

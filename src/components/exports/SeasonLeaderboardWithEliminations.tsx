@@ -91,7 +91,7 @@ export default function SeasonLeaderboardWithEliminations({
               return (
                 <tr key={player.rank} className={bgColor}>
                   {/* Rank */}
-                  <td className="border-2 border-gray-800 px-3 py-2 text-center font-bold text-lg">
+                  <td className="border-2 border-gray-800 px-3 py-2 text-center font-bold text-lg text-gray-900">
                     {player.rank}
                   </td>
 
@@ -118,7 +118,7 @@ export default function SeasonLeaderboardWithEliminations({
                   </td>
 
                   {/* Total points */}
-                  <td className="border-2 border-gray-800 px-3 py-2 text-center font-bold text-lg">
+                  <td className="border-2 border-gray-800 px-3 py-2 text-center font-bold text-lg text-gray-900">
                     {player.totalPoints}
                   </td>
 
@@ -140,11 +140,11 @@ export default function SeasonLeaderboardWithEliminations({
                         {player.victims.map((victim, vIndex) => (
                           <div
                             key={vIndex}
-                            className="px-2 py-1 bg-gray-800 text-white rounded text-sm font-semibold whitespace-nowrap"
+                            className="px-2 py-1 bg-red-600 text-white rounded text-sm font-semibold whitespace-nowrap"
                           >
                             {victim.nickname}
                             {victim.count > 1 && (
-                              <span className="ml-1 text-red-400">x{victim.count}</span>
+                              <span className="ml-1 text-yellow-300">x{victim.count}</span>
                             )}
                           </div>
                         ))}
