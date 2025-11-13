@@ -50,6 +50,9 @@ export default function SeasonDetailedTable({
               <th className="border-2 border-gray-800 px-3 py-2 text-white font-bold text-center w-16">
                 class
               </th>
+              <th className="border-2 border-gray-800 px-4 py-2 text-white font-bold text-left w-32">
+                NOM
+              </th>
               {tournamentNumbers.map((num) => (
                 <th
                   key={num}
@@ -69,14 +72,16 @@ export default function SeasonDetailedTable({
 
               return (
                 <tr key={player.rank} className={bgColor}>
-                  {/* Colonne du nom avec rang */}
-                  <td className="border-2 border-gray-800 px-3 py-2 font-bold text-gray-800">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">{player.rank}</span>
-                      <span className="truncate max-w-[120px]" title={player.nickname}>
-                        {player.nickname}
-                      </span>
-                    </div>
+                  {/* Colonne du rang */}
+                  <td className="border-2 border-gray-800 px-3 py-2 font-bold text-gray-800 text-center">
+                    {player.rank}
+                  </td>
+
+                  {/* Colonne du nom */}
+                  <td className="border-2 border-gray-800 px-4 py-2 font-bold text-gray-800">
+                    <span className="truncate" title={player.nickname}>
+                      {player.nickname}
+                    </span>
                   </td>
 
                   {/* Colonnes des tournois */}

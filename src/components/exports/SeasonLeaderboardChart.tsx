@@ -29,11 +29,11 @@ export default function SeasonLeaderboardChart({
   return (
     <div
       id="season-leaderboard-chart"
-      className="relative w-[1200px] h-[800px] bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8"
+      className="relative w-[1600px] h-[1200px] bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8"
       style={{ fontFamily: 'Arial, sans-serif' }}
     >
       {/* Header avec titre et avatars sharks */}
-      <div className="absolute top-0 left-0 right-0 h-32 flex items-center justify-between px-8">
+      <div className="absolute top-0 left-0 right-0 h-40 flex items-center justify-between px-8">
         {/* Avatar gauche */}
         <div className="relative w-32 h-32">
           <div className="absolute inset-0 bg-yellow-400 rounded-full blur-xl opacity-50" />
@@ -71,8 +71,8 @@ export default function SeasonLeaderboardChart({
       </div>
 
       {/* Graphique en barres */}
-      <div className="absolute top-40 left-8 right-8 bottom-24">
-        <div className="relative w-full h-full flex items-end justify-around gap-2">
+      <div className="absolute top-48 left-8 right-8 bottom-16">
+        <div className="relative w-full h-full flex items-end justify-around gap-3">
           {topPlayers.map((player, index) => {
             const barHeight = (player.totalEliminations / maxKills) * 100;
             const isTop3 = index < 3;
@@ -93,35 +93,35 @@ export default function SeasonLeaderboardChart({
                 style={{ width: `${100 / maxPlayers}%` }}
               >
                 {/* Avatar */}
-                <div className="mb-2 relative">
+                <div className="mb-3 relative">
                   {player.avatar ? (
                     <Image
                       src={player.avatar}
                       alt={player.nickname}
-                      width={40}
-                      height={40}
-                      className="rounded-full border-2 border-red-500"
+                      width={56}
+                      height={56}
+                      className="rounded-full border-3 border-red-500"
                     />
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-700 border-2 border-red-500 flex items-center justify-center text-lg">
+                    <div className="w-14 h-14 rounded-full bg-gray-700 border-3 border-red-500 flex items-center justify-center text-xl">
                       {player.nickname[0]?.toUpperCase()}
                     </div>
                   )}
                   {/* Badge du rang pour le top 3 */}
                   {isTop3 && (
-                    <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gray-900 border-2 border-red-500 flex items-center justify-center text-xs font-bold text-red-400">
+                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gray-900 border-2 border-red-500 flex items-center justify-center text-sm font-bold text-red-400">
                       {index + 1}
                     </div>
                   )}
                 </div>
 
                 {/* Kills au-dessus de la barre */}
-                <div className="mb-1 flex flex-col items-center">
-                  <div className="text-sm font-bold text-red-400">
+                <div className="mb-2 flex flex-col items-center">
+                  <div className="text-lg font-bold text-red-400">
                     ⚔️ {player.totalEliminations}
                   </div>
                   {player.leaderKills && player.leaderKills > 0 && (
-                    <div className="text-xs text-yellow-400">
+                    <div className="text-sm text-yellow-400">
                       👑 {player.leaderKills}
                     </div>
                   )}
@@ -132,7 +132,7 @@ export default function SeasonLeaderboardChart({
                   className={`w-full bg-gradient-to-b ${barColor} rounded-t-lg relative transition-all duration-500 shadow-lg`}
                   style={{
                     height: `${barHeight}%`,
-                    minHeight: '20px',
+                    minHeight: '40px',
                     boxShadow: isTop3 ? '0 0 20px rgba(239, 68, 68, 0.6)' : 'none',
                   }}
                 >
@@ -142,15 +142,15 @@ export default function SeasonLeaderboardChart({
 
                 {/* Nom du joueur (vertical ou horizontal selon l'espace) */}
                 <div
-                  className="mt-2 text-xs text-gray-300 font-semibold text-center overflow-hidden"
+                  className="mt-3 text-sm text-gray-300 font-semibold text-center overflow-hidden"
                   style={{
                     writingMode: maxPlayers > 15 ? 'vertical-rl' : 'horizontal-tb',
                     textOrientation: 'mixed',
                     maxWidth: '100%',
                   }}
                 >
-                  {player.nickname.length > 10
-                    ? player.nickname.slice(0, 10) + '.'
+                  {player.nickname.length > 12
+                    ? player.nickname.slice(0, 12) + '.'
                     : player.nickname}
                 </div>
               </div>
