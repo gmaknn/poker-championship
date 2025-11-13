@@ -26,6 +26,7 @@ import {
   FileText,
   Coffee,
   Shuffle,
+  GripVertical,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -78,6 +79,8 @@ export default function BlindStructureEditor({
   const [templateDescription, setTemplateDescription] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchBlindLevels();
@@ -296,6 +299,45 @@ export default function BlindStructureEditor({
     return hours > 0 ? `${hours}h${mins > 0 ? mins : ''}` : `${mins}m`;
   };
 
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null) return;
+
+    const newLevels = [...levels];
+    const draggedLevel = newLevels[draggedIndex];
+
+    // Remove from old position
+    newLevels.splice(draggedIndex, 1);
+    // Insert at new position
+    newLevels.splice(dropIndex, 0, draggedLevel);
+
+    // Renumber levels
+    const renumbered = newLevels.map((level, index) => ({ ...level, level: index + 1 }));
+
+    setLevels(renumbered);
+    calculateStats(renumbered);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
 
   if (isLoading) {
     return (
@@ -444,7 +486,20 @@ export default function BlindStructureEditor({
         </Card>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_120px_80px] gap-4 px-4 py-3 font-medium text-sm bg-muted/30 rounded-lg">
+          {/* Boutons en haut */}
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleAddLevel} className="flex-1">
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter un niveau
+            </Button>
+            <Button variant="outline" onClick={handleAddBreak} className="flex-1">
+              <Coffee className="mr-2 h-4 w-4" />
+              Ajouter une pause
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-[40px_60px_1fr_1fr_1fr_1fr_120px_80px] gap-4 px-4 py-3 font-medium text-sm bg-muted/30 rounded-lg">
+            <div></div>
             <div>Niveau</div>
             <div>Small Blind</div>
             <div>Big Blind</div>
@@ -455,10 +510,27 @@ export default function BlindStructureEditor({
           </div>
 
           {levels.map((level, index) => (
-            <Card key={index} className={level.isBreak ? 'bg-blue-500/5 border-blue-500/20' : ''}>
+            <Card
+              key={index}
+              className={`
+                ${level.isBreak ? 'bg-blue-500/5 border-blue-500/20' : ''}
+                ${draggedIndex === index ? 'opacity-50' : ''}
+                ${dragOverIndex === index ? 'border-primary border-2' : ''}
+                cursor-move transition-all
+              `}
+              draggable
+              onDragStart={() => handleDragStart(index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+            >
               <CardContent className="pt-6">
                 {level.isBreak ? (
-                  <div className="grid grid-cols-[60px_1fr_1fr_80px] gap-4 items-center">
+                  <div className="grid grid-cols-[40px_60px_1fr_1fr_80px] gap-4 items-center">
+                    <div className="flex justify-center cursor-grab active:cursor-grabbing">
+                      <GripVertical className="h-5 w-5 text-muted-foreground" />
+                    </div>
                     <Badge variant="outline" className="justify-center bg-blue-500/10">
                       <Coffee className="h-3 w-3 mr-1" />
                       {level.level}
@@ -484,13 +556,19 @@ export default function BlindStructureEditor({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleRemoveLevel(index)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveLevel(index);
+                      }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_120px_80px] gap-4 items-center">
+                  <div className="grid grid-cols-[40px_60px_1fr_1fr_1fr_1fr_120px_80px] gap-4 items-center">
+                    <div className="flex justify-center cursor-grab active:cursor-grabbing">
+                      <GripVertical className="h-5 w-5 text-muted-foreground" />
+                    </div>
                     <Badge variant="outline" className="justify-center">
                       {level.level}
                     </Badge>
@@ -560,7 +638,10 @@ export default function BlindStructureEditor({
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleRemoveLevel(index)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveLevel(index);
+                      }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
