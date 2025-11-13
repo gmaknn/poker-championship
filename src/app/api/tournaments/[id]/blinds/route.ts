@@ -4,10 +4,12 @@ import { z } from 'zod';
 
 const blindLevelSchema = z.object({
   level: z.number().int().positive(),
-  smallBlind: z.number().int().positive(),
-  bigBlind: z.number().int().positive(),
+  smallBlind: z.number().int().min(0),
+  bigBlind: z.number().int().min(0),
   ante: z.number().int().min(0).default(0),
   duration: z.number().int().positive().default(12),
+  isBreak: z.boolean().optional().default(false),
+  rebalanceTables: z.boolean().optional().default(false),
 });
 
 const blindStructureSchema = z.object({
@@ -75,6 +77,8 @@ export async function POST(
           bigBlind: level.bigBlind,
           ante: level.ante,
           duration: level.duration,
+          isBreak: level.isBreak ?? false,
+          rebalanceTables: level.rebalanceTables ?? false,
         })),
       });
     });

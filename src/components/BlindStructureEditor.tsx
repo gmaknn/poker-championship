@@ -24,8 +24,11 @@ import {
   Save,
   Wand2,
   FileText,
+  Coffee,
+  Shuffle,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 type BlindLevel = {
   level: number;
@@ -33,6 +36,8 @@ type BlindLevel = {
   bigBlind: number;
   ante: number;
   duration: number;
+  isBreak?: boolean;
+  rebalanceTables?: boolean;
 };
 
 type BlindStats = {
@@ -243,8 +248,25 @@ export default function BlindStructureEditor({
       bigBlind: lastLevel ? Math.round(lastLevel.bigBlind * 1.5) : 50,
       ante: lastLevel ? lastLevel.ante : 0,
       duration: lastLevel ? lastLevel.duration : 12,
+      isBreak: false,
+      rebalanceTables: false,
     };
     const newLevels = [...levels, newLevel];
+    setLevels(newLevels);
+    calculateStats(newLevels);
+  };
+
+  const handleAddBreak = () => {
+    const newBreak: BlindLevel = {
+      level: levels.length + 1,
+      smallBlind: 0,
+      bigBlind: 0,
+      ante: 0,
+      duration: 10,
+      isBreak: true,
+      rebalanceTables: false,
+    };
+    const newLevels = [...levels, newBreak];
     setLevels(newLevels);
     calculateStats(newLevels);
   };
@@ -260,7 +282,7 @@ export default function BlindStructureEditor({
   const handleLevelChange = (
     index: number,
     field: keyof BlindLevel,
-    value: number
+    value: number | boolean
   ) => {
     const newLevels = [...levels];
     newLevels[index] = { ...newLevels[index], [field]: value };
@@ -422,85 +444,142 @@ export default function BlindStructureEditor({
         </Card>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_80px] gap-4 px-4 py-3 font-medium text-sm bg-muted/30 rounded-lg">
+          <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_120px_80px] gap-4 px-4 py-3 font-medium text-sm bg-muted/30 rounded-lg">
             <div>Niveau</div>
             <div>Small Blind</div>
             <div>Big Blind</div>
             <div>Ante</div>
             <div>Durée</div>
+            <div>Réassigner</div>
             <div></div>
           </div>
 
           {levels.map((level, index) => (
-            <Card key={index}>
+            <Card key={index} className={level.isBreak ? 'bg-blue-500/5 border-blue-500/20' : ''}>
               <CardContent className="pt-6">
-                <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_80px] gap-4 items-center">
-                  <Badge variant="outline" className="justify-center">
-                    {level.level}
-                  </Badge>
-                  <Input
-                    type="number"
-                    value={level.smallBlind}
-                    onChange={(e) =>
-                      handleLevelChange(
-                        index,
-                        'smallBlind',
-                        parseInt(e.target.value) || 0
-                      )
-                    }
-                  />
-                  <Input
-                    type="number"
-                    value={level.bigBlind}
-                    onChange={(e) =>
-                      handleLevelChange(
-                        index,
-                        'bigBlind',
-                        parseInt(e.target.value) || 0
-                      )
-                    }
-                  />
-                  <Input
-                    type="number"
-                    value={level.ante}
-                    onChange={(e) =>
-                      handleLevelChange(
-                        index,
-                        'ante',
-                        parseInt(e.target.value) || 0
-                      )
-                    }
-                  />
-                  <div className="flex items-center gap-2">
+                {level.isBreak ? (
+                  <div className="grid grid-cols-[60px_1fr_1fr_80px] gap-4 items-center">
+                    <Badge variant="outline" className="justify-center bg-blue-500/10">
+                      <Coffee className="h-3 w-3 mr-1" />
+                      {level.level}
+                    </Badge>
+                    <div className="col-span-1 flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium">
+                      <Coffee className="h-4 w-4" />
+                      PAUSE
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={level.duration}
+                        onChange={(e) =>
+                          handleLevelChange(
+                            index,
+                            'duration',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                      />
+                      <span className="text-sm text-muted-foreground">min</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveLevel(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[60px_1fr_1fr_1fr_1fr_120px_80px] gap-4 items-center">
+                    <Badge variant="outline" className="justify-center">
+                      {level.level}
+                    </Badge>
                     <Input
                       type="number"
-                      value={level.duration}
+                      value={level.smallBlind}
                       onChange={(e) =>
                         handleLevelChange(
                           index,
-                          'duration',
+                          'smallBlind',
                           parseInt(e.target.value) || 0
                         )
                       }
                     />
-                    <span className="text-sm text-muted-foreground">min</span>
+                    <Input
+                      type="number"
+                      value={level.bigBlind}
+                      onChange={(e) =>
+                        handleLevelChange(
+                          index,
+                          'bigBlind',
+                          parseInt(e.target.value) || 0
+                        )
+                      }
+                    />
+                    <Input
+                      type="number"
+                      value={level.ante}
+                      onChange={(e) =>
+                        handleLevelChange(
+                          index,
+                          'ante',
+                          parseInt(e.target.value) || 0
+                        )
+                      }
+                    />
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        value={level.duration}
+                        onChange={(e) =>
+                          handleLevelChange(
+                            index,
+                            'duration',
+                            parseInt(e.target.value) || 0
+                          )
+                        }
+                      />
+                      <span className="text-sm text-muted-foreground">min</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`rebalance-${index}`}
+                        checked={level.rebalanceTables || false}
+                        onCheckedChange={(checked) =>
+                          handleLevelChange(index, 'rebalanceTables', checked === true)
+                        }
+                      />
+                      <label
+                        htmlFor={`rebalance-${index}`}
+                        className="text-sm text-muted-foreground flex items-center gap-1 cursor-pointer"
+                      >
+                        <Shuffle className="h-3 w-3" />
+                        Tables
+                      </label>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveLevel(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemoveLevel(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                )}
               </CardContent>
             </Card>
           ))}
 
-          <Button variant="outline" onClick={handleAddLevel} className="w-full">
-            <Plus className="mr-2 h-4 w-4" />
-            Ajouter un niveau
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleAddLevel} className="flex-1">
+              <Plus className="mr-2 h-4 w-4" />
+              Ajouter un niveau
+            </Button>
+            <Button variant="outline" onClick={handleAddBreak} className="flex-1">
+              <Coffee className="mr-2 h-4 w-4" />
+              Ajouter une pause
+            </Button>
+          </div>
         </div>
       )}
 
