@@ -23,7 +23,9 @@ import {
   RefreshCw,
   Save,
   Wand2,
+  FileText,
 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 type BlindLevel = {
   level: number;
@@ -42,6 +44,13 @@ type BlindStats = {
   anteStartLevel: number;
 };
 
+type TournamentTemplate = {
+  id: string;
+  name: string;
+  description: string | null;
+  structure: any;
+};
+
 type Props = {
   tournamentId: string;
   startingChips: number;
@@ -58,12 +67,29 @@ export default function BlindStructureEditor({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
+  const [isSaveTemplateDialogOpen, setIsSaveTemplateDialogOpen] = useState(false);
+  const [templates, setTemplates] = useState<TournamentTemplate[]>([]);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
     fetchBlindLevels();
+    fetchTemplates();
   }, [tournamentId]);
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await fetch('/api/tournament-templates');
+      if (response.ok) {
+        const data = await response.json();
+        setTemplates(data);
+      }
+    } catch (error) {
+      console.error('Error fetching templates:', error);
+    }
+  };
 
   const fetchBlindLevels = async () => {
     try {
@@ -156,6 +182,59 @@ export default function BlindStructureEditor({
     }
   };
 
+  const handleSaveAsTemplate = async () => {
+    if (!templateName.trim()) {
+      setError('Le nom du template est requis');
+      return;
+    }
+
+    setIsSaving(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/tournament-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: templateName,
+          description: templateDescription || null,
+          targetDuration: stats?.totalDuration || 0,
+          startingChips,
+          levelDuration: levels[0]?.duration || 12,
+          rebuyEndLevel: null,
+          structure: { levels },
+        }),
+      });
+
+      if (response.ok) {
+        setSuccessMessage('Template sauvegardé avec succès !');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        setIsSaveTemplateDialogOpen(false);
+        setTemplateName('');
+        setTemplateDescription('');
+        fetchTemplates();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de la sauvegarde du template');
+      }
+    } catch (error) {
+      console.error('Error saving template:', error);
+      setError('Erreur lors de la sauvegarde du template');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLoadTemplate = (template: TournamentTemplate) => {
+    if (template.structure && template.structure.levels) {
+      setLevels(template.structure.levels);
+      calculateStats(template.structure.levels);
+      setIsGenerateDialogOpen(false);
+      setSuccessMessage(`Template "${template.name}" chargé avec succès !`);
+      setTimeout(() => setSuccessMessage(''), 3000);
+    }
+  };
+
   const handleAddLevel = () => {
     const lastLevel = levels[levels.length - 1];
     const newLevel: BlindLevel = {
@@ -225,6 +304,16 @@ export default function BlindStructureEditor({
             <Wand2 className="mr-2 h-4 w-4" />
             Générer
           </Button>
+          {levels.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => setIsSaveTemplateDialogOpen(true)}
+              disabled={isSaving}
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Sauvegarder comme template
+            </Button>
+          )}
           <Button
             onClick={handleSave}
             disabled={isSaving || levels.length === 0}
@@ -417,16 +506,58 @@ export default function BlindStructureEditor({
 
       {/* Dialog de génération */}
       <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Générer une structure de blinds</DialogTitle>
             <DialogDescription>
-              Choisissez un preset ou générez une structure basée sur les
+              Choisissez un template, un preset ou générez une structure basée sur les
               paramètres du tournoi
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Templates sauvegardés */}
+            {templates.length > 0 && (
+              <>
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Templates sauvegardés
+                  </h3>
+                  <div className="space-y-2">
+                    {templates.map((template) => (
+                      <Button
+                        key={template.id}
+                        variant="outline"
+                        className="w-full h-auto p-4 flex-col items-start"
+                        onClick={() => handleLoadTemplate(template)}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileText className="h-5 w-5" />
+                          <span className="font-semibold">{template.name}</span>
+                        </div>
+                        {template.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {template.description}
+                          </p>
+                        )}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Ou générer
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
             <Button
               variant="outline"
               className="w-full h-auto p-4 flex-col items-start"
@@ -496,6 +627,69 @@ export default function BlindStructureEditor({
               onClick={() => setIsGenerateDialogOpen(false)}
             >
               Annuler
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog pour sauvegarder comme template */}
+      <Dialog open={isSaveTemplateDialogOpen} onOpenChange={setIsSaveTemplateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sauvegarder comme template</DialogTitle>
+            <DialogDescription>
+              Sauvegardez cette structure de blinds comme template pour la réutiliser dans d'autres tournois
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name">Nom du template *</Label>
+              <Input
+                id="template-name"
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Ex: Structure Standard 3h"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="template-description">Description (optionnel)</Label>
+              <Input
+                id="template-description"
+                value={templateDescription}
+                onChange={(e) => setTemplateDescription(e.target.value)}
+                placeholder="Ex: Structure équilibrée pour tournois de 10-20 joueurs"
+              />
+            </div>
+
+            {stats && (
+              <div className="p-3 bg-muted/30 rounded-lg space-y-1 text-sm">
+                <div className="font-semibold">Aperçu de la structure :</div>
+                <div>• {stats.totalLevels} niveaux</div>
+                <div>• Durée totale : {formatTime(stats.totalDuration)}</div>
+                <div>• Stack départ : {stats.startingStackBB} BB</div>
+                <div>• Antes dès niveau {stats.anteStartLevel || 'Aucun'}</div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsSaveTemplateDialogOpen(false);
+                setTemplateName('');
+                setTemplateDescription('');
+              }}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveAsTemplate}
+              disabled={isSaving || !templateName.trim()}
+            >
+              {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
             </Button>
           </DialogFooter>
         </DialogContent>
