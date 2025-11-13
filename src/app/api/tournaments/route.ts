@@ -20,15 +20,8 @@ const tournamentSchema = z.object({
 // GET all tournaments
 export async function GET(request: NextRequest) {
   try {
-    // Vérifier l'utilisateur actuel et ses permissions
+    // Vérifier l'utilisateur actuel (optionnel pour GET)
     const currentPlayer = await getCurrentPlayer(request);
-
-    if (!currentPlayer) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      );
-    }
 
     const { searchParams } = new URL(request.url);
     const seasonId = searchParams.get('seasonId');
@@ -38,8 +31,8 @@ export async function GET(request: NextRequest) {
     if (seasonId) where.seasonId = seasonId;
     if (createdById) where.createdById = createdById;
 
-    // Appliquer le filtrage selon les permissions
-    if (!canViewAllTournaments(currentPlayer.role)) {
+    // Appliquer le filtrage selon les permissions seulement si authentifié
+    if (currentPlayer && !canViewAllTournaments(currentPlayer.role)) {
       // Si l'utilisateur ne peut pas voir tous les tournois,
       // filtrer pour ne montrer que ses propres tournois
       where.createdById = currentPlayer.id;

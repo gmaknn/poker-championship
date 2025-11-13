@@ -56,6 +56,14 @@ export default function SettingsPage() {
       if (response.ok) {
         const updatedSettings = await response.json();
         setSettings(updatedSettings);
+
+        // Appliquer le thème immédiatement
+        if (updatedSettings.theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       } else {

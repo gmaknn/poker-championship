@@ -7,7 +7,7 @@ import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 const settingsSchema = z.object({
   championshipName: z.string().min(1, 'Le nom du championnat est requis'),
   clubName: z.string().min(1, 'Le nom du club est requis'),
-  clubLogo: z.string().optional(),
+  clubLogo: z.string().nullish(),
   defaultBuyIn: z.number().positive('Le buy-in doit être positif'),
   defaultStartingChips: z.number().int().positive('Les jetons de départ doivent être positifs'),
   defaultLevelDuration: z.number().int().positive('La durée des niveaux doit être positive'),
