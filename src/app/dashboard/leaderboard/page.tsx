@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { PageHeader } from '@/components/PageHeader';
 
 type Season = {
   id: string;
@@ -102,10 +103,11 @@ export default function LeaderboardPage() {
   if (!selectedSeason && !isLoading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Classement</h1>
-          <p className="text-muted-foreground">Aucune saison disponible</p>
-        </div>
+        <PageHeader
+          title="Classement"
+          description="Aucune saison disponible"
+          icon={<Trophy className="h-10 w-10 text-primary" />}
+        />
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
@@ -124,47 +126,47 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header avec filtre de saison */}
-      <div className="flex items-center justify-between bg-muted/30 rounded-lg p-6 border-2 border-border">
-        <div>
-          <h1 className="text-3xl font-bold">Classement</h1>
-          <div className="text-muted-foreground mt-1">
-            {selectedSeason && (
-              <>
-                {selectedSeason.name} {selectedSeason.year}
-                {selectedSeason.status === 'ACTIVE' && (
-                  <Badge variant="default" className="ml-2">En cours</Badge>
-                )}
-              </>
-            )}
+      <PageHeader
+        title="Classement"
+        description={
+          selectedSeason ? (
+            <span className="flex items-center gap-2">
+              {selectedSeason.name} {selectedSeason.year}
+              {selectedSeason.status === 'ACTIVE' && (
+                <Badge variant="default" className="text-xs">En cours</Badge>
+              )}
+            </span>
+          ) : undefined
+        }
+        icon={<Trophy className="h-10 w-10 text-primary" />}
+        actions={
+          <div className="flex items-center gap-3">
+            <Calendar className="h-5 w-5 text-muted-foreground" />
+            <Select
+              value={selectedSeason?.id}
+              onValueChange={handleSeasonChange}
+            >
+              <SelectTrigger className="w-[400px]">
+                <SelectValue placeholder="Sélectionner une saison" />
+              </SelectTrigger>
+              <SelectContent className="w-[400px]">
+                {seasons.map((season) => (
+                  <SelectItem key={season.id} value={season.id}>
+                    <div className="flex items-center justify-between w-full gap-3">
+                      <span className="font-medium">
+                        {season.name} {season.year}
+                      </span>
+                      {season.status === 'ACTIVE' && (
+                        <Badge variant="default" className="text-xs">Active</Badge>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Calendar className="h-5 w-5 text-muted-foreground" />
-          <Select
-            value={selectedSeason?.id}
-            onValueChange={handleSeasonChange}
-          >
-            <SelectTrigger className="w-[400px]">
-              <SelectValue placeholder="Sélectionner une saison" />
-            </SelectTrigger>
-            <SelectContent className="w-[400px]">
-              {seasons.map((season) => (
-                <SelectItem key={season.id} value={season.id}>
-                  <div className="flex items-center justify-between w-full gap-3">
-                    <span className="font-medium">
-                      {season.name} {season.year}
-                    </span>
-                    {season.status === 'ACTIVE' && (
-                      <Badge variant="default" className="text-xs">Active</Badge>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+        }
+      />
 
       {isLoading ? (
         <Card>

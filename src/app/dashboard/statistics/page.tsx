@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart3, TrendingUp, Users, Trophy, Calendar, Award, Clock } from 'lucide-react';
 import Image from 'next/image';
+import { PageHeader } from '@/components/PageHeader';
 
 interface StatisticsData {
   overview: {
@@ -55,10 +56,11 @@ export default function StatisticsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Statistiques</h1>
-          <p className="text-muted-foreground">Chargement...</p>
-        </div>
+        <PageHeader
+          title="Statistiques"
+          description="Chargement..."
+          icon={<BarChart3 className="h-10 w-10 text-primary" />}
+        />
       </div>
     );
   }
@@ -66,22 +68,22 @@ export default function StatisticsPage() {
   if (!data) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">Statistiques</h1>
-          <p className="text-muted-foreground text-red-500">Erreur de chargement</p>
-        </div>
+        <PageHeader
+          title="Statistiques"
+          description="Erreur de chargement"
+          icon={<BarChart3 className="h-10 w-10 text-primary" />}
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Statistiques</h1>
-        <p className="text-muted-foreground">
-          Analyses et statistiques du championnat
-        </p>
-      </div>
+      <PageHeader
+        title="Statistiques"
+        description="Analyses et statistiques du championnat"
+        icon={<BarChart3 className="h-10 w-10 text-primary" />}
+      />
 
       {/* Vue d'ensemble */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

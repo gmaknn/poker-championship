@@ -25,6 +25,7 @@ import {
 import { PlayerWithStats } from '@/types';
 import { ROLES, getRoleLabel, getRoleDescription } from '@/lib/permissions';
 import { PlayerRole } from '@prisma/client';
+import { PageHeader } from '@/components/PageHeader';
 
 const AVATAR_SEEDS = [
   'Felix', 'Aneka', 'Whiskers', 'Salem', 'Misty', 'Shadow',
@@ -233,30 +234,29 @@ export default function PlayersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border-2 border-border">
-        <div>
-          <h1 className="text-4xl font-bold">Joueurs</h1>
-          <p className="text-muted-foreground mt-1 text-base">
-            {isAdmin() ? 'Gérez les joueurs du championnat' : 'Consultez la liste des joueurs'}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
-            <ToggleGroupItem value="grid" aria-label="Vue grille">
-              <Grid3x3 className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="list" aria-label="Vue liste">
-              <List className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-          {isAdmin() && (
-            <Button onClick={() => handleOpenDialog()} size="lg">
-              <Plus className="mr-2 h-5 w-5" />
-              Ajouter un joueur
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Joueurs"
+        description={isAdmin() ? 'Gérez les joueurs du championnat' : 'Consultez la liste des joueurs'}
+        icon={<Users className="h-10 w-10 text-primary" />}
+        actions={
+          <div className="flex items-center gap-3">
+            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
+              <ToggleGroupItem value="grid" aria-label="Vue grille">
+                <Grid3x3 className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" aria-label="Vue liste">
+                <List className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+            {isAdmin() && (
+              <Button onClick={() => handleOpenDialog()} size="lg">
+                <Plus className="mr-2 h-5 w-5" />
+                Ajouter un joueur
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* Barre de recherche */}
       {players.length > 0 && (

@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import Image from 'next/image';
+import { PageHeader } from '@/components/PageHeader';
 
 type TournamentStatus = 'PLANNED' | 'REGISTRATION' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
 type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ADMIN';
@@ -338,33 +339,31 @@ export default function TournamentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border-2 border-border">
-        <div>
-          <h1 className="text-4xl font-bold">Tournois</h1>
-          <p className="text-muted-foreground mt-1 text-base">
-            Gérez les tournois de poker
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
-            <ToggleGroupItem value="grid" aria-label="Vue grille">
-              <Grid3x3 className="h-4 w-4" />
-            </ToggleGroupItem>
-            <ToggleGroupItem value="list" aria-label="Vue liste">
-              <List className="h-4 w-4" />
-            </ToggleGroupItem>
-          </ToggleGroup>
-          {canCreateTournament() && (
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) resetForm();
-            }}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nouveau tournoi
-                </Button>
-              </DialogTrigger>
+      <PageHeader
+        title="Tournois"
+        description="Gérez les tournois de poker"
+        icon={<Trophy className="h-10 w-10 text-primary" />}
+        actions={
+          <div className="flex items-center gap-3">
+            <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
+              <ToggleGroupItem value="grid" aria-label="Vue grille">
+                <Grid3x3 className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="list" aria-label="Vue liste">
+                <List className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+            {canCreateTournament() && (
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) resetForm();
+              }}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nouveau tournoi
+                  </Button>
+                </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
@@ -542,10 +541,11 @@ export default function TournamentsPage() {
               </div>
             </form>
           </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
+              </Dialog>
+            )}
+          </div>
+        }
+      />
 
       {/* Filter by season */}
       <div className="flex items-center gap-3 bg-muted/30 rounded-lg p-4 border-2 border-border">

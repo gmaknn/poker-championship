@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save, Settings as SettingsIcon, CheckCircle2, Coins, ChevronRight, FileText } from 'lucide-react';
+import { PageHeader } from '@/components/PageHeader';
 
 interface SettingsData {
   id: string;
@@ -109,20 +110,19 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Paramètres</h1>
-          <p className="text-muted-foreground">
-            Configuration de l'application
-          </p>
-        </div>
-        {saved && (
-          <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-950 px-4 py-2 rounded-lg">
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="font-medium">Paramètres sauvegardés</span>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Paramètres"
+        description="Configuration de l'application"
+        icon={<SettingsIcon className="h-10 w-10 text-primary" />}
+        actions={
+          saved ? (
+            <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-950 px-4 py-2 rounded-lg">
+              <CheckCircle2 className="h-5 w-5" />
+              <span className="font-medium">Paramètres sauvegardés</span>
+            </div>
+          ) : undefined
+        }
+      />
 
       {/* Quick Access Cards */}
       <div className="grid gap-4 md:grid-cols-2">
