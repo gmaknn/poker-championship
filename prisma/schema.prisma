@@ -197,6 +197,7 @@ model BlindLevel {
   duration      Int         @default(12) // en minutes
   isBreak       Boolean     @default(false)
   rebalanceTables Boolean   @default(false) // Réassigner les tables après ce niveau
+  isRebuyEnd    Boolean     @default(false) // Fin des recaves après ce niveau
 
   createdAt     DateTime    @default(now())
 

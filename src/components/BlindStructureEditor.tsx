@@ -41,6 +41,7 @@ type BlindLevel = {
   duration: number;
   isBreak?: boolean;
   rebalanceTables?: boolean;
+  isRebuyEnd?: boolean;
 };
 
 type BlindStats = {
@@ -301,6 +302,7 @@ export default function BlindStructureEditor({
       duration: lastLevel ? lastLevel.duration : 12,
       isBreak: false,
       rebalanceTables: false,
+      isRebuyEnd: false,
     };
     const newLevels = [...levels, newLevel];
     setLevels(newLevels);
@@ -706,6 +708,22 @@ export default function BlindStructureEditor({
                       >
                         <Shuffle className="h-3 w-3" />
                         Tables
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`rebuy-end-${index}`}
+                        checked={level.isRebuyEnd || false}
+                        onCheckedChange={(checked) =>
+                          handleLevelChange(index, 'isRebuyEnd', checked === true)
+                        }
+                      />
+                      <label
+                        htmlFor={`rebuy-end-${index}`}
+                        className="text-sm text-muted-foreground flex items-center gap-1 cursor-pointer"
+                      >
+                        <AlertCircle className="h-3 w-3" />
+                        Fin recaves
                       </label>
                     </div>
                     <Button
