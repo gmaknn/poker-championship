@@ -35,6 +35,8 @@ interface Tournament {
   totalPlayers?: number | null;
   status: TournamentStatus;
   levelDuration: number;
+  rebuyEndLevel?: number | null;
+  prizePool?: number | null;
   season: {
     id: string;
     name: string;
@@ -72,6 +74,8 @@ export default function TournamentDetailPage({
     targetDuration: 0,
     totalPlayers: 0,
     status: 'PLANNED' as TournamentStatus,
+    rebuyEndLevel: null as number | null,
+    prizePool: null as number | null,
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -106,6 +110,8 @@ export default function TournamentDetailPage({
       targetDuration: tournament.targetDuration,
       totalPlayers: tournament.totalPlayers || 0,
       status: tournament.status,
+      rebuyEndLevel: tournament.rebuyEndLevel || null,
+      prizePool: tournament.prizePool || null,
     });
     setIsEditDialogOpen(true);
   };
@@ -424,6 +430,43 @@ export default function TournamentDetailPage({
                     value={editFormData.totalPlayers}
                     onChange={(e) =>
                       setEditFormData({ ...editFormData, totalPlayers: parseInt(e.target.value) })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-rebuy-end">Niveau fin des recaves</Label>
+                  <Input
+                    id="edit-rebuy-end"
+                    type="number"
+                    min="1"
+                    placeholder="Ex: 6 (optionnel)"
+                    value={editFormData.rebuyEndLevel || ''}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        rebuyEndLevel: e.target.value ? parseInt(e.target.value) : null
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-prizepool">Prize Pool (€)</Label>
+                  <Input
+                    id="edit-prizepool"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Ex: 150 (optionnel)"
+                    value={editFormData.prizePool || ''}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        prizePool: e.target.value ? parseFloat(e.target.value) : null
+                      })
                     }
                   />
                 </div>
