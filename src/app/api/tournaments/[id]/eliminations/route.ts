@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { emitToTournament } from '@/lib/socket';
 
 const eliminationSchema = z.object({
   eliminatedId: z.string().cuid(),
@@ -206,6 +207,24 @@ export async function POST(
       return elimination;
     });
 
+    // Émettre l'événement d'élimination via WebSocket
+    emitToTournament(tournamentId, 'elimination:player_out', {
+      tournamentId,
+      eliminatedId: validatedData.eliminatedId,
+      eliminatedName: result.eliminated.nickname,
+      eliminatorId: validatedData.eliminatorId,
+      eliminatorName: result.eliminator.nickname,
+      rank,
+      level: tournament.currentLevel,
+      isLeaderKill,
+    });
+
+    // Mettre à jour le leaderboard
+    emitToTournament(tournamentId, 'leaderboard:updated', {
+      tournamentId,
+      timestamp: new Date(),
+    });
+
     // Vérifier s'il ne reste qu'un joueur actif (fin du tournoi)
     const activePlayersCount = await prisma.tournamentPlayer.count({
       where: {
@@ -221,6 +240,9 @@ export async function POST(
         where: {
           tournamentId,
           finalRank: null,
+        },
+        include: {
+          player: true,
         },
       });
 
@@ -248,6 +270,19 @@ export async function POST(
         });
 
         tournamentCompleted = true;
+
+        // Émettre les événements de fin de tournoi
+        emitToTournament(tournamentId, 'elimination:tournament_complete', {
+          tournamentId,
+          winnerId: winner.playerId,
+          winnerName: winner.player.nickname,
+        });
+
+        emitToTournament(tournamentId, 'tournament:status_change', {
+          tournamentId,
+          status: 'FINISHED',
+          timestamp: new Date(),
+        });
       }
     }
 

@@ -30,23 +30,29 @@ export default function SeasonLeaderboardChart({
   return (
     <div
       id="season-leaderboard-chart"
-      className="relative w-[1600px] h-[1200px] bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8 pt-12"
+      className="relative w-[1600px] h-[1200px] bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8 pt-12 overflow-hidden"
       style={{ fontFamily: 'Arial, sans-serif' }}
     >
-      {/* Header avec titre et avatars sharks */}
-      <div className="absolute top-8 left-0 right-0 h-24 flex items-center justify-between px-8">
-        {/* Avatar gauche */}
-        <div className="relative w-20 h-20">
-          <div className="absolute inset-0 bg-yellow-400 rounded-full blur-xl opacity-50" />
-          <div className="relative z-10 w-20 h-20 rounded-full bg-gray-800 border-4 border-yellow-400 flex items-center justify-center text-4xl">
-            🦈
-          </div>
-          {/* Chapeau cowboy */}
-          <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-4xl">
-            🤠
-          </div>
-        </div>
+      {/* Image de fond avec masque d'opacité */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: 'url(/images/sharks-background.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          opacity: 0.35,
+        }}
+      />
 
+      {/* Dégradé d'overlay pour améliorer la lisibilité */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          background: 'linear-gradient(to bottom, rgba(17, 24, 39, 0.4) 0%, rgba(0, 0, 0, 0.3) 50%, rgba(17, 24, 39, 0.5) 100%)',
+        }}
+      />
+      {/* Header avec titre */}
+      <div className="absolute top-8 left-0 right-0 h-24 flex items-center justify-center px-8 z-10">
         {/* Titre */}
         <div className="text-center">
           <h1
@@ -57,24 +63,12 @@ export default function SeasonLeaderboardChart({
           </h1>
           <p className="text-xl text-gray-400">{seasonName} - Les Tueurs</p>
         </div>
-
-        {/* Avatar droit */}
-        <div className="relative w-20 h-20">
-          <div className="absolute inset-0 bg-pink-400 rounded-full blur-xl opacity-50" />
-          <div className="relative z-10 w-20 h-20 rounded-full bg-gray-800 border-4 border-pink-400 flex items-center justify-center text-4xl">
-            🦈
-          </div>
-          {/* Accessoire */}
-          <div className="absolute top-8 right-0 text-3xl">
-            👔
-          </div>
-        </div>
       </div>
 
       {/* Graphique en barres */}
-      <div className="absolute top-36 left-8 right-8 bottom-6">
+      <div className="absolute top-36 left-4 right-4 bottom-6 z-10">
         {/* Zone des barres avec ligne de base commune */}
-        <div className="relative w-full h-[calc(100%-100px)] flex items-end justify-around gap-3">
+        <div className="relative w-full h-[calc(100%-100px)] flex items-end justify-around gap-1">
           {topPlayers.map((player, index) => {
             // Calcul de la hauteur en pixels (proportionnel aux kills)
             const barHeightPx = player.totalEliminations > 0
@@ -146,7 +140,7 @@ export default function SeasonLeaderboardChart({
         </div>
 
         {/* Zone fixe pour les noms en bas */}
-        <div className="relative w-full h-[100px] flex justify-around gap-3 mt-3">
+        <div className="relative w-full h-[100px] flex justify-around gap-1 mt-3">
           {topPlayers.map((player) => (
             <div
               key={`name-${player.rank}`}
@@ -171,7 +165,7 @@ export default function SeasonLeaderboardChart({
       </div>
 
       {/* Footer avec info */}
-      <div className="absolute bottom-4 left-0 right-0 text-center">
+      <div className="absolute bottom-4 left-0 right-0 text-center z-10">
         <p className="text-gray-500 text-sm">
           🦈 Généré par Poker Championship Manager - {new Date().toLocaleDateString('fr-FR')}
         </p>

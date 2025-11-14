@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { emitToTournament } from '@/lib/socket';
 
 // POST - Mettre en pause le timer du tournoi
 export async function POST(
@@ -42,6 +43,13 @@ export async function POST(
         timerPausedAt: now,
         timerElapsedSeconds: totalElapsed,
       },
+    });
+
+    // Émettre l'événement WebSocket
+    emitToTournament(id, 'timer:paused', {
+      tournamentId: id,
+      pausedAt: now,
+      elapsedSeconds: totalElapsed,
     });
 
     return NextResponse.json({
