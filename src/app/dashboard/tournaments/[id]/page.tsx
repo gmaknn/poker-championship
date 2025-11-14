@@ -7,8 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import BlindStructureEditor from '@/components/BlindStructureEditor';
-import ChipManager from '@/components/ChipManager';
+import ChipSetSelector from '@/components/ChipSetSelector';
 import ChipConfigDisplay from '@/components/ChipConfigDisplay';
 import TournamentPlayersManager from '@/components/TournamentPlayersManager';
 import TournamentTimer from '@/components/TournamentTimer';
@@ -59,6 +63,17 @@ export default function TournamentDetailPage({
   const router = useRouter();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    date: '',
+    buyInAmount: 0,
+    startingChips: 0,
+    targetDuration: 0,
+    totalPlayers: 0,
+    status: 'PLANNED' as TournamentStatus,
+  });
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     fetchTournament();
@@ -78,6 +93,49 @@ export default function TournamentDetailPage({
       router.push('/dashboard/tournaments');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEditClick = () => {
+    if (!tournament) return;
+    setEditFormData({
+      name: tournament.name || '',
+      date: new Date(tournament.date).toISOString().slice(0, 16),
+      buyInAmount: tournament.buyInAmount,
+      startingChips: tournament.startingChips,
+      targetDuration: tournament.targetDuration,
+      totalPlayers: tournament.totalPlayers || 0,
+      status: tournament.status,
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+
+    try {
+      const response = await fetch(`/api/tournaments/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...editFormData,
+          date: new Date(editFormData.date).toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        await fetchTournament();
+        setIsEditDialogOpen(false);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Erreur lors de la modification');
+      }
+    } catch (error) {
+      console.error('Error updating tournament:', error);
+      alert('Erreur lors de la modification');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -125,7 +183,7 @@ export default function TournamentDetailPage({
             <Tv className="mr-2 h-4 w-4" />
             Vue TV
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleEditClick}>
             <Edit2 className="mr-2 h-4 w-4" />
             Modifier
           </Button>
@@ -214,16 +272,12 @@ export default function TournamentDetailPage({
         </TabsContent>
 
         <TabsContent value="config" className="mt-6">
-          <div className="space-y-6">
-            <ChipConfigDisplay
-              tournamentId={tournament.id}
-              onUpdate={() => fetchTournament()}
-            />
-            <ChipManager
-              tournamentId={tournament.id}
-              onUpdate={() => fetchTournament()}
-            />
-          </div>
+          <ChipSetSelector
+            tournamentId={tournament.id}
+            startingChips={tournament.startingChips}
+            totalPlayers={tournament.totalPlayers || tournament._count.tournamentPlayers || 10}
+            onUpdate={() => fetchTournament()}
+          />
         </TabsContent>
 
         <TabsContent value="players" className="mt-6">
@@ -266,6 +320,132 @@ export default function TournamentDetailPage({
           />
         </TabsContent>
       </Tabs>
+
+      {/* Dialog de modification */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Modifier le tournoi</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-name">Nom du tournoi *</Label>
+                <Input
+                  id="edit-name"
+                  value={editFormData.name}
+                  onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-date">Date et heure *</Label>
+                  <Input
+                    id="edit-date"
+                    type="datetime-local"
+                    value={editFormData.date}
+                    onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-status">Statut</Label>
+                  <Select
+                    value={editFormData.status}
+                    onValueChange={(value: TournamentStatus) =>
+                      setEditFormData({ ...editFormData, status: value })
+                    }
+                  >
+                    <SelectTrigger id="edit-status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PLANNED">Planifié</SelectItem>
+                      <SelectItem value="REGISTRATION">Inscriptions</SelectItem>
+                      <SelectItem value="IN_PROGRESS">En cours</SelectItem>
+                      <SelectItem value="FINISHED">Terminé</SelectItem>
+                      <SelectItem value="CANCELLED">Annulé</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-buyin">Buy-in (€)</Label>
+                  <Input
+                    id="edit-buyin"
+                    type="number"
+                    min="0"
+                    value={editFormData.buyInAmount}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, buyInAmount: parseFloat(e.target.value) })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-chips">Jetons de départ</Label>
+                  <Input
+                    id="edit-chips"
+                    type="number"
+                    min="1000"
+                    value={editFormData.startingChips}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, startingChips: parseInt(e.target.value) })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-duration">Durée cible (minutes)</Label>
+                  <Input
+                    id="edit-duration"
+                    type="number"
+                    min="30"
+                    value={editFormData.targetDuration}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, targetDuration: parseInt(e.target.value) })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-players">Nombre de joueurs</Label>
+                  <Input
+                    id="edit-players"
+                    type="number"
+                    min="2"
+                    value={editFormData.totalPlayers}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, totalPlayers: parseInt(e.target.value) })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditDialogOpen(false)}
+                disabled={isSaving}
+              >
+                Annuler
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

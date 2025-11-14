@@ -90,10 +90,15 @@ export async function GET(request: NextRequest) {
 
     // Transform to include podium only for FINISHED tournaments
     const tournamentsWithPodium = tournaments.map(tournament => {
-      const { tournamentPlayers, ...rest } = tournament;
+      const { tournamentPlayers, createdBy, ...rest } = tournament;
+      const baseData = {
+        ...rest,
+        createdById: createdBy?.id || null,
+      };
+
       if (tournament.status === 'FINISHED' && tournamentPlayers.length >= 3) {
         return {
-          ...rest,
+          ...baseData,
           podium: tournamentPlayers.map(tp => ({
             finalRank: tp.finalRank,
             player: tp.player,
@@ -102,7 +107,7 @@ export async function GET(request: NextRequest) {
           })),
         };
       }
-      return rest;
+      return baseData;
     });
 
     return NextResponse.json(tournamentsWithPodium);

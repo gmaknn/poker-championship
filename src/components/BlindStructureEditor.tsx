@@ -27,6 +27,8 @@ import {
   Coffee,
   Shuffle,
   GripVertical,
+  AlertCircle,
+  Info,
 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -81,10 +83,13 @@ export default function BlindStructureEditor({
   const [successMessage, setSuccessMessage] = useState('');
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [chipConfig, setChipConfig] = useState<any | null>(null);
+  const [smallestChip, setSmallestChip] = useState<number | null>(null);
 
   useEffect(() => {
     fetchBlindLevels();
     fetchTemplates();
+    fetchChipConfig();
   }, [tournamentId]);
 
   const fetchTemplates = async () => {
@@ -96,6 +101,24 @@ export default function BlindStructureEditor({
       }
     } catch (error) {
       console.error('Error fetching templates:', error);
+    }
+  };
+
+  const fetchChipConfig = async () => {
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/chip-config`);
+      if (response.ok) {
+        const data = await response.json();
+        setChipConfig(data);
+
+        // Trouver la plus petite coupure
+        if (data?.distribution) {
+          const denominations = Object.keys(data.distribution).map(Number);
+          setSmallestChip(Math.min(...denominations));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching chip config:', error);
     }
   };
 
@@ -412,6 +435,31 @@ export default function BlindStructureEditor({
           </Button>
         </div>
       </div>
+
+      {!chipConfig && (
+        <div className="bg-yellow-500/10 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg border border-yellow-500/20 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold mb-1">Configuration des jetons recommandée</p>
+            <p className="text-sm">
+              Pour une structure optimale, configurez d'abord vos jetons dans l'onglet "Jetons".
+              La structure des blinds s'adaptera automatiquement aux coupures disponibles.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {chipConfig && smallestChip && (
+        <div className="bg-blue-500/10 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg border border-blue-500/20 flex items-start gap-3">
+          <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm">
+              Jetons configurés : Plus petite coupure = <strong>{smallestChip}</strong>.
+              La SB/BB de départ sera adaptée automatiquement.
+            </p>
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">

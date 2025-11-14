@@ -23,6 +23,7 @@ interface Tournament {
   id: string;
   name: string | null;
   seasonId: string | null;
+  createdById?: string | null;
   date: string;
   buyInAmount: number;
   startingChips: number;
@@ -79,7 +80,17 @@ const STATUS_CONFIG = {
   CANCELLED: { label: 'Annulé', variant: 'destructive' as const, color: 'text-red-500' },
 };
 
+const getAvatarUrl = (avatar: string | null) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/')) {
+    return avatar;
+  }
+  // Si c'est juste un nom (comme "Heart"), générer une URL Dicebear
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
+};
+
 export default function TournamentsPage() {
+  console.log('🎬 TournamentsPage component loaded');
   const router = useRouter();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
@@ -103,15 +114,24 @@ export default function TournamentsPage() {
     try {
       // Lire le cookie player-id
       const cookies = document.cookie;
+      console.log('🍪 Cookies:', cookies);
       const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+      console.log('🔍 Player ID Match:', playerIdMatch);
 
       if (playerIdMatch) {
         const playerId = playerIdMatch[1];
+        console.log('👤 Player ID:', playerId);
         const response = await fetch(`/api/players/${playerId}`);
         if (response.ok) {
           const player = await response.json();
+          console.log('✅ Player loaded:', player);
+          console.log('🎭 Player role:', player.role);
           setCurrentUserRole(player.role);
+        } else {
+          console.error('❌ Failed to fetch player:', response.status);
         }
+      } else {
+        console.warn('⚠️ No player-id cookie found');
       }
     } catch (error) {
       console.error('Error loading current user:', error);
@@ -119,14 +139,25 @@ export default function TournamentsPage() {
   };
 
   const canCreateTournament = () => {
-    return currentUserRole === 'TOURNAMENT_DIRECTOR' || currentUserRole === 'ADMIN';
+    const canCreate = currentUserRole === 'TOURNAMENT_DIRECTOR' || currentUserRole === 'ADMIN';
+    console.log('🔐 canCreateTournament:', { currentUserRole, canCreate });
+    return canCreate;
   };
 
   const canEditTournament = (tournament: Tournament) => {
+    const userId = getCurrentUserId();
+    console.log('🔍 canEditTournament:', {
+      currentUserRole,
+      userId,
+      tournamentId: tournament.id,
+      tournamentCreatedById: tournament.createdById,
+      match: tournament.createdById === userId,
+    });
+
     if (currentUserRole === 'ADMIN') return true;
     if (currentUserRole === 'TOURNAMENT_DIRECTOR') {
       // TD can only edit their own tournaments
-      return (tournament as any).createdById === getCurrentUserId();
+      return tournament.createdById === userId;
     }
     return false;
   };
@@ -135,7 +166,7 @@ export default function TournamentsPage() {
     if (currentUserRole === 'ADMIN') return true;
     if (currentUserRole === 'TOURNAMENT_DIRECTOR') {
       // TD can only delete their own tournaments
-      return (tournament as any).createdById === getCurrentUserId();
+      return tournament.createdById === getCurrentUserId();
     }
     return false;
   };
@@ -354,17 +385,21 @@ export default function TournamentsPage() {
               </ToggleGroupItem>
             </ToggleGroup>
             {canCreateTournament() && (
-              <Dialog open={isDialogOpen} onOpenChange={(open) => {
-                setIsDialogOpen(open);
-                if (!open) resetForm();
-              }}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nouveau tournoi
-                  </Button>
-                </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <Button onClick={() => setIsDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nouveau tournoi
+              </Button>
+            )}
+          </div>
+        }
+      />
+
+      {/* Dialog pour créer/modifier un tournoi */}
+      <Dialog open={isDialogOpen} onOpenChange={(open) => {
+        setIsDialogOpen(open);
+        if (!open) resetForm();
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingTournament ? 'Modifier le tournoi' : 'Créer un tournoi'}
@@ -540,12 +575,8 @@ export default function TournamentsPage() {
                 </Button>
               </div>
             </form>
-          </DialogContent>
-              </Dialog>
-            )}
-          </div>
-        }
-      />
+        </DialogContent>
+      </Dialog>
 
       {/* Filter by season */}
       <div className="flex items-center gap-3 bg-muted/30 rounded-lg p-4 border-2 border-border">
@@ -618,9 +649,9 @@ export default function TournamentsPage() {
                     <div className="flex gap-2">
                       {/* 1ère place */}
                       <div className="flex-1 flex flex-col items-center p-2 rounded-md border-2 border-yellow-500 bg-yellow-500/5">
-                        {tournament.podium[0].player.avatar ? (
+                        {getAvatarUrl(tournament.podium[0].player.avatar) ? (
                           <Image
-                            src={tournament.podium[0].player.avatar}
+                            src={getAvatarUrl(tournament.podium[0].player.avatar)!}
                             alt={tournament.podium[0].player.nickname}
                             width={40}
                             height={40}
@@ -640,9 +671,9 @@ export default function TournamentsPage() {
 
                       {/* 2e place */}
                       <div className="flex-1 flex flex-col items-center p-2 rounded-md border border-gray-400 bg-gray-400/5">
-                        {tournament.podium[1].player.avatar ? (
+                        {getAvatarUrl(tournament.podium[1].player.avatar) ? (
                           <Image
-                            src={tournament.podium[1].player.avatar}
+                            src={getAvatarUrl(tournament.podium[1].player.avatar)!}
                             alt={tournament.podium[1].player.nickname}
                             width={32}
                             height={32}
@@ -662,9 +693,9 @@ export default function TournamentsPage() {
 
                       {/* 3e place */}
                       <div className="flex-1 flex flex-col items-center p-2 rounded-md border border-amber-700 bg-amber-700/5">
-                        {tournament.podium[2].player.avatar ? (
+                        {getAvatarUrl(tournament.podium[2].player.avatar) ? (
                           <Image
-                            src={tournament.podium[2].player.avatar}
+                            src={getAvatarUrl(tournament.podium[2].player.avatar)!}
                             alt={tournament.podium[2].player.nickname}
                             width={32}
                             height={32}
