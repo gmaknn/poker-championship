@@ -573,7 +573,7 @@ export default function BlindStructureEditor({
             </Button>
           </div>
 
-          <div className="grid grid-cols-[40px_60px_1fr_1fr_1fr_1fr_120px_80px] gap-4 px-4 py-3 font-medium text-sm bg-muted/30 rounded-lg">
+          <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 px-4 py-3 font-medium text-sm bg-muted/30 rounded-lg">
             <div></div>
             <div>Niveau</div>
             <div>Small Blind</div>
@@ -581,6 +581,7 @@ export default function BlindStructureEditor({
             <div>Ante</div>
             <div>Durée</div>
             <div>Réassigner</div>
+            <div>Fin recaves</div>
             <div></div>
           </div>
 
@@ -640,7 +641,7 @@ export default function BlindStructureEditor({
                     </Button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-[40px_60px_1fr_1fr_1fr_1fr_120px_80px] gap-4 items-center">
+                  <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 items-center">
                     <div className="flex justify-center cursor-grab active:cursor-grabbing">
                       <GripVertical className="h-5 w-5 text-muted-foreground" />
                     </div>
@@ -692,9 +693,9 @@ export default function BlindStructureEditor({
                           )
                         }
                       />
-                      <span className="text-sm text-muted-foreground">min</span>
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Checkbox
                         id={`rebalance-${index}`}
                         checked={level.rebalanceTables || false}
@@ -704,13 +705,13 @@ export default function BlindStructureEditor({
                       />
                       <label
                         htmlFor={`rebalance-${index}`}
-                        className="text-sm text-muted-foreground flex items-center gap-1 cursor-pointer"
+                        className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
                       >
                         <Shuffle className="h-3 w-3" />
                         Tables
                       </label>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Checkbox
                         id={`rebuy-end-${index}`}
                         checked={level.isRebuyEnd || false}
@@ -720,7 +721,7 @@ export default function BlindStructureEditor({
                       />
                       <label
                         htmlFor={`rebuy-end-${index}`}
-                        className="text-sm text-muted-foreground flex items-center gap-1 cursor-pointer"
+                        className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
                       >
                         <AlertCircle className="h-3 w-3" />
                         Fin recaves
