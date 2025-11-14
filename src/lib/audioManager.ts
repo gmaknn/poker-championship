@@ -97,6 +97,33 @@ class AudioManager {
   }
 
   /**
+   * Format number for speech (1000 -> "mille" instead of "un zéro zéro zéro")
+   */
+  private formatNumberForSpeech(num: number): string {
+    if (num >= 1000000) {
+      const millions = num / 1000000;
+      if (millions === Math.floor(millions)) {
+        return `${millions} ${millions > 1 ? 'millions' : 'million'}`;
+      }
+      return `${millions.toFixed(1).replace('.', ' virgule ')} million${millions > 1 ? 's' : ''}`;
+    }
+    if (num >= 1000) {
+      const thousands = num / 1000;
+      if (thousands === Math.floor(thousands)) {
+        return thousands === 1 ? 'mille' : `${thousands} mille`;
+      }
+      // For numbers like 1500 -> "mille cinq cents"
+      const k = Math.floor(thousands);
+      const remainder = num % 1000;
+      if (remainder === 0) {
+        return k === 1 ? 'mille' : `${k} mille`;
+      }
+      return `${k === 1 ? 'mille' : `${k} mille`} ${remainder}`;
+    }
+    return num.toString();
+  }
+
+  /**
    * Play audio from base64-encoded MP3
    */
   private playAudioFromBase64(base64Audio: string): void {
@@ -171,12 +198,17 @@ class AudioManager {
     // Get random phrase with a random active player
     const phrase = this.getRandomPhrase(level, playerNicknames);
 
+    // Format blinds for better speech
+    const sbText = this.formatNumberForSpeech(smallBlind);
+    const bbText = this.formatNumberForSpeech(bigBlind);
+
     // Add blind information
     let announcement = phrase;
     if (ante && ante > 0) {
-      announcement += ` Blinds : ${smallBlind} - ${bigBlind}, ante ${ante}.`;
+      const anteText = this.formatNumberForSpeech(ante);
+      announcement += ` Blinds : ${sbText} - ${bbText}, ante ${anteText}.`;
     } else {
-      announcement += ` Blinds : ${smallBlind} - ${bigBlind}.`;
+      announcement += ` Blinds : ${sbText} - ${bbText}.`;
     }
 
     try {
