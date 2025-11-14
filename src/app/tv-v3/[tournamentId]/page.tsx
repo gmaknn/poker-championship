@@ -538,9 +538,9 @@ export default function TVSpectatorViewV3({
           </div>
 
           {/* Chip Denominations */}
-          {chips.length > 0 && (
+          {chips.length > 0 ? (
             <div className="space-y-3">
-              {chips.slice(0, 6).map((chip) => (
+              {chips.map((chip) => (
                 <div key={chip.id} className="flex items-center gap-3 justify-between">
                   <div
                     className="w-14 h-14 rounded-full border-4 border-white shadow-xl flex items-center justify-center font-bold text-lg flex-shrink-0"
@@ -556,6 +556,10 @@ export default function TVSpectatorViewV3({
                   </div>
                 </div>
               ))}
+            </div>
+          ) : (
+            <div className="text-center text-white/60 text-sm">
+              Aucun jeton configuré
             </div>
           )}
         </div>

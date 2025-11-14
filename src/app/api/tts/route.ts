@@ -34,11 +34,11 @@ export async function POST(request: NextRequest) {
           input: { text },
           voice: {
             languageCode: 'fr-FR',
-            name: 'fr-FR-Neural2-A', // Female voice, natural and expressive
+            name: 'fr-FR-Neural2-D', // Male voice, natural and expressive
             // Other options:
+            // 'fr-FR-Neural2-A' - Female
             // 'fr-FR-Neural2-B' - Male
             // 'fr-FR-Neural2-C' - Female
-            // 'fr-FR-Neural2-D' - Male
             // 'fr-FR-Neural2-E' - Female
           },
           audioConfig: {

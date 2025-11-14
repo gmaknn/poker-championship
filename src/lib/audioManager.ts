@@ -3,23 +3,23 @@
  * Gestion des sons et annonces vocales pour le timer du tournoi
  */
 
-// Liste de phrases humoristiques pour les annonces de changement de niveau
+// Liste d'alexandrins poétiques sur Karine pour les annonces de changement de niveau
 const LEVEL_CHANGE_PHRASES = [
-  'Niveau {level} ! Les blinds montent, les tapis descendent...',
-  'Attention, nouveau niveau ! Vos jetons tremblent déjà !',
-  "C'est parti pour le niveau {level} ! Que le meilleur survive !",
-  'Les blinds augmentent ! Préparez-vous à défendre vos tapis !',
-  'Niveau {level} ! Le moment de vérité approche...',
-  'Changement de niveau ! Les petites blinds sont maintenant de {sb}.',
-  "Nouveau round ! Les requins sentent l'odeur du sang...",
-  "Niveau {level} ! C'est le moment de montrer qui est le patron !",
-  'Les blinds montent ! Vous allez devoir jouer serré...',
-  'Attention les amis, on passe au niveau {level} !',
-  'Les cartes se redistribuent ! Niveau {level} en cours !',
-  "On monte d'un cran ! Niveau {level} !",
-  'Accrochez vos ceintures, les blinds décollent !',
-  'Niveau {level} ! Même vos jetons ont peur maintenant !',
-  'Les blinds augmentent et les tapis fondent comme neige au soleil !',
+  "Ô Karine, astre brillant qui guide nos destins, niveau {level}",
+  "Karine, ton noble cœur fait battre le tapis, niveau {level}",
+  "Sublime est ta grandeur au royaume des jetons, niveau {level}",
+  "Karine, poète du bluff, ta gloire nous émeut, niveau {level}",
+  "Telle une reine des cartes tu règnes sur nos âmes, niveau {level}",
+  "Karine, ange gardien des joueurs émerveillés, niveau {level}",
+  "Ton élégance éclaire la table de sa grâce, niveau {level}",
+  "Karine, étoile filante au firmament du jeu, niveau {level}",
+  "Comme un phare en la nuit tu nous montres la voie, niveau {level}",
+  "Karine, chevalière d'honneur au tournoi glorieux, niveau {level}",
+  "Ta sagesse infinie illumine nos esprits, niveau {level}",
+  "Karine, maîtresse du bluff et dame des enchères, niveau {level}",
+  "Ton charme ensorcelle les tapis de velours, niveau {level}",
+  "Karine, barde légendaire aux mains d'or et d'espoir, niveau {level}",
+  "Comme une déesse olympienne tu honores le poker, niveau {level}",
 ];
 
 /**

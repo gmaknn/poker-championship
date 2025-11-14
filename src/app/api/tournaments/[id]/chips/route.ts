@@ -13,22 +13,51 @@ export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
 
-    // First, try to get tournament-specific chips
+    // First, check if tournament has a chip config with chip sets
+    const chipConfig = await prisma.tournamentChipConfig.findUnique({
+      where: { tournamentId: id },
+    });
+
+    if (chipConfig && chipConfig.chipSetsUsed) {
+      // chipSetsUsed is a Json field, ensure it's an array
+      const chipSetIds = Array.isArray(chipConfig.chipSetsUsed)
+        ? chipConfig.chipSetsUsed
+        : [];
+
+      if (chipSetIds.length > 0) {
+        // Get all chips from the configured chip sets
+        const chips = await prisma.chipSetDenomination.findMany({
+          where: {
+            chipSetId: {
+              in: chipSetIds as string[],
+            },
+          },
+          orderBy: {
+            value: 'asc',
+          },
+        });
+
+        return NextResponse.json({ chips, isDefault: false });
+      }
+    }
+
+    // Fallback: try to get tournament-specific chips
     const tournamentChips = await prisma.chipDenomination.findMany({
       where: { tournamentId: id },
       orderBy: { order: 'asc' },
     });
 
-    // If no tournament-specific chips, return default chips
-    if (tournamentChips.length === 0) {
-      const defaultChips = await prisma.chipDenomination.findMany({
-        where: { isDefault: true, tournamentId: null },
-        orderBy: { order: 'asc' },
-      });
-      return NextResponse.json({ chips: defaultChips, isDefault: true });
+    if (tournamentChips.length > 0) {
+      return NextResponse.json({ chips: tournamentChips, isDefault: false });
     }
 
-    return NextResponse.json({ chips: tournamentChips, isDefault: false });
+    // If no chips found, return default chips
+    const defaultChips = await prisma.chipDenomination.findMany({
+      where: { isDefault: true, tournamentId: null },
+      orderBy: { order: 'asc' },
+    });
+
+    return NextResponse.json({ chips: defaultChips, isDefault: true });
   } catch (error) {
     console.error('Error fetching tournament chips:', error);
     return NextResponse.json(
