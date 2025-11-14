@@ -26,11 +26,12 @@ export async function GET(
       );
     }
 
-    // Récupérer tous les tournois FINISHED de la saison
+    // Récupérer tous les tournois FINISHED de type CHAMPIONSHIP de la saison
     const tournaments = await prisma.tournament.findMany({
       where: {
         seasonId,
         status: 'FINISHED',
+        type: 'CHAMPIONSHIP', // Only include championship tournaments
       },
       select: {
         id: true,

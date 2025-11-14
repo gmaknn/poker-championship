@@ -53,6 +53,7 @@ export async function GET(request: NextRequest, { params }: Params) {
         tournaments: {
           where: {
             status: 'FINISHED',
+            type: 'CHAMPIONSHIP', // Only include championship tournaments
           },
           include: {
             tournamentPlayers: {

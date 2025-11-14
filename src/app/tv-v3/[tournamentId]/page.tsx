@@ -236,12 +236,17 @@ export default function TVSpectatorViewV3({
           // Announce break
           announceBreak(currentLevelData.duration);
         } else {
+          // Get active players for random selection
+          const activePlayers = resultsData?.results.filter((p) => p.finalRank === null) || [];
+          const playerNicknames = activePlayers.map(p => p.player.nickname || p.player.firstName);
+
           // Announce new level
           announceLevelChange(
             currentLevelData.level,
             currentLevelData.smallBlind,
             currentLevelData.bigBlind,
-            currentLevelData.ante
+            currentLevelData.ante,
+            playerNicknames
           );
         }
       }
@@ -566,9 +571,9 @@ export default function TVSpectatorViewV3({
       </div>
 
       {/* Bottom Section - Leaderboard */}
-      {rankedPlayers.length > 0 && (
+      {false && rankedPlayers.length > 0 && (
         <div className="bg-[hsl(220,15%,18%)] border-t-4 border-[hsl(142,71%,45%)]">
-          <div className="px-8 py-4">
+          <div className="px-8 py-4 pr-96">
             <h2 className="text-2xl font-bold mb-3 text-center text-[hsl(142,71%,55%)]">
               {isCompleted ? 'CLASSEMENT FINAL' : 'JOUEURS ÉLIMINÉS'}
             </h2>
