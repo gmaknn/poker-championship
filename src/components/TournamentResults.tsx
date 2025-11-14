@@ -9,6 +9,17 @@ import { Trophy, Calculator, Download, Image as ImageIcon, FileText, Share2, Ext
 import { exportTournamentResults, exportToWhatsAppText, type TournamentResultsData } from '@/lib/exportUtils';
 import NextImage from 'next/image';
 
+// Helper function to check if avatar URL is valid
+const isValidAvatarUrl = (url: string | null): boolean => {
+  if (!url || url.trim() === '') return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 type Player = {
   id: string;
   firstName: string;
@@ -312,7 +323,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
               {rankedPlayers[1] && (
                 <div className="flex flex-col items-center p-6 rounded-lg border-2 border-gray-400 bg-gray-400/5">
                   <div className="mb-3">
-                    {rankedPlayers[1].player.avatar ? (
+                    {isValidAvatarUrl(rankedPlayers[1].player.avatar) ? (
                       <NextImage
                         src={rankedPlayers[1].player.avatar}
                         alt={rankedPlayers[1].player.nickname}
@@ -351,7 +362,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
               {rankedPlayers[0] && (
                 <div className="flex flex-col items-center p-6 rounded-lg border-4 border-yellow-500 bg-yellow-500/10 shadow-lg md:scale-110 md:-mt-4 md:z-10">
                   <div className="mb-3">
-                    {rankedPlayers[0].player.avatar ? (
+                    {isValidAvatarUrl(rankedPlayers[0].player.avatar) ? (
                       <NextImage
                         src={rankedPlayers[0].player.avatar}
                         alt={rankedPlayers[0].player.nickname}
@@ -390,7 +401,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
               {rankedPlayers[2] && (
                 <div className="flex flex-col items-center p-6 rounded-lg border-2 border-orange-600 bg-orange-600/5">
                   <div className="mb-3">
-                    {rankedPlayers[2].player.avatar ? (
+                    {isValidAvatarUrl(rankedPlayers[2].player.avatar) ? (
                       <NextImage
                         src={rankedPlayers[2].player.avatar}
                         alt={rankedPlayers[2].player.nickname}

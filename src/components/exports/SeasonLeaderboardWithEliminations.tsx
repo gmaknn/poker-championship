@@ -3,6 +3,17 @@
 import React from 'react';
 import Image from 'next/image';
 
+// Helper function to check if avatar URL is valid
+const isValidAvatarUrl = (url: string | null): boolean => {
+  if (!url || url.trim() === '') return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 interface EliminationVictim {
   nickname: string;
   count: number;
@@ -98,7 +109,7 @@ export default function SeasonLeaderboardWithEliminations({
                   {/* Name with avatar */}
                   <td className="border-2 border-gray-800 px-4 py-2">
                     <div className="flex items-center gap-2">
-                      {player.avatar ? (
+                      {isValidAvatarUrl(player.avatar) ? (
                         <Image
                           src={player.avatar}
                           alt={player.nickname}

@@ -91,14 +91,38 @@ class AudioManager {
   }
 
   /**
-   * Announce level change with TTS (Text-to-Speech)
+   * Play audio from base64-encoded MP3
    */
-  announceLevelChange(
-    level: number,
-    smallBlind: number,
-    bigBlind: number,
-    ante?: number
-  ): void {
+  private playAudioFromBase64(base64Audio: string): void {
+    try {
+      // Convert base64 to blob
+      const binaryString = atob(base64Audio);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+
+      // Create and play audio element
+      const audio = new Audio(url);
+      audio.play().catch((error) => {
+        console.error('Error playing audio:', error);
+      });
+
+      // Clean up blob URL after playing
+      audio.addEventListener('ended', () => {
+        URL.revokeObjectURL(url);
+      });
+    } catch (error) {
+      console.error('Error playing base64 audio:', error);
+    }
+  }
+
+  /**
+   * Announce using native speech synthesis (fallback)
+   */
+  private announceWithNativeSpeech(announcement: string): void {
     if (!this.speechSynthesis) {
       console.warn('SpeechSynthesis not available');
       return;
@@ -106,17 +130,6 @@ class AudioManager {
 
     // Cancel any ongoing speech
     this.speechSynthesis.cancel();
-
-    // Get random phrase
-    const phrase = this.getRandomPhrase(level, smallBlind);
-
-    // Add blind information
-    let announcement = phrase;
-    if (ante && ante > 0) {
-      announcement += ` Blinds : ${smallBlind} - ${bigBlind}, ante ${ante}.`;
-    } else {
-      announcement += ` Blinds : ${smallBlind} - ${bigBlind}.`;
-    }
 
     // Create speech utterance
     const utterance = new SpeechSynthesisUtterance(announcement);
@@ -139,28 +152,85 @@ class AudioManager {
   }
 
   /**
-   * Announce break
+   * Announce level change with TTS (Text-to-Speech)
+   * Uses Google Cloud TTS for high-quality voice, falls back to native if unavailable
    */
-  announceBreak(duration: number): void {
-    if (!this.speechSynthesis) return;
+  async announceLevelChange(
+    level: number,
+    smallBlind: number,
+    bigBlind: number,
+    ante?: number
+  ): Promise<void> {
+    // Get random phrase
+    const phrase = this.getRandomPhrase(level, smallBlind);
 
-    this.speechSynthesis.cancel();
-
-    const announcement = `C'est l'heure de la pause ! ${duration} minutes pour recharger les batteries.`;
-
-    const utterance = new SpeechSynthesisUtterance(announcement);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 0.9;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-
-    const voices = this.speechSynthesis.getVoices();
-    const frenchVoice = voices.find((voice) => voice.lang.startsWith('fr'));
-    if (frenchVoice) {
-      utterance.voice = frenchVoice;
+    // Add blind information
+    let announcement = phrase;
+    if (ante && ante > 0) {
+      announcement += ` Blinds : ${smallBlind} - ${bigBlind}, ante ${ante}.`;
+    } else {
+      announcement += ` Blinds : ${smallBlind} - ${bigBlind}.`;
     }
 
-    this.speechSynthesis.speak(utterance);
+    try {
+      // Try Google TTS first
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcement }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.playAudioFromBase64(data.audioContent);
+        return;
+      }
+
+      // If Google TTS fails, fall back to native speech
+      const errorData = await response.json();
+      if (errorData.fallbackToNative) {
+        console.log('Google TTS unavailable, using native speech synthesis');
+        this.announceWithNativeSpeech(announcement);
+      }
+    } catch (error) {
+      // On any error, fall back to native speech
+      console.log('Error with Google TTS, falling back to native speech:', error);
+      this.announceWithNativeSpeech(announcement);
+    }
+  }
+
+  /**
+   * Announce break
+   * Uses Google Cloud TTS for high-quality voice, falls back to native if unavailable
+   */
+  async announceBreak(duration: number): Promise<void> {
+    const announcement = `C'est l'heure de la pause ! ${duration} minutes pour recharger les batteries.`;
+
+    try {
+      // Try Google TTS first
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcement }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.playAudioFromBase64(data.audioContent);
+        return;
+      }
+
+      // If Google TTS fails, fall back to native speech
+      const errorData = await response.json();
+      if (errorData.fallbackToNative) {
+        console.log('Google TTS unavailable, using native speech synthesis');
+        this.announceWithNativeSpeech(announcement);
+      }
+    } catch (error) {
+      // On any error, fall back to native speech
+      console.log('Error with Google TTS, falling back to native speech:', error);
+      this.announceWithNativeSpeech(announcement);
+    }
   }
 
   /**

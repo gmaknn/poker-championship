@@ -16,6 +16,17 @@ import {
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/PageHeader';
 
+// Helper function to check if avatar URL is valid
+const isValidAvatarUrl = (url: string | null): boolean => {
+  if (!url || url.trim() === '') return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 type Season = {
   id: string;
   name: string;
@@ -215,7 +226,7 @@ export default function LeaderboardPage() {
                       />
                       <span className="text-3xl font-bold">#{entry.rank}</span>
                     </div>
-                    {entry.player.avatar && (
+                    {isValidAvatarUrl(entry.player.avatar) && (
                       <Image
                         src={entry.player.avatar}
                         alt={entry.player.nickname}
@@ -273,7 +284,7 @@ export default function LeaderboardPage() {
                       <span className={`text-lg font-bold w-8 ${entry.rank <= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
                         #{entry.rank}
                       </span>
-                      {entry.player.avatar ? (
+                      {isValidAvatarUrl(entry.player.avatar) ? (
                         <Image
                           src={entry.player.avatar}
                           alt={entry.player.nickname}

@@ -81,10 +81,22 @@ const STATUS_CONFIG = {
 };
 
 const getAvatarUrl = (avatar: string | null) => {
-  if (!avatar) return null;
+  if (!avatar || avatar.trim() === '') return null;
+
+  // Check if it's already a valid URL
   if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/')) {
-    return avatar;
+    try {
+      // Validate the URL
+      if (avatar.startsWith('/')) {
+        return avatar; // Relative URL, assume valid
+      }
+      new URL(avatar);
+      return avatar;
+    } catch {
+      return null;
+    }
   }
+
   // Si c'est juste un nom (comme "Heart"), générer une URL Dicebear
   return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
 };

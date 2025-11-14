@@ -3,6 +3,17 @@
 import React from 'react';
 import Image from 'next/image';
 
+// Helper function to check if avatar URL is valid
+const isValidAvatarUrl = (url: string | null): boolean => {
+  if (!url || url.trim() === '') return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 interface Player {
   rank: number;
   nickname: string;
@@ -90,7 +101,7 @@ export default function SeasonLeaderboardChart({
               >
                 {/* Avatar */}
                 <div className="mb-3 relative">
-                  {player.avatar ? (
+                  {isValidAvatarUrl(player.avatar) ? (
                     <Image
                       src={player.avatar}
                       alt={player.nickname}

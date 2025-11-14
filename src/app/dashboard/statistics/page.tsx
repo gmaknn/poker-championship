@@ -6,6 +6,17 @@ import { BarChart3, TrendingUp, Users, Trophy, Calendar, Award, Clock } from 'lu
 import Image from 'next/image';
 import { PageHeader } from '@/components/PageHeader';
 
+// Helper function to check if avatar URL is valid
+const isValidAvatarUrl = (url: string | null): boolean => {
+  if (!url || url.trim() === '') return false;
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 interface StatisticsData {
   overview: {
     totalTournaments: number;
@@ -207,7 +218,7 @@ export default function StatisticsPage() {
                       #{index + 1}
                     </div>
                     <div className="flex-shrink-0">
-                      {player.avatar ? (
+                      {isValidAvatarUrl(player.avatar) ? (
                         <Image
                           src={player.avatar}
                           alt={player.name}

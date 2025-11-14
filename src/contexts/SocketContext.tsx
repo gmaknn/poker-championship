@@ -56,7 +56,7 @@ export function useTournamentEvent<K extends keyof TournamentEvents>(
     socket.on(event as any, handler);
 
     return () => {
-      socket.off(event, handler);
+      socket.off(event as any, handler);
       leaveTournament(tournamentId);
     };
   }, [socket, tournamentId, event, joinTournament, leaveTournament]);

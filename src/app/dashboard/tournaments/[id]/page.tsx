@@ -178,7 +178,7 @@ export default function TournamentDetailPage({
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => window.open(`/tv/${tournament.id}`, '_blank')}
+            onClick={() => window.open(`/tv-v3/${tournament.id}`, '_blank')}
           >
             <Tv className="mr-2 h-4 w-4" />
             Vue TV
