@@ -19,13 +19,12 @@ interface PrizeAllocation {
 }
 
 export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolManagerProps) {
-  const [prizePool, setPrizePool] = useState<number>(0);
   const [allocations, setAllocations] = useState<PrizeAllocation[]>([
     { position: 1, amount: 0 },
     { position: 2, amount: 0 },
     { position: 3, amount: 0 },
   ]);
-  const [maxPrizePool, setMaxPrizePool] = useState<number>(0);
+  const [prizePool, setPrizePool] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -39,7 +38,7 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
       if (response.ok) {
         const data = await response.json();
 
-        // Calculate max prize pool from buy-ins and rebuys
+        // Calculate prize pool automatically from buy-ins and rebuys
         const totalBuyIns = data._count.tournamentPlayers * data.buyInAmount;
 
         // Fetch tournament players to count rebuys
@@ -54,13 +53,11 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
           const rebuyAmount = data.buyInAmount; // Assuming rebuy = buy-in
           const totalRebuyMoney = totalRebuys * rebuyAmount;
 
-          setMaxPrizePool(totalBuyIns + totalRebuyMoney);
+          // Prize pool is automatically calculated
+          setPrizePool(totalBuyIns + totalRebuyMoney);
         } else {
-          setMaxPrizePool(totalBuyIns);
+          setPrizePool(totalBuyIns);
         }
-
-        // Set current prize pool
-        setPrizePool(data.prizePool || 0);
 
         // Parse prize distribution
         if (data.prizeDistribution) {
@@ -83,11 +80,6 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handlePrizePoolChange = (value: string) => {
-    const numValue = parseFloat(value) || 0;
-    setPrizePool(numValue);
   };
 
   const handleAllocationChange = (index: number, amount: string) => {
@@ -115,7 +107,7 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
 
   const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
   const remainingAmount = prizePool - totalAllocated;
-  const isValid = totalAllocated <= prizePool && prizePool <= maxPrizePool;
+  const isValid = totalAllocated <= prizePool;
 
   const handleSave = async () => {
     if (!isValid) return;
@@ -170,36 +162,20 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
             Configuration du Prize Pool
           </CardTitle>
           <CardDescription>
-            Définissez le montant total du prize pool et sa distribution entre les places payées
+            Le prize pool est calculé automatiquement à partir des buy-ins et recaves. Configurez sa distribution entre les places payées.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Prize Pool Total */}
+          {/* Prize Pool Total - Read Only */}
           <div className="space-y-2">
-            <Label htmlFor="prize-pool">Prize Pool Total (€)</Label>
-            <Input
-              id="prize-pool"
-              type="number"
-              min="0"
-              step="0.01"
-              value={prizePool || ''}
-              onChange={(e) => handlePrizePoolChange(e.target.value)}
-              placeholder="Ex: 150"
-            />
+            <Label>Prize Pool Total</Label>
+            <div className="text-3xl font-bold text-primary">
+              {prizePool.toFixed(2)}€
+            </div>
             <p className="text-xs text-muted-foreground">
-              Maximum disponible: {maxPrizePool.toFixed(2)}€ (basé sur les buy-ins et recaves)
+              Calculé automatiquement à partir des buy-ins et recaves
             </p>
           </div>
-
-          {/* Validation Alert */}
-          {prizePool > maxPrizePool && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Le prize pool ne peut pas dépasser le montant total collecté ({maxPrizePool.toFixed(2)}€)
-              </AlertDescription>
-            </Alert>
-          )}
 
           {/* Prize Allocations */}
           <div className="space-y-4">
