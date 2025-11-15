@@ -19,6 +19,7 @@ import TournamentTimer from '@/components/TournamentTimer';
 import EliminationManager from '@/components/EliminationManager';
 import TableDistribution from '@/components/TableDistribution';
 import TournamentResults from '@/components/TournamentResults';
+import PrizePoolManager from '@/components/PrizePoolManager';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -263,6 +264,7 @@ export default function TournamentDetailPage({
           <TabsTrigger value="tables">Tables</TabsTrigger>
           <TabsTrigger value="timer">Timer</TabsTrigger>
           <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
+          <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
           <TabsTrigger value="results">Résultats</TabsTrigger>
         </TabsList>
 
@@ -311,6 +313,13 @@ export default function TournamentDetailPage({
 
         <TabsContent value="eliminations" className="mt-6">
           <EliminationManager
+            tournamentId={tournament.id}
+            onUpdate={() => fetchTournament()}
+          />
+        </TabsContent>
+
+        <TabsContent value="prizepool" className="mt-6">
+          <PrizePoolManager
             tournamentId={tournament.id}
             onUpdate={() => fetchTournament()}
           />
