@@ -46,7 +46,8 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
         const playersResponse = await fetch(`/api/tournaments/${tournamentId}/players`);
         if (playersResponse.ok) {
           const playersData = await playersResponse.json();
-          const totalRebuys = playersData.players.reduce(
+          // playersData is an array of tournament players
+          const totalRebuys = playersData.reduce(
             (sum: number, player: any) => sum + (player.rebuysCount || 0),
             0
           );
