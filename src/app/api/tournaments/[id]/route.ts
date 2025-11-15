@@ -16,6 +16,7 @@ const updateTournamentSchema = z.object({
   location: z.string().optional(),
   notes: z.string().optional(),
   prizePool: z.number().optional(),
+  prizeDistribution: z.record(z.string(), z.number()).optional(), // Prize distribution by position
   actualDuration: z.number().int().optional(),
   completedAt: z.string().datetime().optional(),
 });
@@ -123,12 +124,20 @@ export async function PATCH(
       );
     }
 
-    // Prevent editing completed tournaments
-    if (existingTournament.status === 'FINISHED' && validatedData.status !== 'FINISHED') {
-      return NextResponse.json(
-        { error: 'Impossible de modifier un tournoi terminé' },
-        { status: 400 }
+    // Prevent editing completed tournaments (except prize pool and distribution)
+    if (existingTournament.status === 'FINISHED') {
+      // Allow updating only prizePool and prizeDistribution for finished tournaments
+      const allowedFields = ['prizePool', 'prizeDistribution'];
+      const hasDisallowedChanges = Object.keys(validatedData).some(
+        key => !allowedFields.includes(key)
       );
+
+      if (hasDisallowedChanges) {
+        return NextResponse.json(
+          { error: 'Impossible de modifier un tournoi terminé (seule la distribution du prize pool peut être modifiée)' },
+          { status: 400 }
+        );
+      }
     }
 
     // If changing season, verify it exists
