@@ -95,6 +95,7 @@ export async function GET(
         name: tournament.name,
         date: tournament.date,
         status: tournament.status,
+        type: tournament.type,
         buyInAmount: tournament.buyInAmount,
         prizePool: tournament.prizePool,
       },

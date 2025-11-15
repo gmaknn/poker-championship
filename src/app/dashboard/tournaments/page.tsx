@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List } from 'lucide-react';
+import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -344,6 +344,69 @@ export default function TournamentsPage() {
       status: tournament.status,
     });
     setIsDialogOpen(true);
+  };
+
+  const handleClone = async (tournament: Tournament) => {
+    try {
+      setLoading(true);
+
+      // Récupérer les détails complets du tournoi
+      const response = await fetch(`/api/tournaments/${tournament.id}`);
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des détails du tournoi');
+      }
+
+      const tournamentDetails = await response.json();
+
+      // Récupérer la structure des blinds
+      const blindsResponse = await fetch(`/api/tournaments/${tournament.id}/blinds`);
+      let blindStructure = null;
+      if (blindsResponse.ok) {
+        blindStructure = await blindsResponse.json();
+      }
+
+      // Récupérer la configuration des jetons
+      const chipConfigResponse = await fetch(`/api/tournaments/${tournament.id}/chip-config`);
+      let chipConfig = null;
+      if (chipConfigResponse.ok) {
+        chipConfig = await chipConfigResponse.json();
+      }
+
+      // Préparer le formulaire avec les données du tournoi source
+      const clonedName = `${tournament.name} (copie)`;
+      const now = new Date();
+      const clonedDate = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // +7 jours par défaut
+
+      setFormData({
+        name: clonedName,
+        type: (tournamentDetails as any).type || 'CHAMPIONSHIP',
+        seasonId: tournament.seasonId || '',
+        date: clonedDate.toISOString().slice(0, 16),
+        buyInAmount: tournament.buyInAmount,
+        startingChips: tournament.startingChips,
+        targetDuration: tournament.targetDuration,
+        totalPlayers: tournament.totalPlayers || 20,
+        status: 'PLANNED',
+      });
+
+      // Stocker la structure de blinds et la config de jetons pour la création
+      if (blindStructure) {
+        setPendingBlindStructure(blindStructure);
+      }
+      if (chipConfig) {
+        setPendingChipConfig(chipConfig);
+      }
+
+      // Ouvrir le dialogue de création
+      setEditingTournament(null);
+      setIsDialogOpen(true);
+
+    } catch (error) {
+      console.error('Error cloning tournament:', error);
+      alert('Erreur lors du clonage du tournoi');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -738,6 +801,16 @@ export default function TournamentsPage() {
                     <Eye className="mr-1 h-3 w-3" />
                     Détails
                   </Button>
+                  {canCreateTournament() && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleClone(tournament)}
+                      title="Cloner ce tournoi"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  )}
                   {canEditTournament(tournament) && (
                     <Button
                       variant="outline"
@@ -906,6 +979,16 @@ export default function TournamentsPage() {
                       <Eye className="mr-1 h-3 w-3" />
                       Détails
                     </Button>
+                    {canCreateTournament() && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleClone(tournament)}
+                        title="Cloner ce tournoi"
+                      >
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    )}
                     {canEditTournament(tournament) && (
                       <Button
                         variant="outline"

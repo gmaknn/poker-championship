@@ -49,6 +49,7 @@ type Tournament = {
   name: string | null;
   date: string;
   status: string;
+  type: string;
   buyInAmount: number;
   prizePool: number | null;
 };
@@ -234,17 +235,21 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
         <div className="flex items-center gap-2">
           {isCompleted && (
             <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCalculatePoints}
-                disabled={isCalculating || !season}
-              >
-                <Calculator className="mr-2 h-4 w-4" />
-                {isCalculating ? 'Calcul...' : 'Recalculer les points'}
-              </Button>
+              {tournament.type === 'CHAMPIONSHIP' && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCalculatePoints}
+                    disabled={isCalculating || !season}
+                  >
+                    <Calculator className="mr-2 h-4 w-4" />
+                    {isCalculating ? 'Calcul...' : 'Recalculer les points'}
+                  </Button>
 
-              <div className="h-4 w-px bg-border mx-1" />
+                  <div className="h-4 w-px bg-border mx-1" />
+                </>
+              )}
 
               <Button
                 variant="outline"
@@ -306,7 +311,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                 </CardTitle>
                 <CardDescription>Les 3 premiers du tournoi</CardDescription>
               </div>
-              {season && (
+              {season && tournament.type === 'CHAMPIONSHIP' && (
                 <Button
                   variant="outline"
                   onClick={() => router.push('/dashboard/leaderboard')}
@@ -345,16 +350,17 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="text-sm text-muted-foreground mb-3">
                     @{rankedPlayers[1].player.nickname}
                   </div>
-                  {season && (
-                    <div className="text-2xl font-bold text-gray-400">
-                      {rankedPlayers[1].totalPoints} pts
-                    </div>
-                  )}
-                  {rankedPlayers[1].prizeAmount && (
-                    <div className="text-lg font-semibold text-green-600 mt-1">
+                  {tournament.type === 'CHAMPIONSHIP' ? (
+                    season && (
+                      <div className="text-2xl font-bold text-gray-400">
+                        {rankedPlayers[1].totalPoints} pts
+                      </div>
+                    )
+                  ) : rankedPlayers[1].prizeAmount ? (
+                    <div className="text-2xl font-bold text-green-600">
                       {rankedPlayers[1].prizeAmount}€
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
 
@@ -384,16 +390,17 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="text-sm text-muted-foreground mb-3">
                     @{rankedPlayers[0].player.nickname}
                   </div>
-                  {season && (
-                    <div className="text-3xl font-bold text-yellow-500">
-                      {rankedPlayers[0].totalPoints} pts
-                    </div>
-                  )}
-                  {rankedPlayers[0].prizeAmount && (
-                    <div className="text-xl font-bold text-green-600 mt-1">
+                  {tournament.type === 'CHAMPIONSHIP' ? (
+                    season && (
+                      <div className="text-3xl font-bold text-yellow-500">
+                        {rankedPlayers[0].totalPoints} pts
+                      </div>
+                    )
+                  ) : rankedPlayers[0].prizeAmount ? (
+                    <div className="text-3xl font-bold text-green-600">
                       {rankedPlayers[0].prizeAmount}€
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
 
@@ -423,16 +430,17 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="text-sm text-muted-foreground mb-3">
                     @{rankedPlayers[2].player.nickname}
                   </div>
-                  {season && (
-                    <div className="text-2xl font-bold text-orange-600">
-                      {rankedPlayers[2].totalPoints} pts
-                    </div>
-                  )}
-                  {rankedPlayers[2].prizeAmount && (
-                    <div className="text-lg font-semibold text-green-600 mt-1">
+                  {tournament.type === 'CHAMPIONSHIP' ? (
+                    season && (
+                      <div className="text-2xl font-bold text-orange-600">
+                        {rankedPlayers[2].totalPoints} pts
+                      </div>
+                    )
+                  ) : rankedPlayers[2].prizeAmount ? (
+                    <div className="text-2xl font-bold text-green-600">
                       {rankedPlayers[2].prizeAmount}€
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
@@ -524,43 +532,52 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   </div>
 
                   <div className="flex items-center gap-6 text-sm">
-                    {season && isCompleted && (
-                      <>
-                        <div className="text-right">
-                          <div className="font-medium">{player.rankPoints} pts</div>
-                          <div className="text-xs text-muted-foreground">Classement</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-medium">
-                            {player.eliminationPoints > 0 ? `+${player.eliminationPoints}` : player.eliminationPoints} pts
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {player.eliminationsCount} élim.
-                          </div>
-                        </div>
-                        {player.bonusPoints > 0 && (
+                    {tournament.type === 'CHAMPIONSHIP' ? (
+                      season && isCompleted && (
+                        <>
                           <div className="text-right">
-                            <div className="font-medium text-green-600">
-                              +{player.bonusPoints} pts
+                            <div className="font-medium">{player.rankPoints} pts</div>
+                            <div className="text-xs text-muted-foreground">Classement</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-medium">
+                              {player.eliminationPoints > 0 ? `+${player.eliminationPoints}` : player.eliminationPoints} pts
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {player.leaderKills} LK
+                              {player.eliminationsCount} élim.
                             </div>
                           </div>
-                        )}
-                        {player.penaltyPoints < 0 && (
+                          {player.bonusPoints > 0 && (
+                            <div className="text-right">
+                              <div className="font-medium text-green-600">
+                                +{player.bonusPoints} pts
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {player.leaderKills} LK
+                              </div>
+                            </div>
+                          )}
+                          {player.penaltyPoints < 0 && (
+                            <div className="text-right">
+                              <div className="font-medium text-red-600">
+                                {player.penaltyPoints} pts
+                              </div>
+                              <div className="text-xs text-muted-foreground">Pénalités</div>
+                            </div>
+                          )}
                           <div className="text-right">
-                            <div className="font-medium text-red-600">
-                              {player.penaltyPoints} pts
-                            </div>
-                            <div className="text-xs text-muted-foreground">Pénalités</div>
+                            <div className="text-lg font-bold">{player.totalPoints} pts</div>
+                            <div className="text-xs text-muted-foreground">Total</div>
                           </div>
-                        )}
+                        </>
+                      )
+                    ) : (
+                      player.prizeAmount && (
                         <div className="text-right">
-                          <div className="text-lg font-bold">{player.totalPoints} pts</div>
-                          <div className="text-xs text-muted-foreground">Total</div>
+                          <div className="text-lg font-bold text-green-600">{player.prizeAmount}€</div>
+                          <div className="text-xs text-muted-foreground">Gain</div>
                         </div>
-                      </>
+                      )
                     )}
                   </div>
                 </div>

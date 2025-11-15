@@ -31,10 +31,11 @@ type TimerState = {
 
 type Props = {
   tournamentId: string;
+  tournamentStatus?: string;
   onUpdate?: () => void;
 };
 
-export default function TournamentTimer({ tournamentId, onUpdate }: Props) {
+export default function TournamentTimer({ tournamentId, tournamentStatus, onUpdate }: Props) {
   const [timerState, setTimerState] = useState<TimerState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -289,6 +290,23 @@ export default function TournamentTimer({ tournamentId, onUpdate }: Props) {
   const timeRemaining = getTimeRemaining();
   const progress = getProgressPercentage();
   const isLowTime = timeRemaining < 60 && timeRemaining > 0;
+  const isFinished = tournamentStatus === 'FINISHED';
+
+  // Si le tournoi est terminé, afficher un message simple
+  if (isFinished) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <div className="text-6xl font-bold text-green-600 mb-4">
+            Terminé
+          </div>
+          <p className="text-muted-foreground">
+            Le tournoi est terminé. Les modifications ne sont plus possibles.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
