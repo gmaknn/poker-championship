@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { Trophy, Users, DollarSign, Clock } from 'lucide-react';
 import { playCountdown, announceLevelChange, announceBreak } from '@/lib/audioManager';
+import confetti from 'canvas-confetti';
 
 type Player = {
   id: string;
@@ -102,12 +103,46 @@ export default function TVSpectatorViewV3({
   // Audio management refs
   const countdownPlayedRef = useRef(false);
   const previousLevelRef = useRef<number>(0);
+  const confettiTriggeredRef = useRef(false);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, [tournamentId]);
+
+  // Trigger confetti when tournament finishes
+  useEffect(() => {
+    if (resultsData?.tournament.status === 'FINISHED' && !confettiTriggeredRef.current) {
+      confettiTriggeredRef.current = true;
+
+      // Launch confetti
+      const duration = 5000;
+      const end = Date.now() + duration;
+
+      const frame = () => {
+        confetti({
+          particleCount: 7,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
+        });
+        confetti({
+          particleCount: 7,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6']
+        });
+
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    }
+  }, [resultsData?.tournament.status]);
 
   // Update current time every second to trigger recalculation
   useEffect(() => {
@@ -381,16 +416,18 @@ export default function TVSpectatorViewV3({
   const activePlayers = results.filter((p) => p.finalRank === null);
   const isCompleted = tournament.status === 'FINISHED';
 
-  // Calculate average stack for active players
+  // Calculate total rebuys first
+  const totalRebuys = results.reduce((sum, p) => sum + p.rebuysCount, 0);
+
+  // Calculate average stack for active players (including rebuy chips)
   const totalChipsInPlay = activePlayers.length > 0
-    ? results.length * tournament.startingChips
+    ? (results.length * tournament.startingChips) + (totalRebuys * tournament.startingChips)
     : 0;
   const averageStack = activePlayers.length > 0
     ? Math.floor(totalChipsInPlay / activePlayers.length)
     : 0;
 
   // Calculate total prize pool (buy-ins + rebuys)
-  const totalRebuys = results.reduce((sum, p) => sum + p.rebuysCount, 0);
   const calculatedPrizePool = tournament.prizePool || ((results.length + totalRebuys) * tournament.buyInAmount);
 
   const tournamentTypeLabel = tournament.type === 'CHAMPIONSHIP' ? 'Texas Hold\'em No Limit' :
@@ -418,7 +455,50 @@ export default function TVSpectatorViewV3({
         </h1>
       </div>
 
-      {/* Main Content */}
+      {/* Tournament Finished Screen */}
+      {isCompleted && rankedPlayers.length > 0 ? (
+        <div className="flex items-center justify-center h-[calc(100vh-80px)] bg-gradient-to-br from-[hsl(220,18%,12%)] to-[hsl(142,71%,15%)]">
+          <div className="text-center space-y-12 p-12">
+            <div className="text-9xl font-black text-[hsl(142,71%,45%)] drop-shadow-2xl uppercase tracking-wider animate-pulse">
+              Terminé
+            </div>
+
+            <div className="space-y-6">
+              <div className="flex items-center justify-center gap-6">
+                <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl" />
+                <div className="text-left">
+                  <div className="text-3xl text-white/80 mb-2">Vainqueur</div>
+                  <div className="text-8xl font-black text-white drop-shadow-2xl">
+                    {rankedPlayers[0].player.nickname || `${rankedPlayers[0].player.firstName} ${rankedPlayers[0].player.lastName}`}
+                  </div>
+                </div>
+                <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl" />
+              </div>
+
+              {rankedPlayers.length > 1 && (
+                <div className="flex justify-center gap-12 mt-12">
+                  {rankedPlayers[1] && (
+                    <div className="text-center">
+                      <div className="text-2xl text-white/60 mb-2">2ème place</div>
+                      <div className="text-4xl font-bold text-white/90">
+                        {rankedPlayers[1].player.nickname || `${rankedPlayers[1].player.firstName} ${rankedPlayers[1].player.lastName}`}
+                      </div>
+                    </div>
+                  )}
+                  {rankedPlayers[2] && (
+                    <div className="text-center">
+                      <div className="text-2xl text-white/60 mb-2">3ème place</div>
+                      <div className="text-4xl font-bold text-white/90">
+                        {rankedPlayers[2].player.nickname || `${rankedPlayers[2].player.firstName} ${rankedPlayers[2].player.lastName}`}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="flex h-[calc(100vh-80px)]">
         {/* LEFT PANEL */}
         <div className="w-1/5 bg-[hsl(220,15%,18%)] p-6 space-y-8 border-r-2 border-[hsl(220,13%,30%)]">
@@ -569,6 +649,7 @@ export default function TVSpectatorViewV3({
           )}
         </div>
       </div>
+      )}
 
       {/* Bottom Section - Leaderboard */}
       {false && rankedPlayers.length > 0 && (

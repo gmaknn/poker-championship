@@ -47,8 +47,8 @@ export async function GET(
       let bonusPoints = 0;
       const penaltyPoints = tp.penaltyPoints; // Déjà calculé lors des recaves
 
-      // Points de classement selon la position finale
-      if (tournament.season && tp.finalRank !== null) {
+      // Points de classement selon la position finale (uniquement pour les tournois CHAMPIONSHIP)
+      if (tournament.type === 'CHAMPIONSHIP' && tournament.season && tp.finalRank !== null) {
         const pointsMap: Record<number, number> = {
           1: tournament.season.pointsFirst,
           2: tournament.season.pointsSecond,
@@ -76,7 +76,7 @@ export async function GET(
         bonusPoints = tp.leaderKills * tournament.season.leaderKillerBonus;
       }
 
-      // Calculer le total
+      // Calculer le total (0 pour les tournois CASUAL)
       const totalPoints = rankPoints + eliminationPoints + bonusPoints + penaltyPoints;
 
       return {
