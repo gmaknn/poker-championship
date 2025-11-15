@@ -456,46 +456,48 @@ export default function TVSpectatorViewV3({
       </div>
 
       {/* Tournament Finished Screen */}
-      {isCompleted && rankedPlayers.length > 0 ? (
+      {isCompleted ? (
         <div className="flex items-center justify-center h-[calc(100vh-80px)] bg-gradient-to-br from-[hsl(220,18%,12%)] to-[hsl(142,71%,15%)]">
           <div className="text-center space-y-12 p-12">
             <div className="text-9xl font-black text-[hsl(142,71%,45%)] drop-shadow-2xl uppercase tracking-wider animate-pulse">
               Terminé
             </div>
 
-            <div className="space-y-6">
-              <div className="flex items-center justify-center gap-6">
-                <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl" />
-                <div className="text-left">
-                  <div className="text-3xl text-white/80 mb-2">Vainqueur</div>
-                  <div className="text-8xl font-black text-white drop-shadow-2xl">
-                    {rankedPlayers[0].player.nickname || `${rankedPlayers[0].player.firstName} ${rankedPlayers[0].player.lastName}`}
+            {rankedPlayers.length > 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-center gap-6">
+                  <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl" />
+                  <div className="text-left">
+                    <div className="text-3xl text-white/80 mb-2">Vainqueur</div>
+                    <div className="text-8xl font-black text-white drop-shadow-2xl">
+                      {rankedPlayers[0].player.nickname || `${rankedPlayers[0].player.firstName} ${rankedPlayers[0].player.lastName}`}
+                    </div>
                   </div>
+                  <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl" />
                 </div>
-                <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl" />
-              </div>
 
-              {rankedPlayers.length > 1 && (
-                <div className="flex justify-center gap-12 mt-12">
-                  {rankedPlayers[1] && (
-                    <div className="text-center">
-                      <div className="text-2xl text-white/60 mb-2">2ème place</div>
-                      <div className="text-4xl font-bold text-white/90">
-                        {rankedPlayers[1].player.nickname || `${rankedPlayers[1].player.firstName} ${rankedPlayers[1].player.lastName}`}
+                {rankedPlayers.length > 1 && (
+                  <div className="flex justify-center gap-12 mt-12">
+                    {rankedPlayers[1] && (
+                      <div className="text-center">
+                        <div className="text-2xl text-white/60 mb-2">2ème place</div>
+                        <div className="text-4xl font-bold text-white/90">
+                          {rankedPlayers[1].player.nickname || `${rankedPlayers[1].player.firstName} ${rankedPlayers[1].player.lastName}`}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                  {rankedPlayers[2] && (
-                    <div className="text-center">
-                      <div className="text-2xl text-white/60 mb-2">3ème place</div>
-                      <div className="text-4xl font-bold text-white/90">
-                        {rankedPlayers[2].player.nickname || `${rankedPlayers[2].player.firstName} ${rankedPlayers[2].player.lastName}`}
+                    )}
+                    {rankedPlayers[2] && (
+                      <div className="text-center">
+                        <div className="text-2xl text-white/60 mb-2">3ème place</div>
+                        <div className="text-4xl font-bold text-white/90">
+                          {rankedPlayers[2].player.nickname || `${rankedPlayers[2].player.firstName} ${rankedPlayers[2].player.lastName}`}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ) : (
