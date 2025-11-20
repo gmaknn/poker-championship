@@ -60,6 +60,7 @@ export default function TournamentPlayersManager({
   const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [error, setError] = useState('');
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchData();
@@ -112,20 +113,27 @@ export default function TournamentPlayersManager({
     }
   };
 
-  const handleEnrollPlayer = async (playerId: string) => {
+  const handleEnrollPlayers = async () => {
+    if (selectedPlayerIds.size === 0) {
+      setError('Veuillez sélectionner au moins un joueur');
+      return;
+    }
+
     setIsEnrolling(true);
     setError('');
 
     try {
+      const playerIds = Array.from(selectedPlayerIds);
       const response = await fetch(`/api/tournaments/${tournamentId}/players`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId }),
+        body: JSON.stringify({ playerIds }),
       });
 
       if (response.ok) {
         setIsEnrollDialogOpen(false);
         setSearchTerm('');
+        setSelectedPlayerIds(new Set());
         await fetchData();
         onUpdate?.();
       } else {
@@ -133,10 +141,28 @@ export default function TournamentPlayersManager({
         setError(data.error || 'Erreur lors de l\'inscription');
       }
     } catch (error) {
-      console.error('Error enrolling player:', error);
+      console.error('Error enrolling players:', error);
       setError('Erreur lors de l\'inscription');
     } finally {
       setIsEnrolling(false);
+    }
+  };
+
+  const togglePlayerSelection = (playerId: string) => {
+    const newSelection = new Set(selectedPlayerIds);
+    if (newSelection.has(playerId)) {
+      newSelection.delete(playerId);
+    } else {
+      newSelection.add(playerId);
+    }
+    setSelectedPlayerIds(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedPlayerIds.size === filteredPlayers.length) {
+      setSelectedPlayerIds(new Set());
+    } else {
+      setSelectedPlayerIds(new Set(filteredPlayers.map(p => p.id)));
     }
   };
 
@@ -239,7 +265,7 @@ export default function TournamentPlayersManager({
         </div>
         <Button onClick={() => setIsEnrollDialogOpen(true)} disabled={tournament.status !== 'PLANNED'}>
           <Plus className="mr-2 h-4 w-4" />
-          Inscrire un joueur
+          Inscrire des joueurs
         </Button>
       </div>
 
@@ -342,9 +368,9 @@ export default function TournamentPlayersManager({
       <Dialog open={isEnrollDialogOpen} onOpenChange={setIsEnrollDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Inscrire un joueur</DialogTitle>
+            <DialogTitle>Inscrire des joueurs</DialogTitle>
             <DialogDescription>
-              Sélectionnez un joueur à inscrire au tournoi
+              Sélectionnez un ou plusieurs joueurs à inscrire au tournoi
             </DialogDescription>
           </DialogHeader>
 
@@ -373,15 +399,37 @@ export default function TournamentPlayersManager({
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredPlayers.map((player) => (
-                  <button
-                    key={player.id}
-                    onClick={() => handleEnrollPlayer(player.id)}
-                    disabled={isEnrolling}
-                    className="w-full rounded-lg border p-3 text-left transition-colors hover:bg-accent disabled:opacity-50"
+                {/* Select All */}
+                <div className="flex items-center gap-2 p-2 border-b">
+                  <Checkbox
+                    checked={selectedPlayerIds.size === filteredPlayers.length && filteredPlayers.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                    id="select-all"
+                  />
+                  <label
+                    htmlFor="select-all"
+                    className="text-sm font-medium cursor-pointer"
                   >
-                    <div className="flex items-center justify-between">
-                      <div>
+                    Tout sélectionner ({selectedPlayerIds.size}/{filteredPlayers.length})
+                  </label>
+                </div>
+
+                {/* Player List */}
+                {filteredPlayers.map((player) => (
+                  <div
+                    key={player.id}
+                    onClick={() => togglePlayerSelection(player.id)}
+                    className={`w-full rounded-lg border p-3 cursor-pointer transition-colors hover:bg-accent ${
+                      selectedPlayerIds.has(player.id) ? 'bg-accent border-primary' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Checkbox
+                        checked={selectedPlayerIds.has(player.id)}
+                        onCheckedChange={() => togglePlayerSelection(player.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div className="flex-1">
                         <div className="font-medium">
                           {player.firstName} {player.lastName}
                         </div>
@@ -389,9 +437,8 @@ export default function TournamentPlayersManager({
                           {player.nickname}
                         </div>
                       </div>
-                      <Plus className="h-4 w-4 text-muted-foreground" />
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -403,10 +450,21 @@ export default function TournamentPlayersManager({
               onClick={() => {
                 setIsEnrollDialogOpen(false);
                 setSearchTerm('');
+                setSelectedPlayerIds(new Set());
                 setError('');
               }}
             >
               Annuler
+            </Button>
+            <Button
+              onClick={handleEnrollPlayers}
+              disabled={isEnrolling || selectedPlayerIds.size === 0}
+            >
+              {isEnrolling
+                ? 'Inscription...'
+                : selectedPlayerIds.size > 0
+                ? `Inscrire (${selectedPlayerIds.size})`
+                : 'Sélectionner des joueurs'}
             </Button>
           </DialogFooter>
         </DialogContent>

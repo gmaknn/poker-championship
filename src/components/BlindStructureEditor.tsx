@@ -64,12 +64,14 @@ type Props = {
   tournamentId: string;
   startingChips: number;
   onSave?: () => void;
+  onUnsavedChangesChange?: (hasChanges: boolean) => void;
 };
 
 export default function BlindStructureEditor({
   tournamentId,
   startingChips,
   onSave,
+  onUnsavedChangesChange,
 }: Props) {
   const [levels, setLevels] = useState<BlindLevel[]>([]);
   const [stats, setStats] = useState<BlindStats | null>(null);
@@ -86,12 +88,18 @@ export default function BlindStructureEditor({
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [chipConfig, setChipConfig] = useState<any | null>(null);
   const [smallestChip, setSmallestChip] = useState<number | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     fetchBlindLevels();
     fetchTemplates();
     fetchChipConfig();
   }, [tournamentId]);
+
+  // Notify parent when unsaved changes state changes
+  useEffect(() => {
+    onUnsavedChangesChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedChangesChange]);
 
   const fetchTemplates = async () => {
     try {
@@ -130,6 +138,7 @@ export default function BlindStructureEditor({
         const data = await response.json();
         setLevels(data);
         calculateStats(data);
+        setHasUnsavedChanges(false); // Clear unsaved changes on load
       }
     } catch (error) {
       console.error('Error fetching blind levels:', error);
@@ -176,6 +185,7 @@ export default function BlindStructureEditor({
         const data = await response.json();
         setLevels(data.levels);
         setStats(data.stats);
+        setHasUnsavedChanges(true); // Mark as unsaved
         setIsGenerateDialogOpen(false);
       } else {
         setError('Erreur lors de la génération');
@@ -204,6 +214,7 @@ export default function BlindStructureEditor({
       if (response.ok) {
         setSuccessMessage('Structure sauvegardée avec succès !');
         setTimeout(() => setSuccessMessage(''), 3000);
+        setHasUnsavedChanges(false); // Clear unsaved changes on successful save
         onSave?.();
       } else {
         let errorMessage = 'Erreur lors de la sauvegarde';
@@ -286,6 +297,7 @@ export default function BlindStructureEditor({
     if (template.structure && template.structure.levels) {
       setLevels(template.structure.levels);
       calculateStats(template.structure.levels);
+      setHasUnsavedChanges(true); // Mark as unsaved
       setIsGenerateDialogOpen(false);
       setSuccessMessage(`Template "${template.name}" chargé avec succès !`);
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -307,6 +319,7 @@ export default function BlindStructureEditor({
     const newLevels = [...levels, newLevel];
     setLevels(newLevels);
     calculateStats(newLevels);
+    setHasUnsavedChanges(true); // Mark as unsaved
   };
 
   const handleAddBreak = () => {
@@ -322,6 +335,7 @@ export default function BlindStructureEditor({
     const newLevels = [...levels, newBreak];
     setLevels(newLevels);
     calculateStats(newLevels);
+    setHasUnsavedChanges(true); // Mark as unsaved
   };
 
   const handleRemoveLevel = (levelIndex: number) => {
@@ -330,6 +344,7 @@ export default function BlindStructureEditor({
       .map((level, index) => ({ ...level, level: index + 1 }));
     setLevels(newLevels);
     calculateStats(newLevels);
+    setHasUnsavedChanges(true); // Mark as unsaved
   };
 
   const handleLevelChange = (
@@ -341,6 +356,7 @@ export default function BlindStructureEditor({
     newLevels[index] = { ...newLevels[index], [field]: value };
     setLevels(newLevels);
     calculateStats(newLevels);
+    setHasUnsavedChanges(true); // Mark as unsaved
   };
 
   const formatTime = (minutes: number) => {
@@ -379,6 +395,7 @@ export default function BlindStructureEditor({
 
     setLevels(renumbered);
     calculateStats(renumbered);
+    setHasUnsavedChanges(true); // Mark as unsaved
     setDraggedIndex(null);
     setDragOverIndex(null);
   };

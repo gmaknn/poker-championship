@@ -59,6 +59,7 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
   const [minPlayersToBreakTable, setMinPlayersToBreakTable] = useState(3);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRebalancing, setIsRebalancing] = useState(false);
+  const [isRebalanceDialogOpen, setIsRebalanceDialogOpen] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -112,10 +113,6 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
   };
 
   const handleRebalanceTables = async () => {
-    if (!confirm('Voulez-vous vraiment rééquilibrer les tables ? Les joueurs seront redistribués.')) {
-      return;
-    }
-
     setIsRebalancing(true);
     setError('');
 
@@ -129,6 +126,7 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         const data = await response.json();
         setTablesData(data);
+        setIsRebalanceDialogOpen(false);
         onUpdate?.();
         alert(
           `Rééquilibrage effectué:\n- ${data.totalTables} table(s)\n- ${data.movedPlayers} joueur(s) déplacé(s)\n- ${data.brokenTables} table(s) cassée(s)`
@@ -222,6 +220,13 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
                 <p className="text-xs text-muted-foreground">
                   Généralement 8-10 places pour le poker
                 </p>
+                {activePlayers > 0 && seatsPerTable > 0 && (
+                  <div className="mt-3 p-3 bg-muted rounded-md">
+                    <p className="text-sm font-medium">
+                      {activePlayers} joueurs actifs ÷ {seatsPerTable} places par table = {Math.ceil(activePlayers / seatsPerTable)} table{Math.ceil(activePlayers / seatsPerTable) > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -271,7 +276,7 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRebalanceTables}
+            onClick={() => setIsRebalanceDialogOpen(true)}
             disabled={isRebalancing}
           >
             <RefreshCw className="mr-2 h-4 w-4" />
@@ -377,6 +382,68 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
             </Button>
             <Button onClick={handleGenerateTables} disabled={isGenerating}>
               {isGenerating ? 'Génération...' : 'Régénérer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rebalance dialog */}
+      <Dialog open={isRebalanceDialogOpen} onOpenChange={setIsRebalanceDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rééquilibrer les tables</DialogTitle>
+            <DialogDescription>
+              Configurez les paramètres de rééquilibrage des tables
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nombre de places par table</label>
+              <Input
+                type="number"
+                min={2}
+                max={10}
+                value={seatsPerTable}
+                onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Nombre de joueurs maximum par table
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Seuil de casse de table</label>
+              <Input
+                type="number"
+                min={2}
+                max={seatsPerTable - 1}
+                value={minPlayersToBreakTable}
+                onChange={(e) => setMinPlayersToBreakTable(parseInt(e.target.value) || 3)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Nombre minimum de joueurs en dessous duquel une table est cassée et les joueurs sont redistribués
+              </p>
+            </div>
+
+            {tablesData && (
+              <div className="mt-3 p-3 bg-muted rounded-md">
+                <p className="text-sm font-medium">
+                  Actuellement: {tablesData.activePlayers} joueurs actifs sur {tablesData.totalTables} table{tablesData.totalTables > 1 ? 's' : ''}
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRebalanceDialogOpen(false)}
+            >
+              Annuler
+            </Button>
+            <Button onClick={handleRebalanceTables} disabled={isRebalancing}>
+              {isRebalancing ? 'Rééquilibrage...' : 'Rééquilibrer'}
             </Button>
           </DialogFooter>
         </DialogContent>

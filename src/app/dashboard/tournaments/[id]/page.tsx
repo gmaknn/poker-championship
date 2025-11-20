@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +56,18 @@ const STATUS_CONFIG = {
   CANCELLED: { label: 'Annulé', variant: 'destructive' as const },
 };
 
+/**
+ * Safely parse JSON response, checking Content-Type first
+ */
+async function safeJsonParse(response: Response): Promise<any> {
+  const contentType = response.headers.get('content-type');
+  if (!contentType || !contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new Error(`Expected JSON but received: ${contentType || 'unknown'}`);
+  }
+  return response.json();
+}
+
 export default function TournamentDetailPage({
   params,
 }: {
@@ -76,6 +88,11 @@ export default function TournamentDetailPage({
     status: 'PLANNED' as TournamentStatus,
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [currentTab, setCurrentTab] = useState('structure');
+  const [pendingTab, setPendingTab] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchTournament();
@@ -85,7 +102,7 @@ export default function TournamentDetailPage({
     try {
       const response = await fetch(`/api/tournaments/${id}`);
       if (response.ok) {
-        const data = await response.json();
+        const data = await safeJsonParse(response);
         setTournament(data);
       } else {
         router.push('/dashboard/tournaments');
@@ -130,8 +147,13 @@ export default function TournamentDetailPage({
         await fetchTournament();
         setIsEditDialogOpen(false);
       } else {
-        const error = await response.json();
-        alert(error.error || 'Erreur lors de la modification');
+        try {
+          const error = await safeJsonParse(response);
+          alert(error.error || 'Erreur lors de la modification');
+        } catch {
+          // If parsing fails, show generic error
+          alert(`Erreur lors de la modification (${response.status})`);
+        }
       }
     } catch (error) {
       console.error('Error updating tournament:', error);
@@ -139,6 +161,47 @@ export default function TournamentDetailPage({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCopyTvUrl = async () => {
+    const tvUrl = `${window.location.origin}/tv-v3/${tournament?.id}`;
+
+    try {
+      await navigator.clipboard.writeText(tvUrl);
+      setIsCopied(true);
+
+      // Reset après 2 secondes
+      setTimeout(() => {
+        setIsCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Erreur lors de la copie:', error);
+      alert('Impossible de copier l\'URL');
+    }
+  };
+
+  const handleTabChange = (newTab: string) => {
+    // If trying to leave structure tab with unsaved changes, show warning
+    if (currentTab === 'structure' && hasUnsavedChanges && newTab !== 'structure') {
+      setPendingTab(newTab);
+      setIsUnsavedChangesDialogOpen(true);
+    } else {
+      setCurrentTab(newTab);
+    }
+  };
+
+  const handleDiscardChanges = () => {
+    setHasUnsavedChanges(false);
+    setIsUnsavedChangesDialogOpen(false);
+    if (pendingTab) {
+      setCurrentTab(pendingTab);
+      setPendingTab(null);
+    }
+  };
+
+  const handleCancelTabChange = () => {
+    setIsUnsavedChangesDialogOpen(false);
+    setPendingTab(null);
   };
 
   if (isLoading) {
@@ -184,6 +247,18 @@ export default function TournamentDetailPage({
           >
             <Tv className="mr-2 h-4 w-4" />
             Vue TV
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleCopyTvUrl}
+            title="Copier l'URL du mode TV"
+          >
+            {isCopied ? (
+              <Check className="mr-2 h-4 w-4 text-green-500" />
+            ) : (
+              <Copy className="mr-2 h-4 w-4" />
+            )}
+            {isCopied ? 'Copié !' : 'Copier URL'}
           </Button>
           <Button
             variant="outline"
@@ -259,7 +334,7 @@ export default function TournamentDetailPage({
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="structure" className="w-full">
+      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <TabsList>
           <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
           <TabsTrigger value="config">Jetons</TabsTrigger>
@@ -288,6 +363,7 @@ export default function TournamentDetailPage({
               tournamentId={tournament.id}
               startingChips={tournament.startingChips}
               onSave={() => fetchTournament()}
+              onUnsavedChangesChange={setHasUnsavedChanges}
             />
           )}
         </TabsContent>
@@ -525,6 +601,35 @@ export default function TournamentDetailPage({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Unsaved changes warning dialog */}
+      <Dialog open={isUnsavedChangesDialogOpen} onOpenChange={setIsUnsavedChangesDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifications non sauvegardées</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-muted-foreground">
+              Vous avez des modifications non sauvegardées dans la structure des blinds.
+              Que souhaitez-vous faire ?
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={handleCancelTabChange}
+            >
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDiscardChanges}
+            >
+              Abandonner les modifications
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

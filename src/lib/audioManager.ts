@@ -30,6 +30,8 @@ class AudioManager {
   private speechSynthesis: SpeechSynthesis | null = null;
   private volume: number = 1.0; // 0.0 to 1.0
   private speed: number = 1.0; // 0.5 to 2.0
+  private currentAudio: HTMLAudioElement | null = null; // Track current playing audio
+  private isSpeaking: boolean = false; // Track if TTS is currently active
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -170,6 +172,12 @@ class AudioManager {
    */
   private playAudioFromBase64(base64Audio: string): void {
     try {
+      // Stop any currently playing audio
+      if (this.currentAudio) {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+      }
+
       // Convert base64 to blob
       const binaryString = atob(base64Audio);
       const bytes = new Uint8Array(binaryString.length);
@@ -183,16 +191,23 @@ class AudioManager {
       const audio = new Audio(url);
       audio.volume = this.volume;
       audio.playbackRate = this.speed;
+      this.currentAudio = audio;
+      this.isSpeaking = true;
+
       audio.play().catch((error) => {
         console.error('Error playing audio:', error);
+        this.isSpeaking = false;
       });
 
       // Clean up blob URL after playing
       audio.addEventListener('ended', () => {
         URL.revokeObjectURL(url);
+        this.isSpeaking = false;
+        this.currentAudio = null;
       });
     } catch (error) {
       console.error('Error playing base64 audio:', error);
+      this.isSpeaking = false;
     }
   }
 
@@ -205,8 +220,16 @@ class AudioManager {
       return;
     }
 
+    // Stop any currently playing audio
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio.currentTime = 0;
+      this.currentAudio = null;
+    }
+
     // Cancel any ongoing speech
     this.speechSynthesis.cancel();
+    this.isSpeaking = true;
 
     // Create speech utterance
     const utterance = new SpeechSynthesisUtterance(announcement);
@@ -223,6 +246,15 @@ class AudioManager {
     if (frenchVoice) {
       utterance.voice = frenchVoice;
     }
+
+    // Track when speech ends
+    utterance.onend = () => {
+      this.isSpeaking = false;
+    };
+
+    utterance.onerror = () => {
+      this.isSpeaking = false;
+    };
 
     // Speak
     this.speechSynthesis.speak(utterance);
@@ -453,9 +485,19 @@ class AudioManager {
    * Stop all sounds and speech
    */
   stopAll(): void {
+    // Stop any currently playing audio
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio.currentTime = 0;
+      this.currentAudio = null;
+    }
+
+    // Cancel any ongoing speech
     if (this.speechSynthesis) {
       this.speechSynthesis.cancel();
     }
+
+    this.isSpeaking = false;
     // Audio context oscillators stop automatically
   }
 }

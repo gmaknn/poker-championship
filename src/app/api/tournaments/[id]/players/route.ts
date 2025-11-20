@@ -3,7 +3,10 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 
 const enrollPlayerSchema = z.object({
-  playerId: z.string().cuid(),
+  playerId: z.string().cuid().optional(),
+  playerIds: z.array(z.string().cuid()).optional(),
+}).refine(data => data.playerId || (data.playerIds && data.playerIds.length > 0), {
+  message: "Either playerId or playerIds must be provided",
 });
 
 // GET - Récupérer la liste des joueurs inscrits au tournoi
@@ -40,7 +43,7 @@ export async function GET(
   }
 }
 
-// POST - Inscrire un joueur au tournoi
+// POST - Inscrire un ou plusieurs joueurs au tournoi
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -49,6 +52,9 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
     const validatedData = enrollPlayerSchema.parse(body);
+
+    // Convertir en tableau pour traiter de manière uniforme
+    const playerIdsToEnroll = validatedData.playerIds || [validatedData.playerId!];
 
     // Vérifier que le tournoi existe et n'est pas terminé
     const tournament = await prisma.tournament.findUnique({
@@ -69,72 +75,90 @@ export async function POST(
       );
     }
 
-    // Vérifier que le joueur existe et n'est pas archivé
-    const player = await prisma.player.findUnique({
-      where: { id: validatedData.playerId },
+    // Vérifier tous les joueurs
+    const players = await prisma.player.findMany({
+      where: {
+        id: { in: playerIdsToEnroll },
+      },
     });
 
-    if (!player) {
+    if (players.length !== playerIdsToEnroll.length) {
       return NextResponse.json(
-        { error: 'Player not found' },
+        { error: 'One or more players not found' },
         { status: 404 }
       );
     }
 
-    if (player.status === 'ARCHIVED') {
+    const archivedPlayers = players.filter(p => p.status === 'ARCHIVED');
+    if (archivedPlayers.length > 0) {
       return NextResponse.json(
-        { error: 'Cannot enroll archived player' },
+        { error: `Cannot enroll archived players: ${archivedPlayers.map(p => p.nickname).join(', ')}` },
         { status: 400 }
       );
     }
 
-    // Vérifier que le joueur n'est pas déjà inscrit
-    const existingEnrollment = await prisma.tournamentPlayer.findUnique({
+    // Vérifier les inscriptions existantes
+    const existingEnrollments = await prisma.tournamentPlayer.findMany({
       where: {
-        tournamentId_playerId: {
-          tournamentId: id,
-          playerId: validatedData.playerId,
-        },
+        tournamentId: id,
+        playerId: { in: playerIdsToEnroll },
       },
     });
 
-    if (existingEnrollment) {
+    if (existingEnrollments.length > 0) {
+      const alreadyEnrolled = await prisma.player.findMany({
+        where: { id: { in: existingEnrollments.map(e => e.playerId) } },
+        select: { nickname: true },
+      });
       return NextResponse.json(
-        { error: 'Player is already enrolled in this tournament' },
+        { error: `Players already enrolled: ${alreadyEnrolled.map(p => p.nickname).join(', ')}` },
         { status: 409 }
       );
     }
 
-    // Inscrire le joueur
-    const tournamentPlayer = await prisma.tournamentPlayer.create({
-      data: {
-        tournamentId: id,
-        playerId: validatedData.playerId,
-      },
-      include: {
-        player: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            nickname: true,
-            email: true,
+    // Inscrire tous les joueurs en une transaction
+    const tournamentPlayers = await prisma.$transaction(async (tx) => {
+      const enrolled = await tx.tournamentPlayer.createMany({
+        data: playerIdsToEnroll.map(playerId => ({
+          tournamentId: id,
+          playerId,
+        })),
+      });
+
+      // Mettre à jour le nombre total de joueurs
+      await tx.tournament.update({
+        where: { id },
+        data: {
+          totalPlayers: {
+            increment: playerIdsToEnroll.length,
           },
         },
-      },
-    });
+      });
 
-    // Mettre à jour le nombre total de joueurs du tournoi
-    await prisma.tournament.update({
-      where: { id },
-      data: {
-        totalPlayers: {
-          increment: 1,
+      // Récupérer les joueurs inscrits avec leurs infos
+      return tx.tournamentPlayer.findMany({
+        where: {
+          tournamentId: id,
+          playerId: { in: playerIdsToEnroll },
         },
-      },
+        include: {
+          player: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              nickname: true,
+              email: true,
+            },
+          },
+        },
+      });
     });
 
-    return NextResponse.json(tournamentPlayer, { status: 201 });
+    return NextResponse.json({
+      enrolled: tournamentPlayers,
+      count: tournamentPlayers.length,
+    }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -143,9 +167,9 @@ export async function POST(
       );
     }
 
-    console.error('Error enrolling player:', error);
+    console.error('Error enrolling player(s):', error);
     return NextResponse.json(
-      { error: 'Failed to enroll player' },
+      { error: 'Failed to enroll player(s)' },
       { status: 500 }
     );
   }
