@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trophy, TrendingUp, Users, Calendar } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Calendar, Printer, FileDown, FileSpreadsheet, FileText } from 'lucide-react';
 import Image from 'next/image';
 import {
   Select,
@@ -14,7 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { PageHeader } from '@/components/PageHeader';
+import { exportLeaderboardCSV } from '@/lib/csvExportUtils';
+import { exportToPDF, exportSeasonLeaderboardText } from '@/lib/exportUtils';
+import { generateSeasonReportPDF } from '@/lib/seasonReportPDF';
 
 // Helper function to check if avatar URL is valid
 const isValidAvatarUrl = (url: string | null): boolean => {
@@ -31,6 +42,8 @@ type Season = {
   id: string;
   name: string;
   year: number;
+  startDate: string;
+  endDate: string | null;
   status: string;
   _count?: {
     tournaments: number;
@@ -111,6 +124,122 @@ export default function LeaderboardPage() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (!selectedSeason || leaderboard.length === 0) return;
+
+    exportLeaderboardCSV({
+      seasonName: selectedSeason.name,
+      year: selectedSeason.year,
+      players: leaderboard,
+    });
+  };
+
+  const handleExportText = () => {
+    if (!selectedSeason || leaderboard.length === 0) return;
+
+    exportSeasonLeaderboardText({
+      seasonName: selectedSeason.name,
+      year: selectedSeason.year,
+      players: leaderboard.map(entry => ({
+        rank: entry.rank,
+        player: {
+          nickname: entry.player.nickname,
+          firstName: entry.player.firstName,
+          lastName: entry.player.lastName,
+        },
+        totalPoints: entry.totalPoints,
+        tournamentsPlayed: entry.tournamentsCount,
+        firstPlaces: entry.victories,
+        secondPlaces: 0, // Would need to add this data
+        thirdPlaces: entry.podiums - entry.victories,
+      })),
+      totalTournaments: selectedSeason._count?.tournaments || 0,
+    });
+  };
+
+  const handleExportPDF = async () => {
+    const element = document.getElementById('leaderboard-content');
+    if (element && selectedSeason) {
+      try {
+        await exportToPDF({
+          element,
+          filename: `classement_${selectedSeason.name.toLowerCase().replace(/\s+/g, '_')}_${selectedSeason.year}`,
+          orientation: 'portrait',
+        });
+      } catch (error) {
+        console.error('Error exporting PDF:', error);
+        alert('Erreur lors de l\'export PDF');
+      }
+    }
+  };
+
+  const handleExportFullReport = async () => {
+    if (!selectedSeason || leaderboard.length === 0) return;
+
+    try {
+      // Fetch tournament data for the season
+      const tournamentResponse = await fetch(`/api/seasons/${selectedSeason.id}/tournaments`);
+      const tournaments = await tournamentResponse.json();
+
+      // Prepare tournament data
+      const tournamentData = tournaments
+        .filter((t: any) => t.status === 'FINISHED')
+        .map((t: any) => ({
+          name: t.name,
+          date: t.date,
+          playerCount: t.tournamentPlayers?.length || 0,
+          winner: t.tournamentPlayers?.find((tp: any) => tp.finalRank === 1)?.player?.nickname || 'N/A',
+          prizePool: t.prizePool || 0,
+        }));
+
+      // Calculate total entries
+      const totalEntries = tournaments.reduce(
+        (sum: number, t: any) => sum + (t.tournamentPlayers?.length || 0),
+        0
+      );
+
+      // Calculate total prize pool
+      const totalPrizePool = tournaments.reduce(
+        (sum: number, t: any) => sum + (t.prizePool || 0),
+        0
+      );
+
+      generateSeasonReportPDF({
+        season: {
+          name: selectedSeason.name,
+          year: selectedSeason.year,
+          startDate: selectedSeason.startDate,
+          endDate: selectedSeason.endDate || new Date().toISOString(),
+        },
+        overview: {
+          totalTournaments: tournaments.length,
+          finishedTournaments: tournaments.filter((t: any) => t.status === 'FINISHED').length,
+          totalPlayers: leaderboard.length,
+          totalEntries,
+          avgPlayersPerTournament: Math.round(totalEntries / tournaments.length) || 0,
+          totalPrizePool,
+        },
+        leaderboard: leaderboard.map(entry => ({
+          rank: entry.rank,
+          player: {
+            firstName: entry.player.firstName,
+            lastName: entry.player.lastName,
+            nickname: entry.player.nickname,
+          },
+          totalPoints: entry.totalPoints,
+          tournamentsPlayed: entry.tournamentsCount,
+          victories: entry.victories,
+          podiums: entry.podiums,
+          totalEliminations: 0, // Would need to add this data
+        })),
+        tournaments: tournamentData,
+      });
+    } catch (error) {
+      console.error('Error generating full report:', error);
+      alert('Erreur lors de la génération du rapport complet');
+    }
+  };
+
   if (!selectedSeason && !isLoading) {
     return (
       <div className="space-y-6">
@@ -122,13 +251,7 @@ export default function LeaderboardPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Créez une saison pour voir le classement</p>
-            <Button
-              className="mt-4"
-              onClick={() => router.push('/dashboard/seasons')}
-            >
-              Gérer les saisons
-            </Button>
+            <p className="text-muted-foreground">Aucune saison disponible pour le moment</p>
           </CardContent>
         </Card>
       </div>
@@ -152,6 +275,46 @@ export default function LeaderboardPage() {
         icon={<Trophy className="h-10 w-10 text-primary" />}
         actions={
           <div className="flex items-center gap-3">
+            {leaderboard.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="no-print">
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Exporter
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuLabel>Format d'export</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleExportCSV}>
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    CSV - Tableau Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportText}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    Texte - WhatsApp/SMS
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportPDF}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    PDF - Classement simple
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleExportFullReport}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    📊 Rapport complet de saison
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              className="no-print"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimer
+            </Button>
             <Calendar className="h-5 w-5 text-muted-foreground" />
             <Select
               value={selectedSeason?.id}
@@ -179,6 +342,7 @@ export default function LeaderboardPage() {
         }
       />
 
+      <div id="leaderboard-content">
       {isLoading ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -226,7 +390,7 @@ export default function LeaderboardPage() {
                       />
                       <span className="text-3xl font-bold">#{entry.rank}</span>
                     </div>
-                    {isValidAvatarUrl(entry.player.avatar) && (
+                    {isValidAvatarUrl(entry.player.avatar) && entry.player.avatar && (
                       <Image
                         src={entry.player.avatar}
                         alt={entry.player.nickname}
@@ -284,7 +448,7 @@ export default function LeaderboardPage() {
                       <span className={`text-lg font-bold w-8 ${entry.rank <= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
                         #{entry.rank}
                       </span>
-                      {isValidAvatarUrl(entry.player.avatar) ? (
+                      {isValidAvatarUrl(entry.player.avatar) && entry.player.avatar ? (
                         <Image
                           src={entry.player.avatar}
                           alt={entry.player.nickname}
@@ -325,6 +489,7 @@ export default function LeaderboardPage() {
           </Card>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -2,9 +2,23 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BarChart3, TrendingUp, Users, Trophy, Calendar, Award, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BarChart3, TrendingUp, Users, Trophy, Calendar, Award, Clock, Printer, FileDown, FileSpreadsheet } from 'lucide-react';
 import Image from 'next/image';
 import { PageHeader } from '@/components/PageHeader';
+import { PlayerTrendChart } from '@/components/charts/PlayerTrendChart';
+import { SeasonComparisonChart } from '@/components/charts/SeasonComparisonChart';
+import { TopPlayersChart } from '@/components/charts/TopPlayersChart';
+import { exportStatisticsCSV, exportMonthlyDataCSV } from '@/lib/csvExportUtils';
+import { exportToPDF } from '@/lib/exportUtils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Helper function to check if avatar URL is valid
 const isValidAvatarUrl = (url: string | null): boolean => {
@@ -29,6 +43,7 @@ interface StatisticsData {
   seasonStats: Array<{
     id: string;
     name: string;
+    status: string;
     isActive: boolean;
     totalTournaments: number;
     finishedTournaments: number;
@@ -88,14 +103,88 @@ export default function StatisticsPage() {
     );
   }
 
+  const handleExportCSV = () => {
+    exportStatisticsCSV({
+      overview: data.overview,
+      seasonStats: data.seasonStats.map(s => ({
+        id: s.id,
+        name: s.name,
+        totalTournaments: s.totalTournaments,
+        finishedTournaments: s.finishedTournaments,
+        totalPlayers: s.totalPlayers,
+        avgPlayersPerTournament: s.avgPlayersPerTournament,
+      })),
+      topPlayers: data.topPlayers,
+    });
+  };
+
+  const handleExportMonthlyCSV = () => {
+    exportMonthlyDataCSV({
+      monthlyData: data.monthlyData,
+    });
+  };
+
+  const handleExportPDF = async () => {
+    const element = document.getElementById('statistics-content');
+    if (element) {
+      try {
+        await exportToPDF({
+          element,
+          filename: `statistiques_${new Date().toISOString().split('T')[0]}`,
+          orientation: 'portrait',
+        });
+      } catch (error) {
+        console.error('Error exporting PDF:', error);
+        alert('Erreur lors de l\'export PDF');
+      }
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Statistiques"
         description="Analyses et statistiques du championnat"
         icon={<BarChart3 className="h-10 w-10 text-primary" />}
+        actions={
+          <div className="flex gap-2 no-print">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Exporter
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Format d'export</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  CSV - Statistiques complètes
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportMonthlyCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  CSV - Évolution mensuelle
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <FileDown className="h-4 w-4 mr-2" />
+                  PDF - Page complète
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimer
+            </Button>
+          </div>
+        }
       />
 
+      <div id="statistics-content" className="space-y-6">
       {/* Vue d'ensemble */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
@@ -152,42 +241,33 @@ export default function StatisticsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Statistiques par saison */}
+        {/* Graphique comparaison saisons */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Statistiques par saison
+              Comparaison des saisons
             </CardTitle>
             <CardDescription>
-              Résumé de l'activité par saison
+              Tournois et participation par saison
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {data.seasonStats.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucune saison disponible</p>
-            ) : (
-              <div className="space-y-4">
+            <SeasonComparisonChart data={data.seasonStats} />
+            {data.seasonStats.length > 0 && (
+              <div className="mt-4 space-y-2">
                 {data.seasonStats.map(season => (
-                  <div key={season.id} className="border-l-4 border-primary pl-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold flex items-center gap-2">
-                          {season.name}
-                          {season.isActive && (
-                            <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded">
-                              Active
-                            </span>
-                          )}
-                        </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {season.totalTournaments} tournois • {season.totalPlayers} inscriptions
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-2xl font-bold">{season.avgPlayersPerTournament}</div>
-                        <p className="text-xs text-muted-foreground">moy. joueurs</p>
-                      </div>
+                  <div key={season.id} className="flex items-center justify-between text-sm border-l-4 border-primary pl-3 py-1">
+                    <div>
+                      <span className="font-semibold">{season.name}</span>
+                      {season.status === 'ACTIVE' && (
+                        <span className="ml-2 text-xs bg-green-500 text-white px-2 py-0.5 rounded">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {season.totalTournaments} tournois • {season.totalPlayers} inscriptions
                     </div>
                   </div>
                 ))}
@@ -196,7 +276,7 @@ export default function StatisticsPage() {
           </CardContent>
         </Card>
 
-        {/* Top joueurs actifs */}
+        {/* Graphique top joueurs */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -208,42 +288,7 @@ export default function StatisticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {data.topPlayers.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Aucun joueur disponible</p>
-            ) : (
-              <div className="space-y-3">
-                {data.topPlayers.map((player, index) => (
-                  <div key={player.id} className="flex items-center gap-3">
-                    <div className="flex-shrink-0 w-8 text-center font-bold text-muted-foreground">
-                      #{index + 1}
-                    </div>
-                    <div className="flex-shrink-0">
-                      {isValidAvatarUrl(player.avatar) ? (
-                        <Image
-                          src={player.avatar}
-                          alt={player.name}
-                          width={40}
-                          height={40}
-                          className="rounded-full"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                          <Users className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{player.name}</p>
-                      <p className="text-sm text-muted-foreground truncate">@{player.nickname}</p>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold">{player.tournamentsPlayed}</div>
-                      <p className="text-xs text-muted-foreground">tournois</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <TopPlayersChart data={data.topPlayers} />
           </CardContent>
         </Card>
       </div>
@@ -253,51 +298,22 @@ export default function StatisticsPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <TrendingUp className="h-5 w-5" />
-            Évolution sur 12 mois
+            Évolution de la participation
           </CardTitle>
           <CardDescription>
-            Nombre de joueurs par tournoi
+            Tendance du nombre de joueurs sur les 12 derniers mois
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {data.monthlyData.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune donnée disponible</p>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-end gap-2 h-48">
-                {data.monthlyData.map((item, index) => {
-                  const maxPlayers = Math.max(...data.monthlyData.map(d => d.playerCount));
-                  const heightPercent = maxPlayers > 0 ? (item.playerCount / maxPlayers) * 100 : 0;
-
-                  return (
-                    <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                      <div className="w-full bg-primary/20 hover:bg-primary/30 rounded-t transition-colors relative group">
-                        <div
-                          className="bg-primary rounded-t transition-all"
-                          style={{ height: `${heightPercent}%`, minHeight: heightPercent > 0 ? '20px' : '0' }}
-                        />
-                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="bg-popover border rounded px-2 py-1 text-xs whitespace-nowrap">
-                            {item.playerCount} joueurs
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-xs text-muted-foreground text-center rotate-45 origin-left whitespace-nowrap">
-                        {item.month}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              {data.monthlyData.length > 0 && (
-                <p className="text-xs text-muted-foreground text-center mt-8">
-                  Derniers tournois organisés
-                </p>
-              )}
-            </div>
+          <PlayerTrendChart data={data.monthlyData} />
+          {data.monthlyData.length > 0 && (
+            <p className="text-xs text-muted-foreground text-center mt-4">
+              Historique des {data.monthlyData.length} derniers tournois
+            </p>
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
