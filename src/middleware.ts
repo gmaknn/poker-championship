@@ -1,29 +1,44 @@
-import { auth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-// Routes publiques (optimisé pour réduire la taille du bundle)
-const PUBLIC_ROUTES = ['/login', '/activate', '/forgot-password', '/reset-password'];
-const PUBLIC_API_ROUTES = ['/api/auth'];
-
-export default auth((req) => {
+// Middleware ultra-léger pour Vercel Edge (< 1MB)
+// Vérifie uniquement la présence du cookie de session NextAuth
+export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Vérifier routes publiques (optimisé)
-  if (PUBLIC_ROUTES.some(r => pathname.startsWith(r)) ||
-      PUBLIC_API_ROUTES.some(r => pathname.startsWith(r))) {
+  // Routes publiques (pas de vérification auth)
+  if (pathname.startsWith('/login') ||
+      pathname.startsWith('/activate') ||
+      pathname.startsWith('/forgot-password') ||
+      pathname.startsWith('/reset-password') ||
+      pathname.startsWith('/api/auth') ||
+      pathname.startsWith('/api/tts') ||
+      pathname.startsWith('/tv') ||
+      pathname.startsWith('/player') ||
+      pathname.startsWith('/director') ||
+      pathname === '/') {
     return NextResponse.next();
   }
 
-  // Protéger dashboard et API
-  if ((pathname.startsWith('/dashboard') || pathname.startsWith('/api')) && !req.auth) {
-    return NextResponse.redirect(new URL('/login', req.url));
+  // Protéger dashboard et API (vérification légère du cookie)
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/api')) {
+    // Vérifier présence du cookie de session NextAuth
+    const sessionToken = req.cookies.get('next-auth.session-token') ||
+                        req.cookies.get('__Secure-next-auth.session-token');
+
+    if (!sessionToken) {
+      // Rediriger vers login si pas de session
+      if (pathname.startsWith('/api')) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
-  // Matcher optimisé pour réduire l'exécution du middleware
   matcher: [
     '/dashboard/:path*',
     '/api/:path*',
