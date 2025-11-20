@@ -55,12 +55,14 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
   const [tablesData, setTablesData] = useState<TablesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
-  const [seatsPerTable, setSeatsPerTable] = useState(9);
+  const [numberOfTables, setNumberOfTables] = useState(2);
+  const [numberOfRebalanceTables, setNumberOfRebalanceTables] = useState(2);
   const [minPlayersToBreakTable, setMinPlayersToBreakTable] = useState(3);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRebalancing, setIsRebalancing] = useState(false);
   const [isRebalanceDialogOpen, setIsRebalanceDialogOpen] = useState(false);
   const [error, setError] = useState('');
+  const [activePlayers, setActivePlayers] = useState(0);
 
   useEffect(() => {
     fetchTables();
@@ -72,8 +74,15 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         const data = await response.json();
         setTablesData(data);
+        setActivePlayers(data.activePlayers || 0);
       } else {
-        // Pas encore de tables générées
+        // Pas encore de tables générées, récupérer le nombre de joueurs
+        const tournamentResponse = await fetch(`/api/tournaments/${tournamentId}`);
+        if (tournamentResponse.ok) {
+          const tournamentData = await tournamentResponse.json();
+          const activePlayersCount = tournamentData.tournamentPlayers?.filter((p: any) => p.finalRank === null).length || 0;
+          setActivePlayers(activePlayersCount);
+        }
         setTablesData(null);
       }
     } catch (error) {
@@ -89,6 +98,11 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
     setError('');
 
     try {
+      // Calculate seats per table based on number of tables
+      const seatsPerTable = numberOfTables === 1
+        ? activePlayers
+        : Math.ceil(activePlayers / numberOfTables);
+
       const response = await fetch(`/api/tournaments/${tournamentId}/tables`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -117,10 +131,18 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
     setError('');
 
     try {
+      // Calculate seats per table based on number of tables
+      const seatsPerTable = numberOfRebalanceTables === 1
+        ? activePlayers
+        : Math.ceil(activePlayers / numberOfRebalanceTables);
+
       const response = await fetch(`/api/tournaments/${tournamentId}/tables/rebalance`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seatsPerTable, minPlayersToBreakTable }),
+        body: JSON.stringify({
+          seatsPerTable,
+          minPlayersToBreakTable: Math.max(3, Math.floor(activePlayers / numberOfRebalanceTables) - 2),
+        }),
       });
 
       if (response.ok) {
@@ -166,6 +188,21 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
     }
   };
 
+  // Calculate distribution preview
+  const calculateDistribution = (tables: number, players: number): string => {
+    if (tables === 1) return `${players} joueurs`;
+
+    const basePerTable = Math.floor(players / tables);
+    const remainder = players % tables;
+
+    const distribution: number[] = [];
+    for (let i = 0; i < tables; i++) {
+      distribution.push(basePerTable + (i < remainder ? 1 : 0));
+    }
+
+    return distribution.join('-') + ' joueurs';
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -209,21 +246,36 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Nombre de places par table</label>
-                <Input
-                  type="number"
-                  min={2}
-                  max={10}
-                  value={seatsPerTable}
-                  onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Généralement 8-10 places pour le poker
-                </p>
-                {tablesData?.activePlayers && seatsPerTable > 0 && (
-                  <div className="mt-3 p-3 bg-muted rounded-md">
+                <label className="text-sm font-medium">Nombre de tables</label>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setNumberOfTables(Math.max(1, numberOfTables - 1))}
+                    className="px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md font-bold"
+                  >
+                    -
+                  </button>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={Math.ceil(activePlayers / 3)}
+                    value={numberOfTables}
+                    onChange={(e) => setNumberOfTables(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="text-center text-xl font-bold"
+                  />
+                  <button
+                    onClick={() => setNumberOfTables(Math.min(Math.ceil(activePlayers / 3), numberOfTables + 1))}
+                    className="px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md font-bold"
+                  >
+                    +
+                  </button>
+                </div>
+                {activePlayers > 0 && numberOfTables > 0 && (
+                  <div className="mt-3 p-3 bg-muted rounded-md space-y-2">
                     <p className="text-sm font-medium">
-                      {tablesData.activePlayers} joueurs actifs ÷ {seatsPerTable} places par table = {Math.ceil(tablesData.activePlayers / seatsPerTable)} table{Math.ceil(tablesData.activePlayers / seatsPerTable) > 1 ? 's' : ''}
+                      {activePlayers} joueurs → {numberOfTables} table{numberOfTables > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Répartition : {calculateDistribution(numberOfTables, activePlayers)}
                     </p>
                   </div>
                 )}
@@ -350,42 +402,7 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
         ))}
       </div>
 
-      {/* Dialog de régénération */}
-      <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Régénérer la distribution des tables</DialogTitle>
-            <DialogDescription>
-              Attention : cela va remplacer la distribution actuelle
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nombre de places par table</label>
-              <Input
-                type="number"
-                min={2}
-                max={10}
-                value={seatsPerTable}
-                onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsGenerateDialogOpen(false)}
-            >
-              Annuler
-            </Button>
-            <Button onClick={handleGenerateTables} disabled={isGenerating}>
-              {isGenerating ? 'Génération...' : 'Régénérer'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Note: The generate dialog is reused for regeneration */}
 
       {/* Rebalance dialog */}
       <Dialog open={isRebalanceDialogOpen} onOpenChange={setIsRebalanceDialogOpen}>
@@ -393,44 +410,52 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
           <DialogHeader>
             <DialogTitle>Rééquilibrer les tables</DialogTitle>
             <DialogDescription>
-              Configurez les paramètres de rééquilibrage des tables
+              Choisissez le nouveau nombre de tables
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Nombre de places par table</label>
-              <Input
-                type="number"
-                min={2}
-                max={10}
-                value={seatsPerTable}
-                onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Nombre de joueurs maximum par table
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Seuil de casse de table</label>
-              <Input
-                type="number"
-                min={2}
-                max={seatsPerTable - 1}
-                value={minPlayersToBreakTable}
-                onChange={(e) => setMinPlayersToBreakTable(parseInt(e.target.value) || 3)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Nombre minimum de joueurs en dessous duquel une table est cassée et les joueurs sont redistribués
-              </p>
+              <label className="text-sm font-medium">Nombre de tables</label>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setNumberOfRebalanceTables(Math.max(1, numberOfRebalanceTables - 1))}
+                  className="px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md font-bold"
+                >
+                  -
+                </button>
+                <Input
+                  type="number"
+                  min={1}
+                  max={Math.ceil(activePlayers / 3)}
+                  value={numberOfRebalanceTables}
+                  onChange={(e) => setNumberOfRebalanceTables(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="text-center text-xl font-bold"
+                />
+                <button
+                  onClick={() => setNumberOfRebalanceTables(Math.min(Math.ceil(activePlayers / 3), numberOfRebalanceTables + 1))}
+                  className="px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-md font-bold"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             {tablesData && (
-              <div className="mt-3 p-3 bg-muted rounded-md">
+              <div className="mt-3 p-3 bg-muted rounded-md space-y-2">
                 <p className="text-sm font-medium">
                   Actuellement: {tablesData.activePlayers} joueurs actifs sur {tablesData.totalTables} table{tablesData.totalTables > 1 ? 's' : ''}
                 </p>
+                {numberOfRebalanceTables > 0 && (
+                  <>
+                    <p className="text-sm font-medium">
+                      Après rééquilibrage : {numberOfRebalanceTables} table{numberOfRebalanceTables > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Répartition : {calculateDistribution(numberOfRebalanceTables, activePlayers)}
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </div>

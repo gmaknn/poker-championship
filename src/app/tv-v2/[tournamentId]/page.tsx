@@ -1,9 +1,12 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, use, useRef } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { Trophy, Users, DollarSign, Clock } from 'lucide-react';
+import TableLayoutModal from '@/components/TableLayoutModal';
+import RebalancingConfirmModal from '@/components/RebalancingConfirmModal';
+import { announceRebalancingComingSoon, announceRebalancing } from '@/lib/audioManager';
 
 type Player = {
   id: string;
@@ -36,6 +39,7 @@ type BlindLevel = {
   ante: number;
   duration: number;
   isBreak: boolean;
+  rebalanceTables: boolean;
 };
 
 type Tournament = {
@@ -79,6 +83,21 @@ type ChipDenomination = {
   order: number;
 };
 
+type TableAssignment = {
+  id: string;
+  playerId: string;
+  tableNumber: number;
+  seatNumber: number;
+  player?: Player;
+};
+
+type Table = {
+  tableNumber: number;
+  players: TableAssignment[];
+  activePlayers: number;
+  totalPlayers: number;
+};
+
 export default function TVSpectatorViewV2({
   params,
 }: {
@@ -97,6 +116,15 @@ export default function TVSpectatorViewV2({
     timerPausedAt: string | null;
     fetchedAt: number;
   } | null>(null);
+  const [showTableLayoutModal, setShowTableLayoutModal] = useState(false);
+  const [showRebalancingConfirmModal, setShowRebalancingConfirmModal] = useState(false);
+  const [currentTables, setCurrentTables] = useState<Table[]>([]);
+  const [rebalancingNeeded, setRebalancingNeeded] = useState(false);
+  const [seatsPerTable] = useState(9); // Standard 9-max tables
+  const previousLevelRef = useRef(0);
+  const rebalancingAnnouncedRef = useRef(false);
+  const hasTriggeredRebalanceRef = useRef(false);
+  const initialTablesShownRef = useRef(false);
 
   useEffect(() => {
     fetchData();
@@ -114,10 +142,11 @@ export default function TVSpectatorViewV2({
 
   const fetchData = async () => {
     try {
-      const [tournamentResponse, timerResponse, chipsResponse] = await Promise.all([
+      const [tournamentResponse, timerResponse, chipsResponse, tablesResponse] = await Promise.all([
         fetch(`/api/tournaments/${tournamentId}`),
         fetch(`/api/tournaments/${tournamentId}/timer`),
         fetch(`/api/tournaments/${tournamentId}/chips`),
+        fetch(`/api/tournaments/${tournamentId}/tables`),
       ]);
 
       if (tournamentResponse.ok) {
@@ -165,6 +194,13 @@ export default function TVSpectatorViewV2({
         const data = await chipsResponse.json();
         setChips(data.chips || []);
       }
+
+      if (tablesResponse.ok) {
+        const data = await tablesResponse.json();
+        if (data.tables) {
+          setCurrentTables(data.tables);
+        }
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -198,6 +234,70 @@ export default function TVSpectatorViewV2({
     setTimeElapsed(currentElapsed);
   };
 
+  // Show rebalancing confirmation modal and pause timer
+  const triggerRebalancing = async () => {
+    // Pause timer automatically
+    if (serverTimerData?.timerStartedAt && !serverTimerData?.timerPausedAt) {
+      await handlePause();
+    }
+
+    // Show confirmation modal
+    setShowRebalancingConfirmModal(true);
+  };
+
+  // Confirm and execute table rebalancing with chosen number of tables
+  const confirmRebalancing = async (numberOfTables: number) => {
+
+    try {
+      // Calculate seats per table based on active players and desired tables
+      const activePlayers = resultsData?.results.filter((p) => p.finalRank === null).length || 0;
+      const calculatedSeatsPerTable = numberOfTables === 1
+        ? activePlayers
+        : Math.ceil(activePlayers / numberOfTables);
+
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/rebalance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          seatsPerTable: calculatedSeatsPerTable,
+          minPlayersToBreakTable: Math.max(3, Math.floor(activePlayers / numberOfTables) - 2),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.tables) {
+          setCurrentTables(data.tables);
+          setShowRebalancingConfirmModal(false);
+          setShowTableLayoutModal(true);
+          announceRebalancing();
+        }
+      }
+    } catch (error) {
+      console.error('Error confirming rebalancing:', error);
+    }
+  };
+
+  // Cancel rebalancing
+  const cancelRebalancing = () => {
+    setShowRebalancingConfirmModal(false);
+    setRebalancingNeeded(false);
+    hasTriggeredRebalanceRef.current = true; // Prevent re-triggering
+  };
+
+  // Show initial table layout when tournament starts
+  useEffect(() => {
+    if (
+      resultsData?.tournament.status === 'IN_PROGRESS' &&
+      currentTables.length > 0 &&
+      !initialTablesShownRef.current &&
+      resultsData.tournament.currentLevel === 1
+    ) {
+      setShowTableLayoutModal(true);
+      initialTablesShownRef.current = true;
+    }
+  }, [resultsData?.tournament.status, resultsData?.tournament.currentLevel, currentTables]);
+
   // Recalculate time remaining when currentTime changes
   useEffect(() => {
     calculateTimeRemaining();
@@ -226,6 +326,52 @@ export default function TVSpectatorViewV2({
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [serverTimerData]);
+
+  // Handle rebalancing detection and triggering based on blindStructure flag
+  useEffect(() => {
+    if (!resultsData || !blindStructure || !currentTables.length) return;
+
+    const currentLevel = resultsData.tournament.currentLevel;
+    const currentLevelData = blindStructure.find((level) => level.level === currentLevel);
+
+    // Check if level changed
+    if (previousLevelRef.current !== 0 && previousLevelRef.current !== currentLevel) {
+      // Reset flags on level change
+      rebalancingAnnouncedRef.current = false;
+      hasTriggeredRebalanceRef.current = false;
+
+      // Check if this level has rebalanceTables flag set
+      const willNeedRebalancing = currentLevelData?.rebalanceTables === true;
+      setRebalancingNeeded(willNeedRebalancing);
+
+      // Announce rebalancing coming soon if needed
+      if (willNeedRebalancing && !rebalancingAnnouncedRef.current) {
+        announceRebalancingComingSoon();
+        rebalancingAnnouncedRef.current = true;
+      }
+    }
+
+    previousLevelRef.current = currentLevel;
+
+    // Trigger rebalancing when timer reaches 0 and rebalancing is needed
+    if (
+      timeRemaining !== null &&
+      timeRemaining === 0 &&
+      rebalancingNeeded &&
+      !hasTriggeredRebalanceRef.current &&
+      !serverTimerData?.timerPausedAt // Don't trigger if paused
+    ) {
+      hasTriggeredRebalanceRef.current = true;
+      triggerRebalancing();
+    }
+  }, [
+    resultsData?.tournament.currentLevel,
+    blindStructure,
+    currentTables,
+    timeRemaining,
+    rebalancingNeeded,
+    serverTimerData?.timerPausedAt,
+  ]);
 
   const handlePause = async () => {
     try {
@@ -465,6 +611,15 @@ export default function TVSpectatorViewV2({
               </div>
             </div>
           )}
+
+          {/* Rebalancing warning */}
+          {rebalancingNeeded && (
+            <div className="bg-orange-500/20 backdrop-blur border-2 border-orange-400 rounded-xl py-4 px-6 text-center animate-pulse">
+              <div className="text-3xl font-black text-orange-300">
+                ⚠️ RÉASSIGNATION DES TABLES À LA FIN DE CE NIVEAU ⚠️
+              </div>
+            </div>
+          )}
         </div>
 
         {/* RIGHT PANEL - Green */}
@@ -523,7 +678,7 @@ export default function TVSpectatorViewV2({
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    {player.finalRank <= 3 && (
+                    {player.finalRank !== null && player.finalRank <= 3 && (
                       <Trophy
                         className={`h-6 w-6 ${
                           player.finalRank === 1
@@ -556,6 +711,23 @@ export default function TVSpectatorViewV2({
           </div>
         </div>
       )}
+
+      {/* Rebalancing Confirmation Modal */}
+      <RebalancingConfirmModal
+        isOpen={showRebalancingConfirmModal}
+        onConfirm={confirmRebalancing}
+        onCancel={cancelRebalancing}
+        activePlayers={activePlayers.length}
+        seatsPerTable={seatsPerTable}
+      />
+
+      {/* Table Layout Modal */}
+      <TableLayoutModal
+        isOpen={showTableLayoutModal}
+        onClose={() => setShowTableLayoutModal(false)}
+        tables={currentTables}
+        totalPlayers={activePlayers.length}
+      />
     </div>
   );
 }

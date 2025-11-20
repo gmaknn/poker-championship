@@ -271,6 +271,9 @@ class AudioManager {
     ante?: number,
     playerNicknames: string[] = []
   ): Promise<void> {
+    // Stop any currently playing audio/speech
+    this.stopAll();
+
     // Get random phrase with a random active player
     const phrase = this.getRandomPhrase(level, playerNicknames);
 
@@ -319,6 +322,9 @@ class AudioManager {
    * Uses Google Cloud TTS for high-quality voice, falls back to native if unavailable
    */
   async announceBreak(duration: number): Promise<void> {
+    // Stop any currently playing audio/speech
+    this.stopAll();
+
     const announcement = `C'est l'heure de la pause ! ${duration} minutes pour recharger les batteries.`;
 
     try {
@@ -383,6 +389,9 @@ class AudioManager {
    * Announce player elimination
    */
   async announceElimination(eliminatedPlayer: string, eliminatorPlayer?: string): Promise<void> {
+    // Stop any currently playing audio/speech
+    this.stopAll();
+
     this.playJingle(); // Play jingle first
 
     await new Promise(resolve => setTimeout(resolve, 700)); // Wait for jingle to finish
@@ -417,6 +426,9 @@ class AudioManager {
    * Announce players remaining milestone
    */
   async announcePlayersRemaining(count: number): Promise<void> {
+    // Stop any currently playing audio/speech
+    this.stopAll();
+
     let announcement = '';
 
     if (count === 3) {
@@ -457,7 +469,72 @@ class AudioManager {
    * Announce break coming soon
    */
   async announceBreakComingSoon(minutes: number): Promise<void> {
+    // Stop any currently playing audio/speech
+    this.stopAll();
+
     const announcement = `Pause dans ${minutes} minute${minutes > 1 ? 's' : ''} ! Préparez-vous !`;
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcement }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.playAudioFromBase64(data.audioContent);
+        return;
+      }
+
+      const errorData = await response.json();
+      if (errorData.fallbackToNative) {
+        this.announceWithNativeSpeech(announcement);
+      }
+    } catch (error) {
+      this.announceWithNativeSpeech(announcement);
+    }
+  }
+
+  /**
+   * Announce table rebalancing at start of level
+   */
+  async announceRebalancingComingSoon(): Promise<void> {
+    // Stop any currently playing audio/speech
+    this.stopAll();
+
+    const announcement = 'Attention ! Réassignation des tables à la fin de ce niveau !';
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcement }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.playAudioFromBase64(data.audioContent);
+        return;
+      }
+
+      const errorData = await response.json();
+      if (errorData.fallbackToNative) {
+        this.announceWithNativeSpeech(announcement);
+      }
+    } catch (error) {
+      this.announceWithNativeSpeech(announcement);
+    }
+  }
+
+  /**
+   * Announce table rebalancing in progress
+   */
+  async announceRebalancing(): Promise<void> {
+    // Stop any currently playing audio/speech
+    this.stopAll();
+
+    const announcement = 'Réassignation des tables en cours ! Veuillez consulter le nouveau plan des tables.';
 
     try {
       const response = await fetch('/api/tts', {
@@ -583,6 +660,22 @@ export const announcePlayersRemaining = (count: number): void => {
 export const announceBreakComingSoon = (minutes: number): void => {
   const manager = getAudioManager();
   manager.announceBreakComingSoon(minutes);
+};
+
+/**
+ * Announce table rebalancing coming soon
+ */
+export const announceRebalancingComingSoon = (): void => {
+  const manager = getAudioManager();
+  manager.announceRebalancingComingSoon();
+};
+
+/**
+ * Announce table rebalancing in progress
+ */
+export const announceRebalancing = (): void => {
+  const manager = getAudioManager();
+  manager.announceRebalancing();
 };
 
 /**
