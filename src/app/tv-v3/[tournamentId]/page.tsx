@@ -4,8 +4,12 @@ import { useEffect, useState, use, useRef } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { Trophy, Users, DollarSign, Clock } from 'lucide-react';
-import { playCountdown, announceLevelChange, announceBreak } from '@/lib/audioManager';
+import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed } from '@/lib/audioManager';
 import confetti from 'canvas-confetti';
+import { CircularTimer } from '@/components/CircularTimer';
+import { Volume2, Gauge, Camera, Share2, Download, Palette } from 'lucide-react';
+import { capturePodiumPhoto, sharePodiumPhoto } from '@/lib/podiumPhotoGenerator';
+import { TV_THEMES, getSavedTheme, saveTheme, applyThemeToElement, type TVTheme } from '@/lib/tvThemes';
 
 type Player = {
   id: string;
@@ -102,8 +106,44 @@ export default function TVSpectatorViewV3({
 
   // Audio management refs
   const countdownPlayedRef = useRef(false);
+  const alert30sPlayedRef = useRef(false);
+  const alert10sPlayedRef = useRef(false);
   const previousLevelRef = useRef<number>(0);
+  const previousPlayerCountRef = useRef<number>(0);
   const confettiTriggeredRef = useRef(false);
+  const photoCapturedRef = useRef(false);
+
+  // TTS controls
+  const [ttsVolume, setTtsVolume] = useState(1);
+  const [ttsSpeed, setTtsSpeed] = useState(1);
+  const [showControls, setShowControls] = useState(false);
+
+  // Theme
+  const [currentTheme, setCurrentTheme] = useState<TVTheme>(TV_THEMES[0]);
+  const [showThemeSelector, setShowThemeSelector] = useState(false);
+
+  // Initialize TTS controls and theme from localStorage
+  useEffect(() => {
+    setTtsVolume(getTTSVolume());
+    setTtsSpeed(getTTSSpeed());
+
+    // Load saved theme
+    const savedTheme = getSavedTheme();
+    setCurrentTheme(savedTheme);
+  }, []);
+
+  // Apply theme when it changes
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      applyThemeToElement(document.documentElement, currentTheme);
+    }
+  }, [currentTheme]);
+
+  const handleThemeChange = (theme: TVTheme) => {
+    setCurrentTheme(theme);
+    saveTheme(theme.id);
+    setShowThemeSelector(false);
+  };
 
   useEffect(() => {
     fetchData();
@@ -141,8 +181,19 @@ export default function TVSpectatorViewV3({
         }
       };
       frame();
+
+      // Automatically capture podium photo after confetti settles (7 seconds)
+      setTimeout(() => {
+        if (!photoCapturedRef.current && resultsData?.tournament.name) {
+          photoCapturedRef.current = true;
+          capturePodiumPhoto(
+            'podium-content',
+            `podium_${resultsData.tournament.name.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.png`
+          );
+        }
+      }, 7000);
     }
-  }, [resultsData?.tournament.status]);
+  }, [resultsData?.tournament.status, resultsData?.tournament.name]);
 
   // Update current time every second to trigger recalculation
   useEffect(() => {
@@ -243,15 +294,32 @@ export default function TVSpectatorViewV3({
     calculateTimeRemaining();
   }, [currentTime, serverTimerData, blindStructure, resultsData?.tournament.currentLevel]);
 
-  // Play countdown at 5 seconds
+  // Play alerts at 30s, 10s, and 5s
   useEffect(() => {
-    if (timeRemaining === 5 && !countdownPlayedRef.current && serverTimerData?.timerStartedAt && !serverTimerData?.timerPausedAt) {
+    if (!serverTimerData?.timerStartedAt || serverTimerData?.timerPausedAt) return;
+
+    // 30 seconds warning
+    if (timeRemaining === 30 && !alert30sPlayedRef.current) {
+      alert30sPlayedRef.current = true;
+      playAlertSound('warning');
+    }
+
+    // 10 seconds warning
+    if (timeRemaining === 10 && !alert10sPlayedRef.current) {
+      alert10sPlayedRef.current = true;
+      playAlertSound('urgent');
+    }
+
+    // 5 seconds countdown
+    if (timeRemaining === 5 && !countdownPlayedRef.current) {
       countdownPlayedRef.current = true;
       playCountdown();
     }
 
-    // Reset countdown flag when time remaining changes significantly
-    if (timeRemaining !== null && timeRemaining > 10) {
+    // Reset flags when time remaining changes significantly
+    if (timeRemaining !== null && timeRemaining > 35) {
+      alert30sPlayedRef.current = false;
+      alert10sPlayedRef.current = false;
       countdownPlayedRef.current = false;
     }
   }, [timeRemaining, serverTimerData]);
@@ -290,6 +358,25 @@ export default function TVSpectatorViewV3({
     // Update previous level
     previousLevelRef.current = currentLevel;
   }, [resultsData?.tournament.currentLevel, blindStructure]);
+
+  // Announce players remaining milestones
+  useEffect(() => {
+    if (!resultsData) return;
+
+    const activePlayers = resultsData.results.filter((p) => p.finalRank === null);
+    const currentPlayerCount = activePlayers.length;
+
+    // Check if player count changed and announce milestones
+    if (previousPlayerCountRef.current !== 0 && previousPlayerCountRef.current !== currentPlayerCount) {
+      // Announce at specific milestones: 9, 6, 3
+      if ([9, 6, 3].includes(currentPlayerCount)) {
+        announcePlayersRemaining(currentPlayerCount);
+      }
+    }
+
+    // Update previous count
+    previousPlayerCountRef.current = currentPlayerCount;
+  }, [resultsData?.results]);
 
   // Keyboard shortcut: Space bar for pause/resume
   useEffect(() => {
@@ -343,6 +430,16 @@ export default function TVSpectatorViewV3({
     } catch (error) {
       console.error('Error resuming timer:', error);
     }
+  };
+
+  const handleVolumeChange = (value: number) => {
+    setTtsVolume(value);
+    setTTSVolume(value);
+  };
+
+  const handleSpeedChange = (value: number) => {
+    setTtsSpeed(value);
+    setTTSSpeed(value);
   };
 
   const formatTime = (seconds: number) => {
@@ -447,9 +544,12 @@ export default function TVSpectatorViewV3({
     .slice(0, 3);
 
   return (
-    <div className="min-h-screen bg-[hsl(220,18%,12%)] text-white overflow-hidden relative">
+    <div className="min-h-screen text-white overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
       {/* Header */}
-      <div className="bg-[hsl(142,71%,45%)] py-4 px-8 border-b-4 border-[hsl(142,71%,35%)]">
+      <div className="py-4 px-8 border-b-4" style={{
+        backgroundColor: currentTheme.colors.primary,
+        borderBottomColor: currentTheme.colors.primaryDark
+      }}>
         <h1 className="text-4xl font-bold text-center text-white drop-shadow-lg uppercase tracking-wider">
           {tournament.name || 'Tournoi de Poker'}
         </h1>
@@ -457,9 +557,34 @@ export default function TVSpectatorViewV3({
 
       {/* Tournament Finished Screen */}
       {isCompleted ? (
-        <div className="flex items-center justify-center h-[calc(100vh-80px)] bg-gradient-to-br from-[hsl(220,18%,12%)] to-[hsl(142,71%,15%)]">
-          <div className="text-center space-y-12 p-12">
-            <div className="text-9xl font-black text-[hsl(142,71%,45%)] drop-shadow-2xl uppercase tracking-wider animate-pulse">
+        <div className="flex items-center justify-center h-[calc(100vh-80px)] bg-gradient-to-br relative" style={{
+          background: `linear-gradient(to bottom right, ${currentTheme.colors.background}, ${currentTheme.colors.backgroundLight})`
+        }}>
+          {/* Manual Photo Capture Buttons */}
+          <div className="absolute top-8 right-8 flex gap-3 z-50">
+            <button
+              onClick={() => capturePodiumPhoto('podium-content', `podium_${tournament.name?.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.png`)}
+              className="flex items-center gap-2 text-white px-4 py-2 rounded-lg font-bold shadow-lg transition-all hover:opacity-90"
+              style={{
+                backgroundColor: currentTheme.colors.primary
+              }}
+              title="Télécharger la photo du podium"
+            >
+              <Download className="h-5 w-5" />
+              <span>Télécharger</span>
+            </button>
+            <button
+              onClick={() => sharePodiumPhoto('podium-content', tournament.name || 'Tournoi')}
+              className="flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold shadow-lg transition-colors"
+              title="Partager la photo du podium"
+            >
+              <Share2 className="h-5 w-5" />
+              <span>Partager</span>
+            </button>
+          </div>
+
+          <div id="podium-content" className="text-center space-y-12 p-12">
+            <div className="text-9xl font-black drop-shadow-2xl uppercase tracking-wider animate-pulse" style={{ color: currentTheme.colors.primary }}>
               Terminé
             </div>
 
@@ -544,41 +669,61 @@ export default function TVSpectatorViewV3({
         </div>
 
         {/* CENTER PANEL */}
-        <div className="flex-1 bg-[hsl(220,18%,12%)] p-8 flex flex-col justify-center space-y-6">
+        <div className="flex-1 p-8 flex flex-col justify-center space-y-6" style={{ backgroundColor: currentTheme.colors.background }}>
           {/* Tournament Type */}
-          <div className="bg-[hsl(220,15%,18%)] border-2 border-[hsl(220,13%,30%)] rounded-xl py-3 px-6 text-center">
+          <div className="border-2 rounded-xl py-3 px-6 text-center" style={{
+            backgroundColor: currentTheme.colors.backgroundDark,
+            borderColor: currentTheme.colors.border
+          }}>
             <div className="text-3xl font-bold text-white">{tournamentTypeLabel}</div>
           </div>
 
           {/* Current Round */}
           {currentBlindLevel && !currentBlindLevel.isBreak && (
-            <div className="bg-[hsl(220,15%,18%)] border-2 border-[hsl(142,71%,45%)] rounded-xl py-3 px-6 text-center">
-              <div className="text-3xl font-bold text-[hsl(142,71%,55%)]">Round : {currentBlindLevel.level}</div>
+            <div className="border-2 rounded-xl py-3 px-6 text-center" style={{
+              backgroundColor: currentTheme.colors.backgroundDark,
+              borderColor: currentTheme.colors.primary
+            }}>
+              <div className="text-3xl font-bold" style={{ color: currentTheme.colors.primaryLight }}>Round : {currentBlindLevel.level}</div>
             </div>
           )}
 
           {/* Main Timer */}
-          <div className="text-center relative">
-            <div className={`text-[12rem] font-black leading-none drop-shadow-[0_0_40px_rgba(255,255,255,0.3)] ${
-              timeRemaining !== null && timeRemaining < 60
-                ? 'text-red-500 animate-pulse'
-                : timeRemaining !== null && timeRemaining < 120
-                ? 'text-orange-400'
-                : 'text-white'
-            }`}>
-              {timeRemaining !== null ? formatTime(timeRemaining) : '--:--'}
-            </div>
-            {/* Pause indicator */}
-            {serverTimerData?.timerPausedAt && (
-              <div className="absolute top-0 right-0 bg-yellow-500 text-black px-6 py-3 rounded-lg font-bold text-3xl animate-pulse shadow-lg">
-                ⏸ PAUSE (Espace pour reprendre)
+          <div className="flex items-center justify-center gap-8 relative">
+            {/* Circular Timer */}
+            <CircularTimer
+              timeRemaining={timeRemaining}
+              totalDuration={currentBlindLevel ? currentBlindLevel.duration * 60 : tournament.levelDuration * 60}
+              size={280}
+              strokeWidth={16}
+            />
+
+            {/* Time Display */}
+            <div className="flex flex-col items-center gap-2">
+              <div className={`text-[8rem] font-black leading-none drop-shadow-[0_0_40px_rgba(255,255,255,0.3)] ${
+                timeRemaining !== null && timeRemaining < 60
+                  ? 'text-red-500 animate-pulse'
+                  : timeRemaining !== null && timeRemaining < 120
+                  ? 'text-orange-400'
+                  : 'text-white'
+              }`}>
+                {timeRemaining !== null ? formatTime(timeRemaining) : '--:--'}
               </div>
-            )}
+              {/* Pause indicator */}
+              {serverTimerData?.timerPausedAt && (
+                <div className="bg-yellow-500 text-black px-6 py-3 rounded-lg font-bold text-2xl animate-pulse shadow-lg">
+                  ⏸ PAUSE (Espace pour reprendre)
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Current Blinds */}
           {currentBlindLevel && !currentBlindLevel.isBreak ? (
-            <div className="bg-[hsl(220,15%,18%)] border-2 border-[hsl(142,71%,45%)] rounded-xl py-4 px-6 text-center">
+            <div className="border-2 rounded-xl py-4 px-6 text-center" style={{
+              backgroundColor: currentTheme.colors.backgroundDark,
+              borderColor: currentTheme.colors.primary
+            }}>
               <div className="text-5xl font-black text-white">
                 Blinds : {currentBlindLevel.smallBlind.toLocaleString()} / {currentBlindLevel.bigBlind.toLocaleString()}
                 {currentBlindLevel.ante > 0 && ` (${currentBlindLevel.ante.toLocaleString()})`}
@@ -589,15 +734,21 @@ export default function TVSpectatorViewV3({
               <div className="text-5xl font-black text-blue-300">☕ PAUSE</div>
             </div>
           ) : (
-            <div className="bg-[hsl(220,15%,18%)] border-2 border-[hsl(220,13%,30%)] rounded-xl py-4 px-6 text-center">
+            <div className="border-2 rounded-xl py-4 px-6 text-center" style={{
+              backgroundColor: currentTheme.colors.backgroundDark,
+              borderColor: currentTheme.colors.border
+            }}>
               <div className="text-3xl font-bold text-white/50">En attente du démarrage...</div>
             </div>
           )}
 
           {/* Next Blinds */}
           {nextBlindLevel && !nextBlindLevel.isBreak && (
-            <div className="bg-[hsl(220,15%,22%)] border border-[hsl(220,13%,30%)] rounded-xl py-3 px-6 text-center">
-              <div className="text-2xl font-bold text-[hsl(142,71%,60%)]">
+            <div className="border rounded-xl py-3 px-6 text-center" style={{
+              backgroundColor: currentTheme.colors.backgroundLight,
+              borderColor: currentTheme.colors.border
+            }}>
+              <div className="text-2xl font-bold" style={{ color: currentTheme.colors.primaryLight }}>
                 Prochaines Blinds : {nextBlindLevel.smallBlind.toLocaleString()} / {nextBlindLevel.bigBlind.toLocaleString()}
                 {nextBlindLevel.ante > 0 && ` (${nextBlindLevel.ante.toLocaleString()})`}
               </div>
@@ -675,7 +826,7 @@ export default function TVSpectatorViewV3({
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    {player.finalRank <= 3 && (
+                    {player.finalRank !== null && player.finalRank <= 3 && (
                       <Trophy
                         className={`h-6 w-6 ${
                           player.finalRank === 1
@@ -708,6 +859,109 @@ export default function TVSpectatorViewV3({
           </div>
         </div>
       )}
+
+      {/* Bottom Right - TTS Controls & Theme Selector */}
+      <div className="fixed bottom-4 right-4 z-[9999] space-y-3">
+        {/* Theme Selector */}
+        <div className="bg-[hsl(220,15%,18%)] border-2" style={{ borderColor: currentTheme.colors.primary }} className="rounded-xl p-4 shadow-2xl">
+          <button
+            onClick={() => setShowThemeSelector(!showThemeSelector)}
+            className="flex items-center gap-2 text-white font-bold text-sm mb-2 transition-colors w-full"
+            style={{ color: showThemeSelector ? currentTheme.colors.primaryLight : '#ffffff' }}
+          >
+            <Palette className="h-5 w-5" />
+            <span>Thème: {currentTheme.name}</span>
+            <span className="text-xs ml-auto">{showThemeSelector ? '▼' : '▶'}</span>
+          </button>
+
+          {showThemeSelector && (
+            <div className="space-y-2 pt-2 border-t border-white/20 max-h-[300px] overflow-y-auto">
+              {TV_THEMES.map((theme) => (
+                <button
+                  key={theme.id}
+                  onClick={() => handleThemeChange(theme)}
+                  className="w-full flex items-center gap-3 p-2 rounded-lg transition-all hover:bg-white/10"
+                  style={{
+                    backgroundColor: currentTheme.id === theme.id ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
+                  }}
+                >
+                  <div
+                    className="w-6 h-6 rounded-full border-2 border-white"
+                    style={{ backgroundColor: theme.colors.primary }}
+                  />
+                  <span className="text-sm text-white font-medium">{theme.name}</span>
+                  {currentTheme.id === theme.id && (
+                    <span className="ml-auto text-xs" style={{ color: theme.colors.primary }}>✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* TTS Controls */}
+        <div className="bg-[hsl(220,15%,18%)] border-2" style={{ borderColor: currentTheme.colors.primary }} className="rounded-xl p-4 shadow-2xl">
+          <button
+            onClick={() => setShowControls(!showControls)}
+            className="flex items-center gap-2 text-white font-bold text-sm mb-2 transition-colors w-full"
+            style={{ color: showControls ? currentTheme.colors.primaryLight : '#ffffff' }}
+          >
+            <Volume2 className="h-5 w-5" />
+            <span>Contrôles TTS</span>
+            <span className="text-xs ml-auto">{showControls ? '▼' : '▶'}</span>
+          </button>
+
+          {showControls && (
+            <div className="space-y-3 pt-2 border-t border-white/20">
+              {/* Volume Control */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-white/80 flex items-center gap-1">
+                    <Volume2 className="h-3 w-3" />
+                    Volume
+                  </label>
+                  <span className="text-xs text-white font-bold">{Math.round(ttsVolume * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={ttsVolume}
+                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    accentColor: currentTheme.colors.primary,
+                  }}
+                />
+              </div>
+
+              {/* Speed Control */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-white/80 flex items-center gap-1">
+                    <Gauge className="h-3 w-3" />
+                    Vitesse
+                  </label>
+                  <span className="text-xs text-white font-bold">{ttsSpeed.toFixed(1)}x</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={ttsSpeed}
+                  onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    accentColor: currentTheme.colors.primary,
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Bottom Left - Top Sharks & Rebuyers */}
       {(topSharks.length > 0 || topRebuyers.length > 0) && (

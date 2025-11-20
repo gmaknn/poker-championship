@@ -28,6 +28,8 @@ const LEVEL_CHANGE_PHRASE_TEMPLATES = [
 class AudioManager {
   private audioContext: AudioContext | null = null;
   private speechSynthesis: SpeechSynthesis | null = null;
+  private volume: number = 1.0; // 0.0 to 1.0
+  private speed: number = 1.0; // 0.5 to 2.0
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -36,7 +38,47 @@ class AudioManager {
 
       // Initialize Speech Synthesis for TTS
       this.speechSynthesis = window.speechSynthesis;
+
+      // Load saved settings from localStorage
+      const savedVolume = localStorage.getItem('tts-volume');
+      const savedSpeed = localStorage.getItem('tts-speed');
+      if (savedVolume) this.volume = parseFloat(savedVolume);
+      if (savedSpeed) this.speed = parseFloat(savedSpeed);
     }
+  }
+
+  /**
+   * Set TTS volume (0.0 to 1.0)
+   */
+  setVolume(volume: number): void {
+    this.volume = Math.max(0, Math.min(1, volume));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tts-volume', this.volume.toString());
+    }
+  }
+
+  /**
+   * Set TTS speed (0.5 to 2.0)
+   */
+  setSpeed(speed: number): void {
+    this.speed = Math.max(0.5, Math.min(2, speed));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tts-speed', this.speed.toString());
+    }
+  }
+
+  /**
+   * Get current volume
+   */
+  getVolume(): number {
+    return this.volume;
+  }
+
+  /**
+   * Get current speed
+   */
+  getSpeed(): number {
+    return this.speed;
   }
 
   /**
@@ -137,8 +179,10 @@ class AudioManager {
       const blob = new Blob([bytes], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
 
-      // Create and play audio element
+      // Create and play audio element with volume control
       const audio = new Audio(url);
+      audio.volume = this.volume;
+      audio.playbackRate = this.speed;
       audio.play().catch((error) => {
         console.error('Error playing audio:', error);
       });
@@ -167,9 +211,9 @@ class AudioManager {
     // Create speech utterance
     const utterance = new SpeechSynthesisUtterance(announcement);
     utterance.lang = 'fr-FR';
-    utterance.rate = 0.9; // Slightly slower for clarity
+    utterance.rate = 0.9 * this.speed; // Apply speed setting
     utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    utterance.volume = this.volume; // Apply volume setting
 
     // Try to use a French voice if available
     const voices = this.speechSynthesis.getVoices();
@@ -273,6 +317,139 @@ class AudioManager {
   }
 
   /**
+   * Play alert sound (for 30s and 10s warnings)
+   */
+  playAlertSound(type: 'warning' | 'urgent'): void {
+    if (!this.audioContext) return;
+
+    if (type === 'warning') {
+      // 30s warning: 2 beeps
+      this.playBeep(660, 0.2, 0);
+      this.playBeep(660, 0.2, 0.4);
+    } else {
+      // 10s warning: 3 faster beeps
+      this.playBeep(880, 0.15, 0);
+      this.playBeep(880, 0.15, 0.25);
+      this.playBeep(880, 0.15, 0.5);
+    }
+  }
+
+  /**
+   * Play jingle before important announcement
+   */
+  playJingle(): void {
+    if (!this.audioContext) return;
+
+    // Short musical jingle: ascending notes
+    const notes = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+    notes.forEach((freq, i) => {
+      this.playBeep(freq, 0.15, i * 0.15);
+    });
+  }
+
+  /**
+   * Announce player elimination
+   */
+  async announceElimination(eliminatedPlayer: string, eliminatorPlayer?: string): Promise<void> {
+    this.playJingle(); // Play jingle first
+
+    await new Promise(resolve => setTimeout(resolve, 700)); // Wait for jingle to finish
+
+    const announcement = eliminatorPlayer
+      ? `Élimination ! ${eliminatedPlayer} éliminé par ${eliminatorPlayer} !`
+      : `Élimination ! ${eliminatedPlayer} est éliminé !`;
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcement }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.playAudioFromBase64(data.audioContent);
+        return;
+      }
+
+      const errorData = await response.json();
+      if (errorData.fallbackToNative) {
+        this.announceWithNativeSpeech(announcement);
+      }
+    } catch (error) {
+      this.announceWithNativeSpeech(announcement);
+    }
+  }
+
+  /**
+   * Announce players remaining milestone
+   */
+  async announcePlayersRemaining(count: number): Promise<void> {
+    let announcement = '';
+
+    if (count === 3) {
+      announcement = 'Plus que 3 joueurs ! On approche de la table finale !';
+    } else if (count === 6) {
+      announcement = 'Il reste 6 joueurs en course pour la victoire !';
+    } else if (count === 9) {
+      announcement = 'Table finale ! 9 joueurs toujours en lice !';
+    } else if (count === 1) {
+      announcement = 'Et nous avons un vainqueur !';
+    } else {
+      announcement = `Plus que ${count} joueurs en jeu !`;
+    }
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcement }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.playAudioFromBase64(data.audioContent);
+        return;
+      }
+
+      const errorData = await response.json();
+      if (errorData.fallbackToNative) {
+        this.announceWithNativeSpeech(announcement);
+      }
+    } catch (error) {
+      this.announceWithNativeSpeech(announcement);
+    }
+  }
+
+  /**
+   * Announce break coming soon
+   */
+  async announceBreakComingSoon(minutes: number): Promise<void> {
+    const announcement = `Pause dans ${minutes} minute${minutes > 1 ? 's' : ''} ! Préparez-vous !`;
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcement }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.playAudioFromBase64(data.audioContent);
+        return;
+      }
+
+      const errorData = await response.json();
+      if (errorData.fallbackToNative) {
+        this.announceWithNativeSpeech(announcement);
+      }
+    } catch (error) {
+      this.announceWithNativeSpeech(announcement);
+    }
+  }
+
+  /**
    * Stop all sounds and speech
    */
   stopAll(): void {
@@ -332,4 +509,68 @@ export const announceBreak = (duration: number): void => {
 export const stopAllAudio = (): void => {
   const manager = getAudioManager();
   manager.stopAll();
+};
+
+/**
+ * Play alert sound
+ */
+export const playAlertSound = (type: 'warning' | 'urgent'): void => {
+  const manager = getAudioManager();
+  manager.playAlertSound(type);
+};
+
+/**
+ * Announce elimination
+ */
+export const announceElimination = (eliminatedPlayer: string, eliminatorPlayer?: string): void => {
+  const manager = getAudioManager();
+  manager.announceElimination(eliminatedPlayer, eliminatorPlayer);
+};
+
+/**
+ * Announce players remaining
+ */
+export const announcePlayersRemaining = (count: number): void => {
+  const manager = getAudioManager();
+  manager.announcePlayersRemaining(count);
+};
+
+/**
+ * Announce break coming soon
+ */
+export const announceBreakComingSoon = (minutes: number): void => {
+  const manager = getAudioManager();
+  manager.announceBreakComingSoon(minutes);
+};
+
+/**
+ * Set TTS volume
+ */
+export const setTTSVolume = (volume: number): void => {
+  const manager = getAudioManager();
+  manager.setVolume(volume);
+};
+
+/**
+ * Set TTS speed
+ */
+export const setTTSSpeed = (speed: number): void => {
+  const manager = getAudioManager();
+  manager.setSpeed(speed);
+};
+
+/**
+ * Get TTS volume
+ */
+export const getTTSVolume = (): number => {
+  const manager = getAudioManager();
+  return manager.getVolume();
+};
+
+/**
+ * Get TTS speed
+ */
+export const getTTSSpeed = (): number => {
+  const manager = getAudioManager();
+  return manager.getSpeed();
 };
