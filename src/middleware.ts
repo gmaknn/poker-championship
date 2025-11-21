@@ -12,6 +12,7 @@ export function middleware(req: NextRequest) {
       pathname.startsWith('/forgot-password') ||
       pathname.startsWith('/reset-password') ||
       pathname.startsWith('/api/auth') ||
+      pathname.startsWith('/api/debug') ||
       pathname.startsWith('/api/tts') ||
       pathname.startsWith('/tv') ||
       pathname.startsWith('/player') ||
