@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -32,10 +32,19 @@ model Player {
   firstName         String
   lastName          String
   nickname          String              @unique
-  email             String?
+  email             String?             @unique
   avatar            String?
   status            PlayerStatus        @default(ACTIVE)
   role              PlayerRole          @default(PLAYER)
+
+  // Champs d'authentification
+  password                  String?
+  emailVerified             DateTime?
+  activationToken           String?             @unique
+  activationTokenExpiry     DateTime?
+  resetPasswordToken        String?             @unique
+  resetPasswordTokenExpiry  DateTime?
+
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -48,6 +57,9 @@ model Player {
   @@index([status])
   @@index([nickname])
   @@index([role])
+  @@index([email])
+  @@index([activationToken])
+  @@index([resetPasswordToken])
 }
 
 model Season {
