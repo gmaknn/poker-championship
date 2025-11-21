@@ -57,20 +57,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             };
           } else {
             // Authentification admin (comportement existant)
+            console.log('[AUTH DEBUG] Looking for admin user:', email);
+
             const user = await prisma.user.findUnique({
               where: { email },
             });
 
+            console.log('[AUTH DEBUG] User found:', !!user);
+            console.log('[AUTH DEBUG] User hash prefix:', user?.password?.substring(0, 15));
+
             if (!user) {
+              console.log('[AUTH DEBUG] User not found in database');
               throw new Error('Invalid credentials');
             }
 
+            console.log('[AUTH DEBUG] Testing password...');
             const isPasswordValid = await bcrypt.compare(password, user.password);
+            console.log('[AUTH DEBUG] Password valid:', isPasswordValid);
 
             if (!isPasswordValid) {
+              console.log('[AUTH DEBUG] Password validation failed');
               throw new Error('Invalid credentials');
             }
 
+            console.log('[AUTH DEBUG] Login successful for:', email);
             return {
               id: user.id,
               email: user.email,
@@ -80,7 +90,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             };
           }
         } catch (error) {
-          console.error('Auth error:', error);
+          console.error('[AUTH ERROR]', error);
           return null;
         }
       },
