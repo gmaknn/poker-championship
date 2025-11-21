@@ -6,7 +6,7 @@
     "dev": "node server.js",
     "build": "prisma generate && next build",
     "vercel-build": "prisma generate && next build",
-    "postinstall": "prisma generate",
+    "postinstall": "node -e \"require('fs').rmSync('node_modules/.prisma', {recursive: true, force: true})\" && prisma generate",
     "start": "NODE_ENV=production node server.js",
     "lint": "eslint",
     "test": "jest",
