@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+const resend = new Resend(process.env.RESEND_API_KEY || 'dummy-key')
 const FROM_EMAIL = process.env.EMAIL_FROM || 'onboarding@resend.dev'
 const APP_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
@@ -11,12 +11,13 @@ interface EmailOptions {
 }
 
 async function sendEmail({ to, subject, html }: EmailOptions) {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('📧 Email (Development Mode):')
+  if (process.env.NODE_ENV === 'development' || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 'dummy-key') {
+    console.log('📧 Email (Development/No API Key Mode):')
     console.log('To:', to)
     console.log('Subject:', subject)
     console.log('HTML:', html)
     console.log('---')
+    return { success: true, data: { id: 'dev-mode' } }
   }
 
   try {
