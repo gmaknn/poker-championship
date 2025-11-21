@@ -2,15 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trophy, Users, Calendar, TrendingUp, Plus, LayoutDashboard } from 'lucide-react';
+import { Trophy, Users, Calendar, TrendingUp, Plus, LayoutDashboard, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
-
-interface CurrentPlayer {
-  id: string;
-  role: 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
-}
+import { RecentActivityChart } from '@/components/charts/RecentActivityChart';
 
 interface DashboardStats {
   activePlayers: number;
@@ -26,9 +23,17 @@ interface DashboardStats {
   } | null;
 }
 
+interface Tournament {
+  id: string;
+  name: string;
+  date: string;
+  status: string;
+  tournamentPlayers: any[];
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [currentPlayer, setCurrentPlayer] = useState<CurrentPlayer | null>(null);
+  const { data: session } = useSession();
   const [stats, setStats] = useState<DashboardStats>({
     activePlayers: 0,
     totalTournaments: 0,
@@ -36,32 +41,12 @@ export default function DashboardPage() {
     leader: null,
     nextTournament: null,
   });
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     console.log('🔍 Dashboard useEffect started');
-
-    // Lire le cookie player-id
-    const cookies = document.cookie;
-    const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-    console.log('🍪 Cookie player-id:', playerIdMatch?.[1]);
-
-    if (playerIdMatch) {
-      const playerId = playerIdMatch[1];
-
-      // Récupérer les infos du joueur
-      fetch(`/api/players/${playerId}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(player => {
-          if (player) {
-            setCurrentPlayer({
-              id: player.id,
-              role: player.role,
-            });
-          }
-        })
-        .catch(err => console.error('Error loading current player:', err));
-    }
+    console.log('👤 Session:', session);
 
     // Charger les statistiques du dashboard
     console.log('📊 Starting to fetch dashboard stats...');
@@ -78,16 +63,19 @@ export default function DashboardPage() {
         });
         return Promise.all([playersRes.json(), tournamentsRes.json(), seasonsRes.json()]);
       })
-      .then(([players, tournaments, seasons]) => {
+      .then(([players, tournamentData, seasons]) => {
         console.log('📦 Data parsed:', {
           playersCount: players?.length,
-          tournamentsCount: tournaments?.length,
+          tournamentsCount: tournamentData?.length,
           seasonsCount: seasons?.length
         });
         // Valeurs par défaut si les données ne sont pas au bon format
         const safePlayers = Array.isArray(players) ? players : [];
-        const safeTournaments = Array.isArray(tournaments) ? tournaments : [];
+        const safeTournaments = Array.isArray(tournamentData) ? tournamentData : [];
         const safeSeasons = Array.isArray(seasons) ? seasons : [];
+
+        // Store tournaments for activity chart
+        setTournaments(safeTournaments);
 
         const activePlayers = safePlayers.filter((p: any) => p.status === 'ACTIVE').length;
         const activeSeason = safeSeasons.find((s: any) => s.status === 'ACTIVE');
@@ -162,8 +150,13 @@ export default function DashboardPage() {
       });
   }, []);
 
-  const canCreateTournament = currentPlayer &&
-    (currentPlayer.role === 'ADMIN' || currentPlayer.role === 'TOURNAMENT_DIRECTOR');
+  // Admin peut toujours créer des tournois
+  // Les joueurs avec rôle TOURNAMENT_DIRECTOR ou ADMIN peuvent aussi créer
+  const canCreateTournament = session?.user && (
+    session.user.userType === 'admin' ||
+    session.user.role === 'ADMIN' ||
+    session.user.role === 'TOURNAMENT_DIRECTOR'
+  );
 
   return (
     <div className="space-y-8">
@@ -279,15 +272,27 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Dernière activité</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Activité récente
+            </CardTitle>
             <CardDescription>
-              Historique des actions récentes
+              Participation aux 5 derniers tournois
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-muted-foreground text-center py-8">
-              Aucune activité pour le moment
-            </div>
+            <RecentActivityChart
+              tournaments={tournaments
+                .filter(t => t.status === 'FINISHED' || t.status === 'IN_PROGRESS')
+                .map(t => ({
+                  id: t.id,
+                  name: t.name,
+                  date: t.date,
+                  playerCount: t.tournamentPlayers?.length || 0,
+                  status: t.status
+                }))
+              }
+            />
           </CardContent>
         </Card>
       </div>

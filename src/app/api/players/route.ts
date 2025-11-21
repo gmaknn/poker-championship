@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { PlayerRole } from '@prisma/client';
 import { getCurrentPlayer } from '@/lib/auth-helpers';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import { generateSecureToken, getTokenExpiry } from '@/lib/tokens';
+import { sendActivationEmail } from '@/lib/email';
 
 const playerSchema = z.object({
   firstName: z.string().min(1, 'Le prénom est requis'),
@@ -77,6 +79,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Générer un token d'activation si un email est fourni
+    let activationToken: string | null = null;
+    let activationTokenExpiry: Date | null = null;
+
+    if (validatedData.email) {
+      activationToken = generateSecureToken();
+      activationTokenExpiry = getTokenExpiry(48); // 48 heures
+    }
+
     const player = await prisma.player.create({
       data: {
         firstName: validatedData.firstName,
@@ -85,8 +96,25 @@ export async function POST(request: NextRequest) {
         email: validatedData.email || null,
         avatar: validatedData.avatar,
         role,
+        activationToken,
+        activationTokenExpiry,
       },
     });
+
+    // Envoyer l'email d'activation si un email a été fourni
+    if (validatedData.email && activationToken) {
+      try {
+        await sendActivationEmail(
+          validatedData.email,
+          validatedData.firstName,
+          activationToken
+        );
+        console.log(`Email d'activation envoyé à ${validatedData.email}`);
+      } catch (emailError) {
+        console.error('Erreur lors de l\'envoi de l\'email d\'activation:', emailError);
+        // On ne bloque pas la création du joueur si l'email échoue
+      }
+    }
 
     return NextResponse.json(player, { status: 201 });
   } catch (error) {

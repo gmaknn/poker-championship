@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Plus, Pencil, Archive, Trophy, BarChart3 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import { AdminGuard } from '@/components/auth/AdminGuard';
 import {
   Dialog,
   DialogContent,
@@ -209,9 +210,10 @@ export default function SeasonsPage() {
   const archivedSeasons = seasons.filter(s => s.status === 'ARCHIVED');
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Saisons"
+    <AdminGuard requireAdmin={true}>
+      <div className="space-y-6">
+        <PageHeader
+          title="Saisons"
         description="Gérez les saisons du championnat"
         icon={<Trophy className="h-10 w-10" />}
         actions={
@@ -710,6 +712,7 @@ export default function SeasonsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AdminGuard>
   );
 }

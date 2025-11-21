@@ -328,7 +328,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
               {rankedPlayers[1] && (
                 <div className="flex flex-col items-center p-6 rounded-lg border-2 border-gray-400 bg-gray-400/5">
                   <div className="mb-3">
-                    {isValidAvatarUrl(rankedPlayers[1].player.avatar) ? (
+                    {isValidAvatarUrl(rankedPlayers[1].player.avatar) && rankedPlayers[1].player.avatar ? (
                       <NextImage
                         src={rankedPlayers[1].player.avatar}
                         alt={rankedPlayers[1].player.nickname}
@@ -368,7 +368,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
               {rankedPlayers[0] && (
                 <div className="flex flex-col items-center p-6 rounded-lg border-4 border-yellow-500 bg-yellow-500/10 shadow-lg md:scale-110 md:-mt-4 md:z-10">
                   <div className="mb-3">
-                    {isValidAvatarUrl(rankedPlayers[0].player.avatar) ? (
+                    {isValidAvatarUrl(rankedPlayers[0].player.avatar) && rankedPlayers[0].player.avatar ? (
                       <NextImage
                         src={rankedPlayers[0].player.avatar}
                         alt={rankedPlayers[0].player.nickname}
@@ -408,7 +408,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
               {rankedPlayers[2] && (
                 <div className="flex flex-col items-center p-6 rounded-lg border-2 border-orange-600 bg-orange-600/5">
                   <div className="mb-3">
-                    {isValidAvatarUrl(rankedPlayers[2].player.avatar) ? (
+                    {isValidAvatarUrl(rankedPlayers[2].player.avatar) && rankedPlayers[2].player.avatar ? (
                       <NextImage
                         src={rankedPlayers[2].player.avatar}
                         alt={rankedPlayers[2].player.nickname}

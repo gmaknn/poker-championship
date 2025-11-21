@@ -12,23 +12,31 @@ type ThemeContextType = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('dark');
-  const [mounted, setMounted] = useState(false);
+  // Initialiser avec localStorage ou dark par défaut
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      return (savedTheme as Theme) || 'dark';
+    }
+    return 'dark';
+  });
 
   useEffect(() => {
-    setMounted(true);
-    // Charger le thème depuis les paramètres
+    // Appliquer le thème initial
+    applyTheme(theme);
+
+    // Charger le thème depuis les paramètres serveur (optionnel, pour synchronisation)
     fetch('/api/settings')
       .then(res => res.json())
       .then(data => {
-        if (data?.theme) {
+        if (data?.theme && data.theme !== theme) {
           setThemeState(data.theme);
           applyTheme(data.theme);
+          localStorage.setItem('theme', data.theme);
         }
       })
       .catch(() => {
-        // En cas d'erreur, utiliser dark par défaut
-        applyTheme('dark');
+        // En cas d'erreur, garder le thème actuel
       });
   }, []);
 
@@ -45,12 +53,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
     applyTheme(newTheme);
-  };
 
-  // Éviter le flash de contenu non stylé
-  if (!mounted) {
-    return <>{children}</>;
-  }
+    // Sauvegarder dans localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('theme', newTheme);
+    }
+  };
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
@@ -61,8 +69,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 export function useTheme() {
   const context = useContext(ThemeContext);
+
+  // Pendant le SSR ou si le provider n'est pas encore monté,
+  // retourner des valeurs par défaut au lieu de lancer une erreur
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    // Valeurs par défaut pour le SSR
+    return {
+      theme: 'dark' as Theme,
+      setTheme: () => {}, // fonction no-op
+    };
   }
+
   return context;
 }

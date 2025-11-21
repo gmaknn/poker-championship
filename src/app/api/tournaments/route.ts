@@ -168,16 +168,30 @@ export async function POST(request: NextRequest) {
     const { seasonId, createdById, ...tournamentData } = validatedData;
 
     // Définir le créateur comme étant l'utilisateur actuel
-    const tournament = await prisma.tournament.create({
-      data: {
-        ...tournamentData,
-        season: {
-          connect: { id: seasonId }
-        },
-        createdBy: {
+    // Note: si l'utilisateur est un admin (via NextAuth), on ne connecte pas de Player
+    // car l'ID admin est dans la table User, pas Player
+    const tournamentData_withRelations: any = {
+      ...tournamentData,
+      season: {
+        connect: { id: seasonId }
+      }
+    };
+
+    // Vérifier que le createdBy existe dans la table Player avant de le connecter
+    if (currentPlayer.id) {
+      const playerExists = await prisma.player.findUnique({
+        where: { id: currentPlayer.id }
+      });
+
+      if (playerExists) {
+        tournamentData_withRelations.createdBy = {
           connect: { id: currentPlayer.id }
-        }
-      },
+        };
+      }
+    }
+
+    const tournament = await prisma.tournament.create({
+      data: tournamentData_withRelations,
       include: {
         createdBy: {
           select: {

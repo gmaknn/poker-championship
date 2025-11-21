@@ -20,6 +20,7 @@ import SeasonLeaderboardChart from '@/components/exports/SeasonLeaderboardChart'
 import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
 import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeaderboardWithEliminations';
 
+import { AdminGuard } from '@/components/auth/AdminGuard';
 type Season = {
   id: string;
   name: string;
@@ -286,6 +287,7 @@ export default function SeasonExportsPage() {
   });
 
   return (
+    <AdminGuard requireAdmin={true}>
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -492,5 +494,7 @@ export default function SeasonExportsPage() {
         </CardContent>
       </Card>
     </div>
+  
+    </AdminGuard>
   );
 }

@@ -102,3 +102,117 @@ body {
     border-width: 1px;
   }
 }
+
+/* Styles pour l'impression */
+@media print {
+  /* Masquer les éléments de navigation et contrôles */
+  aside,
+  nav,
+  .sidebar,
+  button:not(.print-keep),
+  .no-print {
+    display: none !important;
+  }
+
+  /* Optimiser la mise en page */
+  body {
+    background: white !important;
+    color: black !important;
+    margin: 0;
+    padding: 1cm;
+  }
+
+  /* Forcer le fond blanc pour les cartes */
+  .card,
+  [class*="card"] {
+    background: white !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+
+  /* Optimiser les tableaux pour l'impression */
+  table {
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  /* Éviter les coupures de page dans certains éléments */
+  .print-no-break {
+    page-break-inside: avoid;
+  }
+
+  /* Gérer les sauts de page */
+  .print-page-break {
+    page-break-before: always;
+  }
+
+  /* Optimiser les couleurs pour l'impression */
+  * {
+    color: black !important;
+    background: white !important;
+  }
+
+  /* Exceptions pour les éléments colorés importants */
+  .print-keep-color,
+  .badge,
+  [class*="badge"] {
+    color: inherit !important;
+    background: inherit !important;
+    border: 1px solid #333 !important;
+  }
+
+  /* Améliorer la lisibilité des liens */
+  a {
+    text-decoration: underline;
+  }
+
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #666 !important;
+  }
+
+  /* Supprimer les URL pour certains éléments */
+  a[href^="#"]:after,
+  a[href^="javascript:"]:after {
+    content: "";
+  }
+
+  /* Optimiser les images */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* Marges optimales pour A4 */
+  @page {
+    margin: 2cm;
+    size: A4;
+  }
+
+  /* Empêcher le contenu de déborder */
+  .container,
+  main {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Optimiser les grilles pour l'impression */
+  .grid {
+    display: block !important;
+  }
+
+  .grid > * {
+    margin-bottom: 1rem;
+  }
+}

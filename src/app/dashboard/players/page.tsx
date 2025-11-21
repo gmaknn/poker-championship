@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye } from 'lucide-react';
@@ -46,13 +47,13 @@ const getAvatarUrl = (avatar: string | null) => {
 
 export default function PlayersPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [players, setPlayers] = useState<PlayerWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<PlayerWithStats | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentUserRole, setCurrentUserRole] = useState<PlayerRole | null>(null);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -67,29 +68,13 @@ export default function PlayersPage() {
 
   useEffect(() => {
     fetchPlayers();
-    loadCurrentUser();
   }, []);
 
-  const loadCurrentUser = async () => {
-    try {
-      const cookies = document.cookie;
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-
-      if (playerIdMatch) {
-        const playerId = playerIdMatch[1];
-        const response = await fetch(`/api/players/${playerId}`);
-        if (response.ok) {
-          const player = await response.json();
-          setCurrentUserRole(player.role);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
-
   const isAdmin = () => {
-    return currentUserRole === 'ADMIN';
+    if (!session?.user) return false;
+    // Les admins connectés via User ont userType === 'admin'
+    // Les joueurs avec role ADMIN ont role === 'ADMIN'
+    return session.user.userType === 'admin' || session.user.role === 'ADMIN';
   };
 
   const fetchPlayers = async () => {

@@ -32,6 +32,7 @@ import {
 import type { DistributionResult, ChipDistribution, TournamentStructure } from '@/lib/chipDistribution';
 import { PageHeader } from '@/components/PageHeader';
 
+import { AdminGuard } from '@/components/auth/AdminGuard';
 type ChipSet = {
   id: string;
   name: string;
@@ -424,6 +425,7 @@ export default function ChipAssistantPage() {
   }
 
   return (
+    <AdminGuard requireAdmin={true}>
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
         title="Assistant Jetons"
@@ -1036,5 +1038,7 @@ export default function ChipAssistantPage() {
         </DialogContent>
       </Dialog>
     </div>
+  
+    </AdminGuard>
   );
 }

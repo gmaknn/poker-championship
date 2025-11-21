@@ -15,6 +15,7 @@ import {
 import { Plus, Trash2, Eye, Clock, Users, Coins, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 
+import { AdminGuard } from '@/components/auth/AdminGuard';
 type TournamentTemplate = {
   id: string;
   name: string;
@@ -89,6 +90,7 @@ export default function TemplatesPage() {
   }
 
   return (
+    <AdminGuard requireAdmin={true}>
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
         title="Templates de Tournoi"
@@ -279,5 +281,7 @@ export default function TemplatesPage() {
         </DialogContent>
       </Dialog>
     </div>
+  
+    </AdminGuard>
   );
 }

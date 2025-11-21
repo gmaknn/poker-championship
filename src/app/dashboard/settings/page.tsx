@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save, Settings as SettingsIcon, CheckCircle2, Coins, ChevronRight, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import { AdminGuard } from '@/components/auth/AdminGuard';
 
 interface SettingsData {
   id: string;
@@ -109,11 +110,12 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Paramètres"
-        description="Configuration de l'application"
-        icon={<SettingsIcon className="h-10 w-10 text-primary" />}
+    <AdminGuard requireAdmin={true}>
+      <div className="space-y-6">
+        <PageHeader
+          title="Paramètres"
+          description="Configuration de l'application"
+          icon={<SettingsIcon className="h-10 w-10 text-primary" />}
         actions={
           saved ? (
             <div className="flex items-center gap-2 text-green-600 bg-green-50 dark:bg-green-950 px-4 py-2 rounded-lg">
@@ -342,6 +344,7 @@ export default function SettingsPage() {
           {saving ? 'Sauvegarde...' : 'Sauvegarder les paramètres'}
         </Button>
       </div>
-    </div>
+      </div>
+    </AdminGuard>
   );
 }

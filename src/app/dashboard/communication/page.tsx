@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/PageHeader';
 
+import { AdminGuard } from '@/components/auth/AdminGuard';
 // Templates de messages prédéfinis
 const MESSAGE_TEMPLATES = [
   {
@@ -400,6 +401,7 @@ export default function CommunicationPage() {
                   const isSelected = selectedVisuals.includes(visual.id);
 
                   return (
+    <AdminGuard requireAdmin={true}>
                     <Card
                       key={visual.id}
                       className={`cursor-pointer transition-all ${
@@ -430,7 +432,9 @@ export default function CommunicationPage() {
                         </div>
                       </CardContent>
                     </Card>
-                  );
+                  
+    </AdminGuard>
+  );
                 })}
               </div>
             </CardContent>

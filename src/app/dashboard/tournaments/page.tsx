@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -104,6 +105,7 @@ const getAvatarUrl = (avatar: string | null) => {
 export default function TournamentsPage() {
   console.log('🎬 TournamentsPage component loaded');
   const router = useRouter();
+  const { data: session } = useSession();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -111,63 +113,48 @@ export default function TournamentsPage() {
   const [formData, setFormData] = useState(DEFAULT_TOURNAMENT);
   const [loading, setLoading] = useState(false);
   const [filterSeasonId, setFilterSeasonId] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [pendingBlindStructure, setPendingBlindStructure] = useState<any[] | null>(null);
   const [pendingChipConfig, setPendingChipConfig] = useState<any | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<PlayerRole | null>(null);
 
   useEffect(() => {
     fetchTournaments();
     fetchSeasons();
-    loadCurrentUser();
   }, []);
 
-  const loadCurrentUser = async () => {
-    try {
-      // Lire le cookie player-id
-      const cookies = document.cookie;
-      console.log('🍪 Cookies:', cookies);
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-      console.log('🔍 Player ID Match:', playerIdMatch);
-
-      if (playerIdMatch) {
-        const playerId = playerIdMatch[1];
-        console.log('👤 Player ID:', playerId);
-        const response = await fetch(`/api/players/${playerId}`);
-        if (response.ok) {
-          const player = await response.json();
-          console.log('✅ Player loaded:', player);
-          console.log('🎭 Player role:', player.role);
-          setCurrentUserRole(player.role);
-        } else {
-          console.error('❌ Failed to fetch player:', response.status);
-        }
-      } else {
-        console.warn('⚠️ No player-id cookie found');
-      }
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
-
   const canCreateTournament = () => {
-    const canCreate = currentUserRole === 'TOURNAMENT_DIRECTOR' || currentUserRole === 'ADMIN';
-    console.log('🔐 canCreateTournament:', { currentUserRole, canCreate });
+    if (!session?.user) {
+      console.log('🔐 canCreateTournament: No session');
+      return false;
+    }
+    // Les admins connectés via User ont userType === 'admin'
+    // Les joueurs avec role TOURNAMENT_DIRECTOR ou ADMIN peuvent aussi créer
+    const canCreate = session.user.userType === 'admin' ||
+           session.user.role === 'ADMIN' ||
+           session.user.role === 'TOURNAMENT_DIRECTOR';
+    console.log('🔐 canCreateTournament:', { userType: session.user.userType, role: session.user.role, canCreate });
     return canCreate;
   };
 
   const canEditTournament = (tournament: Tournament) => {
-    const userId = getCurrentUserId();
+    if (!session?.user) return false;
+
+    const userId = getCurrentUserId() || session.user.id;
+    const userRole = session.user.role;
+    const isAdmin = session.user.userType === 'admin' || userRole === 'ADMIN';
+
     console.log('🔍 canEditTournament:', {
-      currentUserRole,
+      userRole,
       userId,
       tournamentId: tournament.id,
       tournamentCreatedById: tournament.createdById,
       match: tournament.createdById === userId,
     });
 
-    if (currentUserRole === 'ADMIN') return true;
-    if (currentUserRole === 'TOURNAMENT_DIRECTOR') {
+    if (isAdmin) return true;
+    if (userRole === 'TOURNAMENT_DIRECTOR') {
       // TD can only edit their own tournaments
       return tournament.createdById === userId;
     }
@@ -175,10 +162,16 @@ export default function TournamentsPage() {
   };
 
   const canDeleteTournament = (tournament: Tournament) => {
-    if (currentUserRole === 'ADMIN') return true;
-    if (currentUserRole === 'TOURNAMENT_DIRECTOR') {
+    if (!session?.user) return false;
+
+    const userId = getCurrentUserId() || session.user.id;
+    const userRole = session.user.role;
+    const isAdmin = session.user.userType === 'admin' || userRole === 'ADMIN';
+
+    if (isAdmin) return true;
+    if (userRole === 'TOURNAMENT_DIRECTOR') {
       // TD can only delete their own tournaments
-      return tournament.createdById === getCurrentUserId();
+      return tournament.createdById === userId;
     }
     return false;
   };
@@ -439,9 +432,21 @@ export default function TournamentsPage() {
     });
   };
 
-  const filteredTournaments = filterSeasonId === 'all'
-    ? tournaments
-    : tournaments.filter(t => t.seasonId === filterSeasonId);
+  // Filtrer et trier les tournois
+  const filteredTournaments = tournaments
+    .filter(t => {
+      // Filtre par saison
+      const seasonMatch = filterSeasonId === 'all' || t.seasonId === filterSeasonId;
+      // Filtre par statut
+      const statusMatch = filterStatus === 'all' || t.status === filterStatus;
+      return seasonMatch && statusMatch;
+    })
+    .sort((a, b) => {
+      // Tri par date
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
 
   return (
     <div className="space-y-6">
@@ -653,21 +658,56 @@ export default function TournamentsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Filter by season */}
-      <div className="flex items-center gap-3 bg-muted/30 rounded-lg p-4 border-2 border-border">
-        <Label className="font-semibold">Filtrer par saison:</Label>
-        <select
-          value={filterSeasonId}
-          onChange={(e) => setFilterSeasonId(e.target.value)}
-          className="flex h-10 rounded-md border-2 border-input bg-background px-4 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="all">Toutes les saisons</option>
-          {seasons.map((season) => (
-            <option key={season.id} value={season.id}>
-              {season.name} ({season.year})
-            </option>
-          ))}
-        </select>
+      {/* Filtres et tri */}
+      <div className="bg-muted/30 rounded-lg p-4 border-2 border-border space-y-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          {/* Filtre par saison */}
+          <div className="flex flex-col gap-2">
+            <Label className="font-semibold">Saison</Label>
+            <select
+              value={filterSeasonId}
+              onChange={(e) => setFilterSeasonId(e.target.value)}
+              className="flex h-10 rounded-md border-2 border-input bg-background px-4 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="all">Toutes les saisons</option>
+              {seasons.map((season) => (
+                <option key={season.id} value={season.id}>
+                  {season.name} ({season.year})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Filtre par statut */}
+          <div className="flex flex-col gap-2">
+            <Label className="font-semibold">Statut</Label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="flex h-10 rounded-md border-2 border-input bg-background px-4 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="PLANNED">Planifié</option>
+              <option value="REGISTRATION">Inscriptions</option>
+              <option value="IN_PROGRESS">En cours</option>
+              <option value="FINISHED">Terminé</option>
+              <option value="CANCELLED">Annulé</option>
+            </select>
+          </div>
+
+          {/* Tri par date */}
+          <div className="flex flex-col gap-2">
+            <Label className="font-semibold">Tri par date</Label>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value as 'asc' | 'desc')}
+              className="flex h-10 rounded-md border-2 border-input bg-background px-4 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="desc">Plus récents d'abord</option>
+              <option value="asc">Plus anciens d'abord</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Tournaments list */}

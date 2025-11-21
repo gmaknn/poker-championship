@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 
+import { AdminGuard } from '@/components/auth/AdminGuard';
 type ChipDenomination = {
   id: string;
   value: number;
@@ -294,6 +295,7 @@ export default function ChipInventoryPage() {
   }
 
   return (
+    <AdminGuard requireAdmin={true}>
     <div className="container mx-auto py-6 space-y-6">
       <PageHeader
         title="Inventaire de Jetons"
@@ -643,5 +645,7 @@ export default function ChipInventoryPage() {
         </DialogContent>
       </Dialog>
     </div>
+  
+    </AdminGuard>
   );
 }

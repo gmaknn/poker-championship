@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
@@ -151,6 +152,12 @@ export function Sidebar() {
             </div>
           </div>
         )}
+
+        {/* Bascule thème */}
+        <div className="flex items-center justify-between px-2">
+          <span className="text-sm text-muted-foreground">Thème</span>
+          <ThemeToggle />
+        </div>
 
         {/* Bouton déconnexion */}
         <Button

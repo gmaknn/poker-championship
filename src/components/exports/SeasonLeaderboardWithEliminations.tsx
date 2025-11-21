@@ -109,7 +109,7 @@ export default function SeasonLeaderboardWithEliminations({
                   {/* Name with avatar */}
                   <td className="border-2 border-gray-800 px-4 py-2">
                     <div className="flex items-center gap-2">
-                      {isValidAvatarUrl(player.avatar) ? (
+                      {isValidAvatarUrl(player.avatar) && player.avatar ? (
                         <Image
                           src={player.avatar}
                           alt={player.nickname}
