@@ -863,7 +863,7 @@ export default function TVSpectatorViewV3({
       {/* Bottom Right - TTS Controls & Theme Selector */}
       <div className="fixed bottom-4 right-4 z-[9999] space-y-3">
         {/* Theme Selector */}
-        <div className="bg-[hsl(220,15%,18%)] border-2" style={{ borderColor: currentTheme.colors.primary }} className="rounded-xl p-4 shadow-2xl">
+        <div className="bg-[hsl(220,15%,18%)] border-2 rounded-xl p-4 shadow-2xl" style={{ borderColor: currentTheme.colors.primary }}>
           <button
             onClick={() => setShowThemeSelector(!showThemeSelector)}
             className="flex items-center gap-2 text-white font-bold text-sm mb-2 transition-colors w-full"
@@ -900,7 +900,7 @@ export default function TVSpectatorViewV3({
         </div>
 
         {/* TTS Controls */}
-        <div className="bg-[hsl(220,15%,18%)] border-2" style={{ borderColor: currentTheme.colors.primary }} className="rounded-xl p-4 shadow-2xl">
+        <div className="bg-[hsl(220,15%,18%)] border-2 rounded-xl p-4 shadow-2xl" style={{ borderColor: currentTheme.colors.primary }}>
           <button
             onClick={() => setShowControls(!showControls)}
             className="flex items-center gap-2 text-white font-bold text-sm mb-2 transition-colors w-full"

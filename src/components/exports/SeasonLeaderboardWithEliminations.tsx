@@ -111,7 +111,7 @@ export default function SeasonLeaderboardWithEliminations({
                     <div className="flex items-center gap-2">
                       {isValidAvatarUrl(player.avatar) ? (
                         <Image
-                          src={player.avatar}
+                          src={player.avatar!}
                           alt={player.nickname}
                           width={32}
                           height={32}

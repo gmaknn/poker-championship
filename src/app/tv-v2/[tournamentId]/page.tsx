@@ -523,7 +523,7 @@ export default function TVSpectatorViewV2({
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    {player.finalRank <= 3 && (
+                    {player.finalRank && player.finalRank <= 3 && (
                       <Trophy
                         className={`h-6 w-6 ${
                           player.finalRank === 1

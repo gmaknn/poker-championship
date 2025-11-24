@@ -220,7 +220,7 @@ export default function StatisticsPage() {
                     <div className="flex-shrink-0">
                       {isValidAvatarUrl(player.avatar) ? (
                         <Image
-                          src={player.avatar}
+                          src={player.avatar!}
                           alt={player.name}
                           width={40}
                           height={40}

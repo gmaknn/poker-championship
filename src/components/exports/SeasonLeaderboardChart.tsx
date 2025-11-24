@@ -103,7 +103,7 @@ export default function SeasonLeaderboardChart({
                 <div className="mb-3 relative">
                   {isValidAvatarUrl(player.avatar) ? (
                     <Image
-                      src={player.avatar}
+                      src={player.avatar!}
                       alt={player.nickname}
                       width={56}
                       height={56}

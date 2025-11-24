@@ -228,7 +228,7 @@ export default function LeaderboardPage() {
                     </div>
                     {isValidAvatarUrl(entry.player.avatar) && (
                       <Image
-                        src={entry.player.avatar}
+                        src={entry.player.avatar!}
                         alt={entry.player.nickname}
                         width={64}
                         height={64}
@@ -286,7 +286,7 @@ export default function LeaderboardPage() {
                       </span>
                       {isValidAvatarUrl(entry.player.avatar) ? (
                         <Image
-                          src={entry.player.avatar}
+                          src={entry.player.avatar!}
                           alt={entry.player.nickname}
                           width={40}
                           height={40}

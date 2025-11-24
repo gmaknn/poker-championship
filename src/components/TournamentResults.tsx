@@ -330,7 +330,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[1].player.avatar) ? (
                       <NextImage
-                        src={rankedPlayers[1].player.avatar}
+                        src={rankedPlayers[1].player.avatar!}
                         alt={rankedPlayers[1].player.nickname}
                         width={80}
                         height={80}
@@ -370,7 +370,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[0].player.avatar) ? (
                       <NextImage
-                        src={rankedPlayers[0].player.avatar}
+                        src={rankedPlayers[0].player.avatar!}
                         alt={rankedPlayers[0].player.nickname}
                         width={96}
                         height={96}
@@ -410,7 +410,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[2].player.avatar) ? (
                       <NextImage
-                        src={rankedPlayers[2].player.avatar}
+                        src={rankedPlayers[2].player.avatar!}
                         alt={rankedPlayers[2].player.nickname}
                         width={80}
                         height={80}

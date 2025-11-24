@@ -220,10 +220,10 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
                 <p className="text-xs text-muted-foreground">
                   Généralement 8-10 places pour le poker
                 </p>
-                {activePlayers > 0 && seatsPerTable > 0 && (
+                {tablesData && tablesData.activePlayers > 0 && seatsPerTable > 0 && (
                   <div className="mt-3 p-3 bg-muted rounded-md">
                     <p className="text-sm font-medium">
-                      {activePlayers} joueurs actifs ÷ {seatsPerTable} places par table = {Math.ceil(activePlayers / seatsPerTable)} table{Math.ceil(activePlayers / seatsPerTable) > 1 ? 's' : ''}
+                      {tablesData.activePlayers} joueurs actifs ÷ {seatsPerTable} places par table = {Math.ceil(tablesData.activePlayers / seatsPerTable)} table{Math.ceil(tablesData.activePlayers / seatsPerTable) > 1 ? 's' : ''}
                     </p>
                   </div>
                 )}
