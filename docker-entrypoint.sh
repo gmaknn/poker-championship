@@ -1,20 +1,18 @@
 #!/bin/sh
 set -e
 
-echo "🚀 Starting Poker Championship App..."
+echo "Starting Poker Championship App..."
 
-# Créer le dossier data s'il n'existe pas
+# Create data folder if it doesn't exist
 mkdir -p /data
 
-# Si la base de données n'existe pas, l'initialiser
-if [ ! -f /data/dev.db ]; then
-    echo "📊 Initializing database..."
-    npx prisma db push --accept-data-loss
-    echo "✅ Database initialized"
-else
-    echo "✅ Database already exists"
-fi
+# Run Prisma migrations (safe, idempotent operation)
+# This applies any pending migrations without data loss
+echo "Running database migrations..."
+npx prisma migrate deploy
 
-# Lancer l'application
-echo "🎰 Starting Next.js server..."
+echo "Database migrations complete"
+
+# Start the application
+echo "Starting Next.js server..."
 exec npm start
