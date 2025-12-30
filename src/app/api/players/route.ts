@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { PlayerRole } from '@prisma/client';
-import { getCurrentPlayer } from '@/lib/auth-helpers';
+import { getCurrentPlayer, requirePermission } from '@/lib/auth-helpers';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 const playerSchema = z.object({
@@ -58,6 +58,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // Vérifier l'authentification et la permission CREATE_PLAYER
+    const permResult = await requirePermission(request, PERMISSIONS.CREATE_PLAYER);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
     const body = await request.json();
     console.log('POST /api/players - Body reçu:', JSON.stringify(body, null, 2));
     const validatedData = playerSchema.parse(body);
@@ -68,9 +74,7 @@ export async function POST(request: NextRequest) {
 
     // Si on veut créer un joueur avec un rôle élevé (TD ou Admin), vérifier les permissions
     if (role === PlayerRole.TOURNAMENT_DIRECTOR || role === PlayerRole.ADMIN) {
-      const currentPlayer = await getCurrentPlayer(request);
-
-      if (!currentPlayer || !hasPermission(currentPlayer.role, PERMISSIONS.MANAGE_PLAYER_ROLES)) {
+      if (!hasPermission(permResult.player.role, PERMISSIONS.MANAGE_PLAYER_ROLES)) {
         // Si pas de permission, forcer le rôle PLAYER
         console.warn(`Tentative de création d'un joueur avec rôle ${role} sans permission. Rôle forcé à PLAYER.`);
         role = PlayerRole.PLAYER;

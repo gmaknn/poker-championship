@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -104,6 +105,7 @@ const getAvatarUrl = (avatar: string | null) => {
 export default function TournamentsPage() {
   console.log('🎬 TournamentsPage component loaded');
   const router = useRouter();
+  const { data: session } = useSession();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -120,11 +122,18 @@ export default function TournamentsPage() {
     fetchTournaments();
     fetchSeasons();
     loadCurrentUser();
-  }, []);
+  }, [session]);
 
   const loadCurrentUser = async () => {
     try {
-      // Lire le cookie player-id
+      // 1. Vérifier la session NextAuth (production)
+      if (session?.user?.role) {
+        console.log('🔐 Session NextAuth role:', session.user.role);
+        setCurrentUserRole(session.user.role as PlayerRole);
+        return;
+      }
+
+      // 2. Fallback: cookie player-id (dev mode)
       const cookies = document.cookie;
       console.log('🍪 Cookies:', cookies);
       const playerIdMatch = cookies.match(/player-id=([^;]+)/);

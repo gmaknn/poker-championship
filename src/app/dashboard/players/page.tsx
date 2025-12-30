@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye } from 'lucide-react';
@@ -46,6 +47,7 @@ const getAvatarUrl = (avatar: string | null) => {
 
 export default function PlayersPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [players, setPlayers] = useState<PlayerWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -68,10 +70,17 @@ export default function PlayersPage() {
   useEffect(() => {
     fetchPlayers();
     loadCurrentUser();
-  }, []);
+  }, [session]);
 
   const loadCurrentUser = async () => {
     try {
+      // 1. Vérifier la session NextAuth (production)
+      if (session?.user?.role) {
+        setCurrentUserRole(session.user.role as PlayerRole);
+        return;
+      }
+
+      // 2. Fallback: cookie player-id (dev mode)
       const cookies = document.cookie;
       const playerIdMatch = cookies.match(/player-id=([^;]+)/);
 
