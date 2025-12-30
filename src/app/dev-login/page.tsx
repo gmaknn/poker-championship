@@ -5,7 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Shield, Crown, LogIn, MessageSquare } from 'lucide-react';
+import { Users, Shield, Crown, LogIn, MessageSquare, AlertTriangle } from 'lucide-react';
+
+// Security: Only allow in development mode
+const IS_DEV = process.env.NODE_ENV !== 'production';
 
 interface Player {
   id: string;
@@ -29,7 +32,35 @@ const getAvatarUrl = (avatar: string | null) => {
   return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
 };
 
-export default function DevLoginPage() {
+// Separate component for production access denied
+function AccessDenied() {
+  const router = useRouter();
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+            Access Denied
+          </CardTitle>
+          <CardDescription className="text-center">
+            This page is only available in development mode.
+            Please use the regular login page.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center">
+          <Button onClick={() => router.push('/login')}>
+            Go to Login
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Dev login component (only rendered in dev mode)
+function DevLoginContent() {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +69,6 @@ export default function DevLoginPage() {
     fetch('/api/players')
       .then(res => res.json())
       .then(data => {
-        // Vérifier que data est bien un tableau
         if (Array.isArray(data)) {
           setPlayers(data);
         } else {
@@ -55,10 +85,7 @@ export default function DevLoginPage() {
   }, []);
 
   const handleLogin = async (playerId: string) => {
-    // Stocker dans un cookie
-    document.cookie = `player-id=${playerId}; path=/; max-age=86400`; // 24h
-
-    // Rediriger vers le dashboard
+    document.cookie = `player-id=${playerId}; path=/; max-age=86400`;
     router.push('/dashboard');
     router.refresh();
   };
@@ -78,17 +105,17 @@ export default function DevLoginPage() {
       <Card className="w-full max-w-2xl">
         <CardHeader className="space-y-1">
           <CardTitle className="text-3xl font-bold text-center">
-            🎰 Poker Championship
+            Poker Championship
           </CardTitle>
           <CardDescription className="text-center">
-            Sélectionnez un joueur pour vous connecter (Dev Mode)
+            Selectionnez un joueur pour vous connecter (Dev Mode)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto">
             {players.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                Aucun joueur disponible. Créez-en un dans la page Players.
+                Aucun joueur disponible. Creez-en un dans la page Players.
               </div>
             ) : (
               players.map((player) => {
@@ -101,7 +128,6 @@ export default function DevLoginPage() {
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      {/* Avatar */}
                       {player.avatar && getAvatarUrl(player.avatar) ? (
                         <img
                           src={getAvatarUrl(player.avatar)!}
@@ -114,7 +140,6 @@ export default function DevLoginPage() {
                         </div>
                       )}
 
-                      {/* Info */}
                       <div>
                         <div className="font-semibold text-lg">{player.nickname}</div>
                         <div className="text-sm text-muted-foreground">
@@ -127,7 +152,6 @@ export default function DevLoginPage() {
                       </div>
                     </div>
 
-                    {/* Button */}
                     <Button onClick={() => handleLogin(player.id)}>
                       <LogIn className="mr-2 h-4 w-4" />
                       Se connecter
@@ -138,12 +162,21 @@ export default function DevLoginPage() {
             )}
           </div>
 
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-            <strong>Note :</strong> Cette page est temporaire pour le développement.
-            Elle sera remplacée par une vraie authentification plus tard.
+          <div className="mt-6 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-sm">
+            <strong className="text-destructive">Warning:</strong> This page is for development only.
+            It will be blocked in production.
           </div>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+export default function DevLoginPage() {
+  // Security: Block access in production
+  if (!IS_DEV) {
+    return <AccessDenied />;
+  }
+
+  return <DevLoginContent />;
 }
