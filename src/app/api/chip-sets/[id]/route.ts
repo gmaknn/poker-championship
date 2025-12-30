@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/auth-helpers';
+import { PERMISSIONS } from '@/lib/permissions';
 
 type Params = Promise<{ id: string }>;
 
@@ -38,6 +40,12 @@ export async function GET(request: NextRequest, segmentData: { params: Params })
 // PUT /api/chip-sets/[id] - Mettre à jour une mallette
 export async function PUT(request: NextRequest, segmentData: { params: Params }) {
   try {
+    // Vérifier les permissions
+    const permResult = await requirePermission(request, PERMISSIONS.EDIT_CHIPSET);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
     const params = await segmentData.params;
     const body = await request.json();
     const { name, description, isActive } = body;
@@ -79,6 +87,12 @@ export async function PUT(request: NextRequest, segmentData: { params: Params })
 // DELETE /api/chip-sets/[id] - Supprimer une mallette
 export async function DELETE(request: NextRequest, segmentData: { params: Params }) {
   try {
+    // Vérifier les permissions
+    const permResult = await requirePermission(request, PERMISSIONS.DELETE_CHIPSET);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
     const params = await segmentData.params;
 
     await prisma.chipSet.delete({

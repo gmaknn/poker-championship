@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 const updatePlayerSchema = z.object({
   hasPaid: z.boolean().optional(),
@@ -80,6 +81,21 @@ export async function PATCH(
       );
     }
 
+    // Vérifier que le tournoi existe pour récupérer le créateur
+    const tournament = await prisma.tournament.findUnique({
+      where: { id },
+    });
+
+    if (!tournament) {
+      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+    }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
     // Mettre à jour l'inscription
     const updatedTournamentPlayer = await prisma.tournamentPlayer.update({
       where: {
@@ -144,6 +160,12 @@ export async function DELETE(
         { error: 'Cannot unenroll player from started or finished tournament' },
         { status: 400 }
       );
+    }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
     // Vérifier que l'inscription existe

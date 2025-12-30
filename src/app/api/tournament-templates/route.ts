@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/auth-helpers';
 
 // GET /api/tournament-templates - Liste tous les templates
 export async function GET() {
@@ -23,6 +24,16 @@ export async function GET() {
 // POST /api/tournament-templates - Créer un nouveau template
 export async function POST(request: NextRequest) {
   try {
+    // Vérifier les permissions (ADMIN uniquement)
+    const permResult = await requirePermission(request, null); // Auth required, ADMIN bypass
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+    // Templates réservés aux admins (pas de permission spécifique, on vérifie le role)
+    if (permResult.player.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Permission refusée' }, { status: 403 });
+    }
+
     console.log('[Template API] Creating new tournament template');
 
     const body = await request.json();

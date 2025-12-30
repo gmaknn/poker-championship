@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/auth-helpers';
 
 type Params = Promise<{ id: string }>;
 
@@ -31,6 +32,15 @@ export async function GET(request: NextRequest, segmentData: { params: Params })
 // PUT /api/tournament-templates/[id] - Mettre à jour un template
 export async function PUT(request: NextRequest, segmentData: { params: Params }) {
   try {
+    // Vérifier les permissions (ADMIN uniquement)
+    const permResult = await requirePermission(request, null);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+    if (permResult.player.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Permission refusée' }, { status: 403 });
+    }
+
     const params = await segmentData.params;
     const body = await request.json();
     const {
@@ -69,6 +79,15 @@ export async function PUT(request: NextRequest, segmentData: { params: Params })
 // DELETE /api/tournament-templates/[id] - Supprimer un template
 export async function DELETE(request: NextRequest, segmentData: { params: Params }) {
   try {
+    // Vérifier les permissions (ADMIN uniquement)
+    const permResult = await requirePermission(request, null);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+    if (permResult.player.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Permission refusée' }, { status: 403 });
+    }
+
     const params = await segmentData.params;
 
     await prisma.tournamentTemplate.delete({

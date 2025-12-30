@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/auth-helpers';
+import { PERMISSIONS } from '@/lib/permissions';
 
 // GET /api/chip-sets - Liste toutes les mallettes
 export async function GET() {
@@ -30,6 +32,12 @@ export async function GET() {
 // POST /api/chip-sets - Créer une nouvelle mallette
 export async function POST(request: NextRequest) {
   try {
+    // Vérifier les permissions (ADMIN uniquement pour les chipsets)
+    const permResult = await requirePermission(request, PERMISSIONS.CREATE_CHIPSET);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
     const body = await request.json();
     const { name, description, isActive, denominations } = body;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -89,6 +90,12 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'edit');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
     // Delete existing tournament chips
     await prisma.chipDenomination.deleteMany({
       where: { tournamentId: id },
@@ -128,6 +135,21 @@ export async function POST(request: NextRequest, { params }: Params) {
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { id } = await params;
+
+    // Vérifier que le tournoi existe pour récupérer le créateur
+    const tournament = await prisma.tournament.findUnique({
+      where: { id },
+    });
+
+    if (!tournament) {
+      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+    }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'edit');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
 
     await prisma.chipDenomination.deleteMany({
       where: { tournamentId: id },

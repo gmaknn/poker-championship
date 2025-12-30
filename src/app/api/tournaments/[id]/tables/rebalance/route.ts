@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 const rebalanceSchema = z.object({
   seatsPerTable: z.number().int().min(2).max(10),
@@ -27,6 +28,12 @@ export async function POST(
         { error: 'Tournament not found' },
         { status: 404 }
       );
+    }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
     // Récupérer les joueurs actifs (non éliminés)

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 // DELETE - Annuler une élimination (en cas d'erreur)
 export async function DELETE(
@@ -29,6 +30,12 @@ export async function DELETE(
         { error: 'Elimination does not belong to this tournament' },
         { status: 400 }
       );
+    }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, elimination.tournament.createdById, 'manage');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
     // Vérifier que c'est la dernière élimination (on ne peut annuler que la dernière)

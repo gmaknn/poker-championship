@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 const blindLevelSchema = z.object({
   level: z.number().int().positive(),
@@ -48,12 +49,6 @@ export async function POST(
     const { id } = await params;
     console.log('[Blinds API] Saving blinds for tournament:', id);
 
-    const body = await request.json();
-    console.log('[Blinds API] Received data:', JSON.stringify(body, null, 2));
-
-    const validatedData = blindStructureSchema.parse(body);
-    console.log('[Blinds API] Validation successful, levels count:', validatedData.levels.length);
-
     // Vérifier que le tournoi existe
     const tournament = await prisma.tournament.findUnique({
       where: { id },
@@ -66,6 +61,18 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'edit');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
+    const body = await request.json();
+    console.log('[Blinds API] Received data:', JSON.stringify(body, null, 2));
+
+    const validatedData = blindStructureSchema.parse(body);
+    console.log('[Blinds API] Validation successful, levels count:', validatedData.levels.length);
 
     console.log('[Blinds API] Tournament found, starting transaction');
 
@@ -125,6 +132,21 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+
+    // Vérifier que le tournoi existe pour récupérer le créateur
+    const tournament = await prisma.tournament.findUnique({
+      where: { id },
+    });
+
+    if (!tournament) {
+      return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
+    }
+
+    // Vérifier les permissions
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'edit');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
 
     await prisma.blindLevel.deleteMany({
       where: { tournamentId: id },
