@@ -83,6 +83,175 @@ export async function getCurrentPlayer(request: NextRequest) {
 }
 
 /**
+ * Type pour l'acteur courant (User NextAuth + Player lié)
+ */
+export type CurrentActor = {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+  };
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    nickname: string;
+    email: string | null;
+    avatar: string | null;
+    role: PlayerRole;
+    status: string;
+  };
+};
+
+/**
+ * Récupère l'acteur courant avec son Player lié
+ * Pour les Users NextAuth, trouve ou crée automatiquement le Player correspondant
+ * Utilisé principalement pour les opérations qui nécessitent un Player.id (ex: créer un tournoi)
+ *
+ * @param request - NextRequest
+ * @param autoCreatePlayer - Si true, crée automatiquement un Player si non trouvé (default: false)
+ * @returns CurrentActor ou null si non authentifié
+ */
+export async function getCurrentActor(
+  request: NextRequest,
+  autoCreatePlayer: boolean = false
+): Promise<CurrentActor | null> {
+  // 1. Essayer NextAuth d'abord (production)
+  try {
+    const session = await auth();
+    if (session?.user?.id && session?.user?.email) {
+      // Récupérer le User complet
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      });
+
+      if (!user) {
+        return null;
+      }
+
+      // Chercher un Player avec le même email
+      let player = await prisma.player.findFirst({
+        where: { email: user.email },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          nickname: true,
+          email: true,
+          avatar: true,
+          role: true,
+          status: true,
+        },
+      });
+
+      // Si pas de Player trouvé et autoCreatePlayer est activé
+      if (!player && autoCreatePlayer) {
+        // Générer un nickname unique basé sur l'email
+        const baseNickname = user.email.split('@')[0];
+        let nickname = baseNickname;
+        let suffix = 1;
+
+        // Vérifier l'unicité du nickname
+        while (await prisma.player.findUnique({ where: { nickname } })) {
+          nickname = `${baseNickname}${suffix}`;
+          suffix++;
+        }
+
+        // Créer le Player automatiquement
+        const nameParts = (user.name || '').split(' ');
+        player = await prisma.player.create({
+          data: {
+            firstName: nameParts[0] || 'Admin',
+            lastName: nameParts.slice(1).join(' ') || '',
+            nickname,
+            email: user.email,
+            role: user.role as PlayerRole,
+            status: 'ACTIVE',
+          },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            nickname: true,
+            email: true,
+            avatar: true,
+            role: true,
+            status: true,
+          },
+        });
+
+        console.log(`[Auth] Auto-created Player for User ${user.email}: ${player.id}`);
+      }
+
+      if (!player) {
+        return null;
+      }
+
+      return {
+        user,
+        player,
+      };
+    }
+  } catch (e) {
+    // NextAuth non disponible, continuer avec fallback
+    console.error('[Auth] NextAuth error:', e);
+  }
+
+  // 2. Fallback: cookie player-id (dev mode) - pas de User dans ce cas
+  let playerId = request.headers.get('x-player-id');
+
+  if (!playerId) {
+    const cookies = request.headers.get('cookie');
+    if (cookies) {
+      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+      if (playerIdMatch) {
+        playerId = playerIdMatch[1];
+      }
+    }
+  }
+
+  if (!playerId) {
+    return null;
+  }
+
+  const player = await prisma.player.findUnique({
+    where: { id: playerId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      nickname: true,
+      email: true,
+      avatar: true,
+      role: true,
+      status: true,
+    },
+  });
+
+  if (!player) {
+    return null;
+  }
+
+  // En mode dev, créer un "fake" user basé sur le player
+  return {
+    user: {
+      id: player.id,
+      email: player.email || '',
+      name: `${player.firstName} ${player.lastName}`.trim(),
+      role: player.role,
+    },
+    player,
+  };
+}
+
+/**
  * Récupère le rôle du joueur actuel
  */
 export async function getCurrentPlayerRole(request: NextRequest): Promise<PlayerRole | null> {
