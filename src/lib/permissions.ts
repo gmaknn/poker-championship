@@ -131,8 +131,13 @@ const ROLE_PERMISSIONS: Record<PlayerRole, string[]> = {
 
 /**
  * Vérifie si un rôle a une permission spécifique
+ * ADMIN a toujours accès (bypass explicite pour éviter les régressions)
  */
 export function hasPermission(role: PlayerRole, permission: string): boolean {
+  // ADMIN bypass - accès total garanti
+  if (role === ROLES.ADMIN) {
+    return true;
+  }
   const permissions = ROLE_PERMISSIONS[role];
   return permissions.includes(permission);
 }
