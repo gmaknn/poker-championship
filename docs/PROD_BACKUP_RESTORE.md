@@ -151,3 +151,123 @@ In case of data loss or corruption:
 - Never manually copy the `.db` file while the app is running (risk of corruption)
 - Always verify backups by checking table counts after restore
 - Keep at least one backup downloaded locally for critical tournaments
+
+---
+
+## Validated Restore Procedure (Tested 2025-12-30)
+
+This procedure was validated in a real restore drill. **Total time: 15–20 minutes**.
+
+### Prerequisites
+
+```bash
+# Verify Fly CLI is authenticated
+fly auth whoami
+
+# Check prod app status
+fly status -a wpt-villelaure
+
+# List available snapshots
+fly volumes snapshots list <volume_id>
+# Example: fly volumes snapshots list vol_v3l7dlxxe9jqw7ov
+```
+
+### Step-by-Step Restore to Test Environment
+
+#### 1. Create isolated test app
+
+```bash
+fly apps create wpt-villelaure-restore-test --org personal
+```
+
+#### 2. Create volume from production snapshot
+
+```bash
+# IMPORTANT: Use --snapshot-id, NOT a separate "restore" command
+fly volumes create poker_data \
+  --size 1 \
+  --region cdg \
+  --snapshot-id <SNAPSHOT_ID> \
+  -a wpt-villelaure-restore-test \
+  --yes
+```
+
+#### 3. Deploy the application
+
+```bash
+fly deploy -a wpt-villelaure-restore-test
+```
+
+#### 4. Handle Prisma P3005 error (if encountered)
+
+If the snapshot comes from a database that wasn't baselined, you'll see:
+
+```
+Error: P3005
+The database schema is not empty.
+```
+
+**Fix procedure:**
+
+```bash
+# A. Add SKIP_MIGRATIONS=1 to fly.toml [env] section temporarily
+# B. Redeploy
+fly deploy -a wpt-villelaure-restore-test
+
+# C. SSH and mark migration as applied
+fly ssh console -a wpt-villelaure-restore-test \
+  -C "npx prisma migrate resolve --applied 0_init"
+
+# D. Remove SKIP_MIGRATIONS from fly.toml
+# E. Redeploy normally
+fly deploy -a wpt-villelaure-restore-test
+```
+
+#### 5. Validate restore
+
+```bash
+# Health check
+curl https://wpt-villelaure-restore-test.fly.dev/api/health
+# Expected: {"ok":true,"db":true,...}
+
+# Verify database file
+fly ssh console -a wpt-villelaure-restore-test -C "ls -la /data/dev.db"
+
+# Verify migration status
+fly ssh console -a wpt-villelaure-restore-test \
+  -C "npx prisma migrate status"
+# Expected: "Database schema is up to date!"
+```
+
+#### 6. Cleanup (optional)
+
+```bash
+# Option A: Keep app stopped for future drills
+fly scale count 0 -a wpt-villelaure-restore-test --yes
+
+# Option B: Destroy completely
+fly apps destroy wpt-villelaure-restore-test --yes
+```
+
+---
+
+## RETEX: Pitfalls Identified During Restore Drill
+
+| Pitfall | Description | Solution |
+|---------|-------------|----------|
+| ❌ `fly volumes snapshots restore` doesn't exist | Documentation may suggest a "restore" command | ✅ Use `fly volumes create --snapshot-id <ID>` |
+| ⚠️ Prisma P3005 after restore | Snapshot from DB without `_prisma_migrations` table | ✅ Baseline manually: deploy with `SKIP_MIGRATIONS=1`, SSH + `prisma migrate resolve --applied 0_init`, redeploy |
+| ⚠️ `--yes` required for non-interactive mode | Fly CLI prompts for confirmation | ✅ Always add `--yes` to `fly volumes create`, `fly scale count`, etc. |
+| ⚠️ SSH command exit code | SSH commands may return exit code 1 despite success | ✅ Check actual output, not just exit code |
+
+---
+
+## Guarantees After Validated Drill
+
+| Metric | Value |
+|--------|-------|
+| **Total restore time** | 15–20 minutes |
+| **Data loss** | None |
+| **Production impact** | None (isolated test app) |
+| **Procedure** | Reproducible |
+| **Last tested** | 2025-12-30 |
