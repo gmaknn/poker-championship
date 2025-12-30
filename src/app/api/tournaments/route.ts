@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { getCurrentPlayer } from '@/lib/auth-helpers';
+import { getCurrentPlayer, getCurrentActor } from '@/lib/auth-helpers';
 import { canViewAllTournaments, canCreateTournament } from '@/lib/permissions';
 
 // Validation schema for tournament creation
@@ -123,17 +123,19 @@ export async function GET(request: NextRequest) {
 // POST create new tournament
 export async function POST(request: NextRequest) {
   try {
-    // Vérifier l'utilisateur actuel et ses permissions
-    const currentPlayer = await getCurrentPlayer(request);
+    // Récupérer l'acteur actuel (User NextAuth + Player lié)
+    // autoCreatePlayer=true pour créer automatiquement un Player si nécessaire
+    const actor = await getCurrentActor(request, true);
 
-    if (!currentPlayer) {
+    if (!actor) {
       return NextResponse.json(
         { error: 'Non authentifié' },
         { status: 401 }
       );
     }
 
-    if (!canCreateTournament(currentPlayer.role)) {
+    // Vérifier la permission de création de tournoi
+    if (!canCreateTournament(actor.player.role)) {
       return NextResponse.json(
         { error: 'Vous n\'avez pas la permission de créer des tournois' },
         { status: 403 }
@@ -167,7 +169,7 @@ export async function POST(request: NextRequest) {
     // Extract seasonId, createdById and prepare data for Prisma
     const { seasonId, createdById, ...tournamentData } = validatedData;
 
-    // Définir le créateur comme étant l'utilisateur actuel
+    // Créer le tournoi avec le Player.id comme créateur (pas User.id)
     const tournament = await prisma.tournament.create({
       data: {
         ...tournamentData,
@@ -175,7 +177,7 @@ export async function POST(request: NextRequest) {
           connect: { id: seasonId }
         },
         createdBy: {
-          connect: { id: currentPlayer.id }
+          connect: { id: actor.player.id }
         }
       },
       include: {

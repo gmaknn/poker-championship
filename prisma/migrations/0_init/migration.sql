@@ -1,11 +1,3 @@
-warn The configuration property `package.json#prisma` is deprecated and will be removed in Prisma 7. Please migrate to a Prisma config file (e.g., `prisma.config.ts`).
-For more information, see: https://pris.ly/prisma-config
-
-Loaded Prisma config from prisma.config.ts.
-
-warn The Prisma config file in prisma.config.ts overrides the deprecated `package.json#prisma` property in package.json.
-  For more information, see: https://pris.ly/prisma-config
-
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -341,14 +333,3 @@ CREATE INDEX "ChipDenomination_tournamentId_idx" ON "ChipDenomination"("tourname
 
 -- CreateIndex
 CREATE INDEX "ChipDenomination_isDefault_idx" ON "ChipDenomination"("isDefault");
-┌─────────────────────────────────────────────────────────┐
-│  Update available 6.19.0 -> 7.2.0                       │
-│                                                         │
-│  This is a major update - please follow the guide at    │
-│  https://pris.ly/d/major-version-upgrade                │
-│                                                         │
-│  Run the following to update                            │
-│    npm i --save-dev prisma@latest                       │
-│    npm i @prisma/client@latest                          │
-└─────────────────────────────────────────────────────────┘
-
