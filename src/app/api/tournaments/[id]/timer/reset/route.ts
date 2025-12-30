@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 // POST - Réinitialiser le timer du tournoi
 export async function POST(
@@ -19,6 +20,12 @@ export async function POST(
         { error: 'Tournament not found' },
         { status: 404 }
       );
+    }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
     // Réinitialiser le timer

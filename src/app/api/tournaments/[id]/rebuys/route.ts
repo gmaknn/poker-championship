@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 const rebuySchema = z.object({
   playerId: z.string().cuid(),
@@ -14,8 +15,6 @@ export async function POST(
 ) {
   try {
     const { id: tournamentId } = await params;
-    const body = await request.json();
-    const validatedData = rebuySchema.parse(body);
 
     // Récupérer le tournoi avec la saison
     const tournament = await prisma.tournament.findUnique({
@@ -31,6 +30,15 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
+    const body = await request.json();
+    const validatedData = rebuySchema.parse(body);
 
     // Vérifier que le tournoi est en cours
     if (tournament.status !== 'IN_PROGRESS') {

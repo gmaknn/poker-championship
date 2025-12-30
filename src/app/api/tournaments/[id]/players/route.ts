@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 const enrollPlayerSchema = z.object({
   playerId: z.string().cuid().optional(),
@@ -50,13 +51,8 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const validatedData = enrollPlayerSchema.parse(body);
 
-    // Convertir en tableau pour traiter de manière uniforme
-    const playerIdsToEnroll = validatedData.playerIds || [validatedData.playerId!];
-
-    // Vérifier que le tournoi existe et n'est pas terminé
+    // Vérifier que le tournoi existe d'abord
     const tournament = await prisma.tournament.findUnique({
       where: { id },
     });
@@ -67,6 +63,18 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // Vérifier les permissions (ADMIN ou TD du tournoi)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage');
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
+    const body = await request.json();
+    const validatedData = enrollPlayerSchema.parse(body);
+
+    // Convertir en tableau pour traiter de manière uniforme
+    const playerIdsToEnroll = validatedData.playerIds || [validatedData.playerId!];
 
     if (tournament.status === 'FINISHED' || tournament.status === 'CANCELLED') {
       return NextResponse.json(
