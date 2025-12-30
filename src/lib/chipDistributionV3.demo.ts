@@ -1,111 +1,143 @@
 /**
- * DÉMO SIMPLIFIÉE : Cas où la revalorisation est ESSENTIELLE
+ * TEST DE LA FONCTIONNALITÉ DE REVALORISATION
+ *
+ * Démontre comment la revalorisation des jetons peut résoudre
+ * des situations difficiles
  */
 
 import {
   analyzeRevaluationOpportunity,
   displayRevaluationResults,
 } from './chipDistributionV3';
-import { displayResults } from './chipDistributionV2';
 import { OptimizationParams } from './chipDistributionV2';
 
-console.log('🎯 DÉMONSTRATION: Quand la revalorisation sauve la mise\n');
-console.log('═'.repeat(70));
+console.log('🧪 TEST DE REVALORISATION DES JETONS\n');
 
 // ============================================
-// CAS RÉEL : Jetons d'un ancien jeu
+// SCÉNARIO 1: Jetons mal adaptés
 // ============================================
-console.log('\n📦 SITUATION');
-console.log('─'.repeat(70));
-console.log('Vous avez récupéré des jetons d\'un ancien jeu:');
-console.log('  • 120× jetons "15" (blanc)');
-console.log('  • 100× jetons "60" (rouge)');
-console.log('  • 80× jetons "250" (bleu)');
-console.log('  • 60× jetons "800" (noir)');
-console.log('\n❌ Problème: Ces valeurs bizarres ne correspondent à aucune blind standard!');
-console.log('');
+console.log('\n' + '█'.repeat(70));
+console.log('SCÉNARIO 1: Jetons avec valeurs inadaptées');
+console.log('█'.repeat(70));
+console.log('\nProblème: Nous avons des jetons de 75, 300, 1200');
+console.log('Ces valeurs ne correspondent pas bien aux blinds standards\n');
 
-const scenario: OptimizationParams = {
+const scenario1: OptimizationParams = {
   availableChips: [
-    { value: 15, quantity: 120, color: '#FFFFFF (blanc)' },
-    { value: 60, quantity: 100, color: '#FF0000 (rouge)' },
-    { value: 250, quantity: 80, color: '#0000FF (bleu)' },
-    { value: 800, quantity: 60, color: '#000000 (noir)' },
+    { value: 75, quantity: 100, color: 'blanc' },
+    { value: 300, quantity: 100, color: 'rouge' },
+    { value: 1200, quantity: 80, color: 'noir' },
+    { value: 3000, quantity: 60, color: 'vert' },
   ],
   playersCount: 12,
-  rebuysExpected: 5,
-  targetDuration: 180, // 3 heures
+  rebuysExpected: 6,
+  targetDuration: 180,
   levelDuration: 15,
 };
 
-console.log('\n🔧 SOLUTION 1: Utiliser les valeurs nominales');
-console.log('─'.repeat(70));
+const result1 = analyzeRevaluationOpportunity(scenario1);
+displayRevaluationResults(result1);
 
-const { optimizeChipSetup } = require('./chipDistributionV2');
+// ============================================
+// SCÉNARIO 2: Manque une dénomination clé
+// ============================================
+console.log('\n\n' + '█'.repeat(70));
+console.log('SCÉNARIO 2: Manque une dénomination intermédiaire');
+console.log('█'.repeat(70));
+console.log('\nProblème: Pas de jeton entre 100 et 1000');
+console.log('Grand écart qui complique le jeu\n');
 
-try {
-  const result1 = optimizeChipSetup(scenario);
-  console.log('\n✅ Configuration trouvée (mais sous-optimale):');
-  console.log(`   Stack: ${result1.stackSize}`);
-  console.log(`   Score: ${result1.metrics.overallScore.toFixed(1)}/100`);
-  console.log(
-    `   Couverture: ${result1.metrics.blindCoverageScore.toFixed(1)}%`
-  );
-  console.log(`   Jetons: ${result1.metrics.totalChipsPerPlayer}`);
-
-  console.log('\n   Problèmes identifiés:');
-  result1.analysis.warnings.forEach((w: string) => console.log(`   ⚠️  ${w}`));
-} catch (error) {
-  console.log('\n❌ IMPOSSIBLE de créer une configuration valide!');
-  console.log('   Les valeurs sont trop bizarres...');
-}
-
-console.log('\n\n🔧 SOLUTION 2: Revaloriser les jetons par couleur');
-console.log('─'.repeat(70));
-console.log('\nAu lieu de 15, 60, 250, 800...');
-console.log('Utilisons: 25, 100, 500, 1000 (en se basant sur les couleurs)\n');
-
-const revaluedScenario: OptimizationParams = {
+const scenario2: OptimizationParams = {
   availableChips: [
-    { value: 25, quantity: 120, color: '#FFFFFF (blanc, était 15)' },
-    { value: 100, quantity: 100, color: '#FF0000 (rouge, était 60)' },
-    { value: 500, quantity: 80, color: '#0000FF (bleu, était 250)' },
-    { value: 1000, quantity: 60, color: '#000000 (noir, était 800)' },
+    { value: 25, quantity: 100, color: 'blanc' },
+    { value: 100, quantity: 100, color: 'rouge' },
+    { value: 1000, quantity: 80, color: 'noir' },
+    { value: 5000, quantity: 60, color: 'bleu' },
   ],
-  playersCount: 12,
+  playersCount: 15,
+  rebuysExpected: 8,
+  targetDuration: 240,
+  levelDuration: 20,
+};
+
+const result2 = analyzeRevaluationOpportunity(scenario2);
+displayRevaluationResults(result2);
+
+// ============================================
+// SCÉNARIO 3: Tournoi avec jetons casino
+// ============================================
+console.log('\n\n' + '█'.repeat(70));
+console.log('SCÉNARIO 3: Jetons de casino réutilisés pour tournoi');
+console.log('█'.repeat(70));
+console.log('\nProblème: Jetons marqués 5€, 25€, 100€, 500€');
+console.log('Valeurs inadaptées pour un tournoi de poker\n');
+
+const scenario3: OptimizationParams = {
+  availableChips: [
+    { value: 5, quantity: 120, color: 'rouge' },
+    { value: 25, quantity: 100, color: 'vert' },
+    { value: 100, quantity: 80, color: 'noir' },
+    { value: 500, quantity: 60, color: 'violet' },
+  ],
+  playersCount: 10,
   rebuysExpected: 5,
   targetDuration: 180,
   levelDuration: 15,
 };
 
-try {
-  const result2 = optimizeChipSetup(revaluedScenario);
-  console.log('✅ Configuration OPTIMALE trouvée!\n');
-  displayResults(result2);
+const result3 = analyzeRevaluationOpportunity(scenario3);
+displayRevaluationResults(result3);
 
-  console.log('\n💡 INSTRUCTIONS PRATIQUES');
-  console.log('─'.repeat(70));
-  console.log('Annoncez aux joueurs au début du tournoi:');
-  console.log('  "Les jetons BLANCS valent 25"');
-  console.log('  "Les jetons ROUGES valent 100"');
-  console.log('  "Les jetons BLEUS valent 500"');
-  console.log('  "Les jetons NOIRS valent 1000"');
-  console.log('\nIgnorer complètement les valeurs inscrites sur les jetons!');
-} catch (error) {
-  console.log('❌ Erreur:', error);
-}
+// ============================================
+// SCÉNARIO 4: Configuration déjà optimale
+// ============================================
+console.log('\n\n' + '█'.repeat(70));
+console.log('SCÉNARIO 4: Configuration déjà optimale');
+console.log('█'.repeat(70));
+console.log('\nJetons standards bien choisis');
+console.log('La revalorisation ne devrait pas être nécessaire\n');
 
-console.log('\n\n📊 ANALYSE AUTOMATIQUE');
+const scenario4: OptimizationParams = {
+  availableChips: [
+    { value: 25, quantity: 100, color: 'blanc' },
+    { value: 100, quantity: 100, color: 'rouge' },
+    { value: 500, quantity: 80, color: 'vert' },
+    { value: 1000, quantity: 60, color: 'noir' },
+  ],
+  playersCount: 10,
+  rebuysExpected: 6,
+  targetDuration: 180,
+  levelDuration: 15,
+};
+
+const result4 = analyzeRevaluationOpportunity(scenario4);
+displayRevaluationResults(result4);
+
+// ============================================
+// RÉSUMÉ
+// ============================================
+console.log('\n\n' + '═'.repeat(70));
+console.log('RÉSUMÉ DES TESTS');
 console.log('═'.repeat(70));
-console.log('\nL\'algorithme peut faire cette analyse automatiquement:\n');
 
-const autoAnalysis = analyzeRevaluationOpportunity(scenario);
-displayRevaluationResults(autoAnalysis);
+const scenarios = [
+  { name: 'Valeurs inadaptées', result: result1 },
+  { name: 'Manque dénomination', result: result2 },
+  { name: 'Jetons casino', result: result3 },
+  { name: 'Déjà optimal', result: result4 },
+];
 
-console.log('\n\n✅ CONCLUSION');
-console.log('═'.repeat(70));
-console.log('La revalorisation par couleur est une pratique courante qui permet:');
-console.log('  1. D\'utiliser n\'importe quels jetons disponibles');
-console.log('  2. D\'optimiser la structure du tournoi');
-console.log('  3. De simplifier les transactions (valeurs rondes)');
-console.log('  4. D\'éviter d\'acheter de nouveaux jetons\n');
+scenarios.forEach((s, i) => {
+  console.log(`\n${i + 1}. ${s.name}`);
+  console.log(`   Suggestions: ${s.result.suggestions.length}`);
+  console.log(`   Amélioration: ${s.result.improvementScore > 0 ? '+' : ''}${s.result.improvementScore.toFixed(1)} points`);
+  console.log(`   Recommandation: ${s.result.worthIt ? '✅ Revaloriser' : '❌ Pas nécessaire'}`);
+});
+
+console.log('\n\n💡 CONCLUSIONS');
+console.log('─'.repeat(70));
+console.log('1. La revalorisation permet de résoudre des situations impossibles');
+console.log('2. Elle améliore significativement les configurations sous-optimales');
+console.log('3. Elle ne propose rien quand ce n\'est pas nécessaire');
+console.log('4. C\'est une pratique courante et acceptée dans les tournois réels');
+console.log('\n');

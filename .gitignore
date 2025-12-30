@@ -41,3 +41,9 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Claude Code artifacts
+.claude/
+
+# Prisma duplicated folder (artifact)
+/prisma/prisma/
