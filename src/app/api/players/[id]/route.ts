@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { PlayerRole } from '@prisma/client';
-import { getCurrentPlayer } from '@/lib/auth-helpers';
+import { requirePermission } from '@/lib/auth-helpers';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
 const playerSchema = z.object({
@@ -61,6 +61,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Vérifier l'authentification et la permission EDIT_PLAYER
+    const permResult = await requirePermission(request, PERMISSIONS.EDIT_PLAYER);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
     const { id } = await params;
     const body = await request.json();
     const validatedData = playerSchema.parse(body);
@@ -74,13 +80,11 @@ export async function PATCH(
       avatar: validatedData.avatar,
     };
 
-    // Seuls les ADMIN peuvent modifier les rôles vers TD ou Admin
+    // Seuls les utilisateurs avec MANAGE_PLAYER_ROLES peuvent modifier les rôles vers TD ou Admin
     if (validatedData.role !== undefined) {
-      const currentPlayer = await getCurrentPlayer(request);
-
       // Si on essaie de mettre un rôle élevé, vérifier les permissions
       if ((validatedData.role === PlayerRole.TOURNAMENT_DIRECTOR || validatedData.role === PlayerRole.ADMIN)) {
-        if (!currentPlayer || !hasPermission(currentPlayer.role, PERMISSIONS.MANAGE_PLAYER_ROLES)) {
+        if (!hasPermission(permResult.player.role, PERMISSIONS.MANAGE_PLAYER_ROLES)) {
           console.warn(`Tentative de modification du rôle vers ${validatedData.role} sans permission. Ignorée.`);
           // On ignore simplement le changement de rôle au lieu de retourner une erreur
         } else {
@@ -126,14 +130,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Vérifier les permissions - seuls les ADMIN peuvent archiver des joueurs
-    const currentPlayer = await getCurrentPlayer(request);
-
-    if (!currentPlayer || !hasPermission(currentPlayer.role, PERMISSIONS.DELETE_PLAYER)) {
-      return NextResponse.json(
-        { error: 'Vous n\'avez pas la permission de supprimer des joueurs' },
-        { status: 403 }
-      );
+    // Vérifier l'authentification et la permission DELETE_PLAYER
+    const permResult = await requirePermission(request, PERMISSIONS.DELETE_PLAYER);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
     const { id } = await params;

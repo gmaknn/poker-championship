@@ -3,6 +3,8 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import sharp from 'sharp';
 import { existsSync } from 'fs';
+import { requirePermission } from '@/lib/auth-helpers';
+import { PERMISSIONS } from '@/lib/permissions';
 
 type Params = Promise<{ id: string }>;
 
@@ -19,6 +21,12 @@ export async function POST(
   segmentData: { params: Params }
 ) {
   try {
+    // Vérifier l'authentification et la permission EDIT_PLAYER (l'upload d'avatar est une édition)
+    const permResult = await requirePermission(request, PERMISSIONS.EDIT_PLAYER);
+    if (!permResult.success) {
+      return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
     const params = await segmentData.params;
     const playerId = params.id;
 
