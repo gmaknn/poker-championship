@@ -1,22 +1,55 @@
 /**
  * Helpers d'authentification et d'autorisation
- * Pour l'instant, utilise un header X-Player-Id pour identifier le joueur
- * À remplacer par NextAuth ou un vrai système d'auth plus tard
+ * Supporte NextAuth (prod) et cookie player-id (dev)
  */
 
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { PlayerRole } from '@prisma/client';
+import { auth } from '@/lib/auth';
 
 /**
- * Récupère le joueur actuel depuis le header X-Player-Id ou le cookie player-id
- * TEMPORAIRE : À remplacer par une vraie authentification
+ * Récupère le joueur/user actuel
+ * 1. Essaie NextAuth (production)
+ * 2. Fallback sur cookie player-id (dev mode)
  */
 export async function getCurrentPlayer(request: NextRequest) {
-  // D'abord essayer le header (priorité)
+  // 1. Essayer NextAuth d'abord (production)
+  try {
+    const session = await auth();
+    if (session?.user?.id) {
+      // NextAuth user - chercher dans la table User
+      const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+        },
+      });
+
+      if (user) {
+        // Retourner un objet compatible avec le format Player
+        return {
+          id: user.id,
+          firstName: user.name || '',
+          lastName: '',
+          nickname: user.name || user.email,
+          email: user.email,
+          avatar: null,
+          role: user.role as PlayerRole,
+          status: 'ACTIVE' as const,
+        };
+      }
+    }
+  } catch {
+    // NextAuth non disponible, continuer avec fallback
+  }
+
+  // 2. Fallback: header X-Player-Id ou cookie player-id (dev mode)
   let playerId = request.headers.get('x-player-id');
 
-  // Sinon, essayer le cookie
   if (!playerId) {
     const cookies = request.headers.get('cookie');
     if (cookies) {
