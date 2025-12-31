@@ -3,7 +3,7 @@
  * These tests verify that handlers properly catch and handle exceptions
  */
 
-import { createMockRequest } from '@/test-utils/request';
+import { createMockRequest, createAuthenticatedRequest } from '@/test-utils/request';
 import { TEST_IDS, MOCK_PLAYERS } from '@/test-utils/mocks';
 import { resetMockPrisma, mockPrismaClient } from '@/test-utils/prisma';
 
@@ -33,7 +33,11 @@ describe('Sentinel Tests - No 500 Errors', () => {
     });
 
     it('should return 404 for non-existent tournament (not 500)', async () => {
-      const request = createMockRequest('/api/tournaments/non-existent-id');
+      // GET /api/tournaments/[id] requires authentication
+      const request = createAuthenticatedRequest(
+        '/api/tournaments/non-existent-id',
+        TEST_IDS.ADMIN_PLAYER
+      );
       const response = await GET(request, {
         params: Promise.resolve({ id: 'non-existent-id' }),
       });
@@ -47,7 +51,11 @@ describe('Sentinel Tests - No 500 Errors', () => {
     });
 
     it('should return 200 for existing tournament', async () => {
-      const request = createMockRequest(`/api/tournaments/${TEST_IDS.TOURNAMENT}`);
+      // GET /api/tournaments/[id] requires authentication
+      const request = createAuthenticatedRequest(
+        `/api/tournaments/${TEST_IDS.TOURNAMENT}`,
+        TEST_IDS.ADMIN_PLAYER
+      );
       const response = await GET(request, {
         params: Promise.resolve({ id: TEST_IDS.TOURNAMENT }),
       });
@@ -66,7 +74,11 @@ describe('Sentinel Tests - No 500 Errors', () => {
         new Error('Database connection failed')
       );
 
-      const request = createMockRequest(`/api/tournaments/${TEST_IDS.TOURNAMENT}`);
+      // GET /api/tournaments/[id] requires authentication
+      const request = createAuthenticatedRequest(
+        `/api/tournaments/${TEST_IDS.TOURNAMENT}`,
+        TEST_IDS.ADMIN_PLAYER
+      );
       const response = await GET(request, {
         params: Promise.resolve({ id: TEST_IDS.TOURNAMENT }),
       });

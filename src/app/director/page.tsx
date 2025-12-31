@@ -66,92 +66,57 @@ export default function DirectorDashboard() {
   const [authError, setAuthError] = useState<string | null>(null);
 
   // Vérifier l'authentification et récupérer le joueur courant
+  // Source unique de vérité : session NextAuth
   useEffect(() => {
     const checkAuthAndFetchPlayer = async () => {
       // Attendre que la session soit chargée
       if (sessionStatus === 'loading') return;
 
-      // Si pas de session NextAuth, vérifier le cookie player-id (mode dev)
+      // Pas de session NextAuth = non authentifié
       if (sessionStatus === 'unauthenticated' || !session?.user) {
-        const cookies = document.cookie;
-        const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+        setAuthError('Non authentifié');
+        setIsLoading(false);
+        return;
+      }
 
-        if (!playerIdMatch) {
-          setAuthError('Non authentifié');
+      // Récupérer le joueur associé à la session NextAuth
+      try {
+        const response = await fetch('/api/players');
+        if (!response.ok) {
+          setAuthError('Erreur lors de la récupération des joueurs');
           setIsLoading(false);
           return;
         }
 
-        // Mode dev: récupérer le joueur via le cookie
-        try {
-          const response = await fetch(`/api/players/${playerIdMatch[1]}`);
-          if (!response.ok) {
-            setAuthError('Joueur non trouvé');
-            setIsLoading(false);
-            return;
-          }
+        const players = await response.json();
+        const matchingPlayer = players.find(
+          (p: { email?: string; role: PlayerRole }) =>
+            p.email === session.user?.email
+        );
 
-          const player = await response.json();
-
-          // Vérifier le rôle
-          if (!ALLOWED_ROLES.includes(player.role)) {
-            setAuthError('Accès refusé - Rôle insuffisant');
-            setIsLoading(false);
-            return;
-          }
-
-          setCurrentPlayer({
-            id: player.id,
-            role: player.role,
-            nickname: player.nickname,
-          });
-        } catch (error) {
-          console.error('Error fetching player:', error);
-          setAuthError('Erreur lors de la vérification');
+        if (!matchingPlayer) {
+          setAuthError('Joueur non associé à ce compte');
           setIsLoading(false);
           return;
         }
-      } else {
-        // Mode production avec NextAuth
-        // Récupérer le joueur associé à la session
-        try {
-          const response = await fetch('/api/players');
-          if (!response.ok) {
-            setAuthError('Erreur lors de la récupération des joueurs');
-            setIsLoading(false);
-            return;
-          }
 
-          const players = await response.json();
-          const matchingPlayer = players.find(
-            (p: { email?: string; role: PlayerRole }) =>
-              p.email === session.user?.email
-          );
-
-          if (!matchingPlayer) {
-            setAuthError('Joueur non associé à ce compte');
-            setIsLoading(false);
-            return;
-          }
-
-          // Vérifier le rôle
-          if (!ALLOWED_ROLES.includes(matchingPlayer.role)) {
-            setAuthError('Accès refusé - Rôle insuffisant');
-            setIsLoading(false);
-            return;
-          }
-
-          setCurrentPlayer({
-            id: matchingPlayer.id,
-            role: matchingPlayer.role,
-            nickname: matchingPlayer.nickname,
-          });
-        } catch (error) {
-          console.error('Error fetching player:', error);
-          setAuthError('Erreur lors de la vérification');
+        // Vérifier le rôle
+        if (!ALLOWED_ROLES.includes(matchingPlayer.role)) {
+          setAuthError('Accès refusé - Rôle insuffisant');
           setIsLoading(false);
           return;
         }
+
+        setCurrentPlayer({
+          id: matchingPlayer.id,
+          role: matchingPlayer.role,
+          nickname: matchingPlayer.nickname,
+        });
+      } catch (error) {
+        console.error('Error fetching player:', error);
+        setAuthError('Erreur lors de la vérification');
+        setIsLoading(false);
+        return;
       }
     };
 
