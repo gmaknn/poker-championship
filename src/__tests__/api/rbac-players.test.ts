@@ -19,7 +19,7 @@ jest.mock('@/lib/auth', () => ({
 }));
 
 // Import after mocks are set up
-import { GET, POST } from '../players/route';
+import { GET, POST } from '@/app/api/players/route';
 
 describe('API /api/players RBAC', () => {
   beforeEach(() => {

@@ -28,7 +28,7 @@ describe('Sentinel Tests - No 500 Errors', () => {
     let GET: (request: Request, context: { params: Promise<{ id: string }> }) => Promise<Response>;
 
     beforeAll(async () => {
-      const module = await import('../tournaments/[id]/route');
+      const module = await import('@/app/api/tournaments/[id]/route');
       GET = module.GET;
     });
 
@@ -96,7 +96,7 @@ describe('Sentinel Tests - No 500 Errors', () => {
     let GET: (request: Request, context: { params: Promise<{ id: string }> }) => Promise<Response>;
 
     beforeAll(async () => {
-      const module = await import('../players/[id]/dashboard/route');
+      const module = await import('@/app/api/players/[id]/dashboard/route');
       GET = module.GET;
     });
 
