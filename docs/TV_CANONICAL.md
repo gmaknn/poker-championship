@@ -23,27 +23,40 @@ v3 was chosen as the canonical version because it includes all features from pre
 | Route | Version | Status |
 |-------|---------|--------|
 | `/tv/[tournamentId]` | v3 | **Canonical** (recommended) |
-| `/tv-v1/[tournamentId]` | v1 | Legacy - will be deprecated |
-| `/tv-v2/[tournamentId]` | v2 | Legacy - will be deprecated |
 | `/tv-v3/[tournamentId]` | v3 | Direct access to v3 |
+| `/tv-v2/[tournamentId]` | v2 | Legacy - will be deprecated |
+| `/tv-legacy/[tournamentId]` | v1 | Legacy - will be deprecated |
 
-## How Routing Works
+## Architecture
 
-The canonical route (`/tv/[tournamentId]`) uses a simple re-export pattern:
+### Shared Component
+
+The v3 implementation is extracted into a shared module:
+
+```
+src/features/tv/TvV3Page.tsx
+```
+
+Both `/tv` and `/tv-v3` routes import this shared component:
 
 ```typescript
 // src/app/tv/[tournamentId]/page.tsx
-export { default } from '@/app/tv-v3/[tournamentId]/page';
+import { TvV3Page } from '@/features/tv/TvV3Page';
+
+export default function TVCanonicalPage({ params }) {
+  const { tournamentId } = use(params);
+  return <TvV3Page tournamentId={tournamentId} />;
+}
 ```
 
-This means:
-- No redirect occurs (same component is rendered)
-- URL stays as `/tv/[tournamentId]`
-- All v3 features are available
+This pattern:
+- Avoids cross-route re-exports (which can be fragile)
+- Ensures both routes use the exact same implementation
+- Makes maintenance easier with a single source of truth
 
 ## Legacy Banner
 
-Legacy versions (v1, v2) display a warning banner at the top of the page informing users that:
+Legacy versions (v1 via `/tv-legacy`, v2 via `/tv-v2`) display a warning banner at the top of the page informing users that:
 - They are viewing a legacy version
 - The version will be deprecated soon
 - A link to the canonical version is provided
@@ -52,19 +65,19 @@ The banner is implemented via the `LegacyBanner` component (`src/components/Lega
 
 ## Version Comparison
 
-### v1 (Basic)
+### v1 (Basic) - `/tv-legacy`
 - Basic timer display
 - Blind level info
 - Player count
 - Simple ranking display
 
-### v2 (Enhanced Timer)
+### v2 (Enhanced Timer) - `/tv-v2`
 - All v1 features
 - Server-synchronized timer
 - Pause/resume functionality
 - Keyboard controls (Space bar)
 
-### v3 (Full Featured) - CANONICAL
+### v3 (Full Featured) - `/tv` (CANONICAL)
 - All v2 features
 - Audio TTS announcements
 - Confetti animations

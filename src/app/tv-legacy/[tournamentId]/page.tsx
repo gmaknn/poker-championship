@@ -76,7 +76,15 @@ type ChipDenomination = {
   order: number;
 };
 
-export default function TVSpectatorView({
+/**
+ * Legacy TV View (v1) - Basic timer/blinds display
+ *
+ * This is a legacy version kept for backwards compatibility.
+ * Use /tv/[tournamentId] for the canonical version.
+ *
+ * @see docs/TV_CANONICAL.md
+ */
+export default function TVSpectatorViewLegacy({
   params,
 }: {
   params: Promise<{ tournamentId: string }>;

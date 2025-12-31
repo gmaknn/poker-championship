@@ -1,22 +1,40 @@
 /**
- * Test to verify canonical TV routing
- * The canonical /tv/[tournamentId] route should re-export the v3 component
+ * Test to verify canonical TV routing and shared component architecture
  */
 
 describe('TV Canonical Routing', () => {
-  it('canonical TV route should re-export v3 component', async () => {
-    // Import both modules
-    const canonicalModule = await import('@/app/tv/[tournamentId]/page');
-    const v3Module = await import('@/app/tv-v3/[tournamentId]/page');
+  it('shared TvV3Page component should exist and be a function', async () => {
+    const sharedModule = await import('@/features/tv/TvV3Page');
 
-    // The canonical route should export the same default as v3
-    expect(canonicalModule.default).toBe(v3Module.default);
+    expect(sharedModule.TvV3Page).toBeDefined();
+    expect(typeof sharedModule.TvV3Page).toBe('function');
   });
 
-  it('v3 module should have a default export (the page component)', async () => {
+  it('canonical TV route should have a default export', async () => {
+    const canonicalModule = await import('@/app/tv/[tournamentId]/page');
+
+    expect(canonicalModule.default).toBeDefined();
+    expect(typeof canonicalModule.default).toBe('function');
+  });
+
+  it('tv-v3 route should have a default export', async () => {
     const v3Module = await import('@/app/tv-v3/[tournamentId]/page');
 
     expect(v3Module.default).toBeDefined();
     expect(typeof v3Module.default).toBe('function');
+  });
+
+  it('tv-legacy route should have a default export', async () => {
+    const legacyModule = await import('@/app/tv-legacy/[tournamentId]/page');
+
+    expect(legacyModule.default).toBeDefined();
+    expect(typeof legacyModule.default).toBe('function');
+  });
+
+  it('tv-v2 route should have a default export', async () => {
+    const v2Module = await import('@/app/tv-v2/[tournamentId]/page');
+
+    expect(v2Module.default).toBeDefined();
+    expect(typeof v2Module.default).toBe('function');
   });
 });
