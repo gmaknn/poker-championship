@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { calculateLeaderboard } from '@/lib/leaderboard';
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -75,16 +76,13 @@ export async function GET(request: NextRequest, { params }: Params) {
     let leaderboardTop10 = null;
 
     if (activeSeason) {
-      // Fetch leaderboard (we'll filter for this player)
-      const leaderboardResponse = await fetch(
-        `${request.nextUrl.origin}/api/seasons/${activeSeason.id}/leaderboard`
-      );
+      // Calculate leaderboard directly (no HTTP fetch - avoids SSL issues in production)
+      const leaderboardData = await calculateLeaderboard(activeSeason.id);
 
-      if (leaderboardResponse.ok) {
-        const leaderboardData = await leaderboardResponse.json();
+      if (leaderboardData) {
         leaderboardTop10 = leaderboardData.leaderboard.slice(0, 10);
         myRanking = leaderboardData.leaderboard.find(
-          (entry: any) => entry.playerId === id
+          (entry) => entry.playerId === id
         );
       }
     }
