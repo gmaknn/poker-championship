@@ -4,6 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { Trophy, Users, DollarSign, Clock } from 'lucide-react';
+import { LegacyBanner } from '@/components/LegacyBanner';
 
 type Player = {
   id: string;
@@ -345,7 +346,10 @@ export default function TVSpectatorViewV2({
                                tournament.type;
 
   return (
-    <div className="min-h-screen bg-black text-white overflow-hidden">
+    <div className="min-h-screen bg-black text-white overflow-hidden pt-10">
+      {/* Legacy Banner */}
+      <LegacyBanner version="v2" canonicalPath={`/tv/${tournamentId}`} />
+
       {/* Header */}
       <div className="bg-gradient-to-r from-cyan-400 to-cyan-500 py-4 px-8">
         <h1 className="text-4xl font-bold text-center text-white drop-shadow-lg uppercase tracking-wider">
