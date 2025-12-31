@@ -47,27 +47,30 @@
 }
 
 .dark {
-  --background: 220 18% 12%;
+  /* Surfaces - éclaircies pour meilleur contraste */
+  --background: 220 15% 18%;
   --foreground: 210 20% 98%;
-  --card: 220 15% 18%;
+  --card: 220 13% 25%;
   --card-foreground: 210 20% 98%;
-  --popover: 220 13% 18%;
+  --popover: 220 13% 28%;
   --popover-foreground: 210 20% 98%;
+  /* Brand colors - inchangés */
   --primary: 142 71% 45%;
   --primary-foreground: 220 15% 8%;
-  --secondary: 220 13% 35%;
+  /* Secondary/Muted - éclaircis */
+  --secondary: 220 13% 38%;
   --secondary-foreground: 210 20% 98%;
-  --muted: 220 13% 20%;
-  --muted-foreground: 215 15% 70%;
-  --accent: 220 13% 30%;
+  --muted: 220 13% 28%;
+  --muted-foreground: 215 15% 75%;
+  --accent: 220 13% 35%;
   --accent-foreground: 210 20% 98%;
+  /* Destructive - inchangé */
   --destructive: 0 70% 50%;
   --destructive-foreground: 210 20% 98%;
-  --border: 220 13% 35%;
-  --input: 220 13% 22%;
-  --ring: 142 71% 45%;
-  /* Switch track unchecked - plus visible */
-  --switch-track: 220 13% 30%;
+  /* Borders/Inputs - plus visibles */
+  --border: 220 13% 40%;
+  --input: 220 13% 30%;
+  --ring: 142 71% 50%;
 }
 
 body {
@@ -85,40 +88,54 @@ body {
     font-weight: 600;
   }
 
-  /* Amélioration de la visibilité en mode sombre */
+  /* ===== DARK MODE ENHANCEMENTS ===== */
+
+  /* Native select styling */
   .dark select {
     background-color: hsl(var(--input));
-    border: 2px solid hsl(var(--border));
+    border: 1px solid hsl(var(--border));
     color: hsl(var(--foreground));
+  }
+
+  .dark select:hover {
+    border-color: hsl(var(--muted-foreground));
   }
 
   .dark select:focus {
     border-color: hsl(var(--primary));
     outline: none;
-    ring: 2px;
-    ring-color: hsl(var(--ring));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3);
   }
 
-  /* Amélioration des badges en mode sombre */
-  .dark .badge {
-    border-width: 1px;
+  /* All text inputs in dark mode */
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+    background-color: hsl(var(--input));
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground));
   }
 
-  /* Dark mode: inputs date/time/datetime-local */
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover {
+    border-color: hsl(var(--muted-foreground));
+  }
+
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3);
+  }
+
+  /* Date/time/datetime-local specific */
   .dark input[type="date"],
   .dark input[type="time"],
   .dark input[type="datetime-local"] {
     color-scheme: dark;
-    background-color: hsl(var(--input));
-    color: hsl(var(--foreground));
-    border-color: hsl(var(--border));
   }
 
   .dark input[type="date"]::-webkit-calendar-picker-indicator,
   .dark input[type="time"]::-webkit-calendar-picker-indicator,
   .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
     filter: invert(1);
-    opacity: 0.7;
+    opacity: 0.8;
+    cursor: pointer;
   }
 
   .dark input[type="date"]::-webkit-calendar-picker-indicator:hover,
@@ -127,10 +144,31 @@ body {
     opacity: 1;
   }
 
-  /* Dark mode: placeholder plus visible */
+  /* Placeholder visibility */
   .dark input::placeholder,
   .dark textarea::placeholder {
     color: hsl(var(--muted-foreground));
-    opacity: 0.8;
+    opacity: 1;
+  }
+
+  /* Textarea dark mode */
+  .dark textarea {
+    background-color: hsl(var(--input));
+    border-color: hsl(var(--border));
+    color: hsl(var(--foreground));
+  }
+
+  .dark textarea:hover {
+    border-color: hsl(var(--muted-foreground));
+  }
+
+  .dark textarea:focus {
+    border-color: hsl(var(--primary));
+    box-shadow: 0 0 0 2px hsl(var(--ring) / 0.3);
+  }
+
+  /* Badges visibility */
+  .dark .badge {
+    border-width: 1px;
   }
 }
