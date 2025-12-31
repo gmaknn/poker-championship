@@ -23,15 +23,19 @@ const updateTournamentSchema = z.object({
 
 // GET single tournament
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // TODO: Add authentication check when NextAuth v5 is properly configured
-    // const session = await auth();
-    // if (!session) {
-    //   return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    // }
+    // Vérifier l'authentification
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer) {
+      return NextResponse.json(
+        { error: 'Non authentifié' },
+        { status: 401 }
+      );
+    }
 
     const { id } = await params;
     const tournament = await prisma.tournament.findUnique({
