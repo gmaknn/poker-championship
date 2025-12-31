@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar, Users, Trophy, Clock } from 'lucide-react';
+import { Plus, Calendar, Users, Trophy, Clock, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
+import { PlayerRole } from '@prisma/client';
 
 type Tournament = {
   id: string;
@@ -30,6 +32,12 @@ type Tournament = {
   };
 };
 
+type CurrentPlayer = {
+  id: string;
+  role: PlayerRole;
+  nickname: string;
+};
+
 const STATUS_LABELS: Record<string, string> = {
   PLANNED: 'Planifié',
   REGISTRATION: 'Inscriptions',
@@ -46,56 +54,130 @@ const STATUS_COLORS: Record<string, string> = {
   CANCELLED: 'bg-red-500/10 text-red-500 border-red-500/20',
 };
 
+// Rôles autorisés pour la page directeur
+const ALLOWED_ROLES: PlayerRole[] = ['TOURNAMENT_DIRECTOR', 'ADMIN'];
+
 export default function DirectorDashboard() {
   const router = useRouter();
+  const { data: session, status: sessionStatus } = useSession();
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPlayer, setCurrentPlayer] = useState<CurrentPlayer | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
-  // Pour la démo, on utilise le premier joueur avec rôle TOURNAMENT_DIRECTOR
-  // TODO: Remplacer par une vraie authentification
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-
+  // Vérifier l'authentification et récupérer le joueur courant
   useEffect(() => {
-    fetchCurrentUser();
-  }, []);
+    const checkAuthAndFetchPlayer = async () => {
+      // Attendre que la session soit chargée
+      if (sessionStatus === 'loading') return;
 
-  useEffect(() => {
-    if (currentUserId) {
-      fetchMyTournaments();
-    }
-  }, [currentUserId]);
+      // Si pas de session NextAuth, vérifier le cookie player-id (mode dev)
+      if (sessionStatus === 'unauthenticated' || !session?.user) {
+        const cookies = document.cookie;
+        const playerIdMatch = cookies.match(/player-id=([^;]+)/);
 
-  const fetchCurrentUser = async () => {
-    try {
-      // Pour la démo, on récupère tous les joueurs et on prend le premier Tournament Director
-      const response = await fetch('/api/players');
-      if (response.ok) {
-        const players = await response.json();
-        const director = players.find((p: any) => p.role === 'TOURNAMENT_DIRECTOR' || p.role === 'ADMIN');
-        if (director) {
-          setCurrentUserId(director.id);
+        if (!playerIdMatch) {
+          setAuthError('Non authentifié');
+          setIsLoading(false);
+          return;
+        }
+
+        // Mode dev: récupérer le joueur via le cookie
+        try {
+          const response = await fetch(`/api/players/${playerIdMatch[1]}`);
+          if (!response.ok) {
+            setAuthError('Joueur non trouvé');
+            setIsLoading(false);
+            return;
+          }
+
+          const player = await response.json();
+
+          // Vérifier le rôle
+          if (!ALLOWED_ROLES.includes(player.role)) {
+            setAuthError('Accès refusé - Rôle insuffisant');
+            setIsLoading(false);
+            return;
+          }
+
+          setCurrentPlayer({
+            id: player.id,
+            role: player.role,
+            nickname: player.nickname,
+          });
+        } catch (error) {
+          console.error('Error fetching player:', error);
+          setAuthError('Erreur lors de la vérification');
+          setIsLoading(false);
+          return;
+        }
+      } else {
+        // Mode production avec NextAuth
+        // Récupérer le joueur associé à la session
+        try {
+          const response = await fetch('/api/players');
+          if (!response.ok) {
+            setAuthError('Erreur lors de la récupération des joueurs');
+            setIsLoading(false);
+            return;
+          }
+
+          const players = await response.json();
+          const matchingPlayer = players.find(
+            (p: { email?: string; role: PlayerRole }) =>
+              p.email === session.user?.email
+          );
+
+          if (!matchingPlayer) {
+            setAuthError('Joueur non associé à ce compte');
+            setIsLoading(false);
+            return;
+          }
+
+          // Vérifier le rôle
+          if (!ALLOWED_ROLES.includes(matchingPlayer.role)) {
+            setAuthError('Accès refusé - Rôle insuffisant');
+            setIsLoading(false);
+            return;
+          }
+
+          setCurrentPlayer({
+            id: matchingPlayer.id,
+            role: matchingPlayer.role,
+            nickname: matchingPlayer.nickname,
+          });
+        } catch (error) {
+          console.error('Error fetching player:', error);
+          setAuthError('Erreur lors de la vérification');
+          setIsLoading(false);
+          return;
         }
       }
-    } catch (error) {
-      console.error('Error fetching current user:', error);
-    }
-  };
+    };
 
-  const fetchMyTournaments = async () => {
-    if (!currentUserId) return;
+    checkAuthAndFetchPlayer();
+  }, [session, sessionStatus]);
 
-    try {
-      const response = await fetch(`/api/tournaments?createdById=${currentUserId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setTournaments(data);
+  // Charger les tournois une fois authentifié
+  useEffect(() => {
+    if (!currentPlayer) return;
+
+    const fetchMyTournaments = async () => {
+      try {
+        const response = await fetch(`/api/tournaments?createdById=${currentPlayer.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          setTournaments(data);
+        }
+      } catch (error) {
+        console.error('Error fetching tournaments:', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching tournaments:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    fetchMyTournaments();
+  }, [currentPlayer]);
 
   const handleCreateTournament = () => {
     router.push('/dashboard/tournaments/new');
@@ -105,32 +187,56 @@ export default function DirectorDashboard() {
     router.push(`/dashboard/tournaments/${tournamentId}`);
   };
 
-  if (isLoading) {
+  // État de chargement initial
+  if (sessionStatus === 'loading' || (isLoading && !authError)) {
     return (
       <div className="flex items-center justify-center h-full p-6">
-        <p className="text-muted-foreground">Chargement...</p>
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Vérification de l&apos;accès...</span>
+        </div>
       </div>
     );
   }
 
-  if (!currentUserId) {
+  // Erreur d'authentification ou de permissions
+  if (authError) {
     return (
       <div className="flex items-center justify-center h-full p-6">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>Accès non autorisé</CardTitle>
+            <CardTitle>
+              {authError === 'Non authentifié' ? 'Connexion requise' : 'Accès non autorisé'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground">
-              Vous devez être un directeur de tournoi pour accéder à cette page.
+            <p className="text-muted-foreground mb-4">
+              {authError === 'Non authentifié'
+                ? 'Vous devez être connecté pour accéder à cette page.'
+                : authError === 'Accès refusé - Rôle insuffisant'
+                ? 'Seuls les directeurs de tournoi et administrateurs peuvent accéder à cette page.'
+                : authError}
             </p>
-            <Button className="mt-4" onClick={() => router.push('/dashboard')}>
-              Retour au dashboard
-            </Button>
+            <div className="flex gap-2">
+              {authError === 'Non authentifié' ? (
+                <Button onClick={() => router.push('/login')}>
+                  Se connecter
+                </Button>
+              ) : (
+                <Button onClick={() => router.push('/dashboard')}>
+                  Retour au dashboard
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
     );
+  }
+
+  // Pas de joueur trouvé (ne devrait pas arriver si authError est bien géré)
+  if (!currentPlayer) {
+    return null;
   }
 
   const upcomingTournaments = tournaments.filter(
@@ -145,7 +251,7 @@ export default function DirectorDashboard() {
         <div>
           <h1 className="text-3xl font-bold">Dashboard Directeur de Tournoi</h1>
           <p className="text-muted-foreground mt-1">
-            Gérez vos tournois et suivez leurs progrès
+            Bienvenue {currentPlayer.nickname} - Gérez vos tournois et suivez leurs progrès
           </p>
         </div>
         <Button onClick={handleCreateTournament} size="lg">
