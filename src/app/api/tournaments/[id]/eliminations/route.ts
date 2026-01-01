@@ -88,6 +88,14 @@ export async function POST(
     const body = await request.json();
     const validatedData = eliminationSchema.parse(body);
 
+    // Block mutations on finished tournaments (readonly)
+    if (tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
+    }
+
     if (tournament.status !== 'IN_PROGRESS') {
       return NextResponse.json(
         { error: 'Tournament is not in progress' },
