@@ -24,6 +24,9 @@ jest.mock('@/lib/prisma', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    tournamentPlayer: {
+      findMany: jest.fn(),
+    },
     season: {
       findUnique: jest.fn(),
     },
@@ -363,6 +366,99 @@ describe('/api/tournaments/[id]', () => {
         const data = await response.json();
         expect(data.error).toContain('terminé');
       });
+    });
+  });
+
+  describe('PATCH - Finish Invariants', () => {
+    beforeEach(() => {
+      // Setup: tournament IN_PROGRESS owned by TD
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
+        ...MOCK_TOURNAMENT,
+        status: 'IN_PROGRESS',
+        createdById: TEST_IDS.TD_PLAYER,
+      });
+    });
+
+    it('should return 400 when finishing tournament with incomplete final ranks', async () => {
+      // 3 players, only 2 have finalRank
+      (mockPrisma.tournamentPlayer.findMany as jest.Mock).mockResolvedValue([
+        { finalRank: 1 },
+        { finalRank: 2 },
+        { finalRank: null }, // Incomplete - player without rank
+      ]);
+
+      const request = createAuthenticatedRequest(
+        '/api/tournaments/test-id',
+        TEST_IDS.TD_PLAYER,
+        { method: 'PATCH', body: { status: 'FINISHED' } }
+      );
+
+      const response = await PATCH(request, { params: createParams('test-id') });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toBe('Cannot finish tournament: final ranks are incomplete');
+    });
+
+    it('should return 400 when finishing tournament with duplicate final ranks', async () => {
+      // 3 players, all have ranks but with duplicate
+      (mockPrisma.tournamentPlayer.findMany as jest.Mock).mockResolvedValue([
+        { finalRank: 1 },
+        { finalRank: 2 },
+        { finalRank: 2 }, // Duplicate rank
+      ]);
+
+      const request = createAuthenticatedRequest(
+        '/api/tournaments/test-id',
+        TEST_IDS.TD_PLAYER,
+        { method: 'PATCH', body: { status: 'FINISHED' } }
+      );
+
+      const response = await PATCH(request, { params: createParams('test-id') });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toBe('Cannot finish tournament: final ranks are not unique');
+    });
+
+    it('should return 400 when finishing tournament with out of bounds ranks', async () => {
+      // 3 players, all have unique ranks but one is out of bounds
+      (mockPrisma.tournamentPlayer.findMany as jest.Mock).mockResolvedValue([
+        { finalRank: 1 },
+        { finalRank: 2 },
+        { finalRank: 5 }, // Out of bounds (should be 1-3)
+      ]);
+
+      const request = createAuthenticatedRequest(
+        '/api/tournaments/test-id',
+        TEST_IDS.TD_PLAYER,
+        { method: 'PATCH', body: { status: 'FINISHED' } }
+      );
+
+      const response = await PATCH(request, { params: createParams('test-id') });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toBe('Cannot finish tournament: final ranks are out of bounds');
+    });
+
+    it('should allow finishing tournament when final ranks are complete and valid', async () => {
+      // 3 players, all have valid unique ranks 1-3
+      (mockPrisma.tournamentPlayer.findMany as jest.Mock).mockResolvedValue([
+        { finalRank: 1 },
+        { finalRank: 2 },
+        { finalRank: 3 },
+      ]);
+
+      const request = createAuthenticatedRequest(
+        '/api/tournaments/test-id',
+        TEST_IDS.TD_PLAYER,
+        { method: 'PATCH', body: { status: 'FINISHED' } }
+      );
+
+      const response = await PATCH(request, { params: createParams('test-id') });
+
+      expect(response.status).toBe(200);
     });
   });
 });

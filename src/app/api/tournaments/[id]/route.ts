@@ -142,6 +142,44 @@ export async function PATCH(
       }
     }
 
+    // Validate finish invariants when transitioning to FINISHED
+    if (validatedData.status === 'FINISHED' && existingTournament.status !== 'FINISHED') {
+      const tournamentPlayers = await prisma.tournamentPlayer.findMany({
+        where: { tournamentId: id },
+        select: { finalRank: true },
+      });
+
+      const N = tournamentPlayers.length;
+
+      // Invariant 1: Completeness - all players must have a finalRank
+      const playersWithRank = tournamentPlayers.filter(tp => tp.finalRank !== null);
+      if (playersWithRank.length !== N) {
+        return NextResponse.json(
+          { error: 'Cannot finish tournament: final ranks are incomplete' },
+          { status: 400 }
+        );
+      }
+
+      // Invariant 2: Uniqueness - no duplicate ranks
+      const ranks = playersWithRank.map(tp => tp.finalRank as number);
+      const uniqueRanks = new Set(ranks);
+      if (uniqueRanks.size !== N) {
+        return NextResponse.json(
+          { error: 'Cannot finish tournament: final ranks are not unique' },
+          { status: 400 }
+        );
+      }
+
+      // Invariant 3: Bounds - each rank must be in [1..N]
+      const outOfBounds = ranks.some(rank => rank < 1 || rank > N);
+      if (outOfBounds) {
+        return NextResponse.json(
+          { error: 'Cannot finish tournament: final ranks are out of bounds' },
+          { status: 400 }
+        );
+      }
+    }
+
     // If changing season, verify it exists
     if (validatedData.seasonId) {
       const season = await prisma.season.findUnique({
