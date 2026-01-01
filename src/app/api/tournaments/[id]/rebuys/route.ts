@@ -40,7 +40,7 @@ export async function POST(
     const body = await request.json();
     const validatedData = rebuySchema.parse(body);
 
-    // Vérifier que le tournoi est en cours
+    // Pre-checks rapides (hors transaction)
     if (tournament.status !== 'IN_PROGRESS') {
       return NextResponse.json(
         { error: 'Tournament is not in progress' },
@@ -48,7 +48,6 @@ export async function POST(
       );
     }
 
-    // Vérifier que la période de recave n'est pas terminée
     if (tournament.rebuyEndLevel && tournament.currentLevel > tournament.rebuyEndLevel) {
       return NextResponse.json(
         { error: 'Rebuy period has ended' },
@@ -56,7 +55,7 @@ export async function POST(
       );
     }
 
-    // Récupérer le joueur inscrit
+    // Récupérer le joueur inscrit (pre-check rapide)
     const tournamentPlayer = await prisma.tournamentPlayer.findUnique({
       where: {
         tournamentId_playerId: {
@@ -73,7 +72,7 @@ export async function POST(
       );
     }
 
-    // Vérifier que le joueur n'est pas éliminé
+    // Pre-check rapide : joueur éliminé
     if (tournamentPlayer.finalRank !== null) {
       return NextResponse.json(
         { error: 'Player has been eliminated' },
@@ -81,7 +80,7 @@ export async function POST(
       );
     }
 
-    // Vérifier le max rebuys par joueur (si configuré) - pour les rebuys standard uniquement
+    // Pre-check rapide : max rebuys
     if (validatedData.type === 'STANDARD' && tournament.maxRebuysPerPlayer !== null) {
       if (tournamentPlayer.rebuysCount >= tournament.maxRebuysPerPlayer) {
         return NextResponse.json(
@@ -91,7 +90,7 @@ export async function POST(
       }
     }
 
-    // Vérifications spécifiques au light rebuy
+    // Pre-check rapide : light rebuy
     if (validatedData.type === 'LIGHT') {
       if (!tournament.lightRebuyEnabled) {
         return NextResponse.json(
@@ -108,59 +107,124 @@ export async function POST(
       }
     }
 
-    // Calculer le nouveau nombre de recaves et les malus
-    const newRebuysCount = tournamentPlayer.rebuysCount + (validatedData.type === 'STANDARD' ? 1 : 0);
-    const lightRebuyUsed = validatedData.type === 'LIGHT' ? true : tournamentPlayer.lightRebuyUsed;
-
-    // Calculer les malus de recave selon la saison
-    let penaltyPoints = 0;
-    if (tournament.season) {
-      const totalRebuys = newRebuysCount;
-      const freeRebuys = tournament.season.freeRebuysCount;
-
-      if (totalRebuys > freeRebuys) {
-        const paidRebuys = totalRebuys - freeRebuys;
-
-        if (paidRebuys === 1) {
-          penaltyPoints = tournament.season.rebuyPenaltyTier1; // 3e recave
-        } else if (paidRebuys === 2) {
-          penaltyPoints = tournament.season.rebuyPenaltyTier2; // 4e recave
-        } else if (paidRebuys >= 3) {
-          penaltyPoints = tournament.season.rebuyPenaltyTier3; // 5+ recaves
-        }
-      }
-    }
-
-    // Mettre à jour le joueur
-    const updatedPlayer = await prisma.tournamentPlayer.update({
-      where: {
-        tournamentId_playerId: {
-          tournamentId,
-          playerId: validatedData.playerId,
-        },
-      },
-      data: {
-        rebuysCount: newRebuysCount,
-        lightRebuyUsed,
-        penaltyPoints,
-      },
-      include: {
-        player: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            nickname: true,
+    // === TRANSACTION ATOMIQUE ===
+    // Utiliser updateMany conditionnel (optimistic lock) pour éviter les race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      // Re-lecture atomique du joueur dans la transaction
+      const currentPlayer = await tx.tournamentPlayer.findUnique({
+        where: {
+          tournamentId_playerId: {
+            tournamentId,
+            playerId: validatedData.playerId,
           },
         },
-      },
+      });
+
+      if (!currentPlayer) {
+        throw new Error('PLAYER_NOT_ENROLLED');
+      }
+
+      // Re-vérifier joueur non éliminé (race-safe)
+      if (currentPlayer.finalRank !== null) {
+        throw new Error('PLAYER_ELIMINATED');
+      }
+
+      // Re-vérifier max rebuys (race-safe)
+      if (validatedData.type === 'STANDARD' && tournament.maxRebuysPerPlayer !== null) {
+        if (currentPlayer.rebuysCount >= tournament.maxRebuysPerPlayer) {
+          throw new Error('MAX_REBUYS_REACHED');
+        }
+      }
+
+      // Re-vérifier light rebuy (race-safe)
+      if (validatedData.type === 'LIGHT' && currentPlayer.lightRebuyUsed) {
+        throw new Error('LIGHT_REBUY_ALREADY_USED');
+      }
+
+      // Calculer les nouvelles valeurs
+      const newRebuysCount = currentPlayer.rebuysCount + (validatedData.type === 'STANDARD' ? 1 : 0);
+      const lightRebuyUsed = validatedData.type === 'LIGHT' ? true : currentPlayer.lightRebuyUsed;
+
+      // Calculer les malus de recave selon la saison
+      let penaltyPoints = 0;
+      if (tournament.season) {
+        const totalRebuys = newRebuysCount;
+        const freeRebuys = tournament.season.freeRebuysCount;
+
+        if (totalRebuys > freeRebuys) {
+          const paidRebuys = totalRebuys - freeRebuys;
+
+          if (paidRebuys === 1) {
+            penaltyPoints = tournament.season.rebuyPenaltyTier1;
+          } else if (paidRebuys === 2) {
+            penaltyPoints = tournament.season.rebuyPenaltyTier2;
+          } else if (paidRebuys >= 3) {
+            penaltyPoints = tournament.season.rebuyPenaltyTier3;
+          }
+        }
+      }
+
+      // === ÉCRITURE ATOMIQUE avec updateMany conditionnel (optimistic lock) ===
+      // Condition sur rebuysCount + lightRebuyUsed pour détecter les modifications concurrentes
+      const updateCondition: Record<string, unknown> = {
+        tournamentId,
+        playerId: validatedData.playerId,
+        finalRank: null, // Joueur non éliminé
+      };
+
+      if (validatedData.type === 'STANDARD') {
+        // Pour rebuy standard: vérifier que rebuysCount n'a pas changé
+        updateCondition.rebuysCount = currentPlayer.rebuysCount;
+      } else {
+        // Pour light rebuy: vérifier que lightRebuyUsed est toujours false
+        updateCondition.lightRebuyUsed = false;
+      }
+
+      const updateResult = await tx.tournamentPlayer.updateMany({
+        where: updateCondition,
+        data: {
+          rebuysCount: newRebuysCount,
+          lightRebuyUsed,
+          penaltyPoints,
+        },
+      });
+
+      // Si count != 1, une requête concurrente a modifié l'état
+      if (updateResult.count !== 1) {
+        if (validatedData.type === 'LIGHT') {
+          throw new Error('LIGHT_REBUY_ALREADY_USED');
+        }
+        throw new Error('MAX_REBUYS_REACHED');
+      }
+
+      // Récupérer le joueur mis à jour pour la réponse
+      const updatedPlayer = await tx.tournamentPlayer.findUnique({
+        where: {
+          tournamentId_playerId: {
+            tournamentId,
+            playerId: validatedData.playerId,
+          },
+        },
+        include: {
+          player: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              nickname: true,
+            },
+          },
+        },
+      });
+
+      return { updatedPlayer, penaltyPoints };
     });
 
     return NextResponse.json({
       success: true,
-      tournamentPlayer: updatedPlayer,
+      tournamentPlayer: result.updatedPlayer,
       rebuyType: validatedData.type,
-      penaltyPoints,
+      penaltyPoints: result.penaltyPoints,
     }, { status: 200 });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -168,6 +232,34 @@ export async function POST(
         { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
+    }
+
+    // Mapper les erreurs de transaction atomique en 400 clairs
+    if (error instanceof Error) {
+      if (error.message === 'PLAYER_NOT_ENROLLED') {
+        return NextResponse.json(
+          { error: 'Player is not enrolled in this tournament' },
+          { status: 404 }
+        );
+      }
+      if (error.message === 'PLAYER_ELIMINATED') {
+        return NextResponse.json(
+          { error: 'Player has been eliminated' },
+          { status: 400 }
+        );
+      }
+      if (error.message === 'MAX_REBUYS_REACHED') {
+        return NextResponse.json(
+          { error: 'Maximum rebuys reached' },
+          { status: 400 }
+        );
+      }
+      if (error.message === 'LIGHT_REBUY_ALREADY_USED') {
+        return NextResponse.json(
+          { error: 'Player has already used their light rebuy' },
+          { status: 400 }
+        );
+      }
     }
 
     console.error('Error processing rebuy:', error);
