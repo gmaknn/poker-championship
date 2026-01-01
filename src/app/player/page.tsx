@@ -83,7 +83,7 @@ export default function PlayerSelectPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <Card
             className="cursor-pointer hover:bg-accent transition-colors border-primary/20"
-            onClick={() => router.push('/dashboard/leaderboard')}
+            onClick={() => router.push('/player/leaderboard')}
           >
             <CardHeader className="flex flex-row items-center gap-4">
               <Trophy className="h-10 w-10 text-yellow-500" />
@@ -98,7 +98,7 @@ export default function PlayerSelectPage() {
 
           <Card
             className="cursor-pointer hover:bg-accent transition-colors border-primary/20"
-            onClick={() => router.push('/dashboard/live')}
+            onClick={() => router.push('/player/live')}
           >
             <CardHeader className="flex flex-row items-center gap-4">
               <Zap className="h-10 w-10 text-orange-500" />
