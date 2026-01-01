@@ -291,4 +291,146 @@ describe('GET /api/tournaments/[id]/live-leaderboard', () => {
       expect(response.status).toBe(400);
     });
   });
+
+  describe('FINISHED leaderboard contract', () => {
+    const finishedTournament = {
+      id: TEST_IDS.TOURNAMENT,
+      name: 'Finished Tournament',
+      date: new Date('2025-01-15'),
+      status: 'FINISHED',
+      buyInAmount: 10,
+      startingChips: 5000,
+      currentLevel: 10,
+      season: {
+        name: 'Saison 2025',
+        eliminationPoints: 1,
+        leaderKillerBonus: 3,
+      },
+      tournamentPlayers: [
+        {
+          playerId: 'p1',
+          eliminationsCount: 3,
+          leaderKills: 1,
+          rebuysCount: 0,
+          lightRebuyUsed: false,
+          penaltyPoints: 0,
+          finalRank: 1,
+          player: { id: 'p1', firstName: 'Winner', lastName: 'Player', nickname: 'winner', avatar: null },
+        },
+        {
+          playerId: 'p2',
+          eliminationsCount: 1,
+          leaderKills: 0,
+          rebuysCount: 1,
+          lightRebuyUsed: false,
+          penaltyPoints: -2,
+          finalRank: 2,
+          player: { id: 'p2', firstName: 'Second', lastName: 'Player', nickname: 'second', avatar: null },
+        },
+        {
+          playerId: 'p3',
+          eliminationsCount: 0,
+          leaderKills: 0,
+          rebuysCount: 0,
+          lightRebuyUsed: false,
+          penaltyPoints: 0,
+          finalRank: 3,
+          player: { id: 'p3', firstName: 'Third', lastName: 'Player', nickname: 'third', avatar: null },
+        },
+      ],
+    };
+
+    it('should return finished leaderboard sorted by finalRank with N entries', async () => {
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue(finishedTournament);
+
+      const request = new NextRequest(
+        `http://localhost/api/tournaments/${tournamentId}/live-leaderboard`,
+        {
+          method: 'GET',
+          headers: {
+            cookie: `player-id=${TEST_IDS.REGULAR_PLAYER}`,
+          },
+        }
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ id: tournamentId }) });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+
+      // Check N entries
+      expect(data.leaderboard).toHaveLength(3);
+
+      // Check sorted by finalRank asc (1, 2, 3)
+      expect(data.leaderboard[0].finalRank).toBe(1);
+      expect(data.leaderboard[1].finalRank).toBe(2);
+      expect(data.leaderboard[2].finalRank).toBe(3);
+
+      // Check currentRank matches finalRank
+      expect(data.leaderboard[0].currentRank).toBe(1);
+      expect(data.leaderboard[1].currentRank).toBe(2);
+      expect(data.leaderboard[2].currentRank).toBe(3);
+
+      // All finalRank are non-null
+      data.leaderboard.forEach((entry: { finalRank: number | null }) => {
+        expect(entry.finalRank).not.toBeNull();
+      });
+    });
+
+    it('should return 400 when finished leaderboard has inconsistent ranks (null rank)', async () => {
+      const corruptedTournament = {
+        ...finishedTournament,
+        tournamentPlayers: [
+          { ...finishedTournament.tournamentPlayers[0], finalRank: 1 },
+          { ...finishedTournament.tournamentPlayers[1], finalRank: 2 },
+          { ...finishedTournament.tournamentPlayers[2], finalRank: null }, // Corrupted: missing rank
+        ],
+      };
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue(corruptedTournament);
+
+      const request = new NextRequest(
+        `http://localhost/api/tournaments/${tournamentId}/live-leaderboard`,
+        {
+          method: 'GET',
+          headers: {
+            cookie: `player-id=${TEST_IDS.REGULAR_PLAYER}`,
+          },
+        }
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ id: tournamentId }) });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toBe('Invalid finished leaderboard: final ranks are inconsistent');
+    });
+
+    it('should return 400 when finished leaderboard has duplicate ranks', async () => {
+      const corruptedTournament = {
+        ...finishedTournament,
+        tournamentPlayers: [
+          { ...finishedTournament.tournamentPlayers[0], finalRank: 1 },
+          { ...finishedTournament.tournamentPlayers[1], finalRank: 2 },
+          { ...finishedTournament.tournamentPlayers[2], finalRank: 2 }, // Corrupted: duplicate rank
+        ],
+      };
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue(corruptedTournament);
+
+      const request = new NextRequest(
+        `http://localhost/api/tournaments/${tournamentId}/live-leaderboard`,
+        {
+          method: 'GET',
+          headers: {
+            cookie: `player-id=${TEST_IDS.REGULAR_PLAYER}`,
+          },
+        }
+      );
+
+      const response = await GET(request, { params: Promise.resolve({ id: tournamentId }) });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toBe('Invalid finished leaderboard: final ranks are inconsistent');
+    });
+  });
 });
