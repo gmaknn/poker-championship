@@ -135,10 +135,41 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
     // Default tournamentPlayer count (2 remaining after elimination)
     (mockPrisma.tournamentPlayer.count as jest.Mock).mockResolvedValue(2);
 
-    // Default transaction mock
+    // Default transaction mock - updated for atomic transaction
     (mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn) => {
       const mockTx = {
+        tournamentPlayer: {
+          findMany: jest.fn().mockResolvedValue([
+            {
+              id: 'tp-1',
+              tournamentId,
+              playerId: eliminatedId,
+              finalRank: null,
+              eliminationsCount: 0,
+              player: { id: eliminatedId, firstName: 'Eliminated', lastName: 'Player', nickname: 'eliminated' },
+            },
+            {
+              id: 'tp-2',
+              tournamentId,
+              playerId: eliminatorId,
+              finalRank: null,
+              eliminationsCount: 0,
+              player: { id: eliminatorId, firstName: 'Eliminator', lastName: 'Player', nickname: 'eliminator' },
+            },
+            {
+              id: 'tp-3',
+              tournamentId,
+              playerId: 'clx0000000000000000000003',
+              finalRank: null,
+              eliminationsCount: 0,
+              player: { id: 'clx0000000000000000000003', firstName: 'Third', lastName: 'Player', nickname: 'third' },
+            },
+          ]),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          update: jest.fn().mockResolvedValue({}),
+        },
         elimination: {
+          findMany: jest.fn().mockResolvedValue([]),
           create: jest.fn().mockResolvedValue({
             id: 'elim-1',
             tournamentId,
@@ -150,9 +181,6 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
             eliminated: { id: eliminatedId, firstName: 'Eliminated', lastName: 'Player', nickname: 'eliminated' },
             eliminator: { id: eliminatorId, firstName: 'Eliminator', lastName: 'Player', nickname: 'eliminator' },
           }),
-        },
-        tournamentPlayer: {
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       return fn(mockTx);
@@ -450,22 +478,40 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
       // - Third player already has finalRank: 2 (the computed rank)
       // remainingPlayers = 2 (players with finalRank null)
       // rank = 2, but it's already taken by third player
+      const conflictPlayers = [
+        {
+          ...mockTournament.tournamentPlayers[0],
+          finalRank: null, // Player to eliminate
+        },
+        {
+          ...mockTournament.tournamentPlayers[1],
+          finalRank: null, // Eliminator
+        },
+        {
+          ...mockTournament.tournamentPlayers[2],
+          finalRank: 2, // Already has rank 2 - conflict with computed rank!
+        },
+      ];
+
       (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
         ...mockTournament,
-        tournamentPlayers: [
-          {
-            ...mockTournament.tournamentPlayers[0],
-            finalRank: null, // Player to eliminate
+        tournamentPlayers: conflictPlayers,
+      });
+
+      // Also configure transaction to return the same conflicting data
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn) => {
+        const mockTx = {
+          tournamentPlayer: {
+            findMany: jest.fn().mockResolvedValue(conflictPlayers),
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+            update: jest.fn().mockResolvedValue({}),
           },
-          {
-            ...mockTournament.tournamentPlayers[1],
-            finalRank: null, // Eliminator
+          elimination: {
+            findMany: jest.fn().mockResolvedValue([]),
+            create: jest.fn().mockResolvedValue({}),
           },
-          {
-            ...mockTournament.tournamentPlayers[2],
-            finalRank: 2, // Already has rank 2 - conflict with computed rank!
-          },
-        ],
+        };
+        return fn(mockTx);
       });
 
       const request = new NextRequest(
@@ -650,5 +696,192 @@ describe('Sentinel: Elimination sets finalRank', () => {
     };
 
     expect(eliminatorAfter.eliminationsCount).toBe(eliminatorBefore.eliminationsCount + 1);
+  });
+});
+
+/**
+ * Concurrency / Race condition tests
+ * These tests verify that the elimination endpoint is atomic and race-safe
+ */
+describe('Concurrency: Atomic eliminations', () => {
+  const tournamentId = TEST_IDS.TOURNAMENT;
+  const eliminatedId = 'clx0000000000000000000001';
+  const eliminatorId = 'clx0000000000000000000002';
+
+  it('should not allow double submit elimination for same player (race-safe)', async () => {
+    // This test simulates two concurrent requests trying to eliminate the same player
+    // Only one should succeed, the other should get 400
+
+    // Track call count to simulate race condition
+    let transactionCallCount = 0;
+    let firstCallCompleted = false;
+
+    // Mock prisma to simulate concurrent behavior
+    const mockTransaction = jest.fn().mockImplementation(async (fn) => {
+      transactionCallCount++;
+      const callNumber = transactionCallCount;
+
+      const mockTx = {
+        tournamentPlayer: {
+          findMany: jest.fn().mockImplementation(async () => {
+            // First call sees player not eliminated
+            // Second call also sees player not eliminated (race condition)
+            if (callNumber === 1 || !firstCallCompleted) {
+              return [
+                {
+                  id: 'tp-1',
+                  tournamentId,
+                  playerId: eliminatedId,
+                  finalRank: null,
+                  eliminationsCount: 0,
+                  player: { id: eliminatedId, firstName: 'Eliminated', lastName: 'Player', nickname: 'eliminated' },
+                },
+                {
+                  id: 'tp-2',
+                  tournamentId,
+                  playerId: eliminatorId,
+                  finalRank: null,
+                  eliminationsCount: 0,
+                  player: { id: eliminatorId, firstName: 'Eliminator', lastName: 'Player', nickname: 'eliminator' },
+                },
+              ];
+            }
+            // After first call completed, player is eliminated
+            return [
+              {
+                id: 'tp-1',
+                tournamentId,
+                playerId: eliminatedId,
+                finalRank: 2, // Already eliminated
+                eliminationsCount: 0,
+                player: { id: eliminatedId, firstName: 'Eliminated', lastName: 'Player', nickname: 'eliminated' },
+              },
+              {
+                id: 'tp-2',
+                tournamentId,
+                playerId: eliminatorId,
+                finalRank: null,
+                eliminationsCount: 1,
+                player: { id: eliminatorId, firstName: 'Eliminator', lastName: 'Player', nickname: 'eliminator' },
+              },
+            ];
+          }),
+          updateMany: jest.fn().mockImplementation(async () => {
+            // First call succeeds (count = 1)
+            // Second call fails because finalRank is no longer null (count = 0)
+            if (callNumber === 1) {
+              firstCallCompleted = true;
+              return { count: 1 };
+            }
+            return { count: 0 }; // Player already eliminated
+          }),
+          update: jest.fn().mockResolvedValue({}),
+        },
+        elimination: {
+          findMany: jest.fn().mockResolvedValue([]),
+          create: jest.fn().mockResolvedValue({
+            id: 'elim-1',
+            tournamentId,
+            eliminatedId,
+            eliminatorId,
+            rank: 2,
+            level: 3,
+            isLeaderKill: true,
+            eliminated: { id: eliminatedId, firstName: 'Eliminated', lastName: 'Player', nickname: 'eliminated' },
+            eliminator: { id: eliminatorId, firstName: 'Eliminator', lastName: 'Player', nickname: 'eliminator' },
+          }),
+        },
+      };
+
+      return fn(mockTx);
+    });
+
+    // Replace prisma.$transaction with our mock
+    (mockPrisma.$transaction as jest.Mock) = mockTransaction;
+
+    // Reset mocks for this test
+    (mockPrisma.player.findUnique as jest.Mock).mockImplementation(
+      ({ where }: { where: { id?: string } }) => {
+        if (where.id === TEST_IDS.TD_PLAYER) {
+          return Promise.resolve({ ...MOCK_PLAYERS.tournamentDirector, roles: [] });
+        }
+        return Promise.resolve(null);
+      }
+    );
+
+    const mockTournament = {
+      id: tournamentId,
+      name: 'Test Tournament',
+      status: 'IN_PROGRESS',
+      currentLevel: 3,
+      createdById: TEST_IDS.TD_PLAYER,
+      season: null,
+      tournamentPlayers: [
+        {
+          id: 'tp-1',
+          tournamentId,
+          playerId: eliminatedId,
+          finalRank: null,
+          eliminationsCount: 0,
+          player: { id: eliminatedId, firstName: 'Eliminated', lastName: 'Player', nickname: 'eliminated' },
+        },
+        {
+          id: 'tp-2',
+          tournamentId,
+          playerId: eliminatorId,
+          finalRank: null,
+          eliminationsCount: 0,
+          player: { id: eliminatorId, firstName: 'Eliminator', lastName: 'Player', nickname: 'eliminator' },
+        },
+      ],
+    };
+
+    (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue(mockTournament);
+    (mockPrisma.tournamentDirector.findUnique as jest.Mock).mockResolvedValue(null);
+    (mockPrisma.tournamentPlayer.count as jest.Mock).mockResolvedValue(1);
+
+    const payload = { eliminatedId, eliminatorId };
+
+    // Create two identical requests
+    const request1 = new NextRequest(
+      `http://localhost/api/tournaments/${tournamentId}/eliminations`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: `player-id=${TEST_IDS.TD_PLAYER}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const request2 = new NextRequest(
+      `http://localhost/api/tournaments/${tournamentId}/eliminations`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: `player-id=${TEST_IDS.TD_PLAYER}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    // Execute both requests
+    const [response1, response2] = await Promise.all([
+      POST(request1, { params: Promise.resolve({ id: tournamentId }) }),
+      POST(request2, { params: Promise.resolve({ id: tournamentId }) }),
+    ]);
+
+    const statuses = [response1.status, response2.status].sort();
+
+    // One should succeed (201), one should fail (400)
+    expect(statuses).toContain(201);
+    expect(statuses).toContain(400);
+
+    // The failed one should have the right error message
+    const failedResponse = response1.status === 400 ? response1 : response2;
+    const data = await failedResponse.json();
+    expect(data.error).toBe('Player has already been eliminated');
   });
 });
