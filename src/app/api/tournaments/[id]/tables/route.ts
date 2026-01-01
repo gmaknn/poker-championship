@@ -121,6 +121,14 @@ export async function POST(
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
+    // Block mutations on finished tournaments
+    if (tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
+    }
+
     // Récupérer les joueurs inscrits (non éliminés)
     const tournamentPlayers = await prisma.tournamentPlayer.findMany({
       where: {
@@ -301,6 +309,14 @@ export async function DELETE(
     const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage', tournamentId);
     if (!permResult.success) {
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
+    // Block mutations on finished tournaments
+    if (tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
     }
 
     // Marquer toutes les assignations comme inactives

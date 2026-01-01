@@ -68,6 +68,14 @@ export async function POST(
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
+    // Block mutations on finished tournaments
+    if (tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     console.log('[Blinds API] Received data:', JSON.stringify(body, null, 2));
 
@@ -146,6 +154,14 @@ export async function DELETE(
     const permResult = await requireTournamentPermission(request, tournament.createdById, 'edit');
     if (!permResult.success) {
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
+    }
+
+    // Block mutations on finished tournaments
+    if (tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
     }
 
     await prisma.blindLevel.deleteMany({

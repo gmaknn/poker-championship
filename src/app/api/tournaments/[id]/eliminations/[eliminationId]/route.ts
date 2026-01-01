@@ -38,6 +38,14 @@ export async function DELETE(
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
+    // Block mutations on finished tournaments
+    if (elimination.tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
+    }
+
     // Vérifier que c'est la dernière élimination (on ne peut annuler que la dernière)
     const lastElimination = await prisma.elimination.findFirst({
       where: { tournamentId },
