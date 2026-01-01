@@ -1,13 +1,14 @@
 /**
  * Helpers d'authentification et d'autorisation
  * Supporte NextAuth (prod) et cookie player-id (dev)
+ * Supporte multi-rôles et TD par tournoi
  */
 
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { PlayerRole } from '@prisma/client';
 import { auth } from '@/lib/auth';
-import { hasPermission } from '@/lib/permissions';
+import { hasPermission, isAdminMultiRole } from '@/lib/permissions';
 
 /**
  * Récupère le joueur/user actuel
@@ -32,6 +33,7 @@ export async function getCurrentPlayer(request: NextRequest) {
 
       if (user) {
         // Retourner un objet compatible avec le format Player
+        // Note: les users NextAuth n'ont pas de rôles additionnels (multi-rôle via Player uniquement)
         return {
           id: user.id,
           firstName: user.name || '',
@@ -41,6 +43,7 @@ export async function getCurrentPlayer(request: NextRequest) {
           avatar: null,
           role: user.role as PlayerRole,
           status: 'ACTIVE' as const,
+          additionalRoles: [] as PlayerRole[],
         };
       }
     }
@@ -76,10 +79,21 @@ export async function getCurrentPlayer(request: NextRequest) {
       avatar: true,
       role: true,
       status: true,
+      roles: {
+        select: { role: true },
+      },
     },
   });
 
-  return player;
+  if (!player) {
+    return null;
+  }
+
+  // Ajouter les rôles additionnels au retour
+  return {
+    ...player,
+    additionalRoles: player.roles?.map(r => r.role) ?? [],
+  };
 }
 
 /**
@@ -342,12 +356,13 @@ export async function requirePermission(
 
 /**
  * Helper pour vérifier les permissions sur un tournoi spécifique
- * Gère la logique "own tournament" vs "all tournaments"
+ * Gère la logique "own tournament" vs "all tournaments" et TD assignés
  */
 export async function requireTournamentPermission(
   request: NextRequest,
   tournamentCreatorId: string | null,
-  action: 'edit' | 'delete' | 'manage'
+  action: 'edit' | 'delete' | 'manage',
+  tournamentId?: string
 ): Promise<RequirePermissionResult> {
   const player = await getCurrentPlayer(request);
 
@@ -359,16 +374,23 @@ export async function requireTournamentPermission(
     return { success: false, error: 'Compte inactif', status: 403 };
   }
 
-  // ADMIN bypass
-  if (player.role === PlayerRole.ADMIN) {
+  // ADMIN bypass (multi-role aware)
+  if (isAdminMultiRole(player.role, player.additionalRoles)) {
     return { success: true, player };
   }
 
   // Pour les actions de gestion (registrations, timer, eliminations, rebuys, finalize)
   if (action === 'manage') {
-    // TD peut gérer ses propres tournois ou si pas de créateur défini
-    const canManage = player.role === PlayerRole.TOURNAMENT_DIRECTOR &&
-      (tournamentCreatorId === null || tournamentCreatorId === player.id);
+    // Vérifier si le joueur est TD assigné à ce tournoi
+    let isAssignedDirector = false;
+    if (tournamentId) {
+      isAssignedDirector = await checkIsTournamentDirector(player.id, tournamentId);
+    }
+
+    // TD peut gérer : ses tournois créés OU tournois où il est assigné
+    const canManage =
+      (player.role === PlayerRole.TOURNAMENT_DIRECTOR || player.additionalRoles?.includes(PlayerRole.TOURNAMENT_DIRECTOR)) &&
+      (tournamentCreatorId === null || tournamentCreatorId === player.id || isAssignedDirector);
 
     if (!canManage) {
       return { success: false, error: 'Permission refusée', status: 403 };
@@ -384,9 +406,92 @@ export async function requireTournamentPermission(
     return { success: true, player };
   }
 
+  // Vérifier si TD assigné pour edit
+  if (action === 'edit' && tournamentId) {
+    const isAssigned = await checkIsTournamentDirector(player.id, tournamentId);
+    if (isAssigned && hasPermission(player.role, ownPermission)) {
+      return { success: true, player };
+    }
+  }
+
   if (hasPermission(player.role, ownPermission) && tournamentCreatorId === player.id) {
     return { success: true, player };
   }
 
   return { success: false, error: 'Permission refusée', status: 403 };
+}
+
+/**
+ * Vérifie si un joueur est directeur assigné à un tournoi
+ */
+export async function checkIsTournamentDirector(
+  playerId: string,
+  tournamentId: string
+): Promise<boolean> {
+  const assignment = await prisma.tournamentDirector.findUnique({
+    where: {
+      tournamentId_playerId: {
+        tournamentId,
+        playerId,
+      },
+    },
+  });
+  return assignment !== null;
+}
+
+/**
+ * Vérifie si un joueur peut gérer un tournoi
+ * ADMIN = toujours OK
+ * TD = OK si créateur OU assigné comme directeur
+ */
+export async function canManageTournament(
+  playerId: string,
+  playerRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined,
+  tournamentId: string,
+  tournamentCreatorId: string | null
+): Promise<boolean> {
+  // ADMIN bypass
+  if (isAdminMultiRole(playerRole, additionalRoles)) {
+    return true;
+  }
+
+  // Vérifier si TD (rôle principal ou additionnel)
+  const isTD =
+    playerRole === PlayerRole.TOURNAMENT_DIRECTOR ||
+    additionalRoles?.includes(PlayerRole.TOURNAMENT_DIRECTOR);
+
+  if (!isTD) {
+    return false;
+  }
+
+  // Vérifier si créateur
+  if (tournamentCreatorId === playerId) {
+    return true;
+  }
+
+  // Vérifier si assigné comme directeur
+  return checkIsTournamentDirector(playerId, tournamentId);
+}
+
+/**
+ * Récupère la liste des directeurs assignés à un tournoi
+ */
+export async function getTournamentDirectors(tournamentId: string) {
+  const directors = await prisma.tournamentDirector.findMany({
+    where: { tournamentId },
+    include: {
+      player: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          nickname: true,
+          avatar: true,
+        },
+      },
+    },
+    orderBy: { assignedAt: 'asc' },
+  });
+  return directors;
 }
