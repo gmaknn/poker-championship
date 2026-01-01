@@ -94,7 +94,7 @@ export async function POST(
       );
     }
 
-    // Vérifier que les deux joueurs sont inscrits au tournoi
+    // Vérifier que les deux joueurs sont inscrits au tournoi (pre-check rapide)
     const eliminatedPlayer = tournament.tournamentPlayers.find(
       (tp) => tp.playerId === validatedData.eliminatedId
     );
@@ -109,7 +109,7 @@ export async function POST(
       );
     }
 
-    // Vérifier que le joueur éliminé n'a pas déjà une position finale
+    // Vérifier que le joueur éliminé n'a pas déjà une position finale (pre-check rapide)
     if (eliminatedPlayer.finalRank !== null) {
       return NextResponse.json(
         { error: 'Player has already been eliminated' },
@@ -117,64 +117,81 @@ export async function POST(
       );
     }
 
-    // Compter le nombre de joueurs restants pour déterminer le rank
-    const remainingPlayers = tournament.tournamentPlayers.filter(
-      (tp) => tp.finalRank === null
-    ).length;
-    const rank = remainingPlayers; // Position de sortie
-
-    // Vérifier que le rank calculé est dans les bornes valides (1..N)
-    const totalPlayers = tournament.tournamentPlayers.length;
-    if (rank < 1 || rank > totalPlayers) {
-      return NextResponse.json(
-        { error: 'Computed finalRank is out of bounds' },
-        { status: 400 }
-      );
-    }
-
-    // Vérifier que le rank n'est pas déjà pris par un autre joueur
-    const existingRank = tournament.tournamentPlayers.find(
-      (tp) => tp.finalRank === rank && tp.playerId !== validatedData.eliminatedId
-    );
-    if (existingRank) {
-      return NextResponse.json(
-        { error: 'FinalRank is already taken' },
-        { status: 400 }
-      );
-    }
-
-    // Récupérer toutes les éliminations existantes pour déterminer le leader killer
-    const existingEliminations = await prisma.elimination.findMany({
-      where: { tournamentId },
-      include: {
-        tournament: {
-          include: {
-            tournamentPlayers: true,
-          },
-        },
-      },
-    });
-
-    // Compter les éliminations par joueur
-    const eliminationCounts = new Map<string, number>();
-    existingEliminations.forEach((elim) => {
-      const count = eliminationCounts.get(elim.eliminatorId) || 0;
-      eliminationCounts.set(elim.eliminatorId, count + 1);
-    });
-
-    // Ajouter l'élimination actuelle au décompte
-    const currentEliminatorCount =
-      (eliminationCounts.get(validatedData.eliminatorId) || 0) + 1;
-    eliminationCounts.set(validatedData.eliminatorId, currentEliminatorCount);
-
-    // Trouver le maximum d'éliminations
-    const maxEliminations = Math.max(...Array.from(eliminationCounts.values()));
-
-    // Vérifier si c'est un leader kill (l'éliminateur a maintenant le plus d'éliminations)
-    const isLeaderKill = currentEliminatorCount === maxEliminations;
-
-    // Créer l'élimination dans une transaction
+    // === TRANSACTION ATOMIQUE ===
+    // Toutes les validations critiques et écritures sont dans la transaction
+    // pour éviter les race conditions
     const result = await prisma.$transaction(async (tx) => {
+      // Re-lecture atomique des joueurs du tournoi dans la transaction
+      const currentPlayers = await tx.tournamentPlayer.findMany({
+        where: { tournamentId },
+        include: { player: true },
+      });
+
+      // Re-vérifier que le joueur n'est pas déjà éliminé (race-safe)
+      const targetPlayer = currentPlayers.find(
+        (tp) => tp.playerId === validatedData.eliminatedId
+      );
+      if (!targetPlayer || targetPlayer.finalRank !== null) {
+        throw new Error('PLAYER_ALREADY_ELIMINATED');
+      }
+
+      // Calculer le rank à partir des données fraîches
+      const remainingPlayers = currentPlayers.filter(
+        (tp) => tp.finalRank === null
+      ).length;
+      const rank = remainingPlayers;
+
+      // Vérifier les bornes
+      const totalPlayers = currentPlayers.length;
+      if (rank < 1 || rank > totalPlayers) {
+        throw new Error('RANK_OUT_OF_BOUNDS');
+      }
+
+      // Vérifier que le rank n'est pas déjà pris (race-safe)
+      const existingRank = currentPlayers.find(
+        (tp) => tp.finalRank === rank && tp.playerId !== validatedData.eliminatedId
+      );
+      if (existingRank) {
+        throw new Error('RANK_ALREADY_TAKEN');
+      }
+
+      // Récupérer les éliminations existantes pour le leader kill
+      const existingEliminations = await tx.elimination.findMany({
+        where: { tournamentId },
+      });
+
+      // Compter les éliminations par joueur
+      const eliminationCounts = new Map<string, number>();
+      existingEliminations.forEach((elim) => {
+        const count = eliminationCounts.get(elim.eliminatorId) || 0;
+        eliminationCounts.set(elim.eliminatorId, count + 1);
+      });
+
+      const currentEliminatorCount =
+        (eliminationCounts.get(validatedData.eliminatorId) || 0) + 1;
+      eliminationCounts.set(validatedData.eliminatorId, currentEliminatorCount);
+
+      const maxEliminations = Math.max(...Array.from(eliminationCounts.values()));
+      const isLeaderKill = currentEliminatorCount === maxEliminations;
+
+      // === ÉCRITURE ATOMIQUE avec updateMany conditionnel ===
+      // Utiliser updateMany avec condition finalRank: null pour garantir l'atomicité
+      const updateResult = await tx.tournamentPlayer.updateMany({
+        where: {
+          tournamentId,
+          playerId: validatedData.eliminatedId,
+          finalRank: null, // Condition critique: seulement si pas encore éliminé
+        },
+        data: {
+          finalRank: rank,
+        },
+      });
+
+      // Si count != 1, le joueur a été éliminé par une autre requête concurrente
+      if (updateResult.count !== 1) {
+        throw new Error('PLAYER_ALREADY_ELIMINATED');
+      }
+
       // Créer l'élimination
       const elimination = await tx.elimination.create({
         data: {
@@ -205,20 +222,7 @@ export async function POST(
         },
       });
 
-      // Mettre à jour le joueur éliminé
-      await tx.tournamentPlayer.update({
-        where: {
-          tournamentId_playerId: {
-            tournamentId,
-            playerId: validatedData.eliminatedId,
-          },
-        },
-        data: {
-          finalRank: rank,
-        },
-      });
-
-      // Mettre à jour l'éliminateur (incrémenter ses éliminations)
+      // Mettre à jour l'éliminateur
       await tx.tournamentPlayer.update({
         where: {
           tournamentId_playerId: {
@@ -232,16 +236,18 @@ export async function POST(
         },
       });
 
-      return elimination;
+      return { elimination, rank, isLeaderKill };
     });
+
+    const { elimination, rank, isLeaderKill } = result;
 
     // Émettre l'événement d'élimination via WebSocket
     emitToTournament(tournamentId, 'elimination:player_out', {
       tournamentId,
       eliminatedId: validatedData.eliminatedId,
-      eliminatedName: result.eliminated.nickname,
+      eliminatedName: elimination.eliminated.nickname,
       eliminatorId: validatedData.eliminatorId,
-      eliminatorName: result.eliminator.nickname,
+      eliminatorName: elimination.eliminator.nickname,
       rank,
       level: tournament.currentLevel,
       isLeaderKill,
@@ -316,7 +322,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      elimination: result,
+      elimination,
       tournamentCompleted,
       remainingPlayers: activePlayersCount,
     }, { status: 201 });
@@ -326,6 +332,28 @@ export async function POST(
         { error: 'Validation error', details: error.issues },
         { status: 400 }
       );
+    }
+
+    // Mapper les erreurs de transaction atomique en 400 clairs
+    if (error instanceof Error) {
+      if (error.message === 'PLAYER_ALREADY_ELIMINATED') {
+        return NextResponse.json(
+          { error: 'Player has already been eliminated' },
+          { status: 400 }
+        );
+      }
+      if (error.message === 'RANK_OUT_OF_BOUNDS') {
+        return NextResponse.json(
+          { error: 'Computed finalRank is out of bounds' },
+          { status: 400 }
+        );
+      }
+      if (error.message === 'RANK_ALREADY_TAKEN') {
+        return NextResponse.json(
+          { error: 'FinalRank is already taken' },
+          { status: 400 }
+        );
+      }
     }
 
     console.error('Error creating elimination:', error);
