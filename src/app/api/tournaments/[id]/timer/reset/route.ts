@@ -28,6 +28,14 @@ export async function POST(
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
 
+    // Block mutations on finished tournaments
+    if (tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
+    }
+
     // Réinitialiser le timer
     const updatedTournament = await prisma.tournament.update({
       where: { id },
