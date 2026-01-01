@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
@@ -349,6 +350,17 @@ export async function POST(
         );
       }
       if (error.message === 'RANK_ALREADY_TAKEN') {
+        return NextResponse.json(
+          { error: 'FinalRank is already taken' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Map Prisma unique constraint violation (P2002) on finalRank to 400
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = error.meta?.target;
+      if (Array.isArray(target) && target.includes('finalRank')) {
         return NextResponse.json(
           { error: 'FinalRank is already taken' },
           { status: 400 }
