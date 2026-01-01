@@ -123,6 +123,26 @@ export async function POST(
     ).length;
     const rank = remainingPlayers; // Position de sortie
 
+    // Vérifier que le rank calculé est dans les bornes valides (1..N)
+    const totalPlayers = tournament.tournamentPlayers.length;
+    if (rank < 1 || rank > totalPlayers) {
+      return NextResponse.json(
+        { error: 'Computed finalRank is out of bounds' },
+        { status: 400 }
+      );
+    }
+
+    // Vérifier que le rank n'est pas déjà pris par un autre joueur
+    const existingRank = tournament.tournamentPlayers.find(
+      (tp) => tp.finalRank === rank && tp.playerId !== validatedData.eliminatedId
+    );
+    if (existingRank) {
+      return NextResponse.json(
+        { error: 'FinalRank is already taken' },
+        { status: 400 }
+      );
+    }
+
     // Récupérer toutes les éliminations existantes pour déterminer le leader killer
     const existingEliminations = await prisma.elimination.findMany({
       where: { tournamentId },
