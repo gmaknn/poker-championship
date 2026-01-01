@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Search } from 'lucide-react';
+import { Users, Search, Trophy, Zap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type Player = {
@@ -76,6 +76,41 @@ export default function PlayerSelectPage() {
         <p className="text-xl text-muted-foreground">
           Sélectionnez votre profil pour accéder à vos statistiques
         </p>
+      </div>
+
+      {/* Quick Access - Leaderboards */}
+      <div className="max-w-4xl mx-auto">
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card
+            className="cursor-pointer hover:bg-accent transition-colors border-primary/20"
+            onClick={() => router.push('/dashboard/leaderboard')}
+          >
+            <CardHeader className="flex flex-row items-center gap-4">
+              <Trophy className="h-10 w-10 text-yellow-500" />
+              <div>
+                <CardTitle>Classement Général</CardTitle>
+                <CardDescription>
+                  Voir le classement de la saison en cours
+                </CardDescription>
+              </div>
+            </CardHeader>
+          </Card>
+
+          <Card
+            className="cursor-pointer hover:bg-accent transition-colors border-primary/20"
+            onClick={() => router.push('/dashboard/live')}
+          >
+            <CardHeader className="flex flex-row items-center gap-4">
+              <Zap className="h-10 w-10 text-orange-500" />
+              <div>
+                <CardTitle>Classement Live</CardTitle>
+                <CardDescription>
+                  Suivre les points en direct pendant un tournoi
+                </CardDescription>
+              </div>
+            </CardHeader>
+          </Card>
+        </div>
       </div>
 
       {/* Search */}

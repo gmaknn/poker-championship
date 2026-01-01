@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { calculateLeaderboard } from '@/lib/leaderboard';
+import { requireActivePlayer } from '@/lib/auth-helpers';
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -9,9 +10,23 @@ type Params = {
 /**
  * GET /api/players/[id]/dashboard
  * Get comprehensive dashboard data for a player
+ *
+ * RBAC:
+ * - 401: Not authenticated
+ * - 403: INACTIVE status
+ * - 200: ACTIVE status (PLAYER or higher)
  */
 export async function GET(request: NextRequest, { params }: Params) {
   try {
+    // Check authentication and ACTIVE status
+    const authResult = await requireActivePlayer(request);
+    if (!authResult.success) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+
     const { id } = await params;
 
     // Get player info
