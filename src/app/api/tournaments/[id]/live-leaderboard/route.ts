@@ -94,19 +94,55 @@ export async function GET(
       })
     );
 
-    // Trier par points décroissants, puis par éliminations décroissantes
-    const sortedLeaderboard = liveLeaderboard.sort((a, b) => {
-      if (b.currentPoints !== a.currentPoints) {
-        return b.currentPoints - a.currentPoints;
-      }
-      return b.eliminationsCount - a.eliminationsCount;
-    });
+    let leaderboardWithRank;
 
-    // Ajouter le rang actuel
-    const leaderboardWithRank = sortedLeaderboard.map((entry, index) => ({
-      ...entry,
-      currentRank: index + 1,
-    }));
+    // FINISHED: sort by finalRank (stable, persisted) and validate consistency
+    if (tournament.status === 'FINISHED') {
+      const N = liveLeaderboard.length;
+
+      // Validate: all players must have a finalRank
+      const allHaveRank = liveLeaderboard.every(entry => entry.finalRank !== null);
+      if (!allHaveRank) {
+        return NextResponse.json(
+          { error: 'Invalid finished leaderboard: final ranks are inconsistent' },
+          { status: 400 }
+        );
+      }
+
+      // Validate: ranks must be unique and in bounds [1..N]
+      const ranks = liveLeaderboard.map(entry => entry.finalRank as number);
+      const uniqueRanks = new Set(ranks);
+      const allInBounds = ranks.every(rank => rank >= 1 && rank <= N);
+      if (uniqueRanks.size !== N || !allInBounds) {
+        return NextResponse.json(
+          { error: 'Invalid finished leaderboard: final ranks are inconsistent' },
+          { status: 400 }
+        );
+      }
+
+      // Sort by finalRank ascending (1, 2, 3, ..., N)
+      const sortedByFinalRank = [...liveLeaderboard].sort(
+        (a, b) => (a.finalRank as number) - (b.finalRank as number)
+      );
+
+      leaderboardWithRank = sortedByFinalRank.map((entry) => ({
+        ...entry,
+        currentRank: entry.finalRank as number,
+      }));
+    } else {
+      // IN_PROGRESS or other: sort by currentPoints descending, then eliminations
+      const sortedLeaderboard = liveLeaderboard.sort((a, b) => {
+        if (b.currentPoints !== a.currentPoints) {
+          return b.currentPoints - a.currentPoints;
+        }
+        return b.eliminationsCount - a.eliminationsCount;
+      });
+
+      leaderboardWithRank = sortedLeaderboard.map((entry, index) => ({
+        ...entry,
+        currentRank: index + 1,
+      }));
+    }
 
     // Statistiques du tournoi
     const stats = {
