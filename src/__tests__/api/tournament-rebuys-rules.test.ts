@@ -216,6 +216,31 @@ describe('POST /api/tournaments/[id]/rebuys - Business Rules', () => {
       const data = await response.json();
       expect(data.error).toContain('not in progress');
     });
+
+    it('should return 400 when tournament is FINISHED (readonly)', async () => {
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
+        ...mockTournament,
+        status: 'FINISHED',
+      });
+
+      const request = new NextRequest(
+        `http://localhost/api/tournaments/${tournamentId}/rebuys`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            cookie: `player-id=${TEST_IDS.TD_PLAYER}`,
+          },
+          body: JSON.stringify(validPayload),
+        }
+      );
+
+      const response = await POST(request, { params: Promise.resolve({ id: tournamentId }) });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toBe('Tournament is finished');
+    });
   });
 
   describe('Business Rule: Late Registration / Rebuy Period', () => {

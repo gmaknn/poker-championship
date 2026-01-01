@@ -41,6 +41,14 @@ export async function POST(
     const validatedData = rebuySchema.parse(body);
 
     // Pre-checks rapides (hors transaction)
+    // Block mutations on finished tournaments (readonly)
+    if (tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
+    }
+
     if (tournament.status !== 'IN_PROGRESS') {
       return NextResponse.json(
         { error: 'Tournament is not in progress' },
