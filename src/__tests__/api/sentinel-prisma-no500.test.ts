@@ -101,7 +101,11 @@ describe('Sentinel Tests - No 500 Errors', () => {
     });
 
     it('should return 404 for non-existent player (not 500)', async () => {
-      const request = createMockRequest('/api/players/non-existent-id/dashboard');
+      // Dashboard requires authentication - use authenticated request
+      const request = createAuthenticatedRequest(
+        '/api/players/non-existent-id/dashboard',
+        TEST_IDS.ADMIN_PLAYER
+      );
       const response = await GET(request, {
         params: Promise.resolve({ id: 'non-existent-id' }),
       });
@@ -115,12 +119,15 @@ describe('Sentinel Tests - No 500 Errors', () => {
     });
 
     it('should handle Prisma errors gracefully and return 500 with message', async () => {
-      // Make prisma throw an error on the first call
-      mockPrismaClient.player.findUnique.mockRejectedValueOnce(
-        new Error('Database connection failed')
-      );
+      // First call succeeds for auth check, second call (target player) fails
+      mockPrismaClient.player.findUnique
+        .mockResolvedValueOnce({ ...MOCK_PLAYERS.admin, roles: [] }) // Auth check
+        .mockRejectedValueOnce(new Error('Database connection failed')); // Target player
 
-      const request = createMockRequest(`/api/players/${TEST_IDS.REGULAR_PLAYER}/dashboard`);
+      const request = createAuthenticatedRequest(
+        `/api/players/${TEST_IDS.REGULAR_PLAYER}/dashboard`,
+        TEST_IDS.ADMIN_PLAYER
+      );
       const response = await GET(request, {
         params: Promise.resolve({ id: TEST_IDS.REGULAR_PLAYER }),
       });

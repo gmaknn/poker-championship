@@ -495,3 +495,42 @@ export async function getTournamentDirectors(tournamentId: string) {
   });
   return directors;
 }
+
+/**
+ * Type pour le résultat de requireActivePlayer
+ */
+export type RequireActivePlayerResult =
+  | { success: true; player: NonNullable<Awaited<ReturnType<typeof getCurrentPlayer>>> }
+  | { success: false; error: string; status: 401 | 403 };
+
+/**
+ * Helper pour vérifier qu'un joueur est authentifié et ACTIVE
+ * Pour les endpoints read-only accessibles à tous les joueurs actifs
+ * (leaderboards, stats, etc.)
+ *
+ * @param request - La requête NextRequest
+ * @returns { success: true, player } ou { success: false, error, status }
+ */
+export async function requireActivePlayer(
+  request: NextRequest
+): Promise<RequireActivePlayerResult> {
+  const player = await getCurrentPlayer(request);
+
+  if (!player) {
+    return {
+      success: false,
+      error: 'Non authentifié',
+      status: 401
+    };
+  }
+
+  if (player.status !== 'ACTIVE') {
+    return {
+      success: false,
+      error: 'Compte inactif - Veuillez activer votre compte',
+      status: 403
+    };
+  }
+
+  return { success: true, player };
+}

@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireActivePlayer } from '@/lib/auth-helpers';
 
 /**
  * GET /api/tournaments/[id]/live-leaderboard
  * Récupère le classement en temps réel pendant un tournoi actif
  * Calcule les points basés sur les événements actuels (éliminations, bonus, malus)
+ *
+ * RBAC:
+ * - 401: Not authenticated
+ * - 403: INACTIVE status
+ * - 200: ACTIVE status (PLAYER or higher)
  */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check authentication and ACTIVE status
+    const authResult = await requireActivePlayer(request);
+    if (!authResult.success) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+
     const { id: tournamentId } = await params;
 
     // Récupérer le tournoi avec la saison et tous les joueurs
