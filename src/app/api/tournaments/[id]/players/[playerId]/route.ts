@@ -163,6 +163,14 @@ export async function DELETE(
       );
     }
 
+    // Block mutations on finished tournaments
+    if (tournament.status === 'FINISHED') {
+      return NextResponse.json(
+        { error: 'Tournament is finished' },
+        { status: 400 }
+      );
+    }
+
     if (tournament.status !== 'PLANNED') {
       return NextResponse.json(
         { error: 'Cannot unenroll player from started or finished tournament' },
