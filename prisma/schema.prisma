@@ -131,6 +131,7 @@ model Tournament {
   // Structure
   levelDuration         Int                 @default(12) // en minutes
   rebuyEndLevel         Int?                // Niveau où se termine la période de recave
+  maxRebuysPerPlayer    Int?                // Max rebuys par joueur (null = illimité)
 
   // Prize pool
   prizePool             Float?
