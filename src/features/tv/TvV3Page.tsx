@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
-import { Trophy, Users, DollarSign, Clock } from 'lucide-react';
+import { Trophy, Users, DollarSign, Clock, LayoutGrid } from 'lucide-react';
 import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed } from '@/lib/audioManager';
 import confetti from 'canvas-confetti';
 import { CircularTimer } from '@/components/CircularTimer';
@@ -85,6 +85,33 @@ type ChipDenomination = {
   order: number;
 };
 
+type TableSeat = {
+  seatNumber: number | null;
+  playerId: string;
+  nickname: string;
+  firstName: string;
+  lastName: string;
+  avatar: string | null;
+  isEliminated: boolean;
+};
+
+type TablePlanData = {
+  tableNumber: number;
+  seats: TableSeat[];
+  activeCount: number;
+  totalCount: number;
+};
+
+type TablesPlanResponse = {
+  tournamentId: string;
+  tournamentName: string;
+  tournamentStatus: string;
+  tables: TablePlanData[];
+  totalTables: number;
+  totalActivePlayers: number;
+  totalPlayers: number;
+};
+
 interface TvV3PageProps {
   tournamentId: string;
 }
@@ -134,6 +161,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const [currentTheme, setCurrentTheme] = useState<TVTheme>(TV_THEMES[0]);
   const [showThemeSelector, setShowThemeSelector] = useState(false);
 
+  // Tables Plan Mode
+  const [showTablesPlan, setShowTablesPlan] = useState(false);
+  const [tablesPlanData, setTablesPlanData] = useState<TablesPlanResponse | null>(null);
+  const [tablesPlanError, setTablesPlanError] = useState<string | null>(null);
+
   // Initialize TTS controls and theme from localStorage
   useEffect(() => {
     setTtsVolume(getTTSVolume());
@@ -157,11 +189,56 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     setShowThemeSelector(false);
   };
 
+  // Fetch tables plan data
+  const fetchTablesPlan = async () => {
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables-plan`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setTablesPlanError('Non authentifié');
+        } else if (response.status === 403) {
+          setTablesPlanError('Accès refusé');
+        } else {
+          setTablesPlanError('Erreur de chargement');
+        }
+        setTablesPlanData(null);
+        return;
+      }
+
+      const data = await response.json();
+      setTablesPlanData(data);
+      setTablesPlanError(null);
+    } catch (error) {
+      console.error('Error fetching tables plan:', error);
+      setTablesPlanError('Erreur de connexion');
+      setTablesPlanData(null);
+    }
+  };
+
+  // Toggle tables plan view
+  const handleToggleTablesPlan = () => {
+    if (!showTablesPlan) {
+      fetchTablesPlan();
+    }
+    setShowTablesPlan(!showTablesPlan);
+  };
+
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, [tournamentId]);
+
+  // Refresh tables plan when visible
+  useEffect(() => {
+    if (showTablesPlan) {
+      const interval = setInterval(fetchTablesPlan, 10000); // Refresh every 10 seconds
+      return () => clearInterval(interval);
+    }
+  }, [showTablesPlan, tournamentId]);
 
   // Trigger confetti when tournament finishes
   useEffect(() => {
@@ -872,8 +949,115 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         </div>
       )}
 
-      {/* Bottom Right - TTS Controls & Theme Selector */}
+      {/* Tables Plan Overlay */}
+      {showTablesPlan && (
+        <div className="fixed inset-0 z-[9998] bg-black/80 flex items-center justify-center p-8">
+          <div
+            className="w-full max-w-6xl max-h-[90vh] overflow-auto rounded-2xl p-6"
+            style={{ backgroundColor: currentTheme.colors.backgroundDark }}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+                <LayoutGrid className="h-8 w-8" style={{ color: currentTheme.colors.primary }} />
+                Plan des Tables
+              </h2>
+              <button
+                onClick={() => setShowTablesPlan(false)}
+                className="text-white/60 hover:text-white text-3xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+
+            {tablesPlanError ? (
+              <div className="text-center py-12">
+                <div className="text-red-400 text-xl font-bold mb-2">{tablesPlanError}</div>
+                <div className="text-white/60">
+                  {tablesPlanError === 'Accès refusé' && 'Seuls les admins et TD assignés peuvent voir le plan des tables.'}
+                  {tablesPlanError === 'Non authentifié' && 'Vous devez être connecté pour voir le plan des tables.'}
+                </div>
+              </div>
+            ) : !tablesPlanData ? (
+              <div className="text-center py-12">
+                <div className="text-white/60 text-xl">Chargement...</div>
+              </div>
+            ) : tablesPlanData.tables.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="text-white/60 text-xl">Aucune table configurée</div>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {tablesPlanData.tables.map((table) => (
+                    <div
+                      key={table.tableNumber}
+                      className="rounded-xl p-4 border-2"
+                      style={{
+                        backgroundColor: currentTheme.colors.backgroundLight,
+                        borderColor: currentTheme.colors.border,
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-lg font-bold" style={{ color: currentTheme.colors.primary }}>
+                          Table {table.tableNumber}
+                        </h3>
+                        <span className="text-sm text-white/60">
+                          {table.activeCount}/{table.totalCount}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {table.seats.map((seat, idx) => (
+                          <div
+                            key={seat.playerId}
+                            className={`flex items-center gap-2 text-sm p-2 rounded-lg ${
+                              seat.isEliminated ? 'opacity-40 line-through' : ''
+                            }`}
+                            style={{
+                              backgroundColor: seat.isEliminated
+                                ? 'transparent'
+                                : `${currentTheme.colors.primary}20`,
+                            }}
+                          >
+                            <span className="text-white/60 font-mono w-6">
+                              {seat.seatNumber ?? idx + 1}.
+                            </span>
+                            <span className="text-white font-medium truncate">
+                              {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-6 text-center text-white/60 text-sm">
+                  {tablesPlanData.totalTables} tables • {tablesPlanData.totalActivePlayers} joueurs actifs / {tablesPlanData.totalPlayers} total
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Right - TTS Controls & Theme Selector & Tables Plan Toggle */}
       <div className="fixed bottom-4 right-4 z-[9999] space-y-3">
+        {/* Tables Plan Toggle */}
+        <button
+          onClick={handleToggleTablesPlan}
+          className={`flex items-center gap-2 text-white font-bold text-sm px-4 py-3 rounded-xl shadow-2xl transition-all ${
+            showTablesPlan ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''
+          }`}
+          style={{
+            backgroundColor: showTablesPlan ? currentTheme.colors.primary : 'hsl(220,15%,18%)',
+            borderColor: currentTheme.colors.primary,
+            borderWidth: '2px',
+            borderStyle: 'solid',
+          }}
+        >
+          <LayoutGrid className="h-5 w-5" />
+          <span>{showTablesPlan ? 'Masquer Tables' : 'Plan des Tables'}</span>
+        </button>
+
         {/* Theme Selector */}
         <div className="bg-[hsl(220,15%,18%)] border-2 rounded-xl p-4 shadow-2xl" style={{ borderColor: currentTheme.colors.primary }}>
           <button
