@@ -278,7 +278,7 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
       expect(data.error).toContain('not in progress');
     });
 
-    it('should return 400 when tournament is FINISHED', async () => {
+    it('should return 400 when tournament is FINISHED (readonly)', async () => {
       (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
         ...mockTournament,
         status: 'FINISHED',
@@ -300,7 +300,7 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.error).toContain('not in progress');
+      expect(data.error).toBe('Tournament is finished');
     });
   });
 
