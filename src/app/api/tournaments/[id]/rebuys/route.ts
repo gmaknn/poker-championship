@@ -81,6 +81,16 @@ export async function POST(
       );
     }
 
+    // Vérifier le max rebuys par joueur (si configuré) - pour les rebuys standard uniquement
+    if (validatedData.type === 'STANDARD' && tournament.maxRebuysPerPlayer !== null) {
+      if (tournamentPlayer.rebuysCount >= tournament.maxRebuysPerPlayer) {
+        return NextResponse.json(
+          { error: `Maximum rebuys reached (${tournament.maxRebuysPerPlayer})` },
+          { status: 400 }
+        );
+      }
+    }
+
     // Vérifications spécifiques au light rebuy
     if (validatedData.type === 'LIGHT') {
       if (!tournament.lightRebuyEnabled) {
