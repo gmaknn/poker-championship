@@ -198,6 +198,7 @@ model TournamentPlayer {
   updatedAt         DateTime    @updatedAt
 
   @@unique([tournamentId, playerId])
+  @@unique([tournamentId, finalRank]) // Prevents duplicate ranks within a tournament (NULL values are ignored by SQLite)
   @@index([tournamentId])
   @@index([playerId])
 }
