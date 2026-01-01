@@ -33,8 +33,9 @@ model Player {
   lastName          String
   nickname          String              @unique
   email             String?
+  password          String?             // Hash du mot de passe (null = compte non activé)
   avatar            String?
-  status            PlayerStatus        @default(ACTIVE)
+  status            PlayerStatus        @default(INACTIVE)  // INACTIVE par défaut, passe à ACTIVE après activation
   role              PlayerRole          @default(PLAYER) // Rôle principal (legacy, gardé pour compatibilité)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
@@ -50,6 +51,9 @@ model Player {
 
   // Tournois où ce joueur est directeur assigné
   directedTournaments TournamentDirector[]
+
+  // Tokens d'activation
+  activationTokens  AccountActivationToken[]
 
   @@index([status])
   @@index([nickname])
@@ -377,6 +381,24 @@ model Settings {
 }
 
 // ============================================
+// MODÈLES AUTHENTIFICATION (Invitation + Activation)
+// ============================================
+
+// Token d'activation de compte (envoyé par email lors de l'invitation)
+model AccountActivationToken {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique  // Hash SHA-256 du token (jamais le token en clair)
+  playerId    String
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime  // Date d'expiration (48h par défaut)
+  usedAt      DateTime? // Date d'utilisation (null = non utilisé)
+  createdAt   DateTime  @default(now())
+
+  @@index([playerId])
+  @@index([expiresAt])
+}
+
+// ============================================
 // MODÈLES RBAC (Multi-rôles + TD par tournoi)
 // ============================================
 
@@ -420,6 +442,7 @@ enum PlayerRole {
 }
 
 enum PlayerStatus {
+  INACTIVE  // Compte créé mais pas encore activé (en attente d'activation via email)
   ACTIVE
   ARCHIVED
 }
