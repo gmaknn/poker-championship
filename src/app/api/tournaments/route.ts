@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { getCurrentPlayer, getCurrentActor } from '@/lib/auth-helpers';
-import { canViewAllTournaments, canCreateTournament } from '@/lib/permissions';
+import { canViewAllTournaments, hasPermissionMultiRole, PERMISSIONS } from '@/lib/permissions';
 
 // Validation schema for tournament creation
 const tournamentSchema = z.object({
@@ -123,19 +123,18 @@ export async function GET(request: NextRequest) {
 // POST create new tournament
 export async function POST(request: NextRequest) {
   try {
-    // Récupérer l'acteur actuel (User NextAuth + Player lié)
-    // autoCreatePlayer=true pour créer automatiquement un Player si nécessaire
-    const actor = await getCurrentActor(request, true);
+    // Récupérer le joueur actuel avec ses rôles additionnels
+    const currentPlayer = await getCurrentPlayer(request);
 
-    if (!actor) {
+    if (!currentPlayer) {
       return NextResponse.json(
         { error: 'Non authentifié' },
         { status: 401 }
       );
     }
 
-    // Vérifier la permission de création de tournoi
-    if (!canCreateTournament(actor.player.role)) {
+    // Vérifier la permission de création de tournoi (multi-role aware)
+    if (!hasPermissionMultiRole(currentPlayer.role, currentPlayer.additionalRoles, PERMISSIONS.CREATE_TOURNAMENT)) {
       return NextResponse.json(
         { error: 'Vous n\'avez pas la permission de créer des tournois' },
         { status: 403 }
@@ -177,7 +176,7 @@ export async function POST(request: NextRequest) {
           connect: { id: seasonId }
         },
         createdBy: {
-          connect: { id: actor.player.id }
+          connect: { id: currentPlayer.id }
         }
       },
       include: {

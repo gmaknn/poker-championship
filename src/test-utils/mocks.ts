@@ -24,6 +24,8 @@ export const MOCK_PLAYERS = {
     avatar: null,
     role: 'ADMIN' as PlayerRole,
     status: 'ACTIVE',
+    additionalRoles: [] as PlayerRole[],
+    roles: [] as { role: PlayerRole }[],
   },
   tournamentDirector: {
     id: TEST_IDS.TD_PLAYER,
@@ -34,6 +36,8 @@ export const MOCK_PLAYERS = {
     avatar: null,
     role: 'TOURNAMENT_DIRECTOR' as PlayerRole,
     status: 'ACTIVE',
+    additionalRoles: [] as PlayerRole[],
+    roles: [] as { role: PlayerRole }[],
   },
   player: {
     id: TEST_IDS.REGULAR_PLAYER,
@@ -44,6 +48,8 @@ export const MOCK_PLAYERS = {
     avatar: null,
     role: 'PLAYER' as PlayerRole,
     status: 'ACTIVE',
+    additionalRoles: [] as PlayerRole[],
+    roles: [] as { role: PlayerRole }[],
   },
 } as const;
 

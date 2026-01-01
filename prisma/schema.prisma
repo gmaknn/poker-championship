@@ -35,7 +35,7 @@ model Player {
   email             String?
   avatar            String?
   status            PlayerStatus        @default(ACTIVE)
-  role              PlayerRole          @default(PLAYER)
+  role              PlayerRole          @default(PLAYER) // Rôle principal (legacy, gardé pour compatibilité)
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
@@ -44,6 +44,12 @@ model Player {
   eliminations      Elimination[]       @relation("Eliminator")
   eliminatedBy      Elimination[]       @relation("Eliminated")
   createdTournaments Tournament[]       @relation("TournamentCreator")
+
+  // Multi-rôles (nouveau système)
+  roles             PlayerRoleAssignment[]
+
+  // Tournois où ce joueur est directeur assigné
+  directedTournaments TournamentDirector[]
 
   @@index([status])
   @@index([nickname])
@@ -145,6 +151,9 @@ model Tournament {
   tableAssignments      TableAssignment[]
   chipDenominations     ChipDenomination[]
   chipConfig            TournamentChipConfig?
+
+  // Directeurs de tournoi assignés (1..n)
+  directors             TournamentDirector[]
 
   @@index([seasonId])
   @@index([status])
@@ -365,6 +374,38 @@ model Settings {
 
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
+}
+
+// ============================================
+// MODÈLES RBAC (Multi-rôles + TD par tournoi)
+// ============================================
+
+// Table d'association Player <-> Roles (multi-rôles simultanés)
+model PlayerRoleAssignment {
+  id        String      @id @default(cuid())
+  playerId  String
+  player    Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  role      PlayerRole
+  createdAt DateTime    @default(now())
+
+  @@unique([playerId, role])
+  @@index([playerId])
+  @@index([role])
+}
+
+// Table d'association Tournament <-> Directors (1..n TD par tournoi)
+model TournamentDirector {
+  id            String      @id @default(cuid())
+  tournamentId  String
+  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  playerId      String
+  player        Player      @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  assignedAt    DateTime    @default(now())
+  assignedById  String?     // ID de l'admin qui a fait l'assignation
+
+  @@unique([tournamentId, playerId])
+  @@index([tournamentId])
+  @@index([playerId])
 }
 
 // ============================================

@@ -27,6 +27,9 @@ jest.mock('@/lib/prisma', () => ({
     season: {
       findUnique: jest.fn(),
     },
+    tournamentDirector: {
+      findUnique: jest.fn().mockResolvedValue(null), // Default: not assigned as director
+    },
   },
 }));
 

@@ -2,7 +2,9 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check } from 'lucide-react';
+import type { PlayerRole } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +22,7 @@ import EliminationManager from '@/components/EliminationManager';
 import TableDistribution from '@/components/TableDistribution';
 import TournamentResults from '@/components/TournamentResults';
 import PrizePoolManager from '@/components/PrizePoolManager';
+import TournamentDirectorsManager from '@/components/TournamentDirectorsManager';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -75,8 +78,10 @@ export default function TournamentDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
+  const { data: session } = useSession();
   const [tournament, setTournament] = useState<Tournament | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentUserRole, setCurrentUserRole] = useState<PlayerRole | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: '',
@@ -96,7 +101,35 @@ export default function TournamentDetailPage({
 
   useEffect(() => {
     fetchTournament();
-  }, [id]);
+    loadCurrentUser();
+  }, [id, session]);
+
+  const loadCurrentUser = async () => {
+    try {
+      // 1. Vérifier la session NextAuth (production)
+      if (session?.user?.role) {
+        setCurrentUserRole(session.user.role as PlayerRole);
+        return;
+      }
+
+      // 2. Fallback: cookie player-id (dev mode)
+      const cookies = document.cookie;
+      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+
+      if (playerIdMatch) {
+        const playerId = playerIdMatch[1];
+        const response = await fetch(`/api/players/${playerId}`);
+        if (response.ok) {
+          const player = await response.json();
+          setCurrentUserRole(player.role);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error);
+    }
+  };
+
+  const isAdmin = currentUserRole === 'ADMIN';
 
   const fetchTournament = async () => {
     try {
@@ -344,6 +377,7 @@ export default function TournamentDetailPage({
           <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
           <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
           <TabsTrigger value="results">Résultats</TabsTrigger>
+          {isAdmin && <TabsTrigger value="directors">Directeurs</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="structure" className="mt-6">
@@ -476,6 +510,15 @@ export default function TournamentDetailPage({
             onUpdate={() => fetchTournament()}
           />
         </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="directors" className="mt-6">
+            <TournamentDirectorsManager
+              tournamentId={tournament.id}
+              isAdmin={isAdmin}
+            />
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* Dialog de modification */}

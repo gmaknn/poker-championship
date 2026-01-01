@@ -15,6 +15,8 @@ type MockPrismaPlayer = {
   avatar: string | null;
   role: string;
   status: string;
+  additionalRoles?: string[];
+  roles?: { role: string }[];
 };
 type MockPrismaTournament = {
   id: string;
@@ -141,6 +143,10 @@ export const mockPrismaClient = {
   },
   elimination: {
     groupBy: jest.fn(() => Promise.resolve([])),
+  },
+  tournamentDirector: {
+    findUnique: jest.fn(() => Promise.resolve(null)),
+    findMany: jest.fn(() => Promise.resolve([])),
   },
 };
 

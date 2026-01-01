@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
-import { getCurrentPlayer } from '@/lib/auth-helpers';
-import { canEditTournament, canDeleteTournament } from '@/lib/permissions';
+import { getCurrentPlayer, requireTournamentPermission } from '@/lib/auth-helpers';
+import { canDeleteTournament } from '@/lib/permissions';
 
 const updateTournamentSchema = z.object({
   name: z.string().min(1).optional(),
@@ -94,21 +94,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Vérifier l'utilisateur actuel
-    const currentPlayer = await getCurrentPlayer(request);
-
-    if (!currentPlayer) {
-      return NextResponse.json(
-        { error: 'Non authentifié' },
-        { status: 401 }
-      );
-    }
-
     const { id } = await params;
-    const body = await request.json();
-    const validatedData = updateTournamentSchema.parse(body);
 
-    // Check if tournament exists
+    // Check if tournament exists first
     const existingTournament = await prisma.tournament.findUnique({
       where: { id },
     });
@@ -120,13 +108,23 @@ export async function PATCH(
       );
     }
 
-    // Vérifier les permissions
-    if (!canEditTournament(currentPlayer.role, existingTournament.createdById, currentPlayer.id)) {
+    // Vérifier les permissions (utilise requireTournamentPermission pour support TD assignés)
+    const permResult = await requireTournamentPermission(
+      request,
+      existingTournament.createdById,
+      'edit',
+      id
+    );
+
+    if (!permResult.success) {
       return NextResponse.json(
-        { error: 'Vous n\'avez pas la permission de modifier ce tournoi' },
-        { status: 403 }
+        { error: permResult.error || 'Vous n\'avez pas la permission de modifier ce tournoi' },
+        { status: permResult.status }
       );
     }
+
+    const body = await request.json();
+    const validatedData = updateTournamentSchema.parse(body);
 
     // Prevent editing completed tournaments (except prize pool and distribution)
     if (existingTournament.status === 'FINISHED') {

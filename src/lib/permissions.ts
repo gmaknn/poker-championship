@@ -1,5 +1,6 @@
 /**
  * Système de permissions pour les rôles
+ * Supporte multi-rôles simultanés et TD par tournoi
  */
 
 import { PlayerRole } from '@prisma/client';
@@ -28,6 +29,9 @@ export const ROLE_DESCRIPTIONS = {
   [ROLES.ANIMATOR]: 'Peut publier des messages et statistiques sur WhatsApp',
   [ROLES.ADMIN]: 'Accès complet à toutes les fonctionnalités',
 };
+
+// Type pour représenter un ensemble de rôles (multi-rôle)
+export type RoleSet = PlayerRole[];
 
 // ============================================
 // PERMISSIONS
@@ -259,4 +263,114 @@ export function getRoleLabel(role: PlayerRole): string {
  */
 export function getRoleDescription(role: PlayerRole): string {
   return ROLE_DESCRIPTIONS[role] || '';
+}
+
+// ============================================
+// HELPERS MULTI-RÔLES
+// ============================================
+
+/**
+ * Vérifie si un joueur a un rôle spécifique
+ * Supporte à la fois le rôle unique (legacy) et les multi-rôles
+ *
+ * @param primaryRole - Rôle principal du joueur (champ Player.role)
+ * @param additionalRoles - Rôles additionnels (de PlayerRoleAssignment)
+ * @param targetRole - Rôle recherché
+ */
+export function hasRoleInSet(
+  primaryRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined,
+  targetRole: PlayerRole
+): boolean {
+  // Vérifier le rôle principal
+  if (primaryRole === targetRole) {
+    return true;
+  }
+  // Vérifier les rôles additionnels
+  if (additionalRoles && additionalRoles.includes(targetRole)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Vérifie si un joueur a au moins un des rôles spécifiés
+ */
+export function hasAnyRoleInSet(
+  primaryRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined,
+  targetRoles: PlayerRole[]
+): boolean {
+  return targetRoles.some(role => hasRoleInSet(primaryRole, additionalRoles, role));
+}
+
+/**
+ * Vérifie si un joueur a une permission donnée en tenant compte de tous ses rôles
+ * ADMIN a toujours accès (bypass)
+ */
+export function hasPermissionMultiRole(
+  primaryRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined,
+  permission: string
+): boolean {
+  // ADMIN bypass
+  if (hasRoleInSet(primaryRole, additionalRoles, ROLES.ADMIN as PlayerRole)) {
+    return true;
+  }
+
+  // Collecter toutes les permissions de tous les rôles
+  const allRoles = [primaryRole, ...(additionalRoles || [])];
+  const uniqueRoles = [...new Set(allRoles)];
+
+  for (const role of uniqueRoles) {
+    if (hasPermission(role, permission)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Récupère l'ensemble des rôles d'un joueur (primaryRole + additionalRoles)
+ */
+export function getAllRoles(
+  primaryRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined
+): PlayerRole[] {
+  const allRoles = [primaryRole, ...(additionalRoles || [])];
+  return [...new Set(allRoles)]; // Déduplique
+}
+
+/**
+ * Vérifie si un joueur est ADMIN (multi-rôle aware)
+ */
+export function isAdminMultiRole(
+  primaryRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined
+): boolean {
+  return hasRoleInSet(primaryRole, additionalRoles, ROLES.ADMIN as PlayerRole);
+}
+
+/**
+ * Vérifie si un joueur est Tournament Director (multi-rôle aware)
+ */
+export function isTournamentDirectorMultiRole(
+  primaryRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined
+): boolean {
+  return hasRoleInSet(primaryRole, additionalRoles, ROLES.TOURNAMENT_DIRECTOR as PlayerRole);
+}
+
+/**
+ * Vérifie si un joueur est TD ou Admin (multi-rôle aware)
+ */
+export function isTournamentDirectorOrAdminMultiRole(
+  primaryRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined
+): boolean {
+  return hasAnyRoleInSet(primaryRole, additionalRoles, [
+    ROLES.TOURNAMENT_DIRECTOR as PlayerRole,
+    ROLES.ADMIN as PlayerRole,
+  ]);
 }
