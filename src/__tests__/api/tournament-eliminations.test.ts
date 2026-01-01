@@ -138,24 +138,27 @@ describe('API /api/tournaments/[id]/eliminations RBAC', () => {
       aggregate: jest.fn().mockResolvedValue({ _sum: {} }),
     };
 
-    // Setup transaction mock
+    // Setup transaction mock - updated for atomic transaction
     mockPrismaClient.$transaction = jest.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
+        tournamentPlayer: {
+          findMany: jest.fn().mockResolvedValue(MOCK_TOURNAMENT_ELIM.tournamentPlayers),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+          update: jest.fn().mockResolvedValue({}),
+        },
         elimination: {
+          findMany: jest.fn().mockResolvedValue([]),
           create: jest.fn().mockResolvedValue({
             id: 'new-elim-id',
             tournamentId: TEST_IDS.TOURNAMENT,
             eliminatedId: PLAYER_A_ID,
             eliminatorId: PLAYER_B_ID,
-            rank: 4,
+            rank: 2,
             level: 3,
-            isLeaderKill: false,
+            isLeaderKill: true,
             eliminated: { id: PLAYER_A_ID, firstName: 'Player', lastName: 'A', nickname: 'playerA' },
             eliminator: { id: PLAYER_B_ID, firstName: 'Player', lastName: 'B', nickname: 'playerB' },
           }),
-        },
-        tournamentPlayer: {
-          update: jest.fn().mockResolvedValue({}),
         },
       };
       return fn(tx);
