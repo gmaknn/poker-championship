@@ -31,8 +31,8 @@ export async function POST(
       );
     }
 
-    // Vérifier les permissions (ADMIN ou TD du tournoi)
-    const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage');
+    // Vérifier les permissions (ADMIN ou TD du tournoi ou TD assigné)
+    const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage', tournamentId);
     if (!permResult.success) {
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
