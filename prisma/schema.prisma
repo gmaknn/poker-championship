@@ -135,6 +135,9 @@ model Tournament {
   // Prize pool
   prizePool             Float?
   prizeDistribution     Json?               // {1: 50%, 2: 30%, 3: 20%}
+  prizePayoutCount      Int?                // Nombre de places payées
+  prizePayoutPercents   Json?               // Array de pourcentages ex: [50, 30, 20]
+  prizePayoutUpdatedAt  DateTime?           // Dernière mise à jour de la distribution
 
   // Données du tournoi
   totalPlayers          Int?
