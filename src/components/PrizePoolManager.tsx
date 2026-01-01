@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Trophy, Plus, Trash2, AlertCircle } from 'lucide-react';
+import { Trophy, Plus, Trash2, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PrizePoolManagerProps {
@@ -13,141 +13,162 @@ interface PrizePoolManagerProps {
   onUpdate?: () => void;
 }
 
-interface PrizeAllocation {
-  position: number;
-  amount: number;
+interface PrizePoolData {
+  tournamentId: string;
+  tournamentName: string;
+  buyInAmount: number;
+  lightRebuyAmount: number;
+  paidPlayersCount: number;
+  totalBuyIns: number;
+  totalRebuys: number;
+  totalLightRebuys: number;
+  calculatedPrizePool: number;
+  totalPrizePool: number;
+  payoutCount: number;
+  percents: number[];
+  breakdown: { rank: number; percent: number; amount: number }[];
+  updatedAt: string | null;
 }
 
 export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolManagerProps) {
-  const [allocations, setAllocations] = useState<PrizeAllocation[]>([
-    { position: 1, amount: 0 },
-    { position: 2, amount: 0 },
-    { position: 3, amount: 0 },
-  ]);
-  const [prizePool, setPrizePool] = useState<number>(0);
+  const [prizePoolData, setPrizePoolData] = useState<PrizePoolData | null>(null);
+  const [payoutCount, setPayoutCount] = useState(3);
+  const [percents, setPercents] = useState<number[]>([50, 30, 20]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTournamentData();
+    fetchPrizePoolData();
   }, [tournamentId]);
 
-  const fetchTournamentData = async () => {
+  const fetchPrizePoolData = async () => {
+    setIsLoading(true);
+    setAuthError(null);
     try {
-      const response = await fetch(`/api/tournaments/${tournamentId}`);
-      if (response.ok) {
-        const data = await response.json();
+      const response = await fetch(`/api/tournaments/${tournamentId}/prize-pool`);
 
-        // Calculate prize pool automatically from buy-ins and rebuys
-        const totalBuyIns = data._count.tournamentPlayers * data.buyInAmount;
-
-        // Fetch tournament players to count rebuys
-        const playersResponse = await fetch(`/api/tournaments/${tournamentId}/players`);
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json();
-          // playersData is an array of tournament players
-          const totalRebuys = playersData.reduce(
-            (sum: number, player: any) => sum + (player.rebuysCount || 0),
-            0
-          );
-          const rebuyAmount = data.buyInAmount; // Assuming rebuy = buy-in
-          const totalRebuyMoney = totalRebuys * rebuyAmount;
-
-          // Prize pool is automatically calculated
-          setPrizePool(totalBuyIns + totalRebuyMoney);
-        } else {
-          setPrizePool(totalBuyIns);
-        }
-
-        // Parse prize distribution
-        if (data.prizeDistribution) {
-          const distribution = typeof data.prizeDistribution === 'string'
-            ? JSON.parse(data.prizeDistribution)
-            : data.prizeDistribution;
-
-          const parsedAllocations = Object.entries(distribution).map(([pos, amount]) => ({
-            position: parseInt(pos),
-            amount: amount as number,
-          }));
-
-          if (parsedAllocations.length > 0) {
-            setAllocations(parsedAllocations.sort((a, b) => a.position - b.position));
-          }
-        }
+      if (response.status === 401) {
+        setAuthError('Vous devez vous connecter pour accéder à cette fonctionnalité.');
+        return;
       }
-    } catch (error) {
-      console.error('Error fetching tournament data:', error);
+
+      if (response.status === 403) {
+        setAuthError('Vous n\'avez pas les droits pour gérer le prize pool de ce tournoi.');
+        return;
+      }
+
+      if (response.ok) {
+        const data: PrizePoolData = await response.json();
+        setPrizePoolData(data);
+
+        // Initialize form from saved data or defaults
+        if (data.payoutCount > 0 && data.percents.length > 0) {
+          setPayoutCount(data.payoutCount);
+          setPercents(data.percents);
+        }
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Erreur lors du chargement');
+      }
+    } catch (err) {
+      console.error('Error fetching prize pool:', err);
+      setError('Erreur de connexion');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAllocationChange = (index: number, amount: string) => {
-    const numValue = parseFloat(amount) || 0;
-    const newAllocations = [...allocations];
-    newAllocations[index].amount = numValue;
-    setAllocations(newAllocations);
+  const handlePercentChange = (index: number, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    const newPercents = [...percents];
+    newPercents[index] = numValue;
+    setPercents(newPercents);
+    setSuccess(false);
   };
 
   const addPosition = () => {
-    const nextPosition = allocations.length + 1;
-    setAllocations([...allocations, { position: nextPosition, amount: 0 }]);
+    setPayoutCount(payoutCount + 1);
+    setPercents([...percents, 0]);
+    setSuccess(false);
   };
 
   const removePosition = (index: number) => {
-    if (allocations.length > 1) {
-      const newAllocations = allocations.filter((_, i) => i !== index);
-      // Renumber positions
-      newAllocations.forEach((alloc, idx) => {
-        alloc.position = idx + 1;
-      });
-      setAllocations(newAllocations);
+    if (payoutCount > 1) {
+      setPayoutCount(payoutCount - 1);
+      setPercents(percents.filter((_, i) => i !== index));
+      setSuccess(false);
     }
   };
 
-  const totalAllocated = allocations.reduce((sum, alloc) => sum + alloc.amount, 0);
-  const remainingAmount = prizePool - totalAllocated;
-  const isValid = totalAllocated <= prizePool;
+  const totalPercent = percents.reduce((sum, p) => sum + p, 0);
+  const isValidSum = Math.abs(totalPercent - 100) < 0.01;
+  const allPositive = percents.every(p => p > 0);
+  const isValid = isValidSum && allPositive && percents.length === payoutCount;
 
   const handleSave = async () => {
     if (!isValid) return;
 
     setIsSaving(true);
-    try {
-      // Convert allocations to object format { "1": 50, "2": 30, "3": 20 }
-      const distribution = allocations.reduce((obj, alloc) => {
-        obj[alloc.position.toString()] = alloc.amount;
-        return obj;
-      }, {} as Record<string, number>);
+    setError(null);
+    setSuccess(false);
 
-      const response = await fetch(`/api/tournaments/${tournamentId}`, {
-        method: 'PATCH',
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/prize-pool`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prizePool,
-          prizeDistribution: distribution,
+          payoutCount,
+          percents,
         }),
       });
 
       if (response.ok) {
+        setSuccess(true);
+        await fetchPrizePoolData(); // Refresh data
         onUpdate?.();
       } else {
-        const error = await response.json();
-        alert(error.error || 'Erreur lors de la sauvegarde');
+        const errorData = await response.json();
+        if (errorData.details) {
+          setError(errorData.details.map((d: { message: string }) => d.message).join(', '));
+        } else {
+          setError(errorData.error || 'Erreur lors de la sauvegarde');
+        }
       }
-    } catch (error) {
-      console.error('Error saving prize pool:', error);
-      alert('Erreur lors de la sauvegarde');
+    } catch (err) {
+      console.error('Error saving prize pool:', err);
+      setError('Erreur de connexion');
     } finally {
       setIsSaving(false);
     }
   };
 
+  // Calculate preview amounts
+  const previewAmounts = percents.map(p =>
+    prizePoolData ? Math.round((prizePoolData.totalPrizePool * p / 100) * 100) / 100 : 0
+  );
+
   if (isLoading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-12">
-          <p className="text-muted-foreground">Chargement...</p>
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span className="text-muted-foreground">Chargement...</span>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (authError) {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{authError}</AlertDescription>
+          </Alert>
         </CardContent>
       </Card>
     );
@@ -162,57 +183,77 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
             Configuration du Prize Pool
           </CardTitle>
           <CardDescription>
-            Le prize pool est calculé automatiquement à partir des buy-ins et recaves. Configurez sa distribution entre les places payées.
+            Configurez la distribution en pourcentages. Le prize pool est calculé automatiquement.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Prize Pool Total - Read Only */}
-          <div className="space-y-2">
-            <Label>Prize Pool Total</Label>
-            <div className="text-3xl font-bold text-primary">
-              {prizePool.toFixed(2)}€
+          {prizePoolData && (
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Prize Pool Total</span>
+                <span className="text-2xl font-bold text-primary">
+                  {prizePoolData.totalPrizePool.toFixed(2)}€
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <div className="flex justify-between">
+                  <span>Buy-ins ({prizePoolData.paidPlayersCount} joueurs × {prizePoolData.buyInAmount}€)</span>
+                  <span>{prizePoolData.totalBuyIns.toFixed(2)}€</span>
+                </div>
+                {prizePoolData.totalRebuys > 0 && (
+                  <div className="flex justify-between">
+                    <span>Recaves</span>
+                    <span>{prizePoolData.totalRebuys.toFixed(2)}€</span>
+                  </div>
+                )}
+                {prizePoolData.totalLightRebuys > 0 && (
+                  <div className="flex justify-between">
+                    <span>Recaves allégées</span>
+                    <span>{prizePoolData.totalLightRebuys.toFixed(2)}€</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Calculé automatiquement à partir des buy-ins et recaves
-            </p>
-          </div>
+          )}
 
-          {/* Prize Allocations */}
+          {/* Payout Configuration */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Distribution des prix</Label>
+              <Label>Distribution des prix ({payoutCount} place{payoutCount > 1 ? 's' : ''} payée{payoutCount > 1 ? 's' : ''})</Label>
               <Button variant="outline" size="sm" onClick={addPosition}>
                 <Plus className="h-4 w-4 mr-2" />
-                Ajouter une place
+                Ajouter
               </Button>
             </div>
 
             <div className="space-y-3">
-              {allocations.map((alloc, index) => (
+              {percents.map((percent, index) => (
                 <div key={index} className="flex items-center gap-3">
-                  <div className="w-20">
-                    <Label className="text-sm">
-                      {alloc.position === 1 ? '1er' : alloc.position === 2 ? '2e' : `${alloc.position}e`}
-                    </Label>
+                  <div className="w-16 text-sm font-medium">
+                    {index + 1 === 1 ? '1er' : index + 1 === 2 ? '2e' : `${index + 1}e`}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 flex items-center gap-2">
                     <Input
                       type="number"
                       min="0"
-                      step="0.01"
-                      value={alloc.amount || ''}
-                      onChange={(e) => handleAllocationChange(index, e.target.value)}
-                      placeholder="Montant en €"
+                      max="100"
+                      step="0.1"
+                      value={percent || ''}
+                      onChange={(e) => handlePercentChange(index, e.target.value)}
+                      placeholder="0"
+                      className="w-24"
                     />
+                    <span className="text-sm text-muted-foreground">%</span>
                   </div>
-                  <div className="w-24 text-sm text-muted-foreground">
-                    {prizePool > 0 ? `${((alloc.amount / prizePool) * 100).toFixed(1)}%` : '0%'}
+                  <div className="w-24 text-right font-mono text-sm">
+                    {previewAmounts[index].toFixed(2)}€
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => removePosition(index)}
-                    disabled={allocations.length === 1}
+                    disabled={payoutCount === 1}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -220,35 +261,79 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
               ))}
             </div>
 
-            {/* Summary */}
+            {/* Validation Summary */}
             <div className="border-t pt-4 space-y-2">
               <div className="flex justify-between text-sm">
-                <span>Total alloué:</span>
-                <span className={totalAllocated > prizePool ? 'text-destructive font-bold' : 'font-semibold'}>
-                  {totalAllocated.toFixed(2)}€
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Prize pool:</span>
-                <span className="font-semibold">{prizePool.toFixed(2)}€</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>Reste à allouer:</span>
-                <span className={remainingAmount < 0 ? 'text-destructive font-bold' : 'text-muted-foreground'}>
-                  {remainingAmount.toFixed(2)}€
+                <span>Total des pourcentages:</span>
+                <span className={!isValidSum ? 'text-destructive font-bold' : 'font-semibold text-green-600'}>
+                  {totalPercent.toFixed(1)}%
+                  {isValidSum && <CheckCircle2 className="inline h-4 w-4 ml-1" />}
                 </span>
               </div>
             </div>
 
-            {totalAllocated > prizePool && (
+            {!isValidSum && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Le total alloué dépasse le prize pool de {(totalAllocated - prizePool).toFixed(2)}€
+                  La somme des pourcentages doit être égale à 100% (actuellement {totalPercent.toFixed(1)}%)
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {!allPositive && isValidSum && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Chaque pourcentage doit être supérieur à 0
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {success && (
+              <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-600">
+                  Configuration enregistrée avec succès
                 </AlertDescription>
               </Alert>
             )}
           </div>
+
+          {/* Preview Table */}
+          {isValid && prizePoolData && (
+            <div className="border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-4 py-2 text-left">Rang</th>
+                    <th className="px-4 py-2 text-right">%</th>
+                    <th className="px-4 py-2 text-right">Montant</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {percents.map((p, i) => (
+                    <tr key={i} className="border-t">
+                      <td className="px-4 py-2 font-medium">
+                        {i + 1 === 1 ? '1er' : i + 1 === 2 ? '2e' : `${i + 1}e`}
+                      </td>
+                      <td className="px-4 py-2 text-right">{p}%</td>
+                      <td className="px-4 py-2 text-right font-mono font-bold">
+                        {previewAmounts[i].toFixed(2)}€
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Save Button */}
           <Button
@@ -256,8 +341,21 @@ export default function PrizePoolManager({ tournamentId, onUpdate }: PrizePoolMa
             disabled={!isValid || isSaving}
             className="w-full"
           >
-            {isSaving ? 'Enregistrement...' : 'Enregistrer la configuration'}
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Enregistrement...
+              </>
+            ) : (
+              'Enregistrer la configuration'
+            )}
           </Button>
+
+          {prizePoolData?.updatedAt && (
+            <p className="text-xs text-center text-muted-foreground">
+              Dernière mise à jour: {new Date(prizePoolData.updatedAt).toLocaleString('fr-FR')}
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
