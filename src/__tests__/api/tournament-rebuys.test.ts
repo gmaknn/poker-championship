@@ -105,9 +105,21 @@ describe('API /api/tournaments/[id]/rebuys RBAC', () => {
           player: MOCK_TOURNAMENT_PLAYER.player,
         });
       }),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       count: jest.fn().mockResolvedValue(5),
       aggregate: jest.fn().mockResolvedValue({ _sum: {} }),
     };
+
+    // Setup transaction mock - for atomic rebuys
+    mockPrismaClient.$transaction = jest.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        tournamentPlayer: {
+          findUnique: jest.fn().mockResolvedValue({ ...MOCK_TOURNAMENT_PLAYER }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      return fn(tx);
+    });
   });
 
   const createParams = (id: string) => Promise.resolve({ id });

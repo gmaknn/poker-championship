@@ -21,10 +21,12 @@ jest.mock('@/lib/prisma', () => ({
     tournamentPlayer: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     tournamentDirector: {
       findUnique: jest.fn(),
     },
+    $transaction: jest.fn(),
   },
 }));
 
@@ -105,11 +107,22 @@ describe('POST /api/tournaments/[id]/rebuys - Business Rules', () => {
     // Default TD assignment mock (not assigned by default)
     (mockPrisma.tournamentDirector.findUnique as jest.Mock).mockResolvedValue(null);
 
-    // Default update mock
+    // Default update mock (legacy, kept for compatibility)
     (mockPrisma.tournamentPlayer.update as jest.Mock).mockResolvedValue({
       ...mockTournamentPlayer,
       rebuysCount: 1,
       player: { id: playerId, firstName: 'Test', lastName: 'Player', nickname: 'tester' },
+    });
+
+    // Default transaction mock - updated for atomic transaction
+    (mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn) => {
+      const mockTx = {
+        tournamentPlayer: {
+          findUnique: jest.fn().mockResolvedValue(mockTournamentPlayer),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      return fn(mockTx);
     });
   });
 
@@ -504,5 +517,136 @@ describe('Sentinel: Rebuy impacts Prize Pool', () => {
 
     expect(afterPrizePool).toBeGreaterThan(beforePrizePool);
     expect(afterPrizePool - beforePrizePool).toBe(10); // rebuyAmount
+  });
+});
+
+/**
+ * Concurrency / Race condition tests
+ * These tests verify that the rebuy endpoint is atomic and race-safe
+ */
+describe('Concurrency: Atomic rebuys', () => {
+  const tournamentId = TEST_IDS.TOURNAMENT;
+  const playerId = 'clx0000000000000000000001';
+
+  it('should not allow double submit rebuy for same player (race-safe)', async () => {
+    // This test simulates two concurrent requests trying to add a rebuy for the same player
+    // Only one should succeed, the other should get 400
+
+    // Track call count to simulate race condition
+    let transactionCallCount = 0;
+    let firstCallCompleted = false;
+
+    const mockTournament = {
+      id: tournamentId,
+      name: 'Test Tournament',
+      status: 'IN_PROGRESS',
+      currentLevel: 3,
+      rebuyEndLevel: 5,
+      maxRebuysPerPlayer: 1, // Max 1 rebuy - important for race detection
+      lightRebuyEnabled: false,
+      createdById: TEST_IDS.TD_PLAYER,
+      season: null,
+    };
+
+    const mockTournamentPlayer = {
+      id: 'tp-123',
+      tournamentId,
+      playerId,
+      rebuysCount: 0,
+      lightRebuyUsed: false,
+      finalRank: null,
+      penaltyPoints: 0,
+    };
+
+    // Mock prisma to simulate concurrent behavior
+    const mockTransaction = jest.fn().mockImplementation(async (fn) => {
+      transactionCallCount++;
+      const callNumber = transactionCallCount;
+
+      const mockTx = {
+        tournamentPlayer: {
+          findUnique: jest.fn().mockImplementation(async () => {
+            // Both calls see rebuysCount = 0 initially (race condition)
+            if (callNumber === 1 || !firstCallCompleted) {
+              return { ...mockTournamentPlayer, rebuysCount: 0 };
+            }
+            // After first call, rebuysCount = 1
+            return { ...mockTournamentPlayer, rebuysCount: 1 };
+          }),
+          updateMany: jest.fn().mockImplementation(async () => {
+            // First call succeeds (count = 1)
+            // Second call fails because rebuysCount changed from 0 to 1 (count = 0)
+            if (callNumber === 1) {
+              firstCallCompleted = true;
+              return { count: 1 };
+            }
+            return { count: 0 }; // Optimistic lock failed
+          }),
+        },
+      };
+
+      return fn(mockTx);
+    });
+
+    // Replace prisma.$transaction with our mock
+    (mockPrisma.$transaction as jest.Mock) = mockTransaction;
+
+    // Reset mocks for this test
+    (mockPrisma.player.findUnique as jest.Mock).mockImplementation(
+      ({ where }: { where: { id?: string } }) => {
+        if (where.id === TEST_IDS.TD_PLAYER) {
+          return Promise.resolve({ ...MOCK_PLAYERS.tournamentDirector, roles: [] });
+        }
+        return Promise.resolve(null);
+      }
+    );
+
+    (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue(mockTournament);
+    (mockPrisma.tournamentPlayer.findUnique as jest.Mock).mockResolvedValue(mockTournamentPlayer);
+    (mockPrisma.tournamentDirector.findUnique as jest.Mock).mockResolvedValue(null);
+
+    const payload = { playerId, type: 'STANDARD' };
+
+    // Create two identical requests
+    const request1 = new NextRequest(
+      `http://localhost/api/tournaments/${tournamentId}/rebuys`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: `player-id=${TEST_IDS.TD_PLAYER}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const request2 = new NextRequest(
+      `http://localhost/api/tournaments/${tournamentId}/rebuys`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: `player-id=${TEST_IDS.TD_PLAYER}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    // Execute both requests
+    const [response1, response2] = await Promise.all([
+      POST(request1, { params: Promise.resolve({ id: tournamentId }) }),
+      POST(request2, { params: Promise.resolve({ id: tournamentId }) }),
+    ]);
+
+    const statuses = [response1.status, response2.status].sort();
+
+    // One should succeed (200), one should fail (400)
+    expect(statuses).toContain(200);
+    expect(statuses).toContain(400);
+
+    // The failed one should have the right error message
+    const failedResponse = response1.status === 400 ? response1 : response2;
+    const data = await failedResponse.json();
+    expect(data.error).toBe('Maximum rebuys reached');
   });
 });
