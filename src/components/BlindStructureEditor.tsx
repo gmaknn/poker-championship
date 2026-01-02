@@ -590,175 +590,212 @@ export default function BlindStructureEditor({
             </Button>
           </div>
 
-          <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 px-4 py-3 font-medium text-sm bg-muted/30 rounded-lg">
-            <div></div>
-            <div>Niveau</div>
-            <div>Small Blind</div>
-            <div>Big Blind</div>
-            <div>Ante</div>
-            <div>Durée</div>
-            <div>Réassigner</div>
-            <div>Fin recaves</div>
-            <div></div>
-          </div>
+          {/* Scrollable container with sticky header */}
+          <div className="max-h-[600px] overflow-y-auto rounded-lg border">
+            {/* Sticky header */}
+            <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 px-4 py-3 font-medium text-sm bg-muted sticky top-0 z-10 border-b">
+              <div></div>
+              <div>Niveau</div>
+              <div>Small Blind</div>
+              <div>Big Blind</div>
+              <div>Ante</div>
+              <div>Durée</div>
+              <div>Réassigner</div>
+              <div>Fin recaves</div>
+              <div></div>
+            </div>
 
-          {levels.map((level, index) => (
-            <Card
-              key={index}
-              className={`
-                ${level.isBreak ? 'bg-blue-500/5 border-blue-500/20' : ''}
-                ${draggedIndex === index ? 'opacity-50' : ''}
-                ${dragOverIndex === index ? 'border-primary border-2' : ''}
-                cursor-move transition-all
-              `}
-              draggable
-              onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-            >
-              <CardContent className="pt-6">
-                {level.isBreak ? (
-                  <div className="grid grid-cols-[40px_60px_1fr_1fr_80px] gap-4 items-center">
-                    <div className="flex justify-center cursor-grab active:cursor-grabbing">
-                      <GripVertical className="h-5 w-5 text-muted-foreground" />
+            {/* Levels list with section separators */}
+            <div className="space-y-2 p-2">
+          {(() => {
+            let levelCount = 0; // Counter for non-break levels only
+            const elements: React.ReactNode[] = [];
+
+            levels.forEach((level, index) => {
+              // Count only non-break levels for section separators
+              if (!level.isBreak) {
+                levelCount++;
+                // Add section separator before levels 1, 6, 11, 16... (every 5 levels)
+                if ((levelCount - 1) % 5 === 0) {
+                  const sectionNumber = Math.floor((levelCount - 1) / 5) + 1;
+                  const startLevel = (sectionNumber - 1) * 5 + 1;
+                  const endLevel = Math.min(startLevel + 4, levels.filter(l => !l.isBreak).length);
+                  elements.push(
+                    <div key={`separator-${sectionNumber}`} className="flex items-center gap-3 py-2">
+                      <div className="flex-1 border-t border-muted-foreground/20" />
+                      <span className="text-xs text-muted-foreground font-medium px-2">
+                        Palier {sectionNumber} (niveaux {startLevel} → {endLevel})
+                      </span>
+                      <div className="flex-1 border-t border-muted-foreground/20" />
                     </div>
-                    <Badge variant="outline" className="justify-center bg-blue-500/10">
-                      <Coffee className="h-3 w-3 mr-1" />
-                      {level.level}
-                    </Badge>
-                    <div className="col-span-1 flex items-center gap-2 text-blue-600 dark:text-blue-400 font-medium">
-                      <Coffee className="h-4 w-4" />
-                      PAUSE
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        value={level.duration}
-                        onChange={(e) =>
-                          handleLevelChange(
-                            index,
-                            'duration',
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                      />
-                      <span className="text-sm text-muted-foreground">min</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveLevel(index);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 items-center">
-                    <div className="flex justify-center cursor-grab active:cursor-grabbing">
-                      <GripVertical className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                    <Badge variant="outline" className="justify-center">
-                      {level.level}
-                    </Badge>
-                    <Input
-                      type="number"
-                      value={level.smallBlind}
-                      onChange={(e) =>
-                        handleLevelChange(
-                          index,
-                          'smallBlind',
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                    />
-                    <Input
-                      type="number"
-                      value={level.bigBlind}
-                      onChange={(e) =>
-                        handleLevelChange(
-                          index,
-                          'bigBlind',
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                    />
-                    <Input
-                      type="number"
-                      value={level.ante}
-                      onChange={(e) =>
-                        handleLevelChange(
-                          index,
-                          'ante',
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                    />
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        value={level.duration}
-                        onChange={(e) =>
-                          handleLevelChange(
-                            index,
-                            'duration',
-                            parseInt(e.target.value) || 0
-                          )
-                        }
-                      />
-                      <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Checkbox
-                        id={`rebalance-${index}`}
-                        checked={level.rebalanceTables || false}
-                        onCheckedChange={(checked) =>
-                          handleLevelChange(index, 'rebalanceTables', checked === true)
-                        }
-                      />
-                      <label
-                        htmlFor={`rebalance-${index}`}
-                        className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                      >
-                        <Shuffle className="h-3 w-3" />
-                        Tables
-                      </label>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Checkbox
-                        id={`rebuy-end-${index}`}
-                        checked={level.isRebuyEnd || false}
-                        onCheckedChange={(checked) =>
-                          handleLevelChange(index, 'isRebuyEnd', checked === true)
-                        }
-                      />
-                      <label
-                        htmlFor={`rebuy-end-${index}`}
-                        className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                      >
-                        <AlertCircle className="h-3 w-3" />
-                        Fin recaves
-                      </label>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveLevel(index);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  );
+                }
+              }
+
+              elements.push(
+                <Card
+                  key={index}
+                  className={`
+                    ${level.isBreak ? 'bg-amber-500/10 border-amber-500/30 shadow-sm' : ''}
+                    ${draggedIndex === index ? 'opacity-50' : ''}
+                    ${dragOverIndex === index ? 'border-primary border-2' : ''}
+                    cursor-move transition-all
+                  `}
+                  draggable
+                  onDragStart={() => handleDragStart(index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                >
+                  <CardContent className={level.isBreak ? 'py-4' : 'py-3'}>
+                    {level.isBreak ? (
+                      <div className="grid grid-cols-[40px_60px_1fr_1fr_80px] gap-4 items-center">
+                        <div className="flex justify-center cursor-grab active:cursor-grabbing">
+                          <GripVertical className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <Badge variant="outline" className="justify-center bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300">
+                          <Coffee className="h-3 w-3 mr-1" />
+                          {level.level}
+                        </Badge>
+                        <div className="col-span-1 flex items-center gap-2 text-amber-700 dark:text-amber-300 font-semibold text-lg">
+                          <Coffee className="h-5 w-5" />
+                          PAUSE
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={level.duration}
+                            onChange={(e) =>
+                              handleLevelChange(
+                                index,
+                                'duration',
+                                parseInt(e.target.value) || 0
+                              )
+                            }
+                            className="border-amber-500/30"
+                          />
+                          <span className="text-sm text-muted-foreground font-medium">min</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveLevel(index);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 items-center">
+                        <div className="flex justify-center cursor-grab active:cursor-grabbing">
+                          <GripVertical className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                        <Badge variant="outline" className="justify-center">
+                          {level.level}
+                        </Badge>
+                        <Input
+                          type="number"
+                          value={level.smallBlind}
+                          onChange={(e) =>
+                            handleLevelChange(
+                              index,
+                              'smallBlind',
+                              parseInt(e.target.value) || 0
+                            )
+                          }
+                        />
+                        <Input
+                          type="number"
+                          value={level.bigBlind}
+                          onChange={(e) =>
+                            handleLevelChange(
+                              index,
+                              'bigBlind',
+                              parseInt(e.target.value) || 0
+                            )
+                          }
+                        />
+                        <Input
+                          type="number"
+                          value={level.ante}
+                          onChange={(e) =>
+                            handleLevelChange(
+                              index,
+                              'ante',
+                              parseInt(e.target.value) || 0
+                            )
+                          }
+                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={level.duration}
+                            onChange={(e) =>
+                              handleLevelChange(
+                                index,
+                                'duration',
+                                parseInt(e.target.value) || 0
+                              )
+                            }
+                          />
+                          <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Checkbox
+                            id={`rebalance-${index}`}
+                            checked={level.rebalanceTables || false}
+                            onCheckedChange={(checked) =>
+                              handleLevelChange(index, 'rebalanceTables', checked === true)
+                            }
+                          />
+                          <label
+                            htmlFor={`rebalance-${index}`}
+                            className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                          >
+                            <Shuffle className="h-3 w-3" />
+                            Tables
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Checkbox
+                            id={`rebuy-end-${index}`}
+                            checked={level.isRebuyEnd || false}
+                            onCheckedChange={(checked) =>
+                              handleLevelChange(index, 'isRebuyEnd', checked === true)
+                            }
+                          />
+                          <label
+                            htmlFor={`rebuy-end-${index}`}
+                            className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                          >
+                            <AlertCircle className="h-3 w-3" />
+                            Fin recaves
+                          </label>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveLevel(index);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            });
+
+            return elements;
+          })()}
+            </div>
+          </div>
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleAddLevel} className="flex-1">
