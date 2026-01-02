@@ -165,8 +165,10 @@ export default function DashboardPage() {
       });
   }, []);
 
-  const canCreateTournament = currentPlayer &&
-    (currentPlayer.role === 'ADMIN' || currentPlayer.role === 'TOURNAMENT_DIRECTOR');
+  // Visibilité des actions admin basée UNIQUEMENT sur le rôle (ADMIN ou TD)
+  const isAdminOrTD = currentPlayer?.role === 'ADMIN' || currentPlayer?.role === 'TOURNAMENT_DIRECTOR';
+  const canCreateTournament = isAdminOrTD;
+  const canSeeQuickActions = isAdminOrTD;
 
   return (
     <div className="space-y-8">
@@ -286,8 +288,8 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Actions rapides - visible pour ADMIN et TD */}
-      {canCreateTournament && (
+      {/* Actions rapides - visible UNIQUEMENT pour ADMIN et TD */}
+      {canSeeQuickActions && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Actions rapides</CardTitle>
