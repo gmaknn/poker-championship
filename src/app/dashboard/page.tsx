@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trophy, Users, Calendar, TrendingUp, Plus, LayoutDashboard } from 'lucide-react';
+import { Trophy, Users, Calendar, TrendingUp, Plus, LayoutDashboard, UserPlus, CalendarPlus, ChevronRight, BarChart3 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 
 interface CurrentPlayer {
@@ -21,6 +22,7 @@ interface DashboardStats {
     points: number;
   } | null;
   nextTournament: {
+    id: string;
     name: string;
     date: string;
   } | null;
@@ -123,6 +125,7 @@ export default function DashboardPage() {
           currentSeasonTournaments,
           leader: null,
           nextTournament: nextTournament ? {
+            id: nextTournament.id,
             name: nextTournament.name,
             date: nextTournament.date,
           } : null,
@@ -232,26 +235,129 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="group hover:border-primary/50 transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Prochain tournoi</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold truncate">
-              {loading ? '...' : stats.nextTournament ? stats.nextTournament.name : '-'}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.nextTournament
-                ? new Date(stats.nextTournament.date).toLocaleDateString('fr-FR', {
+            {loading ? (
+              <div className="text-2xl font-bold">...</div>
+            ) : stats.nextTournament ? (
+              <>
+                <Link
+                  href={`/dashboard/tournaments/${stats.nextTournament.id}`}
+                  className="text-2xl font-bold truncate block hover:text-primary transition-colors"
+                >
+                  {stats.nextTournament.name}
+                </Link>
+                <p className="text-xs text-muted-foreground mb-2">
+                  {new Date(stats.nextTournament.date).toLocaleDateString('fr-FR', {
                     day: 'numeric',
                     month: 'long'
-                  })
-                : 'Aucun prévu'}
-            </p>
+                  })}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => router.push(`/dashboard/tournaments/${stats.nextTournament!.id}`)}
+                >
+                  Ouvrir <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="text-2xl font-bold text-muted-foreground">-</div>
+                <p className="text-xs text-muted-foreground mb-2">Aucun tournoi a venir</p>
+                {canCreateTournament && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => router.push('/dashboard/tournaments')}
+                  >
+                    <Plus className="mr-1 h-4 w-4" /> Creer un tournoi
+                  </Button>
+                )}
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Actions rapides - visible pour ADMIN et TD */}
+      {canCreateTournament && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Actions rapides</CardTitle>
+            <CardDescription>Acces direct aux fonctions principales</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {/* Ajouter un joueur -> /dashboard/players (pas de route /new existante) */}
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col gap-2"
+                asChild
+              >
+                <Link href="/dashboard/players">
+                  <UserPlus className="h-5 w-5" />
+                  <span className="text-xs">Ajouter joueur</span>
+                </Link>
+              </Button>
+
+              {/* Créer un tournoi -> /dashboard/tournaments (pas de route /new existante) */}
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col gap-2"
+                asChild
+              >
+                <Link href="/dashboard/tournaments">
+                  <CalendarPlus className="h-5 w-5" />
+                  <span className="text-xs">Creer tournoi</span>
+                </Link>
+              </Button>
+
+              {/* Prochain tournoi -> vers le tournoi si existant, sinon vers /dashboard/tournaments */}
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col gap-2"
+                asChild
+              >
+                <Link href={stats.nextTournament ? `/dashboard/tournaments/${stats.nextTournament.id}` : '/dashboard/tournaments'}>
+                  <Calendar className="h-5 w-5" />
+                  <span className="text-xs">Prochain tournoi</span>
+                </Link>
+              </Button>
+
+              {/* Leaderboard -> /dashboard/leaderboard */}
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col gap-2"
+                asChild
+              >
+                <Link href="/dashboard/leaderboard">
+                  <BarChart3 className="h-5 w-5" />
+                  <span className="text-xs">Leaderboard</span>
+                </Link>
+              </Button>
+
+              {/* Saisons -> /dashboard/seasons */}
+              <Button
+                variant="outline"
+                className="h-auto py-4 flex flex-col gap-2"
+                asChild
+              >
+                <Link href="/dashboard/seasons">
+                  <Trophy className="h-5 w-5" />
+                  <span className="text-xs">Saisons</span>
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
