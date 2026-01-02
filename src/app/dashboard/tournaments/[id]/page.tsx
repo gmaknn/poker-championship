@@ -102,6 +102,7 @@ export default function TournamentDetailPage({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
   const [adminDashboardData, setAdminDashboardData] = useState<AdminDashboardResponse | null>(null);
+  const [adminDashboardError, setAdminDashboardError] = useState<string | null>(null);
 
   const isAdmin = currentUserRole === 'ADMIN';
   const canViewAdminDashboard = isAdmin || currentUserRole === 'TOURNAMENT_DIRECTOR';
@@ -247,15 +248,31 @@ export default function TournamentDetailPage({
   useEffect(() => {
     if (!canViewAdminDashboard) return;
 
+    let intervalId: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
     const fetchAdminDashboard = async () => {
       try {
         const response = await fetch(`/api/tournaments/${id}/admin-dashboard`);
+        if (!isMounted) return;
+
         if (response.ok) {
           const data = await response.json();
           setAdminDashboardData(data);
+          setAdminDashboardError(null);
+        } else if (response.status === 403) {
+          // RBAC: user not authorized - show neutral message, stop polling
+          setAdminDashboardError('Acces non autorise');
+          setAdminDashboardData(null);
+        } else {
+          // Other errors - don't crash, just log
+          setAdminDashboardError('Erreur de chargement');
         }
-      } catch (error) {
-        console.error('Error fetching admin dashboard:', error);
+      } catch {
+        // Network error - silent fail, keep polling if applicable
+        if (isMounted) {
+          setAdminDashboardError('Erreur de connexion');
+        }
       }
     };
 
@@ -264,9 +281,16 @@ export default function TournamentDetailPage({
 
     // Set up polling only when IN_PROGRESS
     if (tournament?.status === 'IN_PROGRESS') {
-      const interval = setInterval(fetchAdminDashboard, 5000);
-      return () => clearInterval(interval);
+      intervalId = setInterval(fetchAdminDashboard, 5000);
     }
+
+    // Cleanup: always clear interval and mark unmounted
+    return () => {
+      isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, [id, canViewAdminDashboard, tournament?.status]);
 
   if (isLoading) {
@@ -399,6 +423,13 @@ export default function TournamentDetailPage({
       </div>
 
       {/* Admin Dashboard Section - Only for ADMIN and TOURNAMENT_DIRECTOR */}
+      {canViewAdminDashboard && adminDashboardError && (
+        <Card className="border-destructive/50">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground text-center">{adminDashboardError}</p>
+          </CardContent>
+        </Card>
+      )}
       {canViewAdminDashboard && adminDashboardData && (
         <div className="grid gap-6 md:grid-cols-2">
           <AdminOverviewCard data={adminDashboardData} />
@@ -410,8 +441,15 @@ export default function TournamentDetailPage({
               // Refetch admin dashboard immediately after action
               fetch(`/api/tournaments/${id}/admin-dashboard`)
                 .then(res => res.ok ? res.json() : null)
-                .then(data => data && setAdminDashboardData(data))
-                .catch(console.error);
+                .then(data => {
+                  if (data) {
+                    setAdminDashboardData(data);
+                    setAdminDashboardError(null);
+                  }
+                })
+                .catch(() => {
+                  // Silent fail on refetch after action
+                });
             }}
           />
         </div>

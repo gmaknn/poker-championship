@@ -32,6 +32,21 @@ export default function AdminQuickActions({
   const canReset = tournament.status === 'IN_PROGRESS';
 
   const executeAction = async (action: ActionType) => {
+    // Confirmation for destructive actions
+    if (action === 'reset') {
+      const confirmed = window.confirm(
+        'Etes-vous sur de vouloir reinitialiser le timer ? Cette action remettra le niveau a zero.'
+      );
+      if (!confirmed) return;
+    }
+
+    if (action === 'finish') {
+      const confirmed = window.confirm(
+        'Etes-vous sur de vouloir terminer le tournoi ? Cette action est irreversible.'
+      );
+      if (!confirmed) return;
+    }
+
     setLoadingAction(action);
     setError(null);
 
