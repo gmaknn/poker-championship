@@ -44,28 +44,20 @@ export default function DashboardPage() {
   useEffect(() => {
     console.log('🔍 Dashboard useEffect started');
 
-    // Lire le cookie player-id
-    const cookies = document.cookie;
-    const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-    console.log('🍪 Cookie player-id:', playerIdMatch?.[1]);
-
-    if (playerIdMatch) {
-      const playerId = playerIdMatch[1];
-
-      // Récupérer les infos du joueur
-      fetch(`/api/players/${playerId}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(player => {
-          if (player) {
-            setCurrentPlayer({
-              id: player.id,
-              role: player.role,
-              additionalRoles: player.additionalRoles,
-            });
-          }
-        })
-        .catch(err => console.error('Error loading current player:', err));
-    }
+    // Récupérer le joueur courant via /api/me (unifié NextAuth + dev-login)
+    fetch('/api/me')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data) {
+          console.log('👤 Current player from /api/me:', data);
+          setCurrentPlayer({
+            id: data.id,
+            role: data.role,
+            additionalRoles: data.additionalRoles,
+          });
+        }
+      })
+      .catch(err => console.error('Error loading current player:', err));
 
     // Charger les statistiques du dashboard
     console.log('📊 Starting to fetch dashboard stats...');
