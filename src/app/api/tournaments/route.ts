@@ -123,18 +123,32 @@ export async function GET(request: NextRequest) {
 // POST create new tournament
 export async function POST(request: NextRequest) {
   try {
-    // Récupérer le joueur actuel avec ses rôles additionnels
-    const currentPlayer = await getCurrentPlayer(request);
+    // Récupérer l'acteur courant avec son Player lié (auto-create si nécessaire)
+    // getCurrentActor retourne un Player.id valide, pas un User.id
+    const actor = await getCurrentActor(request, true);
 
-    if (!currentPlayer) {
+    if (!actor) {
       return NextResponse.json(
         { error: 'Non authentifié' },
         { status: 401 }
       );
     }
 
+    const { player } = actor;
+
+    // Récupérer les rôles additionnels du player pour la vérification multi-role
+    const playerWithRoles = await prisma.player.findUnique({
+      where: { id: player.id },
+      select: {
+        role: true,
+        roles: { select: { role: true } }
+      },
+    });
+    const additionalRoles = playerWithRoles?.roles?.map(r => r.role) ?? [];
+    const effectiveRole = playerWithRoles?.role ?? actor.user.role as import('@prisma/client').PlayerRole;
+
     // Vérifier la permission de création de tournoi (multi-role aware)
-    if (!hasPermissionMultiRole(currentPlayer.role, currentPlayer.additionalRoles, PERMISSIONS.CREATE_TOURNAMENT)) {
+    if (!hasPermissionMultiRole(effectiveRole, additionalRoles, PERMISSIONS.CREATE_TOURNAMENT)) {
       return NextResponse.json(
         { error: 'Vous n\'avez pas la permission de créer des tournois' },
         { status: 403 }
@@ -142,6 +156,12 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // DEV: Log payload and user for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[POST /api/tournaments] payload', body);
+      console.log('[POST /api/tournaments] actor', { userId: actor.user.id, playerId: player.id, role: effectiveRole, additionalRoles });
+    }
     const validatedData = tournamentSchema.parse(body);
 
     // Verify season exists
@@ -176,7 +196,7 @@ export async function POST(request: NextRequest) {
           connect: { id: seasonId }
         },
         createdBy: {
-          connect: { id: currentPlayer.id }
+          connect: { id: player.id }
         }
       },
       include: {
@@ -212,7 +232,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.error('Error creating tournament:', error);
+    // DEV: Log full error for debugging
+    if (process.env.NODE_ENV === 'development') {
+      console.error('[POST /api/tournaments] error', error);
+    } else {
+      console.error('Error creating tournament:', error instanceof Error ? error.message : 'Unknown error');
+    }
+
     return NextResponse.json(
       { error: 'Erreur lors de la création du tournoi' },
       { status: 500 }
