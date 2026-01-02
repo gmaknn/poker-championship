@@ -23,6 +23,9 @@ import TableDistribution from '@/components/TableDistribution';
 import TournamentResults from '@/components/TournamentResults';
 import PrizePoolManager from '@/components/PrizePoolManager';
 import TournamentDirectorsManager from '@/components/TournamentDirectorsManager';
+import AdminOverviewCard from '@/components/AdminOverviewCard';
+import AdminQuickActions from '@/components/AdminQuickActions';
+import type { AdminDashboardResponse } from '@/types/admin-dashboard';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -98,11 +101,11 @@ export default function TournamentDetailPage({
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
+  const [adminDashboardData, setAdminDashboardData] = useState<AdminDashboardResponse | null>(null);
+  const [adminDashboardError, setAdminDashboardError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchTournament();
-    loadCurrentUser();
-  }, [id, session]);
+  const isAdmin = currentUserRole === 'ADMIN';
+  const canViewAdminDashboard = isAdmin || currentUserRole === 'TOURNAMENT_DIRECTOR';
 
   const loadCurrentUser = async () => {
     try {
@@ -128,8 +131,6 @@ export default function TournamentDetailPage({
       console.error('Error loading current user:', error);
     }
   };
-
-  const isAdmin = currentUserRole === 'ADMIN';
 
   const fetchTournament = async () => {
     try {
@@ -236,6 +237,61 @@ export default function TournamentDetailPage({
     setIsUnsavedChangesDialogOpen(false);
     setPendingTab(null);
   };
+
+  // Effect to load initial data
+  useEffect(() => {
+    fetchTournament();
+    loadCurrentUser();
+  }, [id, session]);
+
+  // Fetch admin dashboard data with polling when IN_PROGRESS
+  useEffect(() => {
+    if (!canViewAdminDashboard) return;
+
+    let intervalId: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
+    const fetchAdminDashboard = async () => {
+      try {
+        const response = await fetch(`/api/tournaments/${id}/admin-dashboard`);
+        if (!isMounted) return;
+
+        if (response.ok) {
+          const data = await response.json();
+          setAdminDashboardData(data);
+          setAdminDashboardError(null);
+        } else if (response.status === 403) {
+          // RBAC: user not authorized - show neutral message, stop polling
+          setAdminDashboardError('Acces non autorise');
+          setAdminDashboardData(null);
+        } else {
+          // Other errors - don't crash, just log
+          setAdminDashboardError('Erreur de chargement');
+        }
+      } catch {
+        // Network error - silent fail, keep polling if applicable
+        if (isMounted) {
+          setAdminDashboardError('Erreur de connexion');
+        }
+      }
+    };
+
+    // Initial fetch
+    fetchAdminDashboard();
+
+    // Set up polling only when IN_PROGRESS
+    if (tournament?.status === 'IN_PROGRESS') {
+      intervalId = setInterval(fetchAdminDashboard, 5000);
+    }
+
+    // Cleanup: always clear interval and mark unmounted
+    return () => {
+      isMounted = false;
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [id, canViewAdminDashboard, tournament?.status]);
 
   if (isLoading) {
     return (
@@ -366,17 +422,50 @@ export default function TournamentDetailPage({
         </Card>
       </div>
 
+      {/* Admin Dashboard Section - Only for ADMIN and TOURNAMENT_DIRECTOR */}
+      {canViewAdminDashboard && adminDashboardError && (
+        <Card className="border-destructive/50">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground text-center">{adminDashboardError}</p>
+          </CardContent>
+        </Card>
+      )}
+      {canViewAdminDashboard && adminDashboardData && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <AdminOverviewCard data={adminDashboardData} />
+          <AdminQuickActions
+            tournamentId={id}
+            data={adminDashboardData}
+            onActionComplete={() => {
+              fetchTournament();
+              // Refetch admin dashboard immediately after action
+              fetch(`/api/tournaments/${id}/admin-dashboard`)
+                .then(res => res.ok ? res.json() : null)
+                .then(data => {
+                  if (data) {
+                    setAdminDashboardData(data);
+                    setAdminDashboardError(null);
+                  }
+                })
+                .catch(() => {
+                  // Silent fail on refetch after action
+                });
+            }}
+          />
+        </div>
+      )}
+
       {/* Tabs */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <TabsList>
           <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
           <TabsTrigger value="config">Jetons</TabsTrigger>
-          <TabsTrigger value="players">Joueurs inscrits</TabsTrigger>
-          <TabsTrigger value="tables">Tables</TabsTrigger>
+          <TabsTrigger value="players" data-admin-tab="players">Joueurs inscrits</TabsTrigger>
+          <TabsTrigger value="tables" data-admin-tab="tables">Tables</TabsTrigger>
           <TabsTrigger value="timer">Timer</TabsTrigger>
           <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
           <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
-          <TabsTrigger value="results">Résultats</TabsTrigger>
+          <TabsTrigger value="results" data-admin-tab="results">Résultats</TabsTrigger>
           {isAdmin && <TabsTrigger value="directors">Directeurs</TabsTrigger>}
         </TabsList>
 
