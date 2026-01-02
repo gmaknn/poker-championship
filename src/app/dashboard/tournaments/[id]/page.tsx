@@ -23,6 +23,9 @@ import TableDistribution from '@/components/TableDistribution';
 import TournamentResults from '@/components/TournamentResults';
 import PrizePoolManager from '@/components/PrizePoolManager';
 import TournamentDirectorsManager from '@/components/TournamentDirectorsManager';
+import AdminOverviewCard from '@/components/AdminOverviewCard';
+import AdminQuickActions from '@/components/AdminQuickActions';
+import type { AdminDashboardResponse } from '@/types/admin-dashboard';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -98,11 +101,10 @@ export default function TournamentDetailPage({
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
+  const [adminDashboardData, setAdminDashboardData] = useState<AdminDashboardResponse | null>(null);
 
-  useEffect(() => {
-    fetchTournament();
-    loadCurrentUser();
-  }, [id, session]);
+  const isAdmin = currentUserRole === 'ADMIN';
+  const canViewAdminDashboard = isAdmin || currentUserRole === 'TOURNAMENT_DIRECTOR';
 
   const loadCurrentUser = async () => {
     try {
@@ -128,8 +130,6 @@ export default function TournamentDetailPage({
       console.error('Error loading current user:', error);
     }
   };
-
-  const isAdmin = currentUserRole === 'ADMIN';
 
   const fetchTournament = async () => {
     try {
@@ -236,6 +236,38 @@ export default function TournamentDetailPage({
     setIsUnsavedChangesDialogOpen(false);
     setPendingTab(null);
   };
+
+  // Effect to load initial data
+  useEffect(() => {
+    fetchTournament();
+    loadCurrentUser();
+  }, [id, session]);
+
+  // Fetch admin dashboard data with polling when IN_PROGRESS
+  useEffect(() => {
+    if (!canViewAdminDashboard) return;
+
+    const fetchAdminDashboard = async () => {
+      try {
+        const response = await fetch(`/api/tournaments/${id}/admin-dashboard`);
+        if (response.ok) {
+          const data = await response.json();
+          setAdminDashboardData(data);
+        }
+      } catch (error) {
+        console.error('Error fetching admin dashboard:', error);
+      }
+    };
+
+    // Initial fetch
+    fetchAdminDashboard();
+
+    // Set up polling only when IN_PROGRESS
+    if (tournament?.status === 'IN_PROGRESS') {
+      const interval = setInterval(fetchAdminDashboard, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [id, canViewAdminDashboard, tournament?.status]);
 
   if (isLoading) {
     return (
@@ -366,17 +398,36 @@ export default function TournamentDetailPage({
         </Card>
       </div>
 
+      {/* Admin Dashboard Section - Only for ADMIN and TOURNAMENT_DIRECTOR */}
+      {canViewAdminDashboard && adminDashboardData && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <AdminOverviewCard data={adminDashboardData} />
+          <AdminQuickActions
+            tournamentId={id}
+            data={adminDashboardData}
+            onActionComplete={() => {
+              fetchTournament();
+              // Refetch admin dashboard immediately after action
+              fetch(`/api/tournaments/${id}/admin-dashboard`)
+                .then(res => res.ok ? res.json() : null)
+                .then(data => data && setAdminDashboardData(data))
+                .catch(console.error);
+            }}
+          />
+        </div>
+      )}
+
       {/* Tabs */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <TabsList>
           <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
           <TabsTrigger value="config">Jetons</TabsTrigger>
-          <TabsTrigger value="players">Joueurs inscrits</TabsTrigger>
-          <TabsTrigger value="tables">Tables</TabsTrigger>
+          <TabsTrigger value="players" data-admin-tab="players">Joueurs inscrits</TabsTrigger>
+          <TabsTrigger value="tables" data-admin-tab="tables">Tables</TabsTrigger>
           <TabsTrigger value="timer">Timer</TabsTrigger>
           <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
           <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
-          <TabsTrigger value="results">Résultats</TabsTrigger>
+          <TabsTrigger value="results" data-admin-tab="results">Résultats</TabsTrigger>
           {isAdmin && <TabsTrigger value="directors">Directeurs</TabsTrigger>}
         </TabsList>
 
