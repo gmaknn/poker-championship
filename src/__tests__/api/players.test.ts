@@ -322,5 +322,28 @@ describe('/api/players', () => {
         expect(data.error).toBeDefined();
       });
     });
+
+    describe('Pseudo déjà utilisé (409)', () => {
+      it('retourne 409 si le pseudo existe déjà', async () => {
+        // Simuler une erreur Prisma P2002 (contrainte unique)
+        const prismaError = new Error('Unique constraint failed') as Error & { code: string };
+        prismaError.code = 'P2002';
+        (mockPrisma.player.create as jest.Mock).mockRejectedValueOnce(prismaError);
+
+        const request = createRequestWithRole(
+          'http://localhost:3003/api/players',
+          'admin',
+          { method: 'POST', body: validPlayerData }
+        );
+
+        const response = await POST(request);
+        const { status, data } = await parseJsonResponse<{ error: string }>(
+          response
+        );
+
+        expect(status).toBe(409);
+        expect(data.error).toBe('Ce pseudo est déjà utilisé');
+      });
+    });
   });
 });

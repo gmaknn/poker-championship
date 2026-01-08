@@ -654,7 +654,9 @@ export default function PlayersPage() {
               </div>
             </div>
             {error && (
-              <div className="text-sm text-destructive mb-4">{error}</div>
+              <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive mb-4">
+                {error}
+              </div>
             )}
             <DialogFooter>
               <Button
