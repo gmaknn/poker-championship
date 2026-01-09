@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
         email: validatedData.email || null,
         avatar: validatedData.avatar,
         role,
+        status: 'ACTIVE', // Forcer ACTIVE à la création (override du default DB INACTIVE)
       },
     });
 
