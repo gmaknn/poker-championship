@@ -76,6 +76,9 @@ describe('API /api/tournaments/[id]/blinds RBAC', () => {
           deleteMany: jest.fn().mockResolvedValue({ count: 2 }),
           createMany: jest.fn().mockResolvedValue({ count: 2 }),
         },
+        tournament: {
+          update: jest.fn().mockResolvedValue({ ...MOCK_TOURNAMENT_BLINDS, rebuyEndLevel: null }),
+        },
       };
       return fn(tx);
     });

@@ -11,6 +11,7 @@ const blindLevelSchema = z.object({
   duration: z.number().int().positive().default(12),
   isBreak: z.boolean().optional().default(false),
   rebalanceTables: z.boolean().optional().default(false),
+  isRebuyEnd: z.boolean().optional().default(false),
 });
 
 const blindStructureSchema = z.object({
@@ -84,6 +85,14 @@ export async function POST(
 
     console.log('[Blinds API] Tournament found, starting transaction');
 
+    // Trouver le niveau de fin de recaves (dernier niveau avec isRebuyEnd = true)
+    const rebuyEndLevel = validatedData.levels
+      .filter((l) => l.isRebuyEnd && !l.isBreak)
+      .map((l) => l.level)
+      .sort((a, b) => b - a)[0] || null;
+
+    console.log('[Blinds API] Calculated rebuyEndLevel:', rebuyEndLevel);
+
     // Supprimer les niveaux existants et créer les nouveaux
     await prisma.$transaction(async (tx) => {
       // Supprimer les niveaux existants
@@ -102,7 +111,14 @@ export async function POST(
           duration: level.duration,
           isBreak: level.isBreak ?? false,
           rebalanceTables: level.rebalanceTables ?? false,
+          isRebuyEnd: level.isRebuyEnd ?? false,
         })),
+      });
+
+      // Mettre à jour le rebuyEndLevel du tournoi
+      await tx.tournament.update({
+        where: { id },
+        data: { rebuyEndLevel },
       });
     });
 
