@@ -322,5 +322,46 @@ describe('/api/players', () => {
         expect(data.error).toBeDefined();
       });
     });
+
+    describe('Status par défaut', () => {
+      it('crée un joueur avec status ACTIVE par défaut', async () => {
+        const request = createRequestWithRole(
+          'http://localhost:3003/api/players',
+          'admin',
+          { method: 'POST', body: validPlayerData }
+        );
+
+        const response = await POST(request);
+        const { status, data } = await parseJsonResponse<{ status: string }>(
+          response
+        );
+
+        expect(status).toBe(201);
+        expect(data.status).toBe('ACTIVE');
+      });
+    });
+
+    describe('Contrainte unicité pseudo', () => {
+      it('retourne 409 si le pseudo est déjà utilisé', async () => {
+        // Simuler l'erreur Prisma P2002 (unique constraint violation)
+        const prismaError = new Error('Unique constraint failed') as Error & { code: string };
+        prismaError.code = 'P2002';
+        (mockPrisma.player.create as jest.Mock).mockRejectedValueOnce(prismaError);
+
+        const request = createRequestWithRole(
+          'http://localhost:3003/api/players',
+          'admin',
+          { method: 'POST', body: validPlayerData }
+        );
+
+        const response = await POST(request);
+        const { status, data } = await parseJsonResponse<{ error: string }>(
+          response
+        );
+
+        expect(status).toBe(409);
+        expect(data.error).toBe('Ce pseudo est déjà utilisé');
+      });
+    });
   });
 });
