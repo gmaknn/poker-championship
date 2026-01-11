@@ -372,7 +372,7 @@ export default function TournamentDetailPage({
         <TabsList>
           <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
           <TabsTrigger value="config">Jetons</TabsTrigger>
-          <TabsTrigger value="players" data-admin-tab="players">Joueurs inscrits</TabsTrigger>
+          <TabsTrigger value="players" data-admin-tab="players">Joueurs & Recaves</TabsTrigger>
           <TabsTrigger value="tables" data-admin-tab="tables">Tables</TabsTrigger>
           <TabsTrigger value="timer">Timer</TabsTrigger>
           <TabsTrigger value="eliminations">Éliminations</TabsTrigger>

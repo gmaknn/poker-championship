@@ -499,37 +499,37 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               {busts.map((bust, index) => (
                 <div
                   key={bust.id}
-                  className={`flex items-center justify-between p-3 rounded-lg border border-amber-500/30 ${
-                    index === 0 ? 'bg-amber-50 dark:bg-amber-950/20' : ''
+                  className={`flex items-center justify-between p-4 rounded-lg border border-amber-500/40 ${
+                    index === 0 ? 'bg-amber-500/10' : 'bg-amber-500/5'
                   }`}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-amber-500 text-amber-600">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10">
                         Bust
                       </Badge>
-                      <span className="font-medium">
+                      <span className="font-medium truncate">
                         {bust.eliminated.player.firstName} {bust.eliminated.player.lastName}
                       </span>
                       <span className="text-muted-foreground">
                         ({bust.eliminated.player.nickname})
                       </span>
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">
+                    <div className="text-sm text-muted-foreground mt-1.5">
                       {bust.killer ? (
                         <>
                           Pris par{' '}
-                          <span className="font-medium">
+                          <span className="font-medium text-foreground">
                             {bust.killer.player.nickname}
-                          </span>{' '}
+                          </span>
+                          {' '}au niveau {bust.level}
                         </>
                       ) : (
-                        'Killer non spécifié - '
+                        <>Killer non spécifié, niveau {bust.level}</>
                       )}
-                      au niveau {bust.level}
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground ml-4 flex-shrink-0">
                     {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
                   </div>
                 </div>

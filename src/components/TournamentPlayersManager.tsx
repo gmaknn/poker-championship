@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, UserMinus, Users, Search, DollarSign } from 'lucide-react';
+import { Plus, UserMinus, Users, Search, DollarSign, Undo2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type Player = {
@@ -59,6 +59,7 @@ export default function TournamentPlayersManager({
   const [isLoading, setIsLoading] = useState(true);
   const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
+  const [isCancellingRebuy, setIsCancellingRebuy] = useState(false);
   const [error, setError] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
 
@@ -211,6 +212,35 @@ export default function TournamentPlayersManager({
     }
   };
 
+  const handleCancelLastRebuy = async () => {
+    if (!confirm('Voulez-vous vraiment annuler la dernière recave ?')) {
+      return;
+    }
+
+    setIsCancellingRebuy(true);
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/recaves/last`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(data.message);
+        await fetchData();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Erreur lors de l\'annulation de la recave');
+      }
+    } catch (error) {
+      console.error('Error cancelling rebuy:', error);
+      alert('Erreur lors de l\'annulation de la recave');
+    } finally {
+      setIsCancellingRebuy(false);
+    }
+  };
+
   const handleTogglePayment = async (playerId: string, hasPaid: boolean) => {
     try {
       const response = await fetch(
@@ -241,6 +271,7 @@ export default function TournamentPlayersManager({
 
   const canUnenroll = tournament.status === 'PLANNED';
   const canRebuy = tournament.status === 'IN_PROGRESS';
+  const totalRebuys = enrolledPlayers.reduce((sum, p) => sum + p.rebuysCount, 0);
 
   if (isLoading) {
     return (
@@ -263,10 +294,22 @@ export default function TournamentPlayersManager({
             </span>
           </div>
         </div>
-        <Button onClick={() => setIsEnrollDialogOpen(true)} disabled={tournament.status !== 'PLANNED'}>
-          <Plus className="mr-2 h-4 w-4" />
-          Inscrire des joueurs
-        </Button>
+        <div className="flex items-center gap-2">
+          {canRebuy && totalRebuys > 0 && (
+            <Button
+              variant="outline"
+              onClick={handleCancelLastRebuy}
+              disabled={isCancellingRebuy}
+            >
+              <Undo2 className="mr-2 h-4 w-4" />
+              {isCancellingRebuy ? 'Annulation...' : 'Annuler dernière recave'}
+            </Button>
+          )}
+          <Button onClick={() => setIsEnrollDialogOpen(true)} disabled={tournament.status !== 'PLANNED'}>
+            <Plus className="mr-2 h-4 w-4" />
+            Inscrire des joueurs
+          </Button>
+        </div>
       </div>
 
       {/* Liste des joueurs inscrits */}
