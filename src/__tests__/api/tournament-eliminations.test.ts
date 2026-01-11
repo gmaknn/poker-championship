@@ -27,6 +27,7 @@ const PLAYER_A_ID = 'cltestplayera00000001';
 const PLAYER_B_ID = 'cltestplayerb00000002';
 
 // Mock tournament data with players enrolled
+// rebuyEndLevel: 2 et currentLevel: 3 => recaves fermées (currentLevel > rebuyEndLevel)
 const MOCK_TOURNAMENT_ELIM = {
   id: TEST_IDS.TOURNAMENT,
   name: 'Test Tournament',
@@ -37,6 +38,7 @@ const MOCK_TOURNAMENT_ELIM = {
   targetDuration: 180,
   status: 'IN_PROGRESS',
   currentLevel: 3,
+  rebuyEndLevel: 2, // Recaves fermées (currentLevel 3 > rebuyEndLevel 2)
   createdById: TEST_IDS.TD_PLAYER,
   season: MOCK_SEASON,
   tournamentPlayers: [

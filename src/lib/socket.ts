@@ -95,6 +95,16 @@ export interface TournamentEvents {
     playerName: string;
     rebuyType: 'standard' | 'light';
   };
+
+  // Bust events (pendant période de recaves)
+  'bust:player_busted': {
+    tournamentId: string;
+    eliminatedId: string;
+    eliminatedName: string;
+    killerId: string | null;
+    killerName: string | null;
+    level: number;
+  };
 }
 
 /**

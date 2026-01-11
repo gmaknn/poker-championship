@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
+import { areRecavesOpen } from '@/lib/tournament-utils';
 
 const eliminationSchema = z.object({
   eliminatedId: z.string().cuid(),
@@ -99,6 +100,14 @@ export async function POST(
     if (tournament.status !== 'IN_PROGRESS') {
       return NextResponse.json(
         { error: 'Tournament is not in progress' },
+        { status: 400 }
+      );
+    }
+
+    // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
+    if (areRecavesOpen(tournament)) {
+      return NextResponse.json(
+        { error: 'Rebuy period is still open. Use bust endpoint instead for stack losses during rebuy period.' },
         { status: 400 }
       );
     }
