@@ -62,6 +62,7 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
     name: 'Test Tournament',
     status: 'IN_PROGRESS',
     currentLevel: 3,
+    rebuyEndLevel: 2, // Recaves fermées (currentLevel 3 > rebuyEndLevel 2)
     createdById: TEST_IDS.TD_PLAYER,
     season: {
       id: TEST_IDS.SEASON,
@@ -814,6 +815,7 @@ describe('Concurrency: Atomic eliminations', () => {
       name: 'Test Tournament',
       status: 'IN_PROGRESS',
       currentLevel: 3,
+      rebuyEndLevel: 2, // Recaves fermées (currentLevel 3 > rebuyEndLevel 2)
       createdById: TEST_IDS.TD_PLAYER,
       season: null,
       tournamentPlayers: [

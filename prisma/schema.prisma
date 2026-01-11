@@ -156,6 +156,7 @@ model Tournament {
   tournamentPlayers     TournamentPlayer[]
   blindLevels           BlindLevel[]
   eliminations          Elimination[]
+  bustEvents            BustEvent[]
   tableAssignments      TableAssignment[]
   chipDenominations     ChipDenomination[]
   chipConfig            TournamentChipConfig?
@@ -196,6 +197,10 @@ model TournamentPlayer {
 
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
+
+  // Relations BustEvent
+  bustsAsEliminated BustEvent[] @relation("BustEliminated")
+  bustsAsKiller     BustEvent[] @relation("BustKiller")
 
   @@unique([tournamentId, playerId])
   @@unique([tournamentId, finalRank]) // Prevents duplicate ranks within a tournament (NULL values are ignored by SQLite)
@@ -260,6 +265,28 @@ model Elimination {
   @@index([tournamentId])
   @@index([eliminatedId])
   @@index([eliminatorId])
+}
+
+// Bust pendant période de recaves (perte de tapis sans élimination définitive)
+model BustEvent {
+  id              String      @id @default(cuid())
+  tournamentId    String
+  tournament      Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  // Joueur qui a perdu son tapis
+  eliminatedId    String
+  eliminated      TournamentPlayer @relation("BustEliminated", fields: [eliminatedId], references: [id], onDelete: Cascade)
+
+  // Joueur qui a pris le tapis (optionnel - peut être inconnu)
+  killerId        String?
+  killer          TournamentPlayer? @relation("BustKiller", fields: [killerId], references: [id], onDelete: SetNull)
+
+  level           Int         // Niveau auquel le bust a eu lieu
+  createdAt       DateTime    @default(now())
+
+  @@index([tournamentId])
+  @@index([eliminatedId])
+  @@index([killerId])
 }
 
 model TournamentTemplate {
