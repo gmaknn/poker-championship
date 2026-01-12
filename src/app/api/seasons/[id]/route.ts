@@ -86,6 +86,20 @@ export async function GET(
 }
 
 /**
+ * Vérifie si un tableau contient des tiers valides
+ */
+function isValidTierArray(arr: unknown): arr is RecavePenaltyTier[] {
+  if (!Array.isArray(arr)) return false;
+  return arr.every(
+    (item) =>
+      item &&
+      typeof item === 'object' &&
+      typeof (item as RecavePenaltyTier).fromRecaves === 'number' &&
+      typeof (item as RecavePenaltyTier).penaltyPoints === 'number'
+  );
+}
+
+/**
  * Détecte si les règles de malus recaves ont changé
  */
 function haveRecaveRulesChanged(
@@ -109,19 +123,24 @@ function haveRecaveRulesChanged(
     return true;
   }
 
+  // Vérifier si les tableaux de tiers sont valides et extraire les tiers typés
+  const oldTiers = isValidTierArray(oldSeason.recavePenaltyTiers)
+    ? oldSeason.recavePenaltyTiers
+    : null;
+  const newTiers = isValidTierArray(newData.recavePenaltyTiers)
+    ? newData.recavePenaltyTiers
+    : null;
+
   // Si on passe de legacy à dynamique ou vice-versa
-  const oldHasDynamic = Array.isArray(oldSeason.recavePenaltyTiers) && oldSeason.recavePenaltyTiers.length > 0;
-  const newHasDynamic = Array.isArray(newData.recavePenaltyTiers) && newData.recavePenaltyTiers.length > 0;
+  const oldHasDynamic = oldTiers !== null && oldTiers.length > 0;
+  const newHasDynamic = newTiers !== null && newTiers.length > 0;
 
   if (oldHasDynamic !== newHasDynamic) {
     return true;
   }
 
   // Si les deux utilisent le format dynamique, comparer les tableaux
-  if (newHasDynamic && oldHasDynamic) {
-    const oldTiers = oldSeason.recavePenaltyTiers as RecavePenaltyTier[];
-    const newTiers = newData.recavePenaltyTiers as RecavePenaltyTier[];
-
+  if (newHasDynamic && oldHasDynamic && oldTiers && newTiers) {
     if (oldTiers.length !== newTiers.length) {
       return true;
     }
@@ -239,7 +258,17 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const validatedData = seasonSchema.parse(body);
+
+    // Validation Zod avec safeParse pour capturer les erreurs proprement
+    const parseResult = seasonSchema.safeParse(body);
+    if (!parseResult.success) {
+      console.error('[Season PATCH] Validation failed:', parseResult.error.issues);
+      return NextResponse.json(
+        { error: 'Validation error', details: parseResult.error.issues },
+        { status: 400 }
+      );
+    }
+    const validatedData = parseResult.data;
 
     // Récupérer l'ancienne saison pour détecter les changements de règles
     const oldSeason = await prisma.season.findUnique({
@@ -293,11 +322,17 @@ export async function PATCH(
     let recalculationResult: { updatedPlayers: number; updatedTournaments: number } | null = null;
 
     if (rulesChanged) {
-      const rules = parseRecavePenaltyRules(season);
-      recalculationResult = await recalculateSeasonPenalties(id, rules);
-      console.log(
-        `[Season PATCH] Recalculated penalties for season ${id}: ${recalculationResult.updatedPlayers} players across ${recalculationResult.updatedTournaments} tournaments`
-      );
+      try {
+        const rules = parseRecavePenaltyRules(season);
+        recalculationResult = await recalculateSeasonPenalties(id, rules);
+        console.log(
+          `[Season PATCH] Recalculated penalties for season ${id}: ${recalculationResult.updatedPlayers} players across ${recalculationResult.updatedTournaments} tournaments`
+        );
+      } catch (recalcError) {
+        console.error('[Season PATCH] Recalculation failed:', recalcError);
+        // Ne pas bloquer la sauvegarde si le recalcul échoue
+        // La saison a déjà été mise à jour
+      }
     }
 
     return NextResponse.json({
@@ -305,13 +340,6 @@ export async function PATCH(
       _recalculation: recalculationResult,
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation error', details: error.issues },
-        { status: 400 }
-      );
-    }
-
     console.error('Error updating season:', error);
     return NextResponse.json(
       { error: 'Failed to update season' },
