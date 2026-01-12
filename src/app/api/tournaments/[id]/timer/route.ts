@@ -67,6 +67,14 @@ export async function GET(
       timeIntoCurrentLevel = lastLevel ? lastLevel.duration * 60 : 0;
     }
 
+    // Persister le niveau courant s'il a changé (pour cohérence avec areRecavesOpen, etc.)
+    if (calculatedLevel !== tournament.currentLevel) {
+      await prisma.tournament.update({
+        where: { id },
+        data: { currentLevel: calculatedLevel },
+      });
+    }
+
     // Trouver le niveau actuel dans la liste
     const currentLevelData = tournament.blindLevels.find(
       (bl) => bl.level === calculatedLevel
