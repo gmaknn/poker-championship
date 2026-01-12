@@ -33,6 +33,12 @@ const seasonSchema = z.object({
   rebuyPenaltyTier2: z.number().int().default(-100),
   rebuyPenaltyTier3: z.number().int().default(-150),
 
+  // Nouveau: paliers dynamiques (optionnel, prioritaire sur les champs legacy)
+  recavePenaltyTiers: z.array(z.object({
+    fromRecaves: z.number().int().min(1),
+    penaltyPoints: z.number().int().max(0),
+  })).optional().nullable(),
+
   // Système de meilleures performances
   totalTournamentsCount: z.number().int().optional().nullable(),
   bestTournamentsCount: z.number().int().optional().nullable(),
@@ -103,6 +109,7 @@ export async function POST(request: NextRequest) {
         rebuyPenaltyTier1: validatedData.rebuyPenaltyTier1,
         rebuyPenaltyTier2: validatedData.rebuyPenaltyTier2,
         rebuyPenaltyTier3: validatedData.rebuyPenaltyTier3,
+        recavePenaltyTiers: validatedData.recavePenaltyTiers ?? undefined,
 
         totalTournamentsCount: validatedData.totalTournamentsCount,
         bestTournamentsCount: validatedData.bestTournamentsCount,

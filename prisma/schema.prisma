@@ -87,9 +87,10 @@ model Season {
 
   // Malus de recave
   freeRebuysCount       Int         @default(2)
-  rebuyPenaltyTier1     Int         @default(-50)   // 3 recaves
-  rebuyPenaltyTier2     Int         @default(-100)  // 4 recaves
-  rebuyPenaltyTier3     Int         @default(-150)  // 5+ recaves
+  rebuyPenaltyTier1     Int         @default(-50)   // LEGACY - 3 recaves
+  rebuyPenaltyTier2     Int         @default(-100)  // LEGACY - 4 recaves
+  rebuyPenaltyTier3     Int         @default(-150)  // LEGACY - 5+ recaves
+  recavePenaltyTiers    Json?       // Nouveau: [{fromRecaves: number, penaltyPoints: number}]
 
   // Système de meilleures performances
   totalTournamentsCount Int?

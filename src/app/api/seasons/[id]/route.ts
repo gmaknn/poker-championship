@@ -3,6 +3,18 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { getCurrentPlayer } from '@/lib/auth-helpers';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
+import {
+  computeRecavePenalty,
+  parseRecavePenaltyRules,
+  RecavePenaltyTier,
+  RecavePenaltyRules,
+} from '@/lib/scoring';
+
+// Schéma pour les paliers de malus dynamiques
+const recavePenaltyTierSchema = z.object({
+  fromRecaves: z.number().int().min(1),
+  penaltyPoints: z.number().int().max(0), // Doit être <= 0
+});
 
 const seasonSchema = z.object({
   name: z.string().min(1, 'Le nom est requis'),
@@ -26,10 +38,14 @@ const seasonSchema = z.object({
   eliminationPoints: z.number().int().default(50),
   leaderKillerBonus: z.number().int().default(25),
 
+  // Champs legacy (gardés pour rétrocompat)
   freeRebuysCount: z.number().int().default(2),
   rebuyPenaltyTier1: z.number().int().default(-50),
   rebuyPenaltyTier2: z.number().int().default(-100),
   rebuyPenaltyTier3: z.number().int().default(-150),
+
+  // Nouveau: paliers dynamiques (optionnel, prioritaire sur les champs legacy)
+  recavePenaltyTiers: z.array(recavePenaltyTierSchema).optional().nullable(),
 
   totalTournamentsCount: z.number().int().optional().nullable(),
   bestTournamentsCount: z.number().int().optional().nullable(),
@@ -69,6 +85,143 @@ export async function GET(
   }
 }
 
+/**
+ * Détecte si les règles de malus recaves ont changé
+ */
+function haveRecaveRulesChanged(
+  oldSeason: {
+    freeRebuysCount: number;
+    recavePenaltyTiers: unknown;
+    rebuyPenaltyTier1: number;
+    rebuyPenaltyTier2: number;
+    rebuyPenaltyTier3: number;
+  },
+  newData: {
+    freeRebuysCount: number;
+    recavePenaltyTiers?: RecavePenaltyTier[] | null;
+    rebuyPenaltyTier1: number;
+    rebuyPenaltyTier2: number;
+    rebuyPenaltyTier3: number;
+  }
+): boolean {
+  // Si freeRebuysCount change
+  if (oldSeason.freeRebuysCount !== newData.freeRebuysCount) {
+    return true;
+  }
+
+  // Si on passe de legacy à dynamique ou vice-versa
+  const oldHasDynamic = Array.isArray(oldSeason.recavePenaltyTiers) && oldSeason.recavePenaltyTiers.length > 0;
+  const newHasDynamic = Array.isArray(newData.recavePenaltyTiers) && newData.recavePenaltyTiers.length > 0;
+
+  if (oldHasDynamic !== newHasDynamic) {
+    return true;
+  }
+
+  // Si les deux utilisent le format dynamique, comparer les tableaux
+  if (newHasDynamic && oldHasDynamic) {
+    const oldTiers = oldSeason.recavePenaltyTiers as RecavePenaltyTier[];
+    const newTiers = newData.recavePenaltyTiers as RecavePenaltyTier[];
+
+    if (oldTiers.length !== newTiers.length) {
+      return true;
+    }
+
+    // Trier et comparer
+    const sortedOld = [...oldTiers].sort((a, b) => a.fromRecaves - b.fromRecaves);
+    const sortedNew = [...newTiers].sort((a, b) => a.fromRecaves - b.fromRecaves);
+
+    for (let i = 0; i < sortedOld.length; i++) {
+      if (
+        sortedOld[i].fromRecaves !== sortedNew[i].fromRecaves ||
+        sortedOld[i].penaltyPoints !== sortedNew[i].penaltyPoints
+      ) {
+        return true;
+      }
+    }
+  }
+
+  // Si les deux utilisent legacy, comparer les tiers legacy
+  if (!newHasDynamic && !oldHasDynamic) {
+    if (
+      oldSeason.rebuyPenaltyTier1 !== newData.rebuyPenaltyTier1 ||
+      oldSeason.rebuyPenaltyTier2 !== newData.rebuyPenaltyTier2 ||
+      oldSeason.rebuyPenaltyTier3 !== newData.rebuyPenaltyTier3
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Recalcule les points de malus pour tous les joueurs de la saison
+ */
+async function recalculateSeasonPenalties(
+  seasonId: string,
+  rules: RecavePenaltyRules
+): Promise<{ updatedPlayers: number; updatedTournaments: number }> {
+  // Charger tous les tournois FINISHED de la saison avec leurs joueurs
+  const tournaments = await prisma.tournament.findMany({
+    where: {
+      seasonId,
+      status: 'FINISHED',
+      type: 'CHAMPIONSHIP',
+    },
+    include: {
+      tournamentPlayers: true,
+    },
+  });
+
+  let updatedPlayers = 0;
+
+  // Préparer toutes les mises à jour
+  const updates: Array<{
+    id: string;
+    penaltyPoints: number;
+    totalPoints: number;
+  }> = [];
+
+  for (const tournament of tournaments) {
+    for (const tp of tournament.tournamentPlayers) {
+      const newPenalty = computeRecavePenalty(tp.rebuysCount, rules);
+
+      // Recalculer totalPoints
+      const newTotal = tp.rankPoints + tp.eliminationPoints + tp.bonusPoints + newPenalty;
+
+      // Seulement si changement
+      if (tp.penaltyPoints !== newPenalty || tp.totalPoints !== newTotal) {
+        updates.push({
+          id: tp.id,
+          penaltyPoints: newPenalty,
+          totalPoints: newTotal,
+        });
+      }
+    }
+  }
+
+  // Exécuter les mises à jour en transaction
+  if (updates.length > 0) {
+    await prisma.$transaction(
+      updates.map((u) =>
+        prisma.tournamentPlayer.update({
+          where: { id: u.id },
+          data: {
+            penaltyPoints: u.penaltyPoints,
+            totalPoints: u.totalPoints,
+          },
+        })
+      )
+    );
+    updatedPlayers = updates.length;
+  }
+
+  return {
+    updatedPlayers,
+    updatedTournaments: tournaments.length,
+  };
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -88,6 +241,19 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = seasonSchema.parse(body);
 
+    // Récupérer l'ancienne saison pour détecter les changements de règles
+    const oldSeason = await prisma.season.findUnique({
+      where: { id },
+    });
+
+    if (!oldSeason) {
+      return NextResponse.json({ error: 'Season not found' }, { status: 404 });
+    }
+
+    // Détecter si les règles de malus ont changé
+    const rulesChanged = haveRecaveRulesChanged(oldSeason, validatedData);
+
+    // Mettre à jour la saison
     const season = await prisma.season.update({
       where: { id },
       data: {
@@ -116,13 +282,28 @@ export async function PATCH(
         rebuyPenaltyTier1: validatedData.rebuyPenaltyTier1,
         rebuyPenaltyTier2: validatedData.rebuyPenaltyTier2,
         rebuyPenaltyTier3: validatedData.rebuyPenaltyTier3,
+        recavePenaltyTiers: validatedData.recavePenaltyTiers ?? undefined,
 
         totalTournamentsCount: validatedData.totalTournamentsCount,
         bestTournamentsCount: validatedData.bestTournamentsCount,
       },
     });
 
-    return NextResponse.json(season);
+    // Si les règles ont changé, recalculer les points de la saison
+    let recalculationResult: { updatedPlayers: number; updatedTournaments: number } | null = null;
+
+    if (rulesChanged) {
+      const rules = parseRecavePenaltyRules(season);
+      recalculationResult = await recalculateSeasonPenalties(id, rules);
+      console.log(
+        `[Season PATCH] Recalculated penalties for season ${id}: ${recalculationResult.updatedPlayers} players across ${recalculationResult.updatedTournaments} tournaments`
+      );
+    }
+
+    return NextResponse.json({
+      ...season,
+      _recalculation: recalculationResult,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
