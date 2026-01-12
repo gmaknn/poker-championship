@@ -210,10 +210,16 @@ async function recalculateSeasonPenalties(
   // Mettre à jour chaque joueur individuellement dans la transaction
   for (const tournament of tournaments) {
     for (const tp of tournament.tournamentPlayers) {
-      const newPenalty = computeRecavePenalty(tp.rebuysCount, rules);
+      // Protection contre les valeurs null/undefined (données legacy ou incohérentes)
+      const rebuysCount = tp.rebuysCount ?? 0;
+      const rankPoints = tp.rankPoints ?? 0;
+      const eliminationPoints = tp.eliminationPoints ?? 0;
+      const bonusPoints = tp.bonusPoints ?? 0;
+
+      const newPenalty = computeRecavePenalty(rebuysCount, rules);
 
       // Recalculer totalPoints
-      const newTotal = tp.rankPoints + tp.eliminationPoints + tp.bonusPoints + newPenalty;
+      const newTotal = rankPoints + eliminationPoints + bonusPoints + newPenalty;
 
       // Seulement si changement
       if (tp.penaltyPoints !== newPenalty || tp.totalPoints !== newTotal) {
@@ -321,26 +327,32 @@ export async function PATCH(
   try {
     // === TRANSACTION ATOMIQUE ===
     // Si les règles changent, update + recalcul sont atomiques (rollback si échec)
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Mettre à jour la saison
-      const updatedSeason = await tx.season.update({
-        where: { id },
-        data: updateData,
-      });
+    // Timeout augmenté à 30s pour les saisons avec beaucoup de tournois/joueurs
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 1. Mettre à jour la saison
+        const updatedSeason = await tx.season.update({
+          where: { id },
+          data: updateData,
+        });
 
-      // 2. Si les règles ont changé, recalculer les pénalités
-      let recalculationResult: { updatedPlayers: number; updatedTournaments: number } | null = null;
+        // 2. Si les règles ont changé, recalculer les pénalités
+        let recalculationResult: { updatedPlayers: number; updatedTournaments: number } | null = null;
 
-      if (rulesChanged) {
-        const rules = parseRecavePenaltyRules(updatedSeason);
-        recalculationResult = await recalculateSeasonPenalties(tx, id, rules);
-        console.log(
-          `[Season PATCH] Recalculated penalties for season ${id}: ${recalculationResult.updatedPlayers} players across ${recalculationResult.updatedTournaments} tournaments`
-        );
+        if (rulesChanged) {
+          const rules = parseRecavePenaltyRules(updatedSeason);
+          recalculationResult = await recalculateSeasonPenalties(tx, id, rules);
+          console.log(
+            `[Season PATCH] Recalculated penalties for season ${id}: ${recalculationResult.updatedPlayers} players across ${recalculationResult.updatedTournaments} tournaments`
+          );
+        }
+
+        return { season: updatedSeason, recalculation: recalculationResult };
+      },
+      {
+        timeout: 30000, // 30 secondes (défaut: 5s)
       }
-
-      return { season: updatedSeason, recalculation: recalculationResult };
-    });
+    );
 
     return NextResponse.json({
       ...result.season,
@@ -350,14 +362,40 @@ export async function PATCH(
     // Si la transaction échoue (y compris le recalcul), tout est rollback
     console.error('[Season PATCH] Transaction failed (rollback):', error);
 
-    // Message d'erreur explicite pour l'UI
-    const errorMessage = rulesChanged
-      ? 'Modification annulée: le recalcul des pénalités a échoué'
-      : 'Échec de la mise à jour de la saison';
+    // Extraire le message d'erreur pour le diagnostic
+    const errorDetails = error instanceof Error ? error.message : String(error);
+    const isTimeout = errorDetails.includes('Transaction timed out') ||
+                      errorDetails.includes('P2028');
+    const isNotFound = errorDetails.includes('Record to update not found') ||
+                       errorDetails.includes('P2025');
+
+    // Déterminer le code d'erreur et le message appropriés
+    let errorCode = 'TRANSACTION_FAILED';
+    let errorMessage: string;
+    let statusCode = 409;
+
+    if (isTimeout) {
+      errorCode = 'RECALC_TIMEOUT';
+      errorMessage = 'Le recalcul a pris trop de temps. Veuillez réessayer.';
+      statusCode = 504;
+    } else if (isNotFound) {
+      errorCode = 'RECORD_NOT_FOUND';
+      errorMessage = 'Un enregistrement requis est introuvable.';
+      statusCode = 404;
+    } else if (rulesChanged) {
+      errorCode = 'RECALC_FAILED';
+      errorMessage = 'Modification annulée: le recalcul des pénalités a échoué';
+    } else {
+      errorMessage = 'Échec de la mise à jour de la saison';
+    }
 
     return NextResponse.json(
-      { error: errorMessage },
-      { status: 409 }
+      {
+        error: errorMessage,
+        code: errorCode,
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
+      },
+      { status: statusCode }
     );
   }
 }

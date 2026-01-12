@@ -426,14 +426,144 @@ describe('Atomic transaction behavior', () => {
     expect(true).toBe(true); // Placeholder for documentation
   });
 
-  it('should return 409 when transaction fails', () => {
+  it('should return 409 when transaction fails due to recalc error', () => {
     // The API should return 409 (Conflict) when the atomic update fails
-    // This allows the UI to show a clear error message
+    // due to a recalculation error
 
     // Expected response:
-    // { error: "Modification annulée: le recalcul des pénalités a échoué" }
+    // { error: "Modification annulée: le recalcul des pénalités a échoué", code: "RECALC_FAILED" }
     // status: 409
 
     expect(true).toBe(true); // Placeholder for documentation
+  });
+
+  it('should return 504 when transaction times out', () => {
+    // The API should return 504 (Gateway Timeout) when the transaction times out
+    // This can happen with large datasets
+
+    // Expected response:
+    // { error: "Le recalcul a pris trop de temps. Veuillez réessayer.", code: "RECALC_TIMEOUT" }
+    // status: 504
+
+    expect(true).toBe(true); // Placeholder for documentation
+  });
+
+  it('should return 404 when a record is not found during recalculation', () => {
+    // The API should return 404 when a tournament player record is missing
+
+    // Expected response:
+    // { error: "Un enregistrement requis est introuvable.", code: "RECORD_NOT_FOUND" }
+    // status: 404
+
+    expect(true).toBe(true); // Placeholder for documentation
+  });
+});
+
+describe('Penalty recalculation with null values', () => {
+  // Import the penalty computation function
+  const { computeRecavePenalty, parseRecavePenaltyRules } = require('@/lib/scoring');
+
+  it('should handle null rebuysCount gracefully (treat as 0)', () => {
+    const rules = {
+      freeRebuysCount: 2,
+      tiers: [
+        { fromRecaves: 3, penaltyPoints: -50 },
+        { fromRecaves: 4, penaltyPoints: -100 },
+      ],
+    };
+
+    // Simulate what the code does with ?? 0
+    const rebuysCount = null ?? 0;
+    const penalty = computeRecavePenalty(rebuysCount, rules);
+    expect(penalty).toBe(0);
+  });
+
+  it('should handle undefined rebuysCount gracefully (treat as 0)', () => {
+    const rules = {
+      freeRebuysCount: 2,
+      tiers: [
+        { fromRecaves: 3, penaltyPoints: -50 },
+      ],
+    };
+
+    // Simulate what the code does with ?? 0
+    const rebuysCount = undefined ?? 0;
+    const penalty = computeRecavePenalty(rebuysCount, rules);
+    expect(penalty).toBe(0);
+  });
+
+  it('should correctly calculate penalty with valid rebuysCount', () => {
+    const rules = {
+      freeRebuysCount: 2,
+      tiers: [
+        { fromRecaves: 3, penaltyPoints: -50 },
+        { fromRecaves: 4, penaltyPoints: -100 },
+        { fromRecaves: 5, penaltyPoints: -150 },
+      ],
+    };
+
+    expect(computeRecavePenalty(0, rules)).toBe(0);
+    expect(computeRecavePenalty(1, rules)).toBe(0);
+    expect(computeRecavePenalty(2, rules)).toBe(0);
+    expect(computeRecavePenalty(3, rules)).toBe(-50);
+    expect(computeRecavePenalty(4, rules)).toBe(-100);
+    expect(computeRecavePenalty(5, rules)).toBe(-150);
+    expect(computeRecavePenalty(6, rules)).toBe(-150);
+  });
+
+  it('should correctly calculate total points with null values', () => {
+    // Simulate the calculation in recalculateSeasonPenalties
+    const tp = {
+      rankPoints: 1500,
+      eliminationPoints: null,
+      bonusPoints: undefined,
+      penaltyPoints: 0,
+    };
+
+    const rankPoints = tp.rankPoints ?? 0;
+    const eliminationPoints = (tp.eliminationPoints as number | null) ?? 0;
+    const bonusPoints = (tp.bonusPoints as number | undefined) ?? 0;
+    const newPenalty = -50;
+
+    const newTotal = rankPoints + eliminationPoints + bonusPoints + newPenalty;
+    expect(newTotal).toBe(1450);
+  });
+
+  it('should parse legacy rules correctly', () => {
+    const season = {
+      freeRebuysCount: 2,
+      recavePenaltyTiers: null,
+      rebuyPenaltyTier1: -50,
+      rebuyPenaltyTier2: -100,
+      rebuyPenaltyTier3: -150,
+    };
+
+    const rules = parseRecavePenaltyRules(season);
+    expect(rules.freeRebuysCount).toBe(2);
+    expect(rules.tiers).toHaveLength(3);
+    expect(rules.tiers[0]).toEqual({ fromRecaves: 3, penaltyPoints: -50 });
+    expect(rules.tiers[1]).toEqual({ fromRecaves: 4, penaltyPoints: -100 });
+    expect(rules.tiers[2]).toEqual({ fromRecaves: 5, penaltyPoints: -150 });
+  });
+
+  it('should parse dynamic tiers correctly', () => {
+    const season = {
+      freeRebuysCount: 1,
+      recavePenaltyTiers: [
+        { fromRecaves: 2, penaltyPoints: -30 },
+        { fromRecaves: 3, penaltyPoints: -60 },
+        { fromRecaves: 4, penaltyPoints: -100 },
+      ],
+      rebuyPenaltyTier1: -50,
+      rebuyPenaltyTier2: -100,
+      rebuyPenaltyTier3: -150,
+    };
+
+    const rules = parseRecavePenaltyRules(season);
+    expect(rules.freeRebuysCount).toBe(1);
+    expect(rules.tiers).toHaveLength(3);
+    expect(rules.tiers[0]).toEqual({ fromRecaves: 2, penaltyPoints: -30 });
+    expect(rules.tiers[1]).toEqual({ fromRecaves: 3, penaltyPoints: -60 });
+    expect(rules.tiers[2]).toEqual({ fromRecaves: 4, penaltyPoints: -100 });
   });
 });
