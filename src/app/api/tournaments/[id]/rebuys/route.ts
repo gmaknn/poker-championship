@@ -58,7 +58,7 @@ export async function POST(
 
     if (tournament.rebuyEndLevel && tournament.currentLevel > tournament.rebuyEndLevel) {
       return NextResponse.json(
-        { error: 'Rebuy period has ended' },
+        { error: 'Période de recaves terminée' },
         { status: 400 }
       );
     }
