@@ -199,11 +199,11 @@ export default function RecavePenaltyTiersEditor({
       )}
 
       {/* Aperçu */}
-      <div className="bg-blue-500/10 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg border border-blue-500/20">
+      <div className="bg-muted/50 px-4 py-3 rounded-lg border border-border">
         <div className="flex items-start gap-3">
-          <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
+          <Info className="h-5 w-5 mt-0.5 flex-shrink-0 text-muted-foreground" />
           <div className="flex-1">
-            <p className="font-semibold mb-2">Aperçu du système de malus</p>
+            <p className="font-semibold mb-2 text-foreground">Aperçu du système de malus</p>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 text-sm">
               {preview.map((p) => (
                 <div
