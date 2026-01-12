@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { getCurrentPlayer } from '@/lib/auth-helpers';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
@@ -9,6 +10,12 @@ import {
   RecavePenaltyTier,
   RecavePenaltyRules,
 } from '@/lib/scoring';
+
+// Type pour le client transactionnel Prisma
+type TransactionClient = Omit<
+  typeof prisma,
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>;
 
 // Schéma pour les paliers de malus dynamiques
 const recavePenaltyTierSchema = z.object({
@@ -87,8 +94,9 @@ export async function GET(
 
 /**
  * Vérifie si un tableau contient des tiers valides
+ * @exported for testing
  */
-function isValidTierArray(arr: unknown): arr is RecavePenaltyTier[] {
+export function isValidTierArray(arr: unknown): arr is RecavePenaltyTier[] {
   if (!Array.isArray(arr)) return false;
   return arr.every(
     (item) =>
@@ -101,8 +109,9 @@ function isValidTierArray(arr: unknown): arr is RecavePenaltyTier[] {
 
 /**
  * Détecte si les règles de malus recaves ont changé
+ * @exported for testing
  */
-function haveRecaveRulesChanged(
+export function haveRecaveRulesChanged(
   oldSeason: {
     freeRebuysCount: number;
     recavePenaltyTiers: unknown;
@@ -175,13 +184,17 @@ function haveRecaveRulesChanged(
 
 /**
  * Recalcule les points de malus pour tous les joueurs de la saison
+ * @param tx Client transactionnel Prisma (pour atomicité)
+ * @param seasonId ID de la saison
+ * @param rules Règles de malus recaves
  */
 async function recalculateSeasonPenalties(
+  tx: TransactionClient,
   seasonId: string,
   rules: RecavePenaltyRules
 ): Promise<{ updatedPlayers: number; updatedTournaments: number }> {
   // Charger tous les tournois FINISHED de la saison avec leurs joueurs
-  const tournaments = await prisma.tournament.findMany({
+  const tournaments = await tx.tournament.findMany({
     where: {
       seasonId,
       status: 'FINISHED',
@@ -194,13 +207,7 @@ async function recalculateSeasonPenalties(
 
   let updatedPlayers = 0;
 
-  // Préparer toutes les mises à jour
-  const updates: Array<{
-    id: string;
-    penaltyPoints: number;
-    totalPoints: number;
-  }> = [];
-
+  // Mettre à jour chaque joueur individuellement dans la transaction
   for (const tournament of tournaments) {
     for (const tp of tournament.tournamentPlayers) {
       const newPenalty = computeRecavePenalty(tp.rebuysCount, rules);
@@ -210,29 +217,16 @@ async function recalculateSeasonPenalties(
 
       // Seulement si changement
       if (tp.penaltyPoints !== newPenalty || tp.totalPoints !== newTotal) {
-        updates.push({
-          id: tp.id,
-          penaltyPoints: newPenalty,
-          totalPoints: newTotal,
+        await tx.tournamentPlayer.update({
+          where: { id: tp.id },
+          data: {
+            penaltyPoints: newPenalty,
+            totalPoints: newTotal,
+          },
         });
+        updatedPlayers++;
       }
     }
-  }
-
-  // Exécuter les mises à jour en transaction
-  if (updates.length > 0) {
-    await prisma.$transaction(
-      updates.map((u) =>
-        prisma.tournamentPlayer.update({
-          where: { id: u.id },
-          data: {
-            penaltyPoints: u.penaltyPoints,
-            totalPoints: u.totalPoints,
-          },
-        })
-      )
-    );
-    updatedPlayers = updates.length;
   }
 
   return {
@@ -245,105 +239,125 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Vérifier les permissions - seuls les ADMIN peuvent modifier des saisons
+  const currentPlayer = await getCurrentPlayer(request);
+
+  if (!currentPlayer || !hasPermission(currentPlayer.role, PERMISSIONS.EDIT_SEASON)) {
+    return NextResponse.json(
+      { error: 'Vous n\'avez pas la permission de modifier des saisons' },
+      { status: 403 }
+    );
+  }
+
+  const { id } = await params;
+
+  // Parser le body en dehors du try pour gérer les erreurs JSON séparément
+  let body: unknown;
   try {
-    // Vérifier les permissions - seuls les ADMIN peuvent modifier des saisons
-    const currentPlayer = await getCurrentPlayer(request);
+    body = await request.json();
+  } catch {
+    return NextResponse.json(
+      { error: 'Invalid JSON body' },
+      { status: 400 }
+    );
+  }
 
-    if (!currentPlayer || !hasPermission(currentPlayer.role, PERMISSIONS.EDIT_SEASON)) {
-      return NextResponse.json(
-        { error: 'Vous n\'avez pas la permission de modifier des saisons' },
-        { status: 403 }
-      );
-    }
+  // Validation Zod avec safeParse pour capturer les erreurs proprement
+  const parseResult = seasonSchema.safeParse(body);
+  if (!parseResult.success) {
+    console.error('[Season PATCH] Validation failed:', parseResult.error.issues);
+    return NextResponse.json(
+      { error: 'Validation error', details: parseResult.error.issues },
+      { status: 400 }
+    );
+  }
+  const validatedData = parseResult.data;
 
-    const { id } = await params;
-    const body = await request.json();
+  // Récupérer l'ancienne saison pour détecter les changements de règles
+  const oldSeason = await prisma.season.findUnique({
+    where: { id },
+  });
 
-    // Validation Zod avec safeParse pour capturer les erreurs proprement
-    const parseResult = seasonSchema.safeParse(body);
-    if (!parseResult.success) {
-      console.error('[Season PATCH] Validation failed:', parseResult.error.issues);
-      return NextResponse.json(
-        { error: 'Validation error', details: parseResult.error.issues },
-        { status: 400 }
-      );
-    }
-    const validatedData = parseResult.data;
+  if (!oldSeason) {
+    return NextResponse.json({ error: 'Season not found' }, { status: 404 });
+  }
 
-    // Récupérer l'ancienne saison pour détecter les changements de règles
-    const oldSeason = await prisma.season.findUnique({
-      where: { id },
-    });
+  // Détecter si les règles de malus ont changé
+  const rulesChanged = haveRecaveRulesChanged(oldSeason, validatedData);
 
-    if (!oldSeason) {
-      return NextResponse.json({ error: 'Season not found' }, { status: 404 });
-    }
+  // Préparer les données de mise à jour
+  const updateData = {
+    name: validatedData.name,
+    year: validatedData.year,
+    startDate: new Date(validatedData.startDate),
+    endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
 
-    // Détecter si les règles de malus ont changé
-    const rulesChanged = haveRecaveRulesChanged(oldSeason, validatedData);
+    pointsFirst: validatedData.pointsFirst,
+    pointsSecond: validatedData.pointsSecond,
+    pointsThird: validatedData.pointsThird,
+    pointsFourth: validatedData.pointsFourth,
+    pointsFifth: validatedData.pointsFifth,
+    pointsSixth: validatedData.pointsSixth,
+    pointsSeventh: validatedData.pointsSeventh,
+    pointsEighth: validatedData.pointsEighth,
+    pointsNinth: validatedData.pointsNinth,
+    pointsTenth: validatedData.pointsTenth,
+    pointsEleventh: validatedData.pointsEleventh,
+    pointsSixteenth: validatedData.pointsSixteenth,
 
-    // Mettre à jour la saison
-    const season = await prisma.season.update({
-      where: { id },
-      data: {
-        name: validatedData.name,
-        year: validatedData.year,
-        startDate: new Date(validatedData.startDate),
-        endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
+    eliminationPoints: validatedData.eliminationPoints,
+    leaderKillerBonus: validatedData.leaderKillerBonus,
 
-        pointsFirst: validatedData.pointsFirst,
-        pointsSecond: validatedData.pointsSecond,
-        pointsThird: validatedData.pointsThird,
-        pointsFourth: validatedData.pointsFourth,
-        pointsFifth: validatedData.pointsFifth,
-        pointsSixth: validatedData.pointsSixth,
-        pointsSeventh: validatedData.pointsSeventh,
-        pointsEighth: validatedData.pointsEighth,
-        pointsNinth: validatedData.pointsNinth,
-        pointsTenth: validatedData.pointsTenth,
-        pointsEleventh: validatedData.pointsEleventh,
-        pointsSixteenth: validatedData.pointsSixteenth,
+    freeRebuysCount: validatedData.freeRebuysCount,
+    rebuyPenaltyTier1: validatedData.rebuyPenaltyTier1,
+    rebuyPenaltyTier2: validatedData.rebuyPenaltyTier2,
+    rebuyPenaltyTier3: validatedData.rebuyPenaltyTier3,
+    recavePenaltyTiers: validatedData.recavePenaltyTiers ?? Prisma.JsonNull,
 
-        eliminationPoints: validatedData.eliminationPoints,
-        leaderKillerBonus: validatedData.leaderKillerBonus,
+    totalTournamentsCount: validatedData.totalTournamentsCount,
+    bestTournamentsCount: validatedData.bestTournamentsCount,
+  };
 
-        freeRebuysCount: validatedData.freeRebuysCount,
-        rebuyPenaltyTier1: validatedData.rebuyPenaltyTier1,
-        rebuyPenaltyTier2: validatedData.rebuyPenaltyTier2,
-        rebuyPenaltyTier3: validatedData.rebuyPenaltyTier3,
-        recavePenaltyTiers: validatedData.recavePenaltyTiers ?? undefined,
+  try {
+    // === TRANSACTION ATOMIQUE ===
+    // Si les règles changent, update + recalcul sont atomiques (rollback si échec)
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Mettre à jour la saison
+      const updatedSeason = await tx.season.update({
+        where: { id },
+        data: updateData,
+      });
 
-        totalTournamentsCount: validatedData.totalTournamentsCount,
-        bestTournamentsCount: validatedData.bestTournamentsCount,
-      },
-    });
+      // 2. Si les règles ont changé, recalculer les pénalités
+      let recalculationResult: { updatedPlayers: number; updatedTournaments: number } | null = null;
 
-    // Si les règles ont changé, recalculer les points de la saison
-    let recalculationResult: { updatedPlayers: number; updatedTournaments: number } | null = null;
-
-    if (rulesChanged) {
-      try {
-        const rules = parseRecavePenaltyRules(season);
-        recalculationResult = await recalculateSeasonPenalties(id, rules);
+      if (rulesChanged) {
+        const rules = parseRecavePenaltyRules(updatedSeason);
+        recalculationResult = await recalculateSeasonPenalties(tx, id, rules);
         console.log(
           `[Season PATCH] Recalculated penalties for season ${id}: ${recalculationResult.updatedPlayers} players across ${recalculationResult.updatedTournaments} tournaments`
         );
-      } catch (recalcError) {
-        console.error('[Season PATCH] Recalculation failed:', recalcError);
-        // Ne pas bloquer la sauvegarde si le recalcul échoue
-        // La saison a déjà été mise à jour
       }
-    }
+
+      return { season: updatedSeason, recalculation: recalculationResult };
+    });
 
     return NextResponse.json({
-      ...season,
-      _recalculation: recalculationResult,
+      ...result.season,
+      _recalculation: result.recalculation,
     });
   } catch (error) {
-    console.error('Error updating season:', error);
+    // Si la transaction échoue (y compris le recalcul), tout est rollback
+    console.error('[Season PATCH] Transaction failed (rollback):', error);
+
+    // Message d'erreur explicite pour l'UI
+    const errorMessage = rulesChanged
+      ? 'Modification annulée: le recalcul des pénalités a échoué'
+      : 'Échec de la mise à jour de la saison';
+
     return NextResponse.json(
-      { error: 'Failed to update season' },
-      { status: 500 }
+      { error: errorMessage },
+      { status: 409 }
     );
   }
 }
