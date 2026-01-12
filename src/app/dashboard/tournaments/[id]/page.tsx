@@ -254,273 +254,298 @@ export default function TournamentDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-muted/30 rounded-lg p-6 border-2 border-border">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push('/dashboard/tournaments')}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold">{tournament.name}</h1>
-              <Badge variant={statusConfig.variant} className="text-lg px-4 py-1">{statusConfig.label}</Badge>
+      {/* ═══════════════════════════════════════════════════════════════════
+          NIVEAU 1 : HERO HEADER
+          Zone principale avec titre, statut et actions
+      ═══════════════════════════════════════════════════════════════════ */}
+      <div className="bg-card rounded-xl border-2 border-border shadow-lg">
+        <div className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.push('/dashboard/tournaments')}
+                className="h-10 w-10"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-3xl font-bold text-foreground tracking-tight">
+                    {tournament.name}
+                  </h1>
+                  <Badge
+                    variant={statusConfig.variant}
+                    className="text-base px-4 py-1.5 font-semibold"
+                  >
+                    {statusConfig.label}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground mt-1.5 text-base">
+                  {tournament.season?.name} ({tournament.season?.year})
+                </p>
+              </div>
             </div>
-            <p className="text-muted-foreground mt-1 text-base">
-              {tournament.season?.name} ({tournament.season?.year})
-            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => window.open(`/tv-v3/${tournament.id}`, '_blank')}
+              >
+                <Tv className="mr-2 h-4 w-4" />
+                Vue TV
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCopyTvUrl}
+                title="Copier l'URL du mode TV"
+              >
+                {isCopied ? (
+                  <Check className="mr-2 h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="mr-2 h-4 w-4" />
+                )}
+                {isCopied ? 'Copié !' : 'Copier URL'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleEditClick}
+                disabled={tournament.status === 'FINISHED'}
+                title={tournament.status === 'FINISHED' ? 'Impossible de modifier un tournoi terminé' : ''}
+              >
+                <Edit2 className="mr-2 h-4 w-4" />
+                Modifier
+              </Button>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => window.open(`/tv-v3/${tournament.id}`, '_blank')}
-          >
-            <Tv className="mr-2 h-4 w-4" />
-            Vue TV
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleCopyTvUrl}
-            title="Copier l'URL du mode TV"
-          >
-            {isCopied ? (
-              <Check className="mr-2 h-4 w-4 text-green-500" />
-            ) : (
-              <Copy className="mr-2 h-4 w-4" />
-            )}
-            {isCopied ? 'Copié !' : 'Copier URL'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleEditClick}
-            disabled={tournament.status === 'FINISHED'}
-            title={tournament.status === 'FINISHED' ? 'Impossible de modifier un tournoi terminé' : ''}
-          >
-            <Edit2 className="mr-2 h-4 w-4" />
-            Modifier
-          </Button>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          NIVEAU 2 : KPI CARDS
+          Métriques clés dans un conteneur distinct
+      ═══════════════════════════════════════════════════════════════════ */}
+      <div className="bg-muted/30 rounded-xl border border-border p-4">
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card className="bg-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Date</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {format(new Date(tournament.date), 'd MMM yyyy', { locale: fr })}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {format(new Date(tournament.date), "HH'h'mm", { locale: fr })}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Joueurs</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {tournament._count.tournamentPlayers}
+                {tournament.totalPlayers && (
+                  <span className="text-lg text-muted-foreground font-normal">
+                    {' '}/ {tournament.totalPlayers}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">inscrits</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Buy-in</CardTitle>
+              <Trophy className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{tournament.buyInAmount}€</div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {tournament.startingChips.toLocaleString()} jetons
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Structure</CardTitle>
+              <Trophy className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {tournament._count.blindLevels} niveaux
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {Math.floor(tournament.targetDuration / 60)}h
+                {tournament.targetDuration % 60 > 0 && `${tournament.targetDuration % 60}min`}
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Info cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Date</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">
-              {format(new Date(tournament.date), 'd MMM yyyy', { locale: fr })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {format(new Date(tournament.date), "HH'h'mm", { locale: fr })}
-            </p>
-          </CardContent>
-        </Card>
+      {/* ═══════════════════════════════════════════════════════════════════
+          NIVEAU 3 : CONTENU PRINCIPAL
+          Tabs + zone de contenu métier
+      ═══════════════════════════════════════════════════════════════════ */}
+      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
+        <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
+          {/* Barre de navigation par onglets */}
+          <div className="border-b border-border bg-muted/30 px-4 pt-4 pb-0">
+            <TabsList className="bg-transparent border-0 shadow-none p-0 h-auto gap-1">
+              <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
+              <TabsTrigger value="config">Jetons</TabsTrigger>
+              <TabsTrigger value="players" data-admin-tab="players">Joueurs & Recaves</TabsTrigger>
+              <TabsTrigger value="tables" data-admin-tab="tables">Tables</TabsTrigger>
+              <TabsTrigger value="timer">Timer</TabsTrigger>
+              <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
+              <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
+              <TabsTrigger value="results" data-admin-tab="results">Résultats</TabsTrigger>
+              {isAdmin && <TabsTrigger value="directors">Directeurs</TabsTrigger>}
+            </TabsList>
+          </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Joueurs</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">
-              {tournament._count.tournamentPlayers}
-              {tournament.totalPlayers && ` / ${tournament.totalPlayers}`}
-            </div>
-            <p className="text-xs text-muted-foreground">inscrits</p>
-          </CardContent>
-        </Card>
+          {/* Zone de contenu */}
+          <div className="p-6">
+            <TabsContent value="structure" className="mt-0">
+              {tournament.status === 'FINISHED' ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <div className="text-4xl font-bold text-green-600 mb-4">Terminé</div>
+                    <p className="text-muted-foreground">
+                      Le tournoi est terminé. Les modifications ne sont plus possibles.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <BlindStructureEditor
+                  tournamentId={tournament.id}
+                  startingChips={tournament.startingChips}
+                  onSave={() => fetchTournament()}
+                  onUnsavedChangesChange={setHasUnsavedChanges}
+                />
+              )}
+            </TabsContent>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Buy-in</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">{tournament.buyInAmount}€</div>
-            <p className="text-xs text-muted-foreground">
-              {tournament.startingChips.toLocaleString()} jetons
-            </p>
-          </CardContent>
-        </Card>
+            <TabsContent value="config" className="mt-0">
+              {tournament.status === 'FINISHED' ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <div className="text-4xl font-bold text-green-600 mb-4">Terminé</div>
+                    <p className="text-muted-foreground">
+                      Le tournoi est terminé. Les modifications ne sont plus possibles.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <ChipSetSelector
+                  tournamentId={tournament.id}
+                  startingChips={tournament.startingChips}
+                  totalPlayers={tournament.totalPlayers || tournament._count.tournamentPlayers || 10}
+                  onUpdate={() => fetchTournament()}
+                />
+              )}
+            </TabsContent>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Structure</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">
-              {tournament._count.blindLevels} niveaux
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {Math.floor(tournament.targetDuration / 60)}h
-              {tournament.targetDuration % 60}min
-            </p>
-          </CardContent>
-        </Card>
+            <TabsContent value="players" className="mt-0">
+              {tournament.status === 'FINISHED' ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <div className="text-4xl font-bold text-green-600 mb-4">Terminé</div>
+                    <p className="text-muted-foreground">
+                      Le tournoi est terminé. Les modifications ne sont plus possibles.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <TournamentPlayersManager
+                  tournamentId={tournament.id}
+                  tournament={{
+                    id: tournament.id,
+                    status: tournament.status,
+                    buyInAmount: tournament.buyInAmount,
+                  }}
+                  onUpdate={() => fetchTournament()}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="tables" className="mt-0">
+              {tournament.status === 'FINISHED' ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <div className="text-4xl font-bold text-green-600 mb-4">Terminé</div>
+                    <p className="text-muted-foreground">
+                      Le tournoi est terminé. Les modifications ne sont plus possibles.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <TableDistribution
+                  tournamentId={tournament.id}
+                  onUpdate={() => fetchTournament()}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="timer" className="mt-0">
+              <TournamentTimer
+                tournamentId={tournament.id}
+                tournamentStatus={tournament.status}
+                onUpdate={() => fetchTournament()}
+              />
+            </TabsContent>
+
+            <TabsContent value="eliminations" className="mt-0">
+              {tournament.status === 'FINISHED' ? (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <div className="text-4xl font-bold text-green-600 mb-4">Terminé</div>
+                    <p className="text-muted-foreground">
+                      Le tournoi est terminé. Les modifications ne sont plus possibles.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <EliminationManager
+                  tournamentId={tournament.id}
+                  onUpdate={() => fetchTournament()}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="prizepool" className="mt-0">
+              <PrizePoolManager
+                tournamentId={tournament.id}
+                onUpdate={() => fetchTournament()}
+              />
+            </TabsContent>
+
+            <TabsContent value="results" className="mt-0">
+              <TournamentResults
+                tournamentId={tournament.id}
+                onUpdate={() => fetchTournament()}
+              />
+            </TabsContent>
+
+            {isAdmin && (
+              <TabsContent value="directors" className="mt-0">
+                <TournamentDirectorsManager
+                  tournamentId={tournament.id}
+                  isAdmin={isAdmin}
+                />
+              </TabsContent>
+            )}
+          </div>
+        </Tabs>
       </div>
-
-      {/* Tabs */}
-      <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList>
-          <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
-          <TabsTrigger value="config">Jetons</TabsTrigger>
-          <TabsTrigger value="players" data-admin-tab="players">Joueurs & Recaves</TabsTrigger>
-          <TabsTrigger value="tables" data-admin-tab="tables">Tables</TabsTrigger>
-          <TabsTrigger value="timer">Timer</TabsTrigger>
-          <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
-          <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
-          <TabsTrigger value="results" data-admin-tab="results">Résultats</TabsTrigger>
-          {isAdmin && <TabsTrigger value="directors">Directeurs</TabsTrigger>}
-        </TabsList>
-
-        <TabsContent value="structure" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <BlindStructureEditor
-              tournamentId={tournament.id}
-              startingChips={tournament.startingChips}
-              onSave={() => fetchTournament()}
-              onUnsavedChangesChange={setHasUnsavedChanges}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="config" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <ChipSetSelector
-              tournamentId={tournament.id}
-              startingChips={tournament.startingChips}
-              totalPlayers={tournament.totalPlayers || tournament._count.tournamentPlayers || 10}
-              onUpdate={() => fetchTournament()}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="players" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <TournamentPlayersManager
-              tournamentId={tournament.id}
-              tournament={{
-                id: tournament.id,
-                status: tournament.status,
-                buyInAmount: tournament.buyInAmount,
-              }}
-              onUpdate={() => fetchTournament()}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="tables" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <TableDistribution
-              tournamentId={tournament.id}
-              onUpdate={() => fetchTournament()}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="timer" className="mt-6">
-          <TournamentTimer
-            tournamentId={tournament.id}
-            tournamentStatus={tournament.status}
-            onUpdate={() => fetchTournament()}
-          />
-        </TabsContent>
-
-        <TabsContent value="eliminations" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <EliminationManager
-              tournamentId={tournament.id}
-              onUpdate={() => fetchTournament()}
-            />
-          )}
-        </TabsContent>
-
-        <TabsContent value="prizepool" className="mt-6">
-          <PrizePoolManager
-            tournamentId={tournament.id}
-            onUpdate={() => fetchTournament()}
-          />
-        </TabsContent>
-
-        <TabsContent value="results" className="mt-6">
-          <TournamentResults
-            tournamentId={tournament.id}
-            onUpdate={() => fetchTournament()}
-          />
-        </TabsContent>
-
-        {isAdmin && (
-          <TabsContent value="directors" className="mt-6">
-            <TournamentDirectorsManager
-              tournamentId={tournament.id}
-              isAdmin={isAdmin}
-            />
-          </TabsContent>
-        )}
-      </Tabs>
 
       {/* Dialog de modification */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
