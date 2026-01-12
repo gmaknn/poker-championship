@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
+import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
 
 const rebuySchema = z.object({
   playerId: z.string().cuid(),
@@ -153,23 +154,11 @@ export async function POST(
       const newRebuysCount = currentPlayer.rebuysCount + (validatedData.type === 'STANDARD' ? 1 : 0);
       const lightRebuyUsed = validatedData.type === 'LIGHT' ? true : currentPlayer.lightRebuyUsed;
 
-      // Calculer les malus de recave selon la saison
+      // Calculer les malus de recave selon la saison (fonction centralisée)
       let penaltyPoints = 0;
       if (tournament.season) {
-        const totalRebuys = newRebuysCount;
-        const freeRebuys = tournament.season.freeRebuysCount;
-
-        if (totalRebuys > freeRebuys) {
-          const paidRebuys = totalRebuys - freeRebuys;
-
-          if (paidRebuys === 1) {
-            penaltyPoints = tournament.season.rebuyPenaltyTier1;
-          } else if (paidRebuys === 2) {
-            penaltyPoints = tournament.season.rebuyPenaltyTier2;
-          } else if (paidRebuys >= 3) {
-            penaltyPoints = tournament.season.rebuyPenaltyTier3;
-          }
-        }
+        const rules = parseRecavePenaltyRules(tournament.season);
+        penaltyPoints = computeRecavePenalty(newRebuysCount, rules);
       }
 
       // === ÉCRITURE ATOMIQUE avec updateMany conditionnel (optimistic lock) ===

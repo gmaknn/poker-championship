@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
+import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
 
 // DELETE - Annuler la dernière recave enregistrée
 export async function DELETE(
@@ -92,23 +93,11 @@ export async function DELETE(
 
       const newRebuysCount = currentPlayer.rebuysCount - 1;
 
-      // Recalculer les malus de recave selon la saison
+      // Recalculer les malus de recave selon la saison (fonction centralisée)
       let penaltyPoints = 0;
       if (tournament.season) {
-        const totalRebuys = newRebuysCount;
-        const freeRebuys = tournament.season.freeRebuysCount;
-
-        if (totalRebuys > freeRebuys) {
-          const paidRebuys = totalRebuys - freeRebuys;
-
-          if (paidRebuys === 1) {
-            penaltyPoints = tournament.season.rebuyPenaltyTier1;
-          } else if (paidRebuys === 2) {
-            penaltyPoints = tournament.season.rebuyPenaltyTier2;
-          } else if (paidRebuys >= 3) {
-            penaltyPoints = tournament.season.rebuyPenaltyTier3;
-          }
-        }
+        const rules = parseRecavePenaltyRules(tournament.season);
+        penaltyPoints = computeRecavePenalty(newRebuysCount, rules);
       }
 
       // Mise à jour atomique avec vérification optimiste

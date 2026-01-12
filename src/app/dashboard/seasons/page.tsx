@@ -19,6 +19,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Season } from '@prisma/client';
+import RecavePenaltyTiersEditor from '@/components/RecavePenaltyTiersEditor';
+import { RecavePenaltyTier } from '@/lib/scoring';
 
 type SeasonWithCount = Season & {
   _count?: {
@@ -45,6 +47,11 @@ const DEFAULT_SEASON_PARAMS = {
   rebuyPenaltyTier1: -50,
   rebuyPenaltyTier2: -100,
   rebuyPenaltyTier3: -150,
+  recavePenaltyTiers: [
+    { fromRecaves: 3, penaltyPoints: -50 },
+    { fromRecaves: 4, penaltyPoints: -100 },
+    { fromRecaves: 5, penaltyPoints: -150 },
+  ] as RecavePenaltyTier[],
 };
 
 export default function SeasonsPage() {
@@ -110,6 +117,12 @@ export default function SeasonsPage() {
         rebuyPenaltyTier1: season.rebuyPenaltyTier1,
         rebuyPenaltyTier2: season.rebuyPenaltyTier2,
         rebuyPenaltyTier3: season.rebuyPenaltyTier3,
+        // Charger les paliers dynamiques ou créer depuis legacy
+        recavePenaltyTiers: (season.recavePenaltyTiers as RecavePenaltyTier[] | null) || [
+          { fromRecaves: season.freeRebuysCount + 1, penaltyPoints: season.rebuyPenaltyTier1 },
+          { fromRecaves: season.freeRebuysCount + 2, penaltyPoints: season.rebuyPenaltyTier2 },
+          { fromRecaves: season.freeRebuysCount + 3, penaltyPoints: season.rebuyPenaltyTier3 },
+        ],
       });
     } else {
       setEditingSeason(null);
@@ -158,6 +171,7 @@ export default function SeasonsPage() {
         rebuyPenaltyTier1: formData.rebuyPenaltyTier1,
         rebuyPenaltyTier2: formData.rebuyPenaltyTier2,
         rebuyPenaltyTier3: formData.rebuyPenaltyTier3,
+        recavePenaltyTiers: formData.recavePenaltyTiers,
       };
 
       const url = editingSeason ? `/api/seasons/${editingSeason.id}` : '/api/seasons';
@@ -623,72 +637,16 @@ export default function SeasonsPage() {
               </TabsContent>
 
               <TabsContent value="rebuys" className="space-y-4 py-4">
-                <div>
-                  <h3 className="font-semibold mb-3">Système de malus de recave</h3>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="freeRebuysCount">Nombre de recaves gratuites</Label>
-                      <Input
-                        id="freeRebuysCount"
-                        type="number"
-                        min="0"
-                        value={formData.freeRebuysCount}
-                        onChange={(e) =>
-                          setFormData({ ...formData, freeRebuysCount: parseInt(e.target.value) })
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Aucun malus jusqu'à ce nombre de recaves
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="rebuyPenaltyTier1">Malus 3 recaves</Label>
-                        <Input
-                          id="rebuyPenaltyTier1"
-                          type="number"
-                          value={formData.rebuyPenaltyTier1}
-                          onChange={(e) =>
-                            setFormData({ ...formData, rebuyPenaltyTier1: parseInt(e.target.value) })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="rebuyPenaltyTier2">Malus 4 recaves</Label>
-                        <Input
-                          id="rebuyPenaltyTier2"
-                          type="number"
-                          value={formData.rebuyPenaltyTier2}
-                          onChange={(e) =>
-                            setFormData({ ...formData, rebuyPenaltyTier2: parseInt(e.target.value) })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="rebuyPenaltyTier3">Malus 5+ recaves</Label>
-                        <Input
-                          id="rebuyPenaltyTier3"
-                          type="number"
-                          value={formData.rebuyPenaltyTier3}
-                          onChange={(e) =>
-                            setFormData({ ...formData, rebuyPenaltyTier3: parseInt(e.target.value) })
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div className="bg-muted p-4 rounded-lg">
-                      <h4 className="font-medium mb-2">Aperçu du système</h4>
-                      <ul className="text-sm space-y-1">
-                        <li>• 0-{formData.freeRebuysCount} recaves : 0 point de malus</li>
-                        <li>• 3 recaves : {formData.rebuyPenaltyTier1} points</li>
-                        <li>• 4 recaves : {formData.rebuyPenaltyTier2} points</li>
-                        <li>• 5+ recaves : {formData.rebuyPenaltyTier3} points</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
+                <RecavePenaltyTiersEditor
+                  freeRebuysCount={formData.freeRebuysCount}
+                  tiers={formData.recavePenaltyTiers}
+                  onFreeRebuysChange={(count) =>
+                    setFormData({ ...formData, freeRebuysCount: count })
+                  }
+                  onTiersChange={(tiers) =>
+                    setFormData({ ...formData, recavePenaltyTiers: tiers })
+                  }
+                />
               </TabsContent>
             </Tabs>
 
