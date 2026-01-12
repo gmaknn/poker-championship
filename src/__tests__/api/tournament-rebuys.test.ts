@@ -286,7 +286,7 @@ describe('API /api/tournaments/[id]/rebuys RBAC', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.error).toContain('Rebuy period has ended');
+      expect(data.error).toContain('Période de recaves terminée');
     });
 
     it('should return 404 when player is not enrolled in tournament', async () => {

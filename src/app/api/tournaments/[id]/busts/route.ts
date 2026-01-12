@@ -113,7 +113,7 @@ export async function POST(
     // Les busts ne sont autorisés que pendant la période de recaves
     if (!areRecavesOpen(tournament)) {
       return NextResponse.json(
-        { error: 'Rebuy period has ended. Use elimination instead.' },
+        { error: 'Période de recaves terminée. Utilisez l\'élimination définitive.' },
         { status: 400 }
       );
     }

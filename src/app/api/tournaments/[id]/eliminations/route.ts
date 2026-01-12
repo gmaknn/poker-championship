@@ -107,7 +107,7 @@ export async function POST(
     // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
     if (areRecavesOpen(tournament)) {
       return NextResponse.json(
-        { error: 'Rebuy period is still open. Use bust endpoint instead for stack losses during rebuy period.' },
+        { error: 'Période de recaves encore ouverte. Utilisez le formulaire de perte de tapis.' },
         { status: 400 }
       );
     }

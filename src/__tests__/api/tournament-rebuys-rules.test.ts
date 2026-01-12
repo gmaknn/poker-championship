@@ -267,7 +267,7 @@ describe('POST /api/tournaments/[id]/rebuys - Business Rules', () => {
 
       expect(response.status).toBe(400);
       const data = await response.json();
-      expect(data.error).toContain('Rebuy period has ended');
+      expect(data.error).toContain('Période de recaves terminée');
     });
 
     it('should allow rebuy when currentLevel equals rebuyEndLevel', async () => {
