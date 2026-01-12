@@ -82,6 +82,10 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
   useEffect(() => {
     fetchData();
+
+    // Polling pour rafraîchir le niveau courant (important pour la bascule recaves/éliminations)
+    const interval = setInterval(fetchData, 10000);
+    return () => clearInterval(interval);
   }, [tournamentId]);
 
   const fetchData = async () => {
@@ -90,6 +94,15 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       const tournamentResponse = await fetch(`/api/tournaments/${tournamentId}`);
       if (tournamentResponse.ok) {
         const tournamentData = await tournamentResponse.json();
+
+        // Récupérer le niveau courant calculé depuis le timer (source de vérité)
+        const timerResponse = await fetch(`/api/tournaments/${tournamentId}/timer`);
+        if (timerResponse.ok) {
+          const timerData = await timerResponse.json();
+          // Utiliser le currentLevel calculé par le timer
+          tournamentData.currentLevel = timerData.currentLevel;
+        }
+
         setTournament(tournamentData);
       }
 
