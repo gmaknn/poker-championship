@@ -310,11 +310,11 @@ export default function ChipSetSelector({
             </div>
 
             {!hasBlindStructure && (
-              <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <div className="p-3 bg-muted/50 border border-border rounded-lg">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+                  <AlertCircle className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <div className="flex-1">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <p className="text-sm text-foreground">
                       <strong>Prochaine étape :</strong> Après avoir sauvegardé les mallettes,
                       définissez la structure des blinds. La distribution optimale sera
                       calculée automatiquement en fonction de cette structure.
