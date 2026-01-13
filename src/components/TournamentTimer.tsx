@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SectionCard } from '@/components/ui/section-card';
 import { Play, Pause, RotateCcw, Clock, ArrowUp } from 'lucide-react';
 import { playCountdown, announceLevelChange } from '@/lib/audioManager';
 
@@ -316,46 +317,44 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
         </div>
       )}
 
-      {/* Niveau actuel */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Niveau actuel</CardTitle>
-            <Badge variant="outline">
-              Niveau {timerState.currentLevelData.level}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* Small Blind */}
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-1">Small Blind</div>
-              <div className="text-3xl font-bold">
-                {timerState.currentLevelData.smallBlind.toLocaleString()}
-              </div>
-            </div>
-
-            {/* Big Blind */}
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-1">Big Blind</div>
-              <div className="text-3xl font-bold">
-                {timerState.currentLevelData.bigBlind.toLocaleString()}
-              </div>
-            </div>
-
-            {/* Ante */}
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-1">Ante</div>
-              <div className="text-3xl font-bold">
-                {timerState.currentLevelData.ante > 0
-                  ? timerState.currentLevelData.ante.toLocaleString()
-                  : '-'}
-              </div>
+      {/* Niveau actuel - ink variant pour KPIs */}
+      <SectionCard
+        variant="ink"
+        title="Niveau actuel"
+        actions={
+          <Badge variant="outline">
+            Niveau {timerState.currentLevelData.level}
+          </Badge>
+        }
+      >
+        <div className="grid gap-6 md:grid-cols-3">
+          {/* Small Blind */}
+          <div className="text-center">
+            <div className="text-sm text-ink-foreground/70 mb-1">Small Blind</div>
+            <div className="text-3xl font-bold">
+              {timerState.currentLevelData.smallBlind.toLocaleString()}
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Big Blind */}
+          <div className="text-center">
+            <div className="text-sm text-ink-foreground/70 mb-1">Big Blind</div>
+            <div className="text-3xl font-bold">
+              {timerState.currentLevelData.bigBlind.toLocaleString()}
+            </div>
+          </div>
+
+          {/* Ante */}
+          <div className="text-center">
+            <div className="text-sm text-ink-foreground/70 mb-1">Ante</div>
+            <div className="text-3xl font-bold">
+              {timerState.currentLevelData.ante > 0
+                ? timerState.currentLevelData.ante.toLocaleString()
+                : '-'}
+            </div>
+          </div>
+        </div>
+      </SectionCard>
 
       {/* Timer */}
       <Card>

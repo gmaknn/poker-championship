@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SectionCard } from '@/components/ui/section-card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -254,132 +255,128 @@ export default function TournamentDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-muted/30 rounded-lg p-6 border-2 border-border">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push('/dashboard/tournaments')}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold">{tournament.name}</h1>
-              <Badge variant={statusConfig.variant} className="text-lg px-4 py-1">{statusConfig.label}</Badge>
+      {/* Header - Zone HERO avec variant ink */}
+      <SectionCard variant="ink" noPadding className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push('/dashboard/tournaments')}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold">{tournament.name}</h1>
+                <Badge variant={statusConfig.variant} className="text-lg px-4 py-1">{statusConfig.label}</Badge>
+              </div>
+              <p className="text-ink-foreground/70 mt-1 text-base">
+                {tournament.season?.name} ({tournament.season?.year})
+              </p>
             </div>
-            <p className="text-muted-foreground mt-1 text-base">
-              {tournament.season?.name} ({tournament.season?.year})
-            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => window.open(`/tv-v3/${tournament.id}`, '_blank')}
+            >
+              <Tv className="mr-2 h-4 w-4" />
+              Vue TV
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCopyTvUrl}
+              title="Copier l'URL du mode TV"
+            >
+              {isCopied ? (
+                <Check className="mr-2 h-4 w-4 text-green-500" />
+              ) : (
+                <Copy className="mr-2 h-4 w-4" />
+              )}
+              {isCopied ? 'Copié !' : 'Copier URL'}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleEditClick}
+              disabled={tournament.status === 'FINISHED'}
+              title={tournament.status === 'FINISHED' ? 'Impossible de modifier un tournoi terminé' : ''}
+            >
+              <Edit2 className="mr-2 h-4 w-4" />
+              Modifier
+            </Button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => window.open(`/tv-v3/${tournament.id}`, '_blank')}
-          >
-            <Tv className="mr-2 h-4 w-4" />
-            Vue TV
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleCopyTvUrl}
-            title="Copier l'URL du mode TV"
-          >
-            {isCopied ? (
-              <Check className="mr-2 h-4 w-4 text-green-500" />
-            ) : (
-              <Copy className="mr-2 h-4 w-4" />
-            )}
-            {isCopied ? 'Copié !' : 'Copier URL'}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleEditClick}
-            disabled={tournament.status === 'FINISHED'}
-            title={tournament.status === 'FINISHED' ? 'Impossible de modifier un tournoi terminé' : ''}
-          >
-            <Edit2 className="mr-2 h-4 w-4" />
-            Modifier
-          </Button>
-        </div>
+      </SectionCard>
+
+      {/* Info cards - KPIs avec variant ink */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Date</span>
+            <Calendar className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          <div className="text-lg font-bold">
+            {format(new Date(tournament.date), 'd MMM yyyy', { locale: fr })}
+          </div>
+          <p className="text-xs text-ink-foreground/60">
+            {format(new Date(tournament.date), "HH'h'mm", { locale: fr })}
+          </p>
+        </SectionCard>
+
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Joueurs</span>
+            <Users className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          <div className="text-lg font-bold">
+            {tournament._count.tournamentPlayers}
+            {tournament.totalPlayers && ` / ${tournament.totalPlayers}`}
+          </div>
+          <p className="text-xs text-ink-foreground/60">inscrits</p>
+        </SectionCard>
+
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Buy-in</span>
+            <Trophy className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          <div className="text-lg font-bold">{tournament.buyInAmount}€</div>
+          <p className="text-xs text-ink-foreground/60">
+            {tournament.startingChips.toLocaleString()} jetons
+          </p>
+        </SectionCard>
+
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Structure</span>
+            <Trophy className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          <div className="text-lg font-bold">
+            {tournament._count.blindLevels} niveaux
+          </div>
+          <p className="text-xs text-ink-foreground/60">
+            {Math.floor(tournament.targetDuration / 60)}h
+            {tournament.targetDuration % 60}min
+          </p>
+        </SectionCard>
       </div>
 
-      {/* Info cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Date</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">
-              {format(new Date(tournament.date), 'd MMM yyyy', { locale: fr })}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {format(new Date(tournament.date), "HH'h'mm", { locale: fr })}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Joueurs</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">
-              {tournament._count.tournamentPlayers}
-              {tournament.totalPlayers && ` / ${tournament.totalPlayers}`}
-            </div>
-            <p className="text-xs text-muted-foreground">inscrits</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Buy-in</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">{tournament.buyInAmount}€</div>
-            <p className="text-xs text-muted-foreground">
-              {tournament.startingChips.toLocaleString()} jetons
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Structure</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-lg font-bold">
-              {tournament._count.blindLevels} niveaux
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {Math.floor(tournament.targetDuration / 60)}h
-              {tournament.targetDuration % 60}min
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs */}
+      {/* Tabs - Navigation avec fond ink */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList>
-          <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
-          <TabsTrigger value="config">Jetons</TabsTrigger>
-          <TabsTrigger value="players" data-admin-tab="players">Joueurs & Recaves</TabsTrigger>
-          <TabsTrigger value="tables" data-admin-tab="tables">Tables</TabsTrigger>
-          <TabsTrigger value="timer">Timer</TabsTrigger>
-          <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
-          <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
-          <TabsTrigger value="results" data-admin-tab="results">Résultats</TabsTrigger>
-          {isAdmin && <TabsTrigger value="directors">Directeurs</TabsTrigger>}
-        </TabsList>
+        <div className="bg-ink rounded-lg p-1 border border-border shadow-md">
+          <TabsList className="bg-transparent w-full justify-start">
+            <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
+            <TabsTrigger value="config">Jetons</TabsTrigger>
+            <TabsTrigger value="players" data-admin-tab="players">Joueurs & Recaves</TabsTrigger>
+            <TabsTrigger value="tables" data-admin-tab="tables">Tables</TabsTrigger>
+            <TabsTrigger value="timer">Timer</TabsTrigger>
+            <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
+            <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
+            <TabsTrigger value="results" data-admin-tab="results">Résultats</TabsTrigger>
+            {isAdmin && <TabsTrigger value="directors">Directeurs</TabsTrigger>}
+          </TabsList>
+        </div>
 
         <TabsContent value="structure" className="mt-6">
           {tournament.status === 'FINISHED' ? (

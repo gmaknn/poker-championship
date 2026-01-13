@@ -21,6 +21,9 @@
   --input: 214.3 31.8% 91.4%;
   --ring: 142 71% 45%;
   --radius: 0.5rem;
+  /* Ink - deep surface for emphasis (light mode: same as card) */
+  --ink: 0 0% 100%;
+  --ink-foreground: 222.2 84% 4.9%;
 }
 
 @theme inline {
@@ -43,6 +46,8 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
+  --color-ink: hsl(var(--ink));
+  --color-ink-foreground: hsl(var(--ink-foreground));
   --font-sans: var(--font-inter);
 }
 
@@ -71,6 +76,9 @@
   --border: 220 13% 40%;
   --input: 220 13% 30%;
   --ring: 142 71% 50%;
+  /* Ink - deep black surface for emphasis in dark mode */
+  --ink: 220 15% 10%;
+  --ink-foreground: 210 20% 98%;
 }
 
 body {
