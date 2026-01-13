@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SectionCard } from '@/components/ui/section-card';
 import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
@@ -299,60 +300,52 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </Card>
       )}
 
-      {/* Statistiques */}
+      {/* Statistiques - ink variant */}
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Joueurs en jeu</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activePlayers.length}</div>
-          </CardContent>
-        </Card>
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Joueurs en jeu</span>
+            <Trophy className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          <div className="text-2xl font-bold">{activePlayers.length}</div>
+        </SectionCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Busts</CardTitle>
-            <RefreshCw className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{busts.length}</div>
-          </CardContent>
-        </Card>
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Busts</span>
+            <RefreshCw className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          <div className="text-2xl font-bold">{busts.length}</div>
+        </SectionCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Éliminations</CardTitle>
-            <Skull className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{eliminations.length}</div>
-          </CardContent>
-        </Card>
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Éliminations</span>
+            <Skull className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          <div className="text-2xl font-bold">{eliminations.length}</div>
+        </SectionCard>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leader Killer</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {leaderKillerCandidates.length > 0 ? (
-              <div className="text-sm">
-                {leaderKillerCandidates.map((playerId) => {
-                  const player = players.find((p) => p.playerId === playerId);
-                  return (
-                    <div key={playerId} className="font-medium">
-                      {player?.player.nickname}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">Aucun</div>
-            )}
-          </CardContent>
-        </Card>
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Leader Killer</span>
+            <Target className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          {leaderKillerCandidates.length > 0 ? (
+            <div className="text-sm">
+              {leaderKillerCandidates.map((playerId) => {
+                const player = players.find((p) => p.playerId === playerId);
+                return (
+                  <div key={playerId} className="font-medium">
+                    {player?.player.nickname}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-sm text-ink-foreground/60">Aucun</div>
+          )}
+        </SectionCard>
       </div>
 
       {/* Formulaire bust ou élimination selon l'état des recaves */}

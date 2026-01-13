@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SectionCard } from '@/components/ui/section-card';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -492,63 +493,51 @@ export default function BlindStructureEditor({
         </div>
       )}
 
-      {/* Statistiques */}
+      {/* Statistiques - Sous-résumé avec variant ink */}
       {stats && (
         <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Durée totale
-              </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {formatTime(stats.totalDuration)}
-              </div>
-            </CardContent>
-          </Card>
+          <SectionCard variant="ink" noPadding className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-ink-foreground/70">Durée totale</span>
+              <Clock className="h-4 w-4 text-ink-foreground/50" />
+            </div>
+            <div className="text-2xl font-bold">
+              {formatTime(stats.totalDuration)}
+            </div>
+          </SectionCard>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Stack départ</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.startingStackBB} BB</div>
-              <p className="text-xs text-muted-foreground">
-                {startingChips} jetons
-              </p>
-            </CardContent>
-          </Card>
+          <SectionCard variant="ink" noPadding className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-ink-foreground/70">Stack départ</span>
+              <Target className="h-4 w-4 text-ink-foreground/50" />
+            </div>
+            <div className="text-2xl font-bold">{stats.startingStackBB} BB</div>
+            <p className="text-xs text-ink-foreground/60">
+              {startingChips} jetons
+            </p>
+          </SectionCard>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Big Blind</CardTitle>
-              <Zap className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.startingBB} → {stats.endingBB}
-              </div>
-            </CardContent>
-          </Card>
+          <SectionCard variant="ink" noPadding className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-ink-foreground/70">Big Blind</span>
+              <Zap className="h-4 w-4 text-ink-foreground/50" />
+            </div>
+            <div className="text-2xl font-bold">
+              {stats.startingBB} → {stats.endingBB}
+            </div>
+          </SectionCard>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Antes (dès)
-              </CardTitle>
-              <Timer className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.anteStartLevel > 0
-                  ? `Niveau ${stats.anteStartLevel}`
-                  : 'Aucun'}
-              </div>
-            </CardContent>
-          </Card>
+          <SectionCard variant="ink" noPadding className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-ink-foreground/70">Antes (dès)</span>
+              <Timer className="h-4 w-4 text-ink-foreground/50" />
+            </div>
+            <div className="text-2xl font-bold">
+              {stats.anteStartLevel > 0
+                ? `Niveau ${stats.anteStartLevel}`
+                : 'Aucun'}
+            </div>
+          </SectionCard>
         </div>
       )}
 
@@ -592,16 +581,16 @@ export default function BlindStructureEditor({
 
           {/* Scrollable container with sticky header */}
           <div className="max-h-[600px] overflow-y-auto rounded-lg border">
-            {/* Sticky header */}
-            <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 px-4 py-3 font-medium text-sm bg-muted sticky top-0 z-10 border-b">
+            {/* Sticky header - ink style */}
+            <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 px-4 py-3 font-medium text-sm bg-ink text-ink-foreground sticky top-0 z-10 border-b border-border">
               <div></div>
-              <div>Niveau</div>
-              <div>Small Blind</div>
-              <div>Big Blind</div>
-              <div>Ante</div>
-              <div>Durée</div>
-              <div>Réassigner</div>
-              <div>Fin recaves</div>
+              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Niveau</div>
+              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Small Blind</div>
+              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Big Blind</div>
+              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Ante</div>
+              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Durée</div>
+              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Réassigner</div>
+              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Fin recaves</div>
               <div></div>
             </div>
 
