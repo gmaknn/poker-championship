@@ -38,3 +38,24 @@ export function formatDuration(minutes: number): string {
   }
   return `${mins}min`;
 }
+
+/**
+ * Safely compute the minimum denomination from an array of values.
+ * Returns null if array is empty or contains no finite numbers.
+ * Handles edge cases: empty arrays, undefined, null, NaN, Infinity.
+ */
+export function getMinDenomination(values: unknown[]): number | null {
+  if (!Array.isArray(values) || values.length === 0) {
+    return null;
+  }
+
+  const finiteNumbers = values
+    .map((v) => (typeof v === 'string' ? parseFloat(v) : Number(v)))
+    .filter((n) => Number.isFinite(n) && n > 0);
+
+  if (finiteNumbers.length === 0) {
+    return null;
+  }
+
+  return Math.min(...finiteNumbers);
+}
