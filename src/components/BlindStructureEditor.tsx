@@ -30,7 +30,9 @@ import {
   GripVertical,
   AlertCircle,
   Info,
+  Coins,
 } from 'lucide-react';
+import { getMinDenomination } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -121,14 +123,17 @@ export default function BlindStructureEditor({
         const data = await response.json();
         setChipConfig(data);
 
-        // Trouver la plus petite coupure
+        // Trouver la plus petite coupure (safe: returns null if empty/invalid)
         if (data?.distribution) {
-          const denominations = Object.keys(data.distribution).map(Number);
-          setSmallestChip(Math.min(...denominations));
+          const denominations = Object.keys(data.distribution);
+          setSmallestChip(getMinDenomination(denominations));
+        } else {
+          setSmallestChip(null);
         }
       }
     } catch (error) {
       console.error('Error fetching chip config:', error);
+      setSmallestChip(null);
     }
   };
 
@@ -469,15 +474,22 @@ export default function BlindStructureEditor({
         </div>
       )}
 
-      {chipConfig && smallestChip && (
-        <div className="bg-blue-500/10 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg border border-blue-500/20 flex items-start gap-3">
-          <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm">
-              Jetons configurés : Plus petite coupure = <strong>{smallestChip}</strong>.
-              La SB/BB de départ sera adaptée automatiquement.
-            </p>
-          </div>
+      {/* Info jetons configurés */}
+      {chipConfig && (
+        <div className="bg-muted/50 text-foreground px-4 py-3 rounded-lg border border-border flex items-center gap-3">
+          <Coins className="h-5 w-5 flex-shrink-0 text-muted-foreground" />
+          <p className="text-sm">
+            {smallestChip !== null ? (
+              <>
+                Jetons : plus petite coupure <strong>{smallestChip}</strong>.
+                {' '}La SB/BB sera ajustée automatiquement.
+              </>
+            ) : (
+              <span className="text-muted-foreground">
+                Jetons : distribution non configurée.
+              </span>
+            )}
+          </p>
         </div>
       )}
 
