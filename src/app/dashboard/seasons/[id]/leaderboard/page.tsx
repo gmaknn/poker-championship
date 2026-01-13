@@ -22,6 +22,10 @@ type TournamentPerformance = {
   tournamentDate: Date;
   finalRank: number | null;
   totalPoints: number;
+  rankPoints: number;
+  eliminationPoints: number;
+  bonusPoints: number;
+  penaltyPoints: number;
   eliminationsCount: number;
   leaderKills: number;
   rebuysCount: number;
@@ -392,40 +396,61 @@ export default function SeasonLeaderboardPage({
             </CardHeader>
             <CardContent className="space-y-6 p-6">
               {/* Stats Summary */}
-              <div className="grid grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-4xl font-bold text-primary">
-                      {selectedPlayer.totalPoints}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-2 font-medium">
-                      Points Totaux
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5">
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-4xl font-bold text-yellow-600">{selectedPlayer.victories}</div>
-                    <div className="text-sm text-muted-foreground mt-2 font-medium">Victoires</div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5">
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-4xl font-bold text-blue-600">{selectedPlayer.podiums}</div>
-                    <div className="text-sm text-muted-foreground mt-2 font-medium">Podiums</div>
-                  </CardContent>
-                </Card>
-                <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5">
-                  <CardContent className="pt-6 text-center">
-                    <div className="text-4xl font-bold text-red-600">
-                      {selectedPlayer.totalEliminations}
-                    </div>
-                    <div className="text-sm text-muted-foreground mt-2 font-medium">
-                      Éliminations
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              {(() => {
+                // Calculate KO points from counted performances only
+                const bestCount = season.bestTournamentsCount || selectedPlayer.performances.length;
+                const countedPerfs = selectedPlayer.performances.slice(0, bestCount);
+                const totalKoPoints = countedPerfs.reduce(
+                  (sum, p) => sum + p.eliminationPoints + p.bonusPoints,
+                  0
+                );
+                return (
+                  <div className="grid grid-cols-5 gap-4">
+                    <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
+                      <CardContent className="pt-6 text-center">
+                        <div className="text-4xl font-bold text-primary">
+                          {selectedPlayer.totalPoints}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-2 font-medium">
+                          Points Totaux
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-green-500/10 to-green-500/5">
+                      <CardContent className="pt-6 text-center">
+                        <div className="text-4xl font-bold text-green-600">
+                          {totalKoPoints > 0 ? `+${totalKoPoints}` : totalKoPoints}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-2 font-medium">
+                          Points KO
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-yellow-500/10 to-yellow-500/5">
+                      <CardContent className="pt-6 text-center">
+                        <div className="text-4xl font-bold text-yellow-600">{selectedPlayer.victories}</div>
+                        <div className="text-sm text-muted-foreground mt-2 font-medium">Victoires</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-blue-500/10 to-blue-500/5">
+                      <CardContent className="pt-6 text-center">
+                        <div className="text-4xl font-bold text-blue-600">{selectedPlayer.podiums}</div>
+                        <div className="text-sm text-muted-foreground mt-2 font-medium">Podiums</div>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-gradient-to-br from-red-500/10 to-red-500/5">
+                      <CardContent className="pt-6 text-center">
+                        <div className="text-4xl font-bold text-red-600">
+                          {selectedPlayer.totalEliminations}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-2 font-medium">
+                          Éliminations
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })()}
 
               {/* Points Evolution Chart */}
               <div className="bg-muted/20 rounded-lg p-4 border-2 border-border">
@@ -513,7 +538,7 @@ export default function SeasonLeaderboardPage({
                           })}
                         </div>
                       </div>
-                      <div className="flex items-center gap-6">
+                      <div className="flex items-center gap-4">
                         {perf.finalRank !== null && (
                           <div className="text-center">
                             <div className="text-lg font-bold">#{perf.finalRank}</div>
@@ -521,14 +546,36 @@ export default function SeasonLeaderboardPage({
                           </div>
                         )}
                         <div className="text-center">
+                          <div className="text-sm">{perf.rankPoints}</div>
+                          <div className="text-xs text-muted-foreground">Classmt</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-sm text-green-600">
+                            {perf.eliminationPoints > 0 ? `+${perf.eliminationPoints}` : perf.eliminationPoints}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {perf.eliminationsCount} élim.
+                          </div>
+                        </div>
+                        {perf.bonusPoints > 0 && (
+                          <div className="text-center">
+                            <div className="text-sm text-green-600">+{perf.bonusPoints}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {perf.leaderKills} LK
+                            </div>
+                          </div>
+                        )}
+                        {perf.penaltyPoints < 0 && (
+                          <div className="text-center">
+                            <div className="text-sm text-red-600">{perf.penaltyPoints}</div>
+                            <div className="text-xs text-muted-foreground">Pénalité</div>
+                          </div>
+                        )}
+                        <div className="text-center">
                           <div className="text-lg font-bold text-primary">
                             {perf.totalPoints}
                           </div>
-                          <div className="text-xs text-muted-foreground">Points</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-sm">{perf.eliminationsCount}</div>
-                          <div className="text-xs text-muted-foreground">Élim.</div>
+                          <div className="text-xs text-muted-foreground">Total</div>
                         </div>
                       </div>
                       {index < (season.bestTournamentsCount || selectedPlayer.performances.length) && (
