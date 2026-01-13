@@ -11,6 +11,10 @@ export type TournamentPerformance = {
   tournamentDate: Date;
   finalRank: number | null;
   totalPoints: number;
+  rankPoints: number;
+  eliminationPoints: number;
+  bonusPoints: number;
+  penaltyPoints: number;
   eliminationsCount: number;
   leaderKills: number;
   rebuysCount: number;
@@ -125,6 +129,10 @@ export async function calculateLeaderboard(seasonId: string): Promise<Leaderboar
         tournamentDate: tournament.date,
         finalRank: tp.finalRank,
         totalPoints: tp.totalPoints,
+        rankPoints: tp.rankPoints,
+        eliminationPoints: tp.eliminationPoints,
+        bonusPoints: tp.bonusPoints,
+        penaltyPoints: tp.penaltyPoints,
         eliminationsCount: tp.eliminationsCount,
         leaderKills: tp.leaderKills,
         rebuysCount: tp.rebuysCount,
