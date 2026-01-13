@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { SectionCard } from '@/components/ui/section-card';
 import {
   Clock,
   Zap,
@@ -96,7 +97,6 @@ export default function BlindStructureEditor({
     fetchChipConfig();
   }, [tournamentId]);
 
-  // Notify parent when unsaved changes state changes
   useEffect(() => {
     onUnsavedChangesChange?.(hasUnsavedChanges);
   }, [hasUnsavedChanges, onUnsavedChangesChange]);
@@ -119,8 +119,6 @@ export default function BlindStructureEditor({
       if (response.ok) {
         const data = await response.json();
         setChipConfig(data);
-
-        // Trouver la plus petite coupure
         if (data?.distribution) {
           const denominations = Object.keys(data.distribution).map(Number);
           setSmallestChip(Math.min(...denominations));
@@ -138,7 +136,7 @@ export default function BlindStructureEditor({
         const data = await response.json();
         setLevels(data);
         calculateStats(data);
-        setHasUnsavedChanges(false); // Clear unsaved changes on load
+        setHasUnsavedChanges(false);
       }
     } catch (error) {
       console.error('Error fetching blind levels:', error);
@@ -153,10 +151,7 @@ export default function BlindStructureEditor({
       return;
     }
 
-    const totalDuration = blindLevels.reduce(
-      (sum, level) => sum + level.duration,
-      0
-    );
+    const totalDuration = blindLevels.reduce((sum, level) => sum + level.duration, 0);
     const firstLevel = blindLevels[0];
     const lastLevel = blindLevels[blindLevels.length - 1];
 
@@ -185,7 +180,7 @@ export default function BlindStructureEditor({
         const data = await response.json();
         setLevels(data.levels);
         setStats(data.stats);
-        setHasUnsavedChanges(true); // Mark as unsaved
+        setHasUnsavedChanges(true);
         setIsGenerateDialogOpen(false);
       } else {
         setError('Erreur lors de la génération');
@@ -201,49 +196,36 @@ export default function BlindStructureEditor({
     setSuccessMessage('');
 
     try {
-      console.log('[Client] Saving blinds, levels count:', levels.length);
-
       const response = await fetch(`/api/tournaments/${tournamentId}/blinds`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ levels }),
       });
 
-      console.log('[Client] Response status:', response.status, response.statusText);
-
       if (response.ok) {
         setSuccessMessage('Structure sauvegardée avec succès !');
         setTimeout(() => setSuccessMessage(''), 3000);
-        setHasUnsavedChanges(false); // Clear unsaved changes on successful save
+        setHasUnsavedChanges(false);
         onSave?.();
       } else {
         let errorMessage = 'Erreur lors de la sauvegarde';
         try {
           const data = await response.json();
-          console.error('[Client] Error response:', data);
-
           if (data.error) {
             errorMessage = data.error;
-
-            // Si il y a des détails de validation, les afficher
             if (data.details && Array.isArray(data.details)) {
               const detailMessages = data.details.map((d: any) =>
                 `${d.path?.join('.')} : ${d.message}`
               ).join(', ');
               errorMessage += ` (${detailMessages})`;
-            } else if (data.details) {
-              errorMessage += ` (${data.details})`;
             }
           }
-        } catch (parseError) {
-          console.error('[Client] Failed to parse error response:', parseError);
-          errorMessage = `Erreur HTTP ${response.status}: ${response.statusText}`;
+        } catch {
+          errorMessage = `Erreur HTTP ${response.status}`;
         }
-
         setError(errorMessage);
       }
     } catch (error) {
-      console.error('[Client] Network or unexpected error:', error);
       setError(error instanceof Error ? error.message : 'Erreur de connexion');
     } finally {
       setIsSaving(false);
@@ -286,7 +268,6 @@ export default function BlindStructureEditor({
         setError(data.error || 'Erreur lors de la sauvegarde du template');
       }
     } catch (error) {
-      console.error('Error saving template:', error);
       setError('Erreur lors de la sauvegarde du template');
     } finally {
       setIsSaving(false);
@@ -297,7 +278,7 @@ export default function BlindStructureEditor({
     if (template.structure && template.structure.levels) {
       setLevels(template.structure.levels);
       calculateStats(template.structure.levels);
-      setHasUnsavedChanges(true); // Mark as unsaved
+      setHasUnsavedChanges(true);
       setIsGenerateDialogOpen(false);
       setSuccessMessage(`Template "${template.name}" chargé avec succès !`);
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -319,7 +300,7 @@ export default function BlindStructureEditor({
     const newLevels = [...levels, newLevel];
     setLevels(newLevels);
     calculateStats(newLevels);
-    setHasUnsavedChanges(true); // Mark as unsaved
+    setHasUnsavedChanges(true);
   };
 
   const handleAddBreak = () => {
@@ -335,7 +316,7 @@ export default function BlindStructureEditor({
     const newLevels = [...levels, newBreak];
     setLevels(newLevels);
     calculateStats(newLevels);
-    setHasUnsavedChanges(true); // Mark as unsaved
+    setHasUnsavedChanges(true);
   };
 
   const handleRemoveLevel = (levelIndex: number) => {
@@ -344,7 +325,7 @@ export default function BlindStructureEditor({
       .map((level, index) => ({ ...level, level: index + 1 }));
     setLevels(newLevels);
     calculateStats(newLevels);
-    setHasUnsavedChanges(true); // Mark as unsaved
+    setHasUnsavedChanges(true);
   };
 
   const handleLevelChange = (
@@ -356,7 +337,7 @@ export default function BlindStructureEditor({
     newLevels[index] = { ...newLevels[index], [field]: value };
     setLevels(newLevels);
     calculateStats(newLevels);
-    setHasUnsavedChanges(true); // Mark as unsaved
+    setHasUnsavedChanges(true);
   };
 
   const formatTime = (minutes: number) => {
@@ -384,18 +365,13 @@ export default function BlindStructureEditor({
 
     const newLevels = [...levels];
     const draggedLevel = newLevels[draggedIndex];
-
-    // Remove from old position
     newLevels.splice(draggedIndex, 1);
-    // Insert at new position
     newLevels.splice(dropIndex, 0, draggedLevel);
-
-    // Renumber levels
     const renumbered = newLevels.map((level, index) => ({ ...level, level: index + 1 }));
 
     setLevels(renumbered);
     calculateStats(renumbered);
-    setHasUnsavedChanges(true); // Mark as unsaved
+    setHasUnsavedChanges(true);
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
@@ -404,7 +380,6 @@ export default function BlindStructureEditor({
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
-
 
   if (isLoading) {
     return (
@@ -415,154 +390,143 @@ export default function BlindStructureEditor({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header avec actions */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">Structure des blinds</h2>
-          {stats && (
-            <p className="text-sm text-muted-foreground">
-              {stats.totalLevels} niveaux • {formatTime(stats.totalDuration)} •{' '}
-              Stack: {stats.startingStackBB} BB
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setIsGenerateDialogOpen(true)}
-          >
-            <Wand2 className="mr-2 h-4 w-4" />
-            Générer
-          </Button>
-          {levels.length > 0 && (
-            <Button
-              variant="outline"
-              onClick={() => setIsSaveTemplateDialogOpen(true)}
-              disabled={isSaving}
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              Sauvegarder comme template
-            </Button>
-          )}
-          <Button
-            onClick={handleSave}
-            disabled={isSaving || levels.length === 0}
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
-          </Button>
-        </div>
-      </div>
-
+    <div className="space-y-8">
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION D: AIDE / FEEDBACK (Callouts)
+      ═══════════════════════════════════════════════════════════════════ */}
       {!chipConfig && (
-        <div className="bg-yellow-500/10 text-yellow-800 dark:text-yellow-200 px-4 py-3 rounded-lg border border-yellow-500/20 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 mt-0.5 flex-shrink-0" />
+        <SectionCard variant="callout" icon={<AlertCircle className="h-5 w-5 text-amber-500" />}>
           <div className="flex-1">
-            <p className="font-semibold mb-1">Configuration des jetons recommandée</p>
-            <p className="text-sm">
+            <p className="font-medium text-foreground mb-1">Configuration des jetons recommandée</p>
+            <p className="text-sm text-muted-foreground">
               Pour une structure optimale, configurez d'abord vos jetons dans l'onglet "Jetons".
               La structure des blinds s'adaptera automatiquement aux coupures disponibles.
             </p>
           </div>
-        </div>
+        </SectionCard>
       )}
 
       {chipConfig && smallestChip && (
-        <div className="bg-blue-500/10 text-blue-800 dark:text-blue-200 px-4 py-3 rounded-lg border border-blue-500/20 flex items-start gap-3">
-          <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm">
-              Jetons configurés : Plus petite coupure = <strong>{smallestChip}</strong>.
-              La SB/BB de départ sera adaptée automatiquement.
-            </p>
-          </div>
-        </div>
+        <SectionCard variant="callout" icon={<Info className="h-5 w-5 text-muted-foreground" />}>
+          <p className="text-sm text-muted-foreground">
+            Jetons configurés : Plus petite coupure = <strong className="text-foreground">{smallestChip}</strong>.
+            La SB/BB de départ sera adaptée automatiquement.
+          </p>
+        </SectionCard>
       )}
 
       {error && (
-        <div className="bg-destructive/10 text-destructive px-4 py-2 rounded">
+        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg border border-destructive/20">
           {error}
         </div>
       )}
 
       {successMessage && (
-        <div className="bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-2 rounded">
+        <div className="bg-green-500/10 text-green-600 dark:text-green-400 px-4 py-3 rounded-lg border border-green-500/20">
           {successMessage}
         </div>
       )}
 
-      {/* Statistiques */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION A: RÉSUMÉ (KPIs lecture rapide)
+      ═══════════════════════════════════════════════════════════════════ */}
       {stats && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Durée totale
-              </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+        <SectionCard variant="secondary" title="Résumé de la structure">
+          <div className="grid gap-6 md:grid-cols-4 mt-2">
+            <div className="text-center p-4 rounded-lg bg-card border border-border">
+              <Clock className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+              <div className="text-2xl font-bold text-foreground">
                 {formatTime(stats.totalDuration)}
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-xs text-muted-foreground mt-1">Durée totale</p>
+            </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Stack départ</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.startingStackBB} BB</div>
-              <p className="text-xs text-muted-foreground">
-                {startingChips} jetons
+            <div className="text-center p-4 rounded-lg bg-card border border-border">
+              <Target className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+              <div className="text-2xl font-bold text-foreground">{stats.startingStackBB} BB</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Stack départ ({startingChips} jetons)
               </p>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Big Blind</CardTitle>
-              <Zap className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
+            <div className="text-center p-4 rounded-lg bg-card border border-border">
+              <Zap className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+              <div className="text-2xl font-bold text-foreground">
                 {stats.startingBB} → {stats.endingBB}
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-xs text-muted-foreground mt-1">Big Blind</p>
+            </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Antes (dès)
-              </CardTitle>
-              <Timer className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {stats.anteStartLevel > 0
-                  ? `Niveau ${stats.anteStartLevel}`
-                  : 'Aucun'}
+            <div className="text-center p-4 rounded-lg bg-card border border-border">
+              <Timer className="h-5 w-5 mx-auto mb-2 text-muted-foreground" />
+              <div className="text-2xl font-bold text-foreground">
+                {stats.anteStartLevel > 0 ? `Niveau ${stats.anteStartLevel}` : 'Aucun'}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <p className="text-xs text-muted-foreground mt-1">Antes (dès)</p>
+            </div>
+          </div>
+        </SectionCard>
       )}
 
-      {/* Table des niveaux */}
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION B: ACTIONS (Toolbar)
+      ═══════════════════════════════════════════════════════════════════ */}
+      <SectionCard
+        variant="secondary"
+        title="Actions"
+        noPadding
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsGenerateDialogOpen(true)}>
+              <Wand2 className="mr-2 h-4 w-4" />
+              Générer
+            </Button>
+            {levels.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsSaveTemplateDialogOpen(true)}
+                disabled={isSaving}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Template
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={isSaving || levels.length === 0}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex gap-2 p-4 border-t border-border/50">
+          <Button variant="outline" onClick={handleAddLevel} className="flex-1">
+            <Plus className="mr-2 h-4 w-4" />
+            Ajouter un niveau
+          </Button>
+          <Button variant="outline" onClick={handleAddBreak} className="flex-1">
+            <Coffee className="mr-2 h-4 w-4" />
+            Ajouter une pause
+          </Button>
+        </div>
+      </SectionCard>
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          SECTION C: TABLE (Le cœur)
+      ═══════════════════════════════════════════════════════════════════ */}
       {levels.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
+        <SectionCard variant="primary">
+          <div className="flex flex-col items-center justify-center py-12">
             <Timer className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">
+            <h3 className="text-lg font-semibold mb-2 text-foreground">
               Aucune structure de blinds
             </h3>
-            <p className="text-muted-foreground mb-4">
-              Générez automatiquement une structure ou ajoutez des niveaux
-              manuellement
+            <p className="text-muted-foreground mb-4 text-center">
+              Générez automatiquement une structure ou ajoutez des niveaux manuellement
             </p>
             <div className="flex gap-2">
               <Button onClick={() => setIsGenerateDialogOpen(true)}>
@@ -574,240 +538,210 @@ export default function BlindStructureEditor({
                 Ajouter un niveau
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {/* Boutons en haut */}
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleAddLevel} className="flex-1">
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter un niveau
-            </Button>
-            <Button variant="outline" onClick={handleAddBreak} className="flex-1">
-              <Coffee className="mr-2 h-4 w-4" />
-              Ajouter une pause
-            </Button>
           </div>
-
-          {/* Scrollable container with sticky header */}
-          <div className="max-h-[600px] overflow-y-auto rounded-lg border">
-            {/* Sticky header */}
-            <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 px-4 py-3 font-medium text-sm bg-muted sticky top-0 z-10 border-b">
+        </SectionCard>
+      ) : (
+        <SectionCard
+          variant="primary"
+          title={`Structure des blinds (${levels.length} niveaux)`}
+          noPadding
+        >
+          <div className="max-h-[600px] overflow-y-auto">
+            {/* Header de table amélioré */}
+            <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 px-4 py-3 bg-muted/40 sticky top-0 z-10 border-b border-border">
               <div></div>
-              <div>Niveau</div>
-              <div>Small Blind</div>
-              <div>Big Blind</div>
-              <div>Ante</div>
-              <div>Durée</div>
-              <div>Réassigner</div>
-              <div>Fin recaves</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Niv.</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Small Blind</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Big Blind</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ante</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Durée</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Réassign.</div>
+              <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Fin recaves</div>
               <div></div>
             </div>
 
-            {/* Levels list with section separators */}
-            <div className="space-y-2 p-2">
-          {(() => {
-            let levelCount = 0; // Counter for non-break levels only
-            const elements: React.ReactNode[] = [];
+            {/* Lignes avec séparateurs de paliers */}
+            <div className="divide-y divide-border/30">
+              {(() => {
+                let levelCount = 0;
+                const elements: React.ReactNode[] = [];
 
-            levels.forEach((level, index) => {
-              // Count only non-break levels for section separators
-              if (!level.isBreak) {
-                levelCount++;
-                // Add section separator before levels 1, 6, 11, 16... (every 5 levels)
-                if ((levelCount - 1) % 5 === 0) {
-                  const sectionNumber = Math.floor((levelCount - 1) / 5) + 1;
-                  const startLevel = (sectionNumber - 1) * 5 + 1;
-                  const endLevel = Math.min(startLevel + 4, levels.filter(l => !l.isBreak).length);
+                levels.forEach((level, index) => {
+                  if (!level.isBreak) {
+                    levelCount++;
+                    // Séparateur de palier tous les 5 niveaux
+                    if ((levelCount - 1) % 5 === 0) {
+                      const sectionNumber = Math.floor((levelCount - 1) / 5) + 1;
+                      const startLevel = (sectionNumber - 1) * 5 + 1;
+                      const endLevel = Math.min(startLevel + 4, levels.filter(l => !l.isBreak).length);
+                      elements.push(
+                        <div
+                          key={`separator-${sectionNumber}`}
+                          className="bg-muted/30 px-4 py-2 flex items-center gap-3"
+                        >
+                          <div className="flex-1 border-t border-border/50" />
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Palier {sectionNumber} (niveaux {startLevel} → {endLevel})
+                          </span>
+                          <div className="flex-1 border-t border-border/50" />
+                        </div>
+                      );
+                    }
+                  }
+
+                  // Zébrage léger pour les lignes paires
+                  const isEven = index % 2 === 0;
+                  const rowBgClass = level.isBreak
+                    ? 'bg-amber-500/10'
+                    : isEven
+                      ? 'bg-transparent'
+                      : 'bg-muted/10';
+
                   elements.push(
-                    <div key={`separator-${sectionNumber}`} className="flex items-center gap-3 py-2">
-                      <div className="flex-1 border-t border-muted-foreground/20" />
-                      <span className="text-xs text-muted-foreground font-medium px-2">
-                        Palier {sectionNumber} (niveaux {startLevel} → {endLevel})
-                      </span>
-                      <div className="flex-1 border-t border-muted-foreground/20" />
+                    <div
+                      key={index}
+                      className={`
+                        ${rowBgClass}
+                        ${draggedIndex === index ? 'opacity-50' : ''}
+                        ${dragOverIndex === index ? 'ring-2 ring-primary ring-inset' : ''}
+                        cursor-move transition-all hover:bg-muted/20
+                      `}
+                      draggable
+                      onDragStart={() => handleDragStart(index)}
+                      onDragOver={(e) => handleDragOver(e, index)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, index)}
+                      onDragEnd={handleDragEnd}
+                    >
+                      <div className={`px-4 ${level.isBreak ? 'py-4' : 'py-3'}`}>
+                        {level.isBreak ? (
+                          <div className="grid grid-cols-[40px_60px_1fr_1fr_80px] gap-4 items-center">
+                            <div className="flex justify-center cursor-grab active:cursor-grabbing">
+                              <GripVertical className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <Badge variant="outline" className="justify-center bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300">
+                              <Coffee className="h-3 w-3 mr-1" />
+                              {level.level}
+                            </Badge>
+                            <div className="col-span-1 flex items-center gap-2 text-amber-700 dark:text-amber-300 font-semibold text-lg">
+                              <Coffee className="h-5 w-5" />
+                              PAUSE
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                value={level.duration}
+                                onChange={(e) =>
+                                  handleLevelChange(index, 'duration', parseInt(e.target.value) || 0)
+                                }
+                                className="border-amber-500/30"
+                              />
+                              <span className="text-sm text-muted-foreground font-medium">min</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLevel(index);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 items-center">
+                            <div className="flex justify-center cursor-grab active:cursor-grabbing">
+                              <GripVertical className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                            <Badge variant="outline" className="justify-center">
+                              {level.level}
+                            </Badge>
+                            <Input
+                              type="number"
+                              value={level.smallBlind}
+                              onChange={(e) =>
+                                handleLevelChange(index, 'smallBlind', parseInt(e.target.value) || 0)
+                              }
+                            />
+                            <Input
+                              type="number"
+                              value={level.bigBlind}
+                              onChange={(e) =>
+                                handleLevelChange(index, 'bigBlind', parseInt(e.target.value) || 0)
+                              }
+                            />
+                            <Input
+                              type="number"
+                              value={level.ante}
+                              onChange={(e) =>
+                                handleLevelChange(index, 'ante', parseInt(e.target.value) || 0)
+                              }
+                            />
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                value={level.duration}
+                                onChange={(e) =>
+                                  handleLevelChange(index, 'duration', parseInt(e.target.value) || 0)
+                                }
+                              />
+                              <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Checkbox
+                                id={`rebalance-${index}`}
+                                checked={level.rebalanceTables || false}
+                                onCheckedChange={(checked) =>
+                                  handleLevelChange(index, 'rebalanceTables', checked === true)
+                                }
+                              />
+                              <label
+                                htmlFor={`rebalance-${index}`}
+                                className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                              >
+                                <Shuffle className="h-3 w-3" />
+                                Tables
+                              </label>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Checkbox
+                                id={`rebuy-end-${index}`}
+                                checked={level.isRebuyEnd || false}
+                                onCheckedChange={(checked) =>
+                                  handleLevelChange(index, 'isRebuyEnd', checked === true)
+                                }
+                              />
+                              <label
+                                htmlFor={`rebuy-end-${index}`}
+                                className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                              >
+                                <AlertCircle className="h-3 w-3" />
+                                Fin recaves
+                              </label>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLevel(index);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
-                }
-              }
+                });
 
-              elements.push(
-                <Card
-                  key={index}
-                  className={`
-                    ${level.isBreak ? 'bg-amber-500/10 border-amber-500/30 shadow-sm' : ''}
-                    ${draggedIndex === index ? 'opacity-50' : ''}
-                    ${dragOverIndex === index ? 'border-primary border-2' : ''}
-                    cursor-move transition-all
-                  `}
-                  draggable
-                  onDragStart={() => handleDragStart(index)}
-                  onDragOver={(e) => handleDragOver(e, index)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, index)}
-                  onDragEnd={handleDragEnd}
-                >
-                  <CardContent className={level.isBreak ? 'py-4' : 'py-3'}>
-                    {level.isBreak ? (
-                      <div className="grid grid-cols-[40px_60px_1fr_1fr_80px] gap-4 items-center">
-                        <div className="flex justify-center cursor-grab active:cursor-grabbing">
-                          <GripVertical className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <Badge variant="outline" className="justify-center bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300">
-                          <Coffee className="h-3 w-3 mr-1" />
-                          {level.level}
-                        </Badge>
-                        <div className="col-span-1 flex items-center gap-2 text-amber-700 dark:text-amber-300 font-semibold text-lg">
-                          <Coffee className="h-5 w-5" />
-                          PAUSE
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            value={level.duration}
-                            onChange={(e) =>
-                              handleLevelChange(
-                                index,
-                                'duration',
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                            className="border-amber-500/30"
-                          />
-                          <span className="text-sm text-muted-foreground font-medium">min</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveLevel(index);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 items-center">
-                        <div className="flex justify-center cursor-grab active:cursor-grabbing">
-                          <GripVertical className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <Badge variant="outline" className="justify-center">
-                          {level.level}
-                        </Badge>
-                        <Input
-                          type="number"
-                          value={level.smallBlind}
-                          onChange={(e) =>
-                            handleLevelChange(
-                              index,
-                              'smallBlind',
-                              parseInt(e.target.value) || 0
-                            )
-                          }
-                        />
-                        <Input
-                          type="number"
-                          value={level.bigBlind}
-                          onChange={(e) =>
-                            handleLevelChange(
-                              index,
-                              'bigBlind',
-                              parseInt(e.target.value) || 0
-                            )
-                          }
-                        />
-                        <Input
-                          type="number"
-                          value={level.ante}
-                          onChange={(e) =>
-                            handleLevelChange(
-                              index,
-                              'ante',
-                              parseInt(e.target.value) || 0
-                            )
-                          }
-                        />
-                        <div className="flex items-center gap-2">
-                          <Input
-                            type="number"
-                            value={level.duration}
-                            onChange={(e) =>
-                              handleLevelChange(
-                                index,
-                                'duration',
-                                parseInt(e.target.value) || 0
-                              )
-                            }
-                          />
-                          <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Checkbox
-                            id={`rebalance-${index}`}
-                            checked={level.rebalanceTables || false}
-                            onCheckedChange={(checked) =>
-                              handleLevelChange(index, 'rebalanceTables', checked === true)
-                            }
-                          />
-                          <label
-                            htmlFor={`rebalance-${index}`}
-                            className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                          >
-                            <Shuffle className="h-3 w-3" />
-                            Tables
-                          </label>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Checkbox
-                            id={`rebuy-end-${index}`}
-                            checked={level.isRebuyEnd || false}
-                            onCheckedChange={(checked) =>
-                              handleLevelChange(index, 'isRebuyEnd', checked === true)
-                            }
-                          />
-                          <label
-                            htmlFor={`rebuy-end-${index}`}
-                            className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                          >
-                            <AlertCircle className="h-3 w-3" />
-                            Fin recaves
-                          </label>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveLevel(index);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            });
-
-            return elements;
-          })()}
+                return elements;
+              })()}
             </div>
           </div>
-
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleAddLevel} className="flex-1">
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter un niveau
-            </Button>
-            <Button variant="outline" onClick={handleAddBreak} className="flex-1">
-              <Coffee className="mr-2 h-4 w-4" />
-              Ajouter une pause
-            </Button>
-          </div>
-        </div>
+        </SectionCard>
       )}
 
       {/* Dialog de génération */}
@@ -816,13 +750,11 @@ export default function BlindStructureEditor({
           <DialogHeader>
             <DialogTitle>Générer une structure de blinds</DialogTitle>
             <DialogDescription>
-              Choisissez un template, un preset ou générez une structure basée sur les
-              paramètres du tournoi
+              Choisissez un template, un preset ou générez une structure basée sur les paramètres du tournoi
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Templates sauvegardés */}
             {templates.length > 0 && (
               <>
                 <div>
@@ -843,9 +775,7 @@ export default function BlindStructureEditor({
                           <span className="font-semibold">{template.name}</span>
                         </div>
                         {template.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {template.description}
-                          </p>
+                          <p className="text-sm text-muted-foreground">{template.description}</p>
                         )}
                       </Button>
                     ))}
@@ -857,13 +787,12 @@ export default function BlindStructureEditor({
                     <span className="w-full border-t" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      Ou générer
-                    </span>
+                    <span className="bg-background px-2 text-muted-foreground">Ou générer</span>
                   </div>
                 </div>
               </>
             )}
+
             <Button
               variant="outline"
               className="w-full h-auto p-4 flex-col items-start"
@@ -873,9 +802,7 @@ export default function BlindStructureEditor({
                 <Zap className="h-5 w-5" />
                 <span className="font-semibold">Turbo (2h)</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Niveaux de 8 minutes, antes dès le niveau 4
-              </p>
+              <p className="text-sm text-muted-foreground">Niveaux de 8 minutes, antes dès le niveau 4</p>
             </Button>
 
             <Button
@@ -887,9 +814,7 @@ export default function BlindStructureEditor({
                 <Target className="h-5 w-5" />
                 <span className="font-semibold">Standard (3h)</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Niveaux de 12 minutes, antes dès le niveau 5
-              </p>
+              <p className="text-sm text-muted-foreground">Niveaux de 12 minutes, antes dès le niveau 5</p>
             </Button>
 
             <Button
@@ -901,9 +826,7 @@ export default function BlindStructureEditor({
                 <Timer className="h-5 w-5" />
                 <span className="font-semibold">Deep Stack (4h)</span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Niveaux de 15 minutes, antes dès le niveau 6
-              </p>
+              <p className="text-sm text-muted-foreground">Niveaux de 15 minutes, antes dès le niveau 6</p>
             </Button>
 
             <div className="relative">
@@ -911,27 +834,18 @@ export default function BlindStructureEditor({
                 <span className="w-full border-t" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Ou
-                </span>
+                <span className="bg-background px-2 text-muted-foreground">Ou</span>
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => handleGenerate()}
-            >
+            <Button variant="outline" className="w-full" onClick={() => handleGenerate()}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Générer selon les paramètres du tournoi
             </Button>
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsGenerateDialogOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setIsGenerateDialogOpen(false)}>
               Annuler
             </Button>
           </DialogFooter>
@@ -944,7 +858,7 @@ export default function BlindStructureEditor({
           <DialogHeader>
             <DialogTitle>Sauvegarder comme template</DialogTitle>
             <DialogDescription>
-              Sauvegardez cette structure de blinds comme template pour la réutiliser dans d'autres tournois
+              Sauvegardez cette structure de blinds comme template pour la réutiliser
             </DialogDescription>
           </DialogHeader>
 
@@ -991,10 +905,7 @@ export default function BlindStructureEditor({
             >
               Annuler
             </Button>
-            <Button
-              onClick={handleSaveAsTemplate}
-              disabled={isSaving || !templateName.trim()}
-            >
+            <Button onClick={handleSaveAsTemplate} disabled={isSaving || !templateName.trim()}>
               {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
             </Button>
           </DialogFooter>
