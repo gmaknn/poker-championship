@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SectionCard } from '@/components/ui/section-card';
 import { Play, Pause, RotateCcw, Clock, ArrowUp } from 'lucide-react';
 import { playCountdown, announceLevelChange } from '@/lib/audioManager';
 
@@ -267,23 +267,21 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
 
   if (!timerState) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-destructive">
+      <SectionCard variant="primary">
+        <div className="py-8 text-center text-destructive">
           Erreur lors du chargement du timer
-        </CardContent>
-      </Card>
+        </div>
+      </SectionCard>
     );
   }
 
   if (!timerState.currentLevelData) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="text-muted-foreground mb-4">
-            Veuillez configurer la structure des blinds avant de démarrer le timer
-          </p>
-        </CardContent>
-      </Card>
+      <SectionCard variant="callout" title="Structure des blinds requise">
+        <p className="text-muted-foreground">
+          Veuillez configurer la structure des blinds avant de démarrer le timer
+        </p>
+      </SectionCard>
     );
   }
 
@@ -295,16 +293,16 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
   // Si le tournoi est terminé, afficher un message simple
   if (isFinished) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
+      <SectionCard variant="primary">
+        <div className="py-12 text-center">
           <div className="text-6xl font-bold text-green-600 mb-4">
             Terminé
           </div>
           <p className="text-muted-foreground">
             Le tournoi est terminé. Les modifications ne sont plus possibles.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </SectionCard>
     );
   }
 
@@ -317,151 +315,142 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
       )}
 
       {/* Niveau actuel */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">Niveau actuel</CardTitle>
-            <Badge variant="outline">
-              Niveau {timerState.currentLevelData.level}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* Small Blind */}
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-1">Small Blind</div>
-              <div className="text-3xl font-bold">
-                {timerState.currentLevelData.smallBlind.toLocaleString()}
-              </div>
-            </div>
-
-            {/* Big Blind */}
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-1">Big Blind</div>
-              <div className="text-3xl font-bold">
-                {timerState.currentLevelData.bigBlind.toLocaleString()}
-              </div>
-            </div>
-
-            {/* Ante */}
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-1">Ante</div>
-              <div className="text-3xl font-bold">
-                {timerState.currentLevelData.ante > 0
-                  ? timerState.currentLevelData.ante.toLocaleString()
-                  : '-'}
-              </div>
+      <SectionCard
+        variant="secondary"
+        title="Niveau actuel"
+        actions={
+          <Badge variant="outline">
+            Niveau {timerState.currentLevelData.level}
+          </Badge>
+        }
+      >
+        <div className="grid gap-6 md:grid-cols-3">
+          {/* Small Blind */}
+          <div className="text-center">
+            <div className="text-sm text-muted-foreground mb-1">Small Blind</div>
+            <div className="text-3xl font-bold">
+              {timerState.currentLevelData.smallBlind.toLocaleString()}
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Big Blind */}
+          <div className="text-center">
+            <div className="text-sm text-muted-foreground mb-1">Big Blind</div>
+            <div className="text-3xl font-bold">
+              {timerState.currentLevelData.bigBlind.toLocaleString()}
+            </div>
+          </div>
+
+          {/* Ante */}
+          <div className="text-center">
+            <div className="text-sm text-muted-foreground mb-1">Ante</div>
+            <div className="text-3xl font-bold">
+              {timerState.currentLevelData.ante > 0
+                ? timerState.currentLevelData.ante.toLocaleString()
+                : '-'}
+            </div>
+          </div>
+        </div>
+      </SectionCard>
 
       {/* Timer */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
-            {/* Temps restant */}
-            <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2 flex items-center justify-center gap-2">
-                <Clock className="h-4 w-4" />
-                Temps restant dans le niveau
-              </div>
-              <div
-                className={`text-6xl font-mono font-bold transition-all ${
-                  isFlashing ? 'animate-pulse text-orange-500 scale-110' :
-                  isLowTime ? 'text-destructive' : ''
-                }`}
-              >
-                {formatTime(timeRemaining)}
-              </div>
+      <SectionCard variant="primary" title="Timer" icon={<Clock className="h-5 w-5" />}>
+        <div className="space-y-4">
+          {/* Temps restant */}
+          <div className="text-center">
+            <div className="text-sm text-muted-foreground mb-2">
+              Temps restant dans le niveau
             </div>
-
-            {/* Barre de progression */}
-            <div className="space-y-2">
-              <div className="h-4 bg-secondary rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-1000"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="text-xs text-muted-foreground text-center">
-                {Math.floor(progress)}% du niveau complété
-              </div>
-            </div>
-
-            {/* Boutons de contrôle */}
-            <div className="flex items-center justify-center gap-4 pt-4">
-              {!timerState.isRunning && !timerState.isPaused && (
-                <Button onClick={handleStart} size="lg">
-                  <Play className="mr-2 h-5 w-5" />
-                  Démarrer
-                </Button>
-              )}
-
-              {timerState.isRunning && (
-                <Button onClick={handlePause} size="lg" variant="outline">
-                  <Pause className="mr-2 h-5 w-5" />
-                  Pause
-                </Button>
-              )}
-
-              {timerState.isPaused && (
-                <Button onClick={handleResume} size="lg">
-                  <Play className="mr-2 h-5 w-5" />
-                  Reprendre
-                </Button>
-              )}
-
-              <Button
-                onClick={handleReset}
-                size="lg"
-                variant="destructive"
-                disabled={!timerState.timerStartedAt}
-              >
-                <RotateCcw className="mr-2 h-5 w-5" />
-                Réinitialiser
-              </Button>
-            </div>
-
-            {/* Statut */}
-            <div className="text-center space-y-2">
-              <div>
-                {timerState.isRunning && (
-                  <Badge variant="default">En cours</Badge>
-                )}
-                {timerState.isPaused && (
-                  <Badge variant="secondary">En pause</Badge>
-                )}
-                {!timerState.isRunning && !timerState.isPaused && (
-                  <Badge variant="outline">Non démarré</Badge>
-                )}
-              </div>
-              {(timerState.isRunning || timerState.isPaused) && (
-                <div className="text-xs text-muted-foreground">
-                  Appuyez sur <kbd className="px-2 py-1 text-xs font-semibold bg-secondary rounded">Espace</kbd> pour pause/reprendre
-                </div>
-              )}
+            <div
+              className={`text-6xl font-mono font-bold transition-all ${
+                isFlashing ? 'animate-pulse text-orange-500 scale-110' :
+                isLowTime ? 'text-destructive' : ''
+              }`}
+            >
+              {formatTime(timeRemaining)}
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Barre de progression */}
+          <div className="space-y-2">
+            <div className="h-4 bg-secondary rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-1000"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <div className="text-xs text-muted-foreground text-center">
+              {Math.floor(progress)}% du niveau complété
+            </div>
+          </div>
+
+          {/* Boutons de contrôle */}
+          <div className="flex items-center justify-center gap-4 pt-4">
+            {!timerState.isRunning && !timerState.isPaused && (
+              <Button onClick={handleStart} size="lg">
+                <Play className="mr-2 h-5 w-5" />
+                Démarrer
+              </Button>
+            )}
+
+            {timerState.isRunning && (
+              <Button onClick={handlePause} size="lg" variant="outline">
+                <Pause className="mr-2 h-5 w-5" />
+                Pause
+              </Button>
+            )}
+
+            {timerState.isPaused && (
+              <Button onClick={handleResume} size="lg">
+                <Play className="mr-2 h-5 w-5" />
+                Reprendre
+              </Button>
+            )}
+
+            <Button
+              onClick={handleReset}
+              size="lg"
+              variant="destructive"
+              disabled={!timerState.timerStartedAt}
+            >
+              <RotateCcw className="mr-2 h-5 w-5" />
+              Réinitialiser
+            </Button>
+          </div>
+
+          {/* Statut */}
+          <div className="text-center space-y-2">
+            <div>
+              {timerState.isRunning && (
+                <Badge variant="default">En cours</Badge>
+              )}
+              {timerState.isPaused && (
+                <Badge variant="secondary">En pause</Badge>
+              )}
+              {!timerState.isRunning && !timerState.isPaused && (
+                <Badge variant="outline">Non démarré</Badge>
+              )}
+            </div>
+            {(timerState.isRunning || timerState.isPaused) && (
+              <div className="text-xs text-muted-foreground">
+                Appuyez sur <kbd className="px-2 py-1 text-xs font-semibold bg-secondary rounded">Espace</kbd> pour pause/reprendre
+              </div>
+            )}
+          </div>
+        </div>
+      </SectionCard>
 
       {/* Prochain niveau */}
       {timeRemaining < 120 && (
-        <Card className="border-primary">
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <ArrowUp className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Prochain niveau</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center text-muted-foreground">
-              Niveau {timerState.currentLevelData.level + 1} à venir...
-            </div>
-          </CardContent>
-        </Card>
+        <SectionCard
+          variant="callout"
+          title="Prochain niveau"
+          icon={<ArrowUp className="h-5 w-5 text-primary" />}
+        >
+          <div className="text-center text-muted-foreground">
+            Niveau {timerState.currentLevelData.level + 1} à venir...
+          </div>
+        </SectionCard>
       )}
     </div>
   );
