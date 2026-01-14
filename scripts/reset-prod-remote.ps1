@@ -90,8 +90,16 @@ Write-Host ""
 Write-Host "Connecting to $AppName via SSH..." -ForegroundColor Yellow
 Write-Host ""
 
-# Execute reset-prod.js on the remote machine
-$remoteCmd = "cd /app && ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=$Token node reset-prod.js"
+# Build the remote command with sh -lc wrapper
+# The token is interpolated by PowerShell, then passed as a single string to flyctl
+$shellCmd = "cd /app && ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=$Token node reset-prod.js"
+$remoteCmd = "sh -lc '$shellCmd'"
+
+# Display command with masked token (show only last 4 chars)
+$maskedToken = if ($Token.Length -gt 4) { ("*" * ($Token.Length - 4)) + $Token.Substring($Token.Length - 4) } else { "****" }
+$maskedCmd = "sh -lc 'cd /app && ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=$maskedToken node reset-prod.js'"
+Write-Host "Command: flyctl ssh console --app $AppName -C `"$maskedCmd`"" -ForegroundColor DarkGray
+Write-Host ""
 
 try {
     flyctl ssh console --app $AppName -C $remoteCmd
