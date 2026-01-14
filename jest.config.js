@@ -18,6 +18,11 @@ const customJestConfig = {
     '**/__tests__/**/*.{js,jsx,ts,tsx}',
     '**/*.{spec,test}.{js,jsx,ts,tsx}'
   ],
+  // Exclude Playwright tests from Jest
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/scripts/recipe/'
+  ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
