@@ -26,6 +26,7 @@ Passe de recette **TECHNIQUE** (pas UX) pour valider avant mise en production :
 | `RECIPE_HEADLESS`       | Mode headless (true/false)                 | `true`                          |
 | `RECIPE_RESET_AFTER_RUN`| Reset prod apres run (true/false)          | `true` si prod, `false` si local|
 | `PROD_RESET_TOKEN`      | Token pour reset automatique (optionnel)   | -                               |
+| `RECIPE_DIAGNOSTICS`    | Active les infos de debug dans les 400 API | `0` (desactive)                 |
 
 ## Commandes
 
@@ -48,6 +49,9 @@ RECIPE_ADMIN_EMAIL=admin@wpt-villelaure.fr \
 RECIPE_ADMIN_PASSWORD=MonSecret123 \
 PROD_RESET_TOKEN=<your-token> \
 npm run recipe:tech
+
+# Mode diagnostic (ajoute currentLevel/rebuyEndLevel dans les erreurs 400)
+RECIPE_DIAGNOSTICS=1 npm run recipe:tech
 ```
 
 ---
