@@ -11,6 +11,7 @@ const blindLevelSchema = z.object({
   duration: z.number().int().positive().default(12),
   isBreak: z.boolean().optional().default(false),
   rebalanceTables: z.boolean().optional().default(false),
+  isRebuyEnd: z.boolean().optional().default(false),
 });
 
 const blindStructureSchema = z.object({
@@ -102,6 +103,7 @@ export async function POST(
           duration: level.duration,
           isBreak: level.isBreak ?? false,
           rebalanceTables: level.rebalanceTables ?? false,
+          isRebuyEnd: level.isRebuyEnd ?? false,
         })),
       });
     });
