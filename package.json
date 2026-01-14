@@ -18,6 +18,9 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:seed-test": "tsx prisma/seed-test-data.ts",
     "db:seed-complete": "tsx prisma/seed-complete.ts",
+    "db:seed:players": "tsx scripts/db/seed-players-only.ts",
+    "db:purge:seasons-tournaments": "tsx scripts/db/purge-seasons-tournaments.ts",
+    "db:reset:local": "tsx scripts/db/reset-local.ts",
     "db:studio": "prisma studio",
     "check:auth-version": "node scripts/check-auth-version.js"
   },
