@@ -252,11 +252,11 @@ async function main() {
     },
   });
 
-  const victories = starStats.filter(s => s.finalRank === 1).length;
-  const podiums = starStats.filter(s => s.finalRank && s.finalRank <= 3).length;
-  const totalEliminations = starStats.reduce((sum, s) => sum + (s.eliminationsCount || 0), 0);
-  const totalRebuys = starStats.reduce((sum, s) => sum + (s.rebuysCount || 0), 0);
-  const totalWinnings = starStats.reduce((sum, s) => sum + (s.prizeAmount || 0), 0);
+  const victories = starStats.filter((s: typeof starStats[number]) => s.finalRank === 1).length;
+  const podiums = starStats.filter((s: typeof starStats[number]) => s.finalRank && s.finalRank <= 3).length;
+  const totalEliminations = starStats.reduce((sum: number, s: typeof starStats[number]) => sum + (s.eliminationsCount || 0), 0);
+  const totalRebuys = starStats.reduce((sum: number, s: typeof starStats[number]) => sum + (s.rebuysCount || 0), 0);
+  const totalWinnings = starStats.reduce((sum: number, s: typeof starStats[number]) => sum + (s.prizeAmount || 0), 0);
 
   console.log(`⭐ ${starPlayer.firstName} ${starPlayer.lastName}:`);
   console.log(`   🏆 ${victories} victoires`);
