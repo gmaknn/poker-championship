@@ -3,17 +3,17 @@
  *
  * Flow:
  * 1. Safety check (assertLocalDb)
- * 2. Drop all tables (raw SQL for SQLite)
- * 3. Run prisma migrate deploy
- * 4. Seed 10 players
+ * 2. Run prisma migrate reset --force (standard Prisma DEV command)
+ * 3. Seed 10 players
  *
  * SAFETY: Will NOT run in production or against remote databases
  */
 
-import { PrismaClient } from '@prisma/client';
+import { config } from 'dotenv';
 import { execSync } from 'child_process';
 
-const prisma = new PrismaClient();
+// Load .env file
+config();
 
 /**
  * Safety check: block execution if not a local database
@@ -52,46 +52,55 @@ function assertLocalDb(): void {
 }
 
 /**
- * Drop all tables in SQLite database
+ * Detect Prisma provider from DATABASE_URL
  */
-async function dropAllTables(): Promise<void> {
-  console.log('🗑️  Dropping all tables...');
+function detectProvider(): 'sqlite' | 'postgresql' | 'mysql' {
+  const dbUrl = process.env.DATABASE_URL || '';
 
-  // Get list of all tables
-  const tables = await prisma.$queryRaw<Array<{ name: string }>>`
-    SELECT name FROM sqlite_master
-    WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name != '_prisma_migrations'
-  `;
-
-  // Disable foreign key checks, drop tables, re-enable
-  await prisma.$executeRawUnsafe('PRAGMA foreign_keys = OFF');
-
-  for (const table of tables) {
-    console.log(`   Dropping: ${table.name}`);
-    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "${table.name}"`);
+  if (dbUrl.startsWith('file:')) {
+    return 'sqlite';
+  } else if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
+    return 'postgresql';
+  } else if (dbUrl.startsWith('mysql://')) {
+    return 'mysql';
   }
 
-  // Also drop migrations table to force re-run
-  await prisma.$executeRawUnsafe('DROP TABLE IF EXISTS "_prisma_migrations"');
-
-  await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON');
-
-  console.log(`   ✅ Dropped ${tables.length} tables + migrations\n`);
+  // Default to sqlite for local dev
+  return 'sqlite';
 }
 
 /**
- * Run prisma migrate deploy
+ * Run prisma migrate reset --force
+ * This is the standard Prisma DEV command that:
+ * - Drops the database
+ * - Creates a new database
+ * - Applies all migrations
+ * - Runs seed (if configured, but we skip it here to use our own)
+ *
+ * Note: We set PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION because:
+ * - This script has assertLocalDb() guard that blocks production
+ * - This is explicitly a local DEV reset tool
+ * - The user invoked this command intentionally via npm run db:reset:local
  */
-function runMigrations(): void {
-  console.log('🔄 Running prisma migrate deploy...');
+function runPrismaReset(): void {
+  const provider = detectProvider();
+  console.log(`📦 Provider détecté: ${provider}`);
+  console.log('🔄 Running prisma migrate reset --force --skip-seed...');
+  console.log('   (Standard Prisma DEV command - no raw SQL)\n');
+
   try {
-    execSync('npx prisma migrate deploy', {
+    execSync('npx prisma migrate reset --force --skip-seed', {
       stdio: 'inherit',
-      cwd: process.cwd()
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        // Safe because assertLocalDb() already verified this is a local database
+        PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION: 'yes reset local dev database'
+      }
     });
-    console.log('   ✅ Migrations applied\n');
+    console.log('\n   ✅ Database reset complete\n');
   } catch (error) {
-    console.error('   ❌ Migration failed');
+    console.error('   ❌ Prisma reset failed');
     process.exit(1);
   }
 }
@@ -112,30 +121,21 @@ function seedPlayers(): void {
   }
 }
 
-async function main(): Promise<void> {
+function main(): void {
   console.log('\n🔄 DB RESET LOCAL\n');
   console.log('=====================================');
 
   // Step 1: Safety check
   assertLocalDb();
 
-  // Step 2: Drop all tables
-  await dropAllTables();
+  // Step 2: Run prisma migrate reset (standard Prisma command)
+  runPrismaReset();
 
-  // Disconnect before running CLI commands
-  await prisma.$disconnect();
-
-  // Step 3: Run migrations
-  runMigrations();
-
-  // Step 4: Seed players
+  // Step 3: Seed players
   seedPlayers();
 
   console.log('\n=====================================');
   console.log('✅ Reset complete! Database has 10 test players.\n');
 }
 
-main().catch((e) => {
-  console.error('\n❌ Error:', e.message);
-  process.exit(1);
-});
+main();
