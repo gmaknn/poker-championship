@@ -13,6 +13,9 @@ const customJestConfig = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Mock jose for tests - Auth.js handles JWT verification in integration
+    '^jose/jwt/verify$': '<rootDir>/__mocks__/jose.js',
+    '^jose$': '<rootDir>/__mocks__/jose.js',
   },
   testMatch: [
     '**/__tests__/**/*.{js,jsx,ts,tsx}',

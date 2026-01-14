@@ -1,6 +1,6 @@
 /**
  * Helpers d'authentification et d'autorisation
- * Supporte NextAuth (prod) et cookie player-id (dev)
+ * Utilise Auth.js v5 avec vérification JWT signée comme fallback sécurisé
  * Supporte multi-rôles et TD par tournoi
  */
 
@@ -9,91 +9,213 @@ import { prisma } from '@/lib/prisma';
 import { PlayerRole } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { hasPermission, isAdminMultiRole } from '@/lib/permissions';
+import { jwtVerify } from 'jose';
+
+/**
+ * Récupère le secret Auth.js pour la vérification JWT
+ * Auth.js v5 utilise AUTH_SECRET, avec fallback sur NEXTAUTH_SECRET
+ */
+function getAuthSecret(): Uint8Array {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error('AUTH_SECRET or NEXTAUTH_SECRET must be defined');
+  }
+  return new TextEncoder().encode(secret);
+}
+
+/**
+ * Noms des cookies de session Auth.js v5
+ * En HTTPS (production): __Secure-authjs.session-token
+ * En HTTP (local): authjs.session-token
+ */
+const SESSION_COOKIE_NAMES = [
+  'authjs.session-token',
+  '__Secure-authjs.session-token',
+  'next-auth.session-token',
+  '__Secure-next-auth.session-token',
+];
+
+/**
+ * Interface pour le payload JWT Auth.js
+ */
+interface AuthJsJwtPayload {
+  id?: string;
+  sub?: string;
+  email?: string;
+  name?: string;
+  role?: string;
+  iat?: number;
+  exp?: number;
+}
+
+/**
+ * Vérifie et décode le JWT de session depuis les cookies
+ * Utilise jose pour vérifier la signature HMAC avec le secret
+ *
+ * SÉCURITÉ: Cette fonction vérifie la signature du token.
+ * Un token forgé ou modifié sera rejeté.
+ */
+async function verifySessionFromCookies(request: NextRequest): Promise<AuthJsJwtPayload | null> {
+  const cookies = request.headers.get('cookie');
+  if (!cookies) return null;
+
+  const secret = getAuthSecret();
+
+  for (const cookieName of SESSION_COOKIE_NAMES) {
+    // Escape special regex characters in cookie name
+    const regex = new RegExp(`${cookieName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}=([^;]+)`);
+    const match = cookies.match(regex);
+
+    if (match) {
+      try {
+        const token = decodeURIComponent(match[1]);
+
+        // Vérifier la signature JWT avec jose
+        const { payload } = await jwtVerify(token, secret, {
+          algorithms: ['HS256', 'HS384', 'HS512'],
+        });
+
+        // Extraire les infos utilisateur du payload vérifié
+        const userId = (payload.id as string) || (payload.sub as string);
+        if (userId) {
+          return {
+            id: payload.id as string,
+            sub: payload.sub as string,
+            email: payload.email as string,
+            name: payload.name as string,
+            role: payload.role as string,
+          };
+        }
+      } catch (e) {
+        // Token invalide ou signature incorrecte - continuer avec le suivant
+        // Note: On ne log pas l'erreur en détail pour éviter les fuites d'info
+        console.debug('[Auth] JWT verification failed for cookie:', cookieName);
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Fallback pour les tests uniquement
+ * Lit le player-id depuis les headers ou cookies
+ * SÉCURITÉ: Cette fonction ne doit JAMAIS être utilisée en production
+ */
+function getTestFallbackPlayerId(request: NextRequest): string | null {
+  // Vérifier explicitement qu'on est en mode test
+  if (process.env.NODE_ENV !== 'test') {
+    return null;
+  }
+
+  // Header X-Player-Id (utilisé par certains tests)
+  const headerPlayerId = request.headers.get('x-player-id');
+  if (headerPlayerId) {
+    return headerPlayerId;
+  }
+
+  // Cookie player-id (utilisé par la plupart des tests)
+  const cookies = request.headers.get('cookie');
+  if (cookies) {
+    const match = cookies.match(/player-id=([^;]+)/);
+    if (match) {
+      return match[1];
+    }
+  }
+
+  return null;
+}
 
 /**
  * Récupère le joueur/user actuel
- * 1. Essaie NextAuth (production)
- * 2. Fallback sur cookie player-id (dev mode)
+ * 1. Essaie Auth.js auth() (méthode officielle)
+ * 2. Fallback: vérification JWT signée depuis cookies (si auth() échoue dans Route Handler)
+ * 3. Fallback TEST ONLY: player-id cookie (pour les tests existants)
+ *
+ * SÉCURITÉ: Le fallback player-id n'est actif qu'en NODE_ENV=test
  */
 export async function getCurrentPlayer(request: NextRequest) {
-  // 1. Essayer NextAuth d'abord (production)
+  let userId: string | null = null;
+
+  // 1. Essayer auth() d'abord (méthode officielle Auth.js v5)
   try {
     const session = await auth();
     if (session?.user?.id) {
-      // NextAuth user - chercher dans la table User
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
+      userId = session.user.id;
+    }
+  } catch (e) {
+    // auth() peut échouer dans certains contextes Route Handler
+    // Fallback sur vérification JWT signée
+    console.debug('[Auth] auth() threw, using JWT verification fallback');
+  }
+
+  // 2. Fallback sécurisé: vérifier le JWT avec signature
+  if (!userId) {
+    const verifiedPayload = await verifySessionFromCookies(request);
+    if (verifiedPayload) {
+      userId = verifiedPayload.id || verifiedPayload.sub || null;
+    }
+  }
+
+  // Si on a trouvé un userId, récupérer le User
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (user) {
+      // Retourner un objet compatible avec le format Player
+      return {
+        id: user.id,
+        firstName: user.name || '',
+        lastName: '',
+        nickname: user.name || user.email,
+        email: user.email,
+        avatar: null,
+        role: user.role as PlayerRole,
+        status: 'ACTIVE' as const,
+        additionalRoles: [] as PlayerRole[],
+      };
+    }
+    // User ID valide dans le token mais pas en DB (supprimé?)
+    console.warn('[Auth] User ID from verified token not found in database:', userId);
+  }
+
+  // 3. Fallback TEST ONLY: player-id cookie/header
+  // SÉCURITÉ: Ce fallback n'est actif qu'en mode test (NODE_ENV=test)
+  if (process.env.NODE_ENV === 'test') {
+    const testPlayerId = getTestFallbackPlayerId(request);
+    if (testPlayerId) {
+      const player = await prisma.player.findUnique({
+        where: { id: testPlayerId },
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
+          nickname: true,
           email: true,
+          avatar: true,
           role: true,
+          status: true,
+          roles: { select: { role: true } },
         },
       });
-
-      if (user) {
-        // Retourner un objet compatible avec le format Player
-        // Note: les users NextAuth n'ont pas de rôles additionnels (multi-rôle via Player uniquement)
+      if (player) {
         return {
-          id: user.id,
-          firstName: user.name || '',
-          lastName: '',
-          nickname: user.name || user.email,
-          email: user.email,
-          avatar: null,
-          role: user.role as PlayerRole,
-          status: 'ACTIVE' as const,
-          additionalRoles: [] as PlayerRole[],
+          ...player,
+          additionalRoles: player.roles?.map(r => r.role) ?? [],
         };
       }
     }
-  } catch {
-    // NextAuth non disponible, continuer avec fallback
   }
 
-  // 2. Fallback: header X-Player-Id ou cookie player-id (dev mode)
-  let playerId = request.headers.get('x-player-id');
-
-  if (!playerId) {
-    const cookies = request.headers.get('cookie');
-    if (cookies) {
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-      if (playerIdMatch) {
-        playerId = playerIdMatch[1];
-      }
-    }
-  }
-
-  if (!playerId) {
-    return null;
-  }
-
-  const player = await prisma.player.findUnique({
-    where: { id: playerId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      nickname: true,
-      email: true,
-      avatar: true,
-      role: true,
-      status: true,
-      roles: {
-        select: { role: true },
-      },
-    },
-  });
-
-  if (!player) {
-    return null;
-  }
-
-  // Ajouter les rôles additionnels au retour
-  return {
-    ...player,
-    additionalRoles: player.roles?.map(r => r.role) ?? [],
-  };
+  return null;
 }
 
 /**
@@ -120,36 +242,53 @@ export type CurrentActor = {
 
 /**
  * Récupère l'acteur courant avec son Player lié
- * Pour les Users NextAuth, trouve ou crée automatiquement le Player correspondant
+ * Pour les Users Auth.js, trouve ou crée automatiquement le Player correspondant
  * Utilisé principalement pour les opérations qui nécessitent un Player.id (ex: créer un tournoi)
  *
  * @param request - NextRequest
  * @param autoCreatePlayer - Si true, crée automatiquement un Player si non trouvé (default: false)
  * @returns CurrentActor ou null si non authentifié
+ *
+ * SÉCURITÉ: Le fallback player-id n'est actif qu'en NODE_ENV=test
  */
 export async function getCurrentActor(
   request: NextRequest,
   autoCreatePlayer: boolean = false
 ): Promise<CurrentActor | null> {
-  // 1. Essayer NextAuth d'abord (production)
+  let userId: string | null = null;
+
+  // 1. Essayer auth() d'abord (méthode officielle Auth.js v5)
   try {
     const session = await auth();
     if (session?.user?.id && session?.user?.email) {
-      // Récupérer le User complet
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      });
+      userId = session.user.id;
+    }
+  } catch (e) {
+    // auth() peut échouer dans certains contextes Route Handler
+    console.debug('[Auth] auth() threw in getCurrentActor, using JWT verification fallback');
+  }
 
-      if (!user) {
-        return null;
-      }
+  // 2. Fallback sécurisé: vérifier le JWT avec signature
+  if (!userId) {
+    const verifiedPayload = await verifySessionFromCookies(request);
+    if (verifiedPayload) {
+      userId = verifiedPayload.id || verifiedPayload.sub || null;
+    }
+  }
 
+  // Si on a trouvé un userId, récupérer le User
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (user) {
       // Chercher un Player avec le même email
       let player = await prisma.player.findFirst({
         where: { email: user.email },
@@ -204,65 +343,47 @@ export async function getCurrentActor(
         console.log(`[Auth] Auto-created Player for User ${user.email}: ${player.id}`);
       }
 
-      if (!player) {
-        return null;
-      }
-
-      return {
-        user,
-        player,
-      };
-    }
-  } catch (e) {
-    // NextAuth non disponible, continuer avec fallback
-    console.error('[Auth] NextAuth error:', e);
-  }
-
-  // 2. Fallback: cookie player-id (dev mode) - pas de User dans ce cas
-  let playerId = request.headers.get('x-player-id');
-
-  if (!playerId) {
-    const cookies = request.headers.get('cookie');
-    if (cookies) {
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-      if (playerIdMatch) {
-        playerId = playerIdMatch[1];
+      if (player) {
+        return { user, player };
       }
     }
+    console.warn('[Auth] User ID from verified token not found in database:', userId);
   }
 
-  if (!playerId) {
-    return null;
+  // 3. Fallback TEST ONLY: player-id cookie/header
+  // SÉCURITÉ: Ce fallback n'est actif qu'en mode test (NODE_ENV=test)
+  if (process.env.NODE_ENV === 'test') {
+    const testPlayerId = getTestFallbackPlayerId(request);
+    if (testPlayerId) {
+      const player = await prisma.player.findUnique({
+        where: { id: testPlayerId },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          nickname: true,
+          email: true,
+          avatar: true,
+          role: true,
+          status: true,
+        },
+      });
+      if (player) {
+        // En mode test, créer un "fake" user basé sur le player
+        return {
+          user: {
+            id: player.id,
+            email: player.email || '',
+            name: `${player.firstName} ${player.lastName}`.trim(),
+            role: player.role,
+          },
+          player,
+        };
+      }
+    }
   }
 
-  const player = await prisma.player.findUnique({
-    where: { id: playerId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      nickname: true,
-      email: true,
-      avatar: true,
-      role: true,
-      status: true,
-    },
-  });
-
-  if (!player) {
-    return null;
-  }
-
-  // En mode dev, créer un "fake" user basé sur le player
-  return {
-    user: {
-      id: player.id,
-      email: player.email || '',
-      name: `${player.firstName} ${player.lastName}`.trim(),
-      role: player.role,
-    },
-    player,
-  };
+  return null;
 }
 
 /**
