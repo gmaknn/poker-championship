@@ -2,14 +2,15 @@
  * SAFE PRODUCTION RESET SCRIPT
  *
  * Purges all championship data while preserving:
- * - User accounts (admin auth)
+ * - User accounts (admin auth) - INDEPENDENT from Player
  * - Settings (global configuration)
  * - ChipSet + ChipSetDenomination (mallettes)
  * - ChipInventory (global chip inventory)
  * - TournamentTemplate (templates)
  * - ChipDenomination where isDefault=true (default config)
- * - AccountActivationToken (auth tokens)
- * - PlayerRoleAssignment (role/permission assignments)
+ *
+ * NOTE: AccountActivationToken and PlayerRoleAssignment are PURGED
+ * because they have FK references to Player (onDelete: Cascade).
  *
  * SECURITY: Requires TWO environment variables to execute:
  * 1. ALLOW_PROD_RESET=YES
@@ -155,13 +156,21 @@ async function purgeChampionshipData(): Promise<PurgeResult[]> {
   results.push({ model: 'Season', count: seasons.count });
   console.log(`  Deleted: ${seasons.count}`);
 
-  // NOTE: AccountActivationToken and PlayerRoleAssignment are KEPT (auth/roles)
-  // They will be cascade-deleted only if their associated Player is deleted,
-  // but we keep them for any Player that might be preserved in the future.
+  // 11. AccountActivationToken (depends on Player - FK with onDelete: Cascade)
+  // Must be purged BEFORE Player to avoid FK issues (even though cascade would handle it)
+  console.log('Purging AccountActivationToken...');
+  const tokens = await prisma.accountActivationToken.deleteMany({});
+  results.push({ model: 'AccountActivationToken', count: tokens.count });
+  console.log(`  Deleted: ${tokens.count}`);
 
-  // 11. Player (root - all players are purged)
-  // WARNING: This will cascade-delete AccountActivationToken and PlayerRoleAssignment
-  // for deleted players, but those tables themselves are not explicitly purged.
+  // 12. PlayerRoleAssignment (depends on Player - FK with onDelete: Cascade)
+  // Must be purged BEFORE Player to avoid FK issues (even though cascade would handle it)
+  console.log('Purging PlayerRoleAssignment...');
+  const roleAssignments = await prisma.playerRoleAssignment.deleteMany({});
+  results.push({ model: 'PlayerRoleAssignment', count: roleAssignments.count });
+  console.log(`  Deleted: ${roleAssignments.count}`);
+
+  // 13. Player (root - all players are purged)
   console.log('Purging Player...');
   const players = await prisma.player.deleteMany({});
   results.push({ model: 'Player', count: players.count });
