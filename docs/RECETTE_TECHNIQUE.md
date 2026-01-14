@@ -133,7 +133,7 @@ OK 18 - CLEANUP: Reset manuel requis
 
 ---
 
-## Scenario couvert (20 etapes)
+## Scenario couvert (23 etapes)
 
 | Etape | Description                                          |
 |-------|------------------------------------------------------|
@@ -147,9 +147,11 @@ OK 18 - CLEANUP: Reset manuel requis
 | 07    | Verifier persistance des flags blinds apres reload   |
 | 08    | Creer 4 joueurs de test (deterministe)               |
 | 09    | Inscrire les joueurs au tournoi                      |
-| 10    | Demarrer le tournoi                                  |
-| 10b   | Fermer la periode de recaves (rebuyEndLevel: 0)      |
-| 11    | Enregistrer 2 KO par le meme joueur (P1)             |
+| 10    | Demarrer le tournoi (recaves ouvertes)               |
+| 11    | Enregistrer des busts pendant recaves (P1 bust P3/P4)|
+| 11b   | Verifier les busts enregistres                       |
+| 11c   | Fermer la periode de recaves (rebuyEndLevel: 0)      |
+| 11d   | Convertir les busts en eliminations definitives      |
 | 12    | Verifier les eliminations enregistrees               |
 | 13    | Terminer le tournoi avec rangs finaux                |
 | 14    | Verifier les resultats (scoring strict numerique)    |
