@@ -8,6 +8,8 @@
  * - ChipInventory (global chip inventory)
  * - TournamentTemplate (templates)
  * - ChipDenomination where isDefault=true (default config)
+ * - AccountActivationToken (auth tokens)
+ * - PlayerRoleAssignment (role/permission assignments)
  *
  * SECURITY: Requires TWO environment variables to execute:
  * 1. ALLOW_PROD_RESET=YES
@@ -153,19 +155,13 @@ async function purgeChampionshipData(): Promise<PurgeResult[]> {
   results.push({ model: 'Season', count: seasons.count });
   console.log(`  Deleted: ${seasons.count}`);
 
-  // 11. AccountActivationToken (depends on Player)
-  console.log('Purging AccountActivationToken...');
-  const tokens = await prisma.accountActivationToken.deleteMany({});
-  results.push({ model: 'AccountActivationToken', count: tokens.count });
-  console.log(`  Deleted: ${tokens.count}`);
+  // NOTE: AccountActivationToken and PlayerRoleAssignment are KEPT (auth/roles)
+  // They will be cascade-deleted only if their associated Player is deleted,
+  // but we keep them for any Player that might be preserved in the future.
 
-  // 12. PlayerRoleAssignment (depends on Player)
-  console.log('Purging PlayerRoleAssignment...');
-  const roleAssignments = await prisma.playerRoleAssignment.deleteMany({});
-  results.push({ model: 'PlayerRoleAssignment', count: roleAssignments.count });
-  console.log(`  Deleted: ${roleAssignments.count}`);
-
-  // 13. Player (root - all players are purged)
+  // 11. Player (root - all players are purged)
+  // WARNING: This will cascade-delete AccountActivationToken and PlayerRoleAssignment
+  // for deleted players, but those tables themselves are not explicitly purged.
   console.log('Purging Player...');
   const players = await prisma.player.deleteMany({});
   results.push({ model: 'Player', count: players.count });
@@ -242,6 +238,45 @@ async function verifyPurgedData(): Promise<void> {
   }
 }
 
+/**
+ * CRITICAL SAFETY CHECK: Verify admin user still exists after reset
+ * Fails loudly if no admin user is found
+ */
+async function verifyAdminUserExists(): Promise<void> {
+  console.log('\n========================================');
+  console.log('  CRITICAL SAFETY CHECK: ADMIN USER');
+  console.log('========================================\n');
+
+  // Check User table (main auth model)
+  const adminUsers = await prisma.user.findMany({
+    where: { role: 'ADMIN' },
+    select: { id: true, email: true, name: true, role: true }
+  });
+
+  if (adminUsers.length === 0) {
+    console.error('[CRITICAL ERROR] No admin user found in User table!');
+    console.error('The reset may have accidentally deleted admin accounts.');
+    console.error('This should NEVER happen - User table should be preserved.');
+    process.exit(1);
+  }
+
+  console.log(`[OK] Found ${adminUsers.length} admin user(s) in User table:`);
+  for (const admin of adminUsers) {
+    console.log(`     - ${admin.email} (${admin.name}) [role: ${admin.role}]`);
+  }
+
+  // Verify Settings still exists
+  const settingsCount = await prisma.settings.count();
+  if (settingsCount === 0) {
+    console.error('[CRITICAL ERROR] Settings table is empty!');
+    console.error('This should NEVER happen - Settings should be preserved.');
+    process.exit(1);
+  }
+  console.log(`[OK] Settings preserved: ${settingsCount} record(s)`);
+
+  console.log('\n[SAFETY CHECK PASSED] Admin access is intact.\n');
+}
+
 // ============================================
 // MAIN
 // ============================================
@@ -299,6 +334,9 @@ async function main(): Promise<void> {
 
     // Verify purged data
     await verifyPurgedData();
+
+    // CRITICAL: Verify admin user still exists
+    await verifyAdminUserExists();
 
     console.log('\n========================================');
     console.log('  RESET COMPLETE');
