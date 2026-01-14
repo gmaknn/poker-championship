@@ -27,11 +27,13 @@ const TEST_PREFIX = `RECIPE_${TIMESTAMP}`;
 
 // Prod-safe: reset automatique si non-localhost
 const IS_PROD = !BASE_URL.includes('localhost') && !BASE_URL.includes('127.0.0.1');
-const RESET_AFTER_RUN = process.env.RECIPE_RESET_AFTER_RUN !== 'false' && IS_PROD;
+const RESET_DISABLED = process.env.RECIPE_RESET_AFTER_RUN === 'false';
+const RESET_REQUIRED = IS_PROD && !RESET_DISABLED;
 
-// Scoring defaults from schema.prisma
-const EXPECTED_ELIMINATION_POINTS = 50; // eliminationPoints default
-const EXPECTED_LEADER_KILLER_BONUS = 25; // leaderKillerBonus default
+// Scoring defaults from schema.prisma (Season.eliminationPoints @default(50))
+// NOTE: Si ce parametre devient configurable dynamiquement, ajuster cette source
+const SCHEMA_DEFAULT_ELIMINATION_POINTS = 50;
+const SCHEMA_DEFAULT_LEADER_KILLER_BONUS = 25;
 
 // Resultats de la recette
 interface RecipeResult {
@@ -44,7 +46,6 @@ interface RecipeResult {
 }
 
 const results: RecipeResult[] = [];
-let resetRequired = RESET_AFTER_RUN;
 let resetExecuted = false;
 
 function logResult(result: RecipeResult) {
@@ -152,8 +153,9 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
     console.log(`║  Base URL: ${BASE_URL.padEnd(47)}║`);
     console.log(`║  Admin: ${ADMIN_EMAIL.padEnd(50)}║`);
     console.log(`║  Test ID: ${TEST_PREFIX.padEnd(48)}║`);
-    console.log(`║  Mode: ${IS_PROD ? 'PRODUCTION' : 'LOCAL'.padEnd(51)}║`);
-    console.log(`║  Reset apres run: ${(RESET_AFTER_RUN ? 'OUI' : 'NON').padEnd(40)}║`);
+    console.log(`║  Mode: ${(IS_PROD ? 'PRODUCTION' : 'LOCAL').padEnd(51)}║`);
+    console.log(`║  Reset requis: ${(RESET_REQUIRED ? 'OUI' : 'NON').padEnd(43)}║`);
+    console.log(`║  Reset desactive: ${(RESET_DISABLED ? 'OUI (explicite)' : 'NON').padEnd(40)}║`);
     console.log('╚════════════════════════════════════════════════════════════╝');
     console.log('\n');
   });
@@ -180,24 +182,29 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
     console.log('\n');
 
     // Verdict final avec prise en compte du reset
-    if (koCount === 0) {
-      if (resetRequired && !resetExecuted) {
-        console.log('╔════════════════════════════════════════════════════════════╗');
-        console.log('║  ⚠️  VERDICT: GO TECHNIQUE (ACTION REQUISE: RESET)         ║');
-        console.log('╠════════════════════════════════════════════════════════════╣');
-        console.log('║  Le reset automatique a echoue ou n\'a pas ete execute.    ║');
-        console.log('║  Executez manuellement: flyctl ssh console puis           ║');
-        console.log('║  ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=<token>            ║');
-        console.log('║  npm run reset:prod                                       ║');
-        console.log('╚════════════════════════════════════════════════════════════╝');
-      } else {
-        console.log('╔════════════════════════════════════════════════════════════╗');
-        console.log('║          ✅ VERDICT: GO TECHNIQUE                          ║');
-        console.log('╚════════════════════════════════════════════════════════════╝');
-      }
-    } else {
+    // NO-GO si: tests KO OU (reset requis ET non execute)
+    const resetFailure = RESET_REQUIRED && !resetExecuted;
+
+    if (koCount > 0 || resetFailure) {
       console.log('╔════════════════════════════════════════════════════════════╗');
       console.log('║          ❌ VERDICT: NO-GO TECHNIQUE                       ║');
+      console.log('╚════════════════════════════════════════════════════════════╝');
+      if (resetFailure && koCount === 0) {
+        console.log('\nCause: Reset prod requis mais non execute.');
+        console.log('Solution: Fournir PROD_RESET_TOKEN ou executer manuellement:');
+        console.log('  flyctl ssh console --app wpt-villelaure');
+        console.log('  ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=<token> npm run reset:prod');
+      }
+    } else if (RESET_DISABLED && IS_PROD) {
+      console.log('╔════════════════════════════════════════════════════════════╗');
+      console.log('║  ✅ VERDICT: GO TECHNIQUE (RESET DESACTIVE)                ║');
+      console.log('╠════════════════════════════════════════════════════════════╣');
+      console.log('║  RECIPE_RESET_AFTER_RUN=false : reset volontairement omis  ║');
+      console.log('║  Les donnees RECIPE_* restent en base.                     ║');
+      console.log('╚════════════════════════════════════════════════════════════╝');
+    } else {
+      console.log('╔════════════════════════════════════════════════════════════╗');
+      console.log('║          ✅ VERDICT: GO TECHNIQUE                          ║');
       console.log('╚════════════════════════════════════════════════════════════╝');
     }
     console.log('\n');
@@ -327,8 +334,8 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
       startDate: new Date().toISOString(),
       status: 'ACTIVE',
       // Valeurs de scoring explicites pour assertions deterministes
-      eliminationPoints: EXPECTED_ELIMINATION_POINTS,
-      leaderKillerBonus: EXPECTED_LEADER_KILLER_BONUS,
+      eliminationPoints: SCHEMA_DEFAULT_ELIMINATION_POINTS,
+      leaderKillerBonus: SCHEMA_DEFAULT_LEADER_KILLER_BONUS,
     };
 
     const response = await apiContext.post(`${BASE_URL}/api/seasons`, {
@@ -744,8 +751,11 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
 
   // ===================================================================
   // TEST 14 - Verifier les resultats du tournoi (assertions numeriques)
+  // HYPOTHESE: eliminationPoints = 50 (default schema.prisma)
   // ===================================================================
   test('14 - Verifier les resultats du tournoi (scoring strict)', async () => {
+    console.log(`   [Hypothese scoring] eliminationPoints = ${SCHEMA_DEFAULT_ELIMINATION_POINTS} (default schema)`);
+
     const response = await apiContext.get(`${BASE_URL}/api/tournaments/${tournamentId}/results`, {
       headers: { Cookie: sessionCookies },
     });
@@ -773,13 +783,13 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
       const p1Result = tournamentResults.find(r => r.playerId === playerIds[0]);
 
       if (p1Result) {
-        // P1 a fait 2 eliminations, donc devrait avoir 2 x 50 = 100 points KO
-        const expectedKoPoints = 2 * EXPECTED_ELIMINATION_POINTS;
+        // P1 a fait 2 eliminations, attendu: 2 x SCHEMA_DEFAULT_ELIMINATION_POINTS
+        const expectedKoPoints = 2 * SCHEMA_DEFAULT_ELIMINATION_POINTS;
         const actualKoPoints = p1Result.eliminationPoints || 0;
 
         if (actualKoPoints === expectedKoPoints) {
           logResult({
-            step: `14.2 - P1 a ${expectedKoPoints} points KO (2 x ${EXPECTED_ELIMINATION_POINTS})`,
+            step: `14.2 - P1 a ${expectedKoPoints} points KO (2 x ${SCHEMA_DEFAULT_ELIMINATION_POINTS})`,
             status: 'OK',
           });
         } else {
@@ -951,8 +961,17 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
   // TEST 18 - CLEANUP / RESET (conditionnel prod)
   // ===================================================================
   test('18 - CLEANUP / RESET prod (si applicable)', async () => {
-    if (!resetRequired) {
-      logResult({ step: '18 - CLEANUP: Non requis (mode local)', status: 'OK' });
+    // Mode local ou reset explicitement desactive
+    if (!RESET_REQUIRED) {
+      if (RESET_DISABLED && IS_PROD) {
+        logResult({
+          step: '18 - CLEANUP: Reset desactive (RECIPE_RESET_AFTER_RUN=false)',
+          status: 'OK',
+          details: 'Reset volontairement omis par l\'utilisateur',
+        });
+      } else {
+        logResult({ step: '18 - CLEANUP: Non requis (mode local)', status: 'OK' });
+      }
       return;
     }
 
@@ -962,30 +981,24 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
     console.log('╚════════════════════════════════════════════════════════════╝');
     console.log('\n');
 
-    // En mode prod, le reset:prod necessite:
-    // - ALLOW_PROD_RESET=YES
-    // - PROD_RESET_TOKEN (doit correspondre a PROD_RESET_TOKEN_EXPECTED sur Fly)
-    // Ces variables ne sont pas disponibles depuis Playwright distant.
-    // Le reset doit etre fait manuellement via SSH ou CI/CD.
-
     const resetToken = process.env.PROD_RESET_TOKEN;
 
+    // PROD_RESET_TOKEN manquant => KO (pas de pollution durable acceptee)
     if (!resetToken) {
-      console.log('⚠️  PROD_RESET_TOKEN non fourni.');
-      console.log('   Le reset automatique n\'est pas possible depuis ce contexte.');
-      console.log('   ACTION REQUISE: Executez manuellement apres le run:');
-      console.log('');
-      console.log('   flyctl ssh console --app wpt-villelaure');
-      console.log('   ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=<token> npm run reset:prod');
+      console.log('❌ PROD_RESET_TOKEN non fourni.');
+      console.log('   Le reset est OBLIGATOIRE en mode prod pour eviter la pollution.');
+      console.log('   Options:');
+      console.log('   1. Fournir PROD_RESET_TOKEN=<token> au lancement');
+      console.log('   2. Ou desactiver explicitement: RECIPE_RESET_AFTER_RUN=false');
       console.log('');
 
       logResult({
-        step: '18 - CLEANUP: Reset manuel requis',
-        status: 'OK',
-        details: 'PROD_RESET_TOKEN non fourni - reset manuel apres run',
+        step: '18 - CLEANUP: PROD_RESET_TOKEN manquant',
+        status: 'KO',
+        details: 'Token requis pour reset prod. Fournir PROD_RESET_TOKEN ou RECIPE_RESET_AFTER_RUN=false',
       });
 
-      // On ne marque pas resetExecuted car il est manuel
+      // resetExecuted reste false => verdict NO-GO
       return;
     }
 

@@ -69,24 +69,26 @@ Si vous fournissez `PROD_RESET_TOKEN` et executez depuis un contexte avec acces 
 - Le reset est tente automatiquement a la fin du run
 - Resultat affiche dans le rapport
 
-### Sans `PROD_RESET_TOKEN` (cas courant)
+### Sans `PROD_RESET_TOKEN` en mode prod
 
-Le runner affiche :
+Le runner termine en **NO-GO** :
 ```
-VERDICT: GO TECHNIQUE (ACTION REQUISE: RESET)
+VERDICT: NO-GO TECHNIQUE
+
+Cause: Reset prod requis mais non execute.
+Solution: Fournir PROD_RESET_TOKEN ou executer manuellement:
+  flyctl ssh console --app wpt-villelaure
+  ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=<token> npm run reset:prod
 ```
 
-Executez manuellement :
-```bash
-flyctl ssh console --app wpt-villelaure
-ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=<token> npm run reset:prod
-```
+### Desactiver le reset explicitement
 
-### Desactiver le reset (non recommande en prod)
-
+Si vous souhaitez volontairement laisser les donnees en prod :
 ```bash
 RECIPE_RESET_AFTER_RUN=false npm run recipe:tech
 ```
+
+Le verdict sera `GO TECHNIQUE (RESET DESACTIVE)` avec un message explicite.
 
 ---
 
@@ -121,8 +123,8 @@ OK 18 - CLEANUP: Reset manuel requis
 | Verdict                                | Signification                                    |
 |----------------------------------------|--------------------------------------------------|
 | `GO TECHNIQUE`                         | Tous les tests OK, reset effectue (si requis)    |
-| `GO TECHNIQUE (ACTION REQUISE: RESET)` | Tests OK, mais reset manuel necessaire           |
-| `NO-GO TECHNIQUE`                      | Au moins un test echoue                          |
+| `GO TECHNIQUE (RESET DESACTIVE)`       | Tests OK, reset omis volontairement              |
+| `NO-GO TECHNIQUE`                      | Tests KO OU reset prod requis mais non execute   |
 
 ### Codes de sortie
 
@@ -181,6 +183,10 @@ Les flags suivants doivent persister apres un reload :
 - `isRebuyEnd` sur le niveau 4
 
 ### 4. Scoring numerique strict
+
+> **HYPOTHESE** : Le runner suppose `eliminationPoints = 50` (default schema.prisma).
+> Si ce parametre est configurable dynamiquement par saison, ajuster la source
+> dans `SCHEMA_DEFAULT_ELIMINATION_POINTS` du runner.
 
 - P1 fait 2 eliminations → `eliminationPoints = 100` (2 x 50)
 - P1 rank 1 → `rankPoints > 0`
