@@ -83,8 +83,11 @@ export function Sidebar() {
           }
         })
         .catch(err => console.error('Error loading current player:', err));
+    } else {
+      // Cookie supprimé = déconnexion
+      setCurrentPlayer(null);
     }
-  }, []);
+  }, [pathname]);
 
   const handleLogout = () => {
     // Supprimer le cookie

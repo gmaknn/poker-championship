@@ -9,46 +9,109 @@ import { prisma } from '@/lib/prisma';
 import { PlayerRole } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { hasPermission, isAdminMultiRole } from '@/lib/permissions';
+import { jwtDecode } from 'jwt-decode';
+
+/**
+ * Décode le JWT depuis les cookies de la request
+ * Supporte les cookies Auth.js v5 (authjs.session-token et __Secure-authjs.session-token)
+ */
+interface JWTPayload {
+  id?: string;
+  email?: string;
+  name?: string;
+  role?: string;
+  sub?: string;
+  iat?: number;
+  exp?: number;
+}
+
+function getSessionFromCookies(request: NextRequest): JWTPayload | null {
+  const cookies = request.headers.get('cookie');
+  if (!cookies) return null;
+
+  // Auth.js v5 utilise ces noms de cookies
+  const cookieNames = [
+    'authjs.session-token',
+    '__Secure-authjs.session-token',
+    'next-auth.session-token',
+    '__Secure-next-auth.session-token',
+  ];
+
+  for (const cookieName of cookieNames) {
+    const regex = new RegExp(`${cookieName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}=([^;]+)`);
+    const match = cookies.match(regex);
+    if (match) {
+      try {
+        const token = match[1];
+        const decoded = jwtDecode<JWTPayload>(token);
+        if (decoded && (decoded.id || decoded.sub)) {
+          return decoded;
+        }
+      } catch (e) {
+        // Token invalide, continuer avec le suivant
+        console.debug('[Auth] Failed to decode JWT from cookie:', cookieName, e);
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * Récupère le joueur/user actuel
- * 1. Essaie NextAuth (production)
- * 2. Fallback sur cookie player-id (dev mode)
+ * 1. Essaie NextAuth auth() (Server Components, Middleware)
+ * 2. Fallback: décoder JWT depuis cookies (Route Handlers)
+ * 3. Fallback: cookie player-id (dev mode)
  */
 export async function getCurrentPlayer(request: NextRequest) {
-  // 1. Essayer NextAuth d'abord (production)
+  // 1. Essayer NextAuth auth() d'abord
+  // Note: Dans Auth.js v5, auth() fonctionne dans Server Components et Middleware
+  // mais peut échouer dans Route Handlers si next/headers n'est pas disponible
+  let userId: string | null = null;
+
   try {
     const session = await auth();
     if (session?.user?.id) {
-      // NextAuth user - chercher dans la table User
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      });
-
-      if (user) {
-        // Retourner un objet compatible avec le format Player
-        // Note: les users NextAuth n'ont pas de rôles additionnels (multi-rôle via Player uniquement)
-        return {
-          id: user.id,
-          firstName: user.name || '',
-          lastName: '',
-          nickname: user.name || user.email,
-          email: user.email,
-          avatar: null,
-          role: user.role as PlayerRole,
-          status: 'ACTIVE' as const,
-          additionalRoles: [] as PlayerRole[],
-        };
-      }
+      userId = session.user.id;
     }
-  } catch {
-    // NextAuth non disponible, continuer avec fallback
+  } catch (e) {
+    // auth() a échoué (probablement dans un Route Handler)
+    console.debug('[Auth] auth() failed, trying JWT decode:', e);
+  }
+
+  // 2. Fallback: décoder le JWT manuellement depuis les cookies
+  if (!userId) {
+    const jwtPayload = getSessionFromCookies(request);
+    if (jwtPayload) {
+      userId = jwtPayload.id || jwtPayload.sub || null;
+    }
+  }
+
+  // Si on a trouvé un userId, chercher le User
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (user) {
+      // Retourner un objet compatible avec le format Player
+      return {
+        id: user.id,
+        firstName: user.name || '',
+        lastName: '',
+        nickname: user.name || user.email,
+        email: user.email,
+        avatar: null,
+        role: user.role as PlayerRole,
+        status: 'ACTIVE' as const,
+        additionalRoles: [] as PlayerRole[],
+      };
+    }
   }
 
   // 2. Fallback: header X-Player-Id ou cookie player-id (dev mode)
@@ -131,25 +194,48 @@ export async function getCurrentActor(
   request: NextRequest,
   autoCreatePlayer: boolean = false
 ): Promise<CurrentActor | null> {
-  // 1. Essayer NextAuth d'abord (production)
+  // 1. Essayer NextAuth auth() d'abord
+  // Note: auth() peut échouer dans Route Handlers si next/headers n'est pas disponible
+  let userId: string | null = null;
+  let userEmail: string | null = null;
+
   try {
     const session = await auth();
     if (session?.user?.id && session?.user?.email) {
-      // Récupérer le User complet
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      });
+      userId = session.user.id;
+      userEmail = session.user.email;
+    }
+  } catch (e) {
+    // auth() a échoué, essayer le décodage JWT manuel
+    console.debug('[Auth] auth() failed in getCurrentActor, trying JWT decode:', e);
+  }
 
-      if (!user) {
-        return null;
-      }
+  // 2. Fallback: décoder le JWT manuellement depuis les cookies
+  if (!userId) {
+    const jwtPayload = getSessionFromCookies(request);
+    if (jwtPayload) {
+      userId = jwtPayload.id || jwtPayload.sub || null;
+      userEmail = jwtPayload.email || null;
+    }
+  }
 
+  // Si on a trouvé un userId, récupérer le User et trouver/créer le Player
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      // userId trouvé mais pas dans la DB - possible token invalide
+      console.warn('[Auth] User ID from token not found in database:', userId);
+      // Continuer avec le fallback player-id
+    } else {
       // Chercher un Player avec le même email
       let player = await prisma.player.findFirst({
         where: { email: user.email },
@@ -204,18 +290,13 @@ export async function getCurrentActor(
         console.log(`[Auth] Auto-created Player for User ${user.email}: ${player.id}`);
       }
 
-      if (!player) {
-        return null;
+      if (player) {
+        return {
+          user,
+          player,
+        };
       }
-
-      return {
-        user,
-        player,
-      };
     }
-  } catch (e) {
-    // NextAuth non disponible, continuer avec fallback
-    console.error('[Auth] NextAuth error:', e);
   }
 
   // 2. Fallback: cookie player-id (dev mode) - pas de User dans ce cas
