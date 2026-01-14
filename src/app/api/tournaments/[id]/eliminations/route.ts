@@ -106,8 +106,16 @@ export async function POST(
 
     // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
     if (areRecavesOpen(tournament)) {
+      // Diagnostic optionnel (activé via RECIPE_DIAGNOSTICS=1)
+      const diagnostics = process.env.RECIPE_DIAGNOSTICS === '1'
+        ? { currentLevel: tournament.currentLevel, rebuyEndLevel: tournament.rebuyEndLevel }
+        : {};
+
       return NextResponse.json(
-        { error: 'Période de recaves encore ouverte. Utilisez le formulaire de perte de tapis.' },
+        {
+          error: 'Période de recaves encore ouverte. Utilisez le formulaire de perte de tapis.',
+          ...diagnostics,
+        },
         { status: 400 }
       );
     }
