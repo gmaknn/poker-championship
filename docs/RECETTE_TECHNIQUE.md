@@ -109,7 +109,7 @@ OK 00.1 - /api/me non-auth retourne 401 ou 403
 OK 00.2 - Content-Type est application/json
 OK 00.3 - Body ne contient pas HTML
 OK 01.1 - GET /api/me retourne JSON
-OK 01.2 - Utilisateur authentifie en tant qu'ADMIN
+OK 01.2 - Utilisateur authentifie (id: clxx...)
 ...
 OK 14.2 - P1 a 100 points KO (2 x 50)
 OK 14.3 - P1 (rank 1) a des rankPoints > 0
@@ -133,7 +133,7 @@ OK 18 - CLEANUP: Reset manuel requis
 
 ---
 
-## Scenario couvert (19 etapes)
+## Scenario couvert (20 etapes)
 
 | Etape | Description                                          |
 |-------|------------------------------------------------------|
@@ -148,6 +148,7 @@ OK 18 - CLEANUP: Reset manuel requis
 | 08    | Creer 4 joueurs de test (deterministe)               |
 | 09    | Inscrire les joueurs au tournoi                      |
 | 10    | Demarrer le tournoi                                  |
+| 10b   | Fermer la periode de recaves (rebuyEndLevel: 0)      |
 | 11    | Enregistrer 2 KO par le meme joueur (P1)             |
 | 12    | Verifier les eliminations enregistrees               |
 | 13    | Terminer le tournoi avec rangs finaux                |

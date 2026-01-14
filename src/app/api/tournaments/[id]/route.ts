@@ -19,6 +19,7 @@ const updateTournamentSchema = z.object({
   prizeDistribution: z.record(z.string(), z.number()).optional(), // Prize distribution by position
   actualDuration: z.number().int().optional(),
   completedAt: z.string().datetime().optional(),
+  rebuyEndLevel: z.number().int().min(0).nullable().optional(), // Niveau de fin de periode de recave
 });
 
 // GET single tournament
