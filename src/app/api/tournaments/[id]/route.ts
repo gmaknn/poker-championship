@@ -206,6 +206,19 @@ export async function PATCH(
         }
       : updateData;
 
+    // Diagnostic gated: trace rebuyEndLevel persistence
+    const isDiag = process.env.RECIPE_DIAGNOSTICS === '1';
+    if (isDiag && 'rebuyEndLevel' in body) {
+      console.log('[DIAG PATCH /tournaments/:id] rebuyEndLevel trace - BEFORE update:', {
+        bodyRebuyEndLevel: body.rebuyEndLevel,
+        bodyType: typeof body.rebuyEndLevel,
+        validatedRebuyEndLevel: validatedData.rebuyEndLevel,
+        validatedType: typeof validatedData.rebuyEndLevel,
+        prismaDataRebuyEndLevel: prismaData.rebuyEndLevel,
+        prismaDataType: typeof prismaData.rebuyEndLevel,
+      });
+    }
+
     const tournament = await prisma.tournament.update({
       where: { id },
       data: prismaData,
@@ -224,6 +237,14 @@ export async function PATCH(
         },
       },
     });
+
+    // Diagnostic gated: trace rebuyEndLevel after update
+    if (isDiag && 'rebuyEndLevel' in body) {
+      console.log('[DIAG PATCH /tournaments/:id] rebuyEndLevel trace - AFTER update:', {
+        returnedRebuyEndLevel: tournament.rebuyEndLevel,
+        returnedType: typeof tournament.rebuyEndLevel,
+      });
+    }
 
     return NextResponse.json(tournament);
   } catch (error) {

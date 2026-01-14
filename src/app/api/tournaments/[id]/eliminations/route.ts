@@ -107,7 +107,18 @@ export async function POST(
     // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
     if (areRecavesOpen(tournament)) {
       // Diagnostic optionnel (activé via RECIPE_DIAGNOSTICS=1)
-      const diagnostics = process.env.RECIPE_DIAGNOSTICS === '1'
+      const isDiag = process.env.RECIPE_DIAGNOSTICS === '1';
+      if (isDiag) {
+        console.log('[DIAG POST /eliminations] recaves ouvertes - blocked:', {
+          tournamentId,
+          currentLevel: tournament.currentLevel,
+          currentLevelType: typeof tournament.currentLevel,
+          rebuyEndLevel: tournament.rebuyEndLevel,
+          rebuyEndLevelType: typeof tournament.rebuyEndLevel,
+        });
+      }
+
+      const diagnostics = isDiag
         ? { currentLevel: tournament.currentLevel, rebuyEndLevel: tournament.rebuyEndLevel }
         : {};
 
