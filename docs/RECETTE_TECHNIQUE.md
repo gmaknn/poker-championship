@@ -56,6 +56,14 @@ npm run recipe:tech
 
 > **IMPORTANT : Zero pollution durable**
 
+### Prerequis pour reset prod
+
+Le reset prod s'execute **a distance** via `flyctl ssh`. Prerequis :
+
+1. **flyctl installe** : https://fly.io/docs/flyctl/install/
+2. **Authentifie** : `flyctl auth login`
+3. **Token de reset** : `PROD_RESET_TOKEN` (variable d'environnement)
+
 ### Comportement automatique
 
 | Cible                        | Reset apres run | Action                          |
@@ -63,11 +71,22 @@ npm run recipe:tech
 | `localhost` / `127.0.0.1`    | NON (defaut)    | Donnees conservees               |
 | URL prod (Fly, etc.)         | OUI (defaut)    | Reset requis apres run           |
 
-### Avec `PROD_RESET_TOKEN`
+### Executer le reset manuellement
 
-Si vous fournissez `PROD_RESET_TOKEN` et executez depuis un contexte avec acces DB :
-- Le reset est tente automatiquement a la fin du run
-- Resultat affiche dans le rapport
+```powershell
+# Depuis Windows (PowerShell)
+$env:PROD_RESET_TOKEN = "votre-token-secret"
+npm run reset:prod
+
+# Ou directement
+$env:PROD_RESET_TOKEN = "votre-token"; npm run reset:prod
+```
+
+Le script :
+1. Verifie que `flyctl` est installe
+2. Verifie l'authentification Fly.io
+3. Se connecte en SSH a la machine Fly
+4. Execute `reset-prod.js` sur la machine distante (ou le secret est disponible)
 
 ### Sans `PROD_RESET_TOKEN` en mode prod
 
@@ -76,9 +95,9 @@ Le runner termine en **NO-GO** :
 VERDICT: NO-GO TECHNIQUE
 
 Cause: Reset prod requis mais non execute.
-Solution: Fournir PROD_RESET_TOKEN ou executer manuellement:
-  flyctl ssh console --app wpt-villelaure
-  ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=<token> npm run reset:prod
+Solution: Fournir PROD_RESET_TOKEN et executer:
+  $env:PROD_RESET_TOKEN = "votre-token"
+  npm run reset:prod
 ```
 
 ### Desactiver le reset explicitement
@@ -89,6 +108,13 @@ RECIPE_RESET_AFTER_RUN=false npm run recipe:tech
 ```
 
 Le verdict sera `GO TECHNIQUE (RESET DESACTIVE)` avec un message explicite.
+
+### Scripts disponibles
+
+| Script                 | Description                                      |
+|------------------------|--------------------------------------------------|
+| `npm run reset:prod`   | Reset via SSH Fly.io (depuis Windows)            |
+| `npm run reset:prod:local` | Reset local (necessite acces DB direct)      |
 
 ---
 
