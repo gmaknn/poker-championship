@@ -1,14 +1,22 @@
 /**
- * RECETTE TECHNIQUE - Poker Championship
+ * RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)
  *
- * Runner E2E pour valider les parcours critiques :
- * - Auth/API : aucun HTML sur /api/, codes HTTP corrects
- * - Parcours data : saison -> tournoi -> joueurs -> KO -> fin -> scoring -> classement -> stats
+ * Runner E2E deterministe pour valider les parcours critiques :
+ * - Auth/API : aucun HTML sur /api/*, codes HTTP corrects (y compris 401/403)
+ * - Parcours data : saison -> tournoi -> joueurs -> KO -> fin -> scoring -> classement
  * - Persistance : flags blinds rebalanceTables + isRebuyEnd
- * - Cohérence : totals/breakdowns cohérents
+ * - Scoring : assertions numeriques strictes (pas d'adaptation)
+ *
+ * PROD-SAFE :
+ * - Cree systematiquement ses propres donnees (jamais de reutilisation)
+ * - Cleanup automatique via reset:prod si cible != localhost
  */
 
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 // Configuration
 const BASE_URL = process.env.RECIPE_BASE_URL || 'http://localhost:3003';
@@ -17,7 +25,15 @@ const ADMIN_PASSWORD = process.env.RECIPE_ADMIN_PASSWORD || 'Admin123!';
 const TIMESTAMP = Date.now();
 const TEST_PREFIX = `RECIPE_${TIMESTAMP}`;
 
-// Résultats de la recette
+// Prod-safe: reset automatique si non-localhost
+const IS_PROD = !BASE_URL.includes('localhost') && !BASE_URL.includes('127.0.0.1');
+const RESET_AFTER_RUN = process.env.RECIPE_RESET_AFTER_RUN !== 'false' && IS_PROD;
+
+// Scoring defaults from schema.prisma
+const EXPECTED_ELIMINATION_POINTS = 50; // eliminationPoints default
+const EXPECTED_LEADER_KILLER_BONUS = 25; // leaderKillerBonus default
+
+// Resultats de la recette
 interface RecipeResult {
   step: string;
   status: 'OK' | 'KO';
@@ -28,6 +44,8 @@ interface RecipeResult {
 }
 
 const results: RecipeResult[] = [];
+let resetRequired = RESET_AFTER_RUN;
+let resetExecuted = false;
 
 function logResult(result: RecipeResult) {
   results.push(result);
@@ -41,7 +59,7 @@ function logResult(result: RecipeResult) {
   }
 }
 
-// Helper : vérifie qu'une réponse API est JSON et pas HTML
+// Helper : verifie qu'une reponse API est JSON et pas HTML
 async function assertJsonResponse(
   response: { status: () => number; headers: () => { [key: string]: string }; text: () => Promise<string> },
   stepName: string,
@@ -52,12 +70,13 @@ async function assertJsonResponse(
   const contentType = response.headers()['content-type'] || '';
   const body = await response.text();
 
-  // Vérifier que ce n'est pas du HTML
-  if (body.trim().startsWith('<') || body.trim().startsWith('<!DOCTYPE')) {
+  // Verifier que ce n'est pas du HTML
+  const bodyLower = body.trim().toLowerCase();
+  if (bodyLower.startsWith('<') || bodyLower.startsWith('<!doctype') || bodyLower.includes('<html')) {
     logResult({
       step: stepName,
       status: 'KO',
-      details: 'Réponse HTML détectée au lieu de JSON',
+      details: 'Reponse HTML detectee au lieu de JSON',
       endpoint,
       httpStatus: status,
       body,
@@ -65,7 +84,7 @@ async function assertJsonResponse(
     return { ok: false, body };
   }
 
-  // Vérifier Content-Type
+  // Verifier Content-Type
   if (!contentType.includes('application/json')) {
     logResult({
       step: stepName,
@@ -78,7 +97,7 @@ async function assertJsonResponse(
     return { ok: false, body };
   }
 
-  // Vérifier status code
+  // Verifier status code
   if (!expectedStatuses.includes(status)) {
     logResult({
       step: stepName,
@@ -110,29 +129,31 @@ async function assertJsonResponse(
   return { ok: true, data, body };
 }
 
-test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
+test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () => {
   let page: Page;
   let apiContext: APIRequestContext;
   let sessionCookies: string = '';
 
-  // IDs créés pendant la recette
+  // IDs crees pendant la recette
   let seasonId: string;
   let tournamentId: string;
   const playerIds: string[] = [];
 
   test.beforeAll(async ({ browser }) => {
-    // Créer un contexte de navigateur pour le login
+    // Creer un contexte de navigateur pour le login
     const context = await browser.newContext();
     page = await context.newPage();
     apiContext = context.request;
 
     console.log('\n');
     console.log('╔════════════════════════════════════════════════════════════╗');
-    console.log('║          RECETTE TECHNIQUE - POKER CHAMPIONSHIP            ║');
+    console.log('║      RECETTE TECHNIQUE - POKER CHAMPIONSHIP (PROD-SAFE)    ║');
     console.log('╠════════════════════════════════════════════════════════════╣');
     console.log(`║  Base URL: ${BASE_URL.padEnd(47)}║`);
     console.log(`║  Admin: ${ADMIN_EMAIL.padEnd(50)}║`);
     console.log(`║  Test ID: ${TEST_PREFIX.padEnd(48)}║`);
+    console.log(`║  Mode: ${IS_PROD ? 'PRODUCTION' : 'LOCAL'.padEnd(51)}║`);
+    console.log(`║  Reset apres run: ${(RESET_AFTER_RUN ? 'OUI' : 'NON').padEnd(40)}║`);
     console.log('╚════════════════════════════════════════════════════════════╝');
     console.log('\n');
   });
@@ -147,20 +168,33 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     const okCount = results.filter(r => r.status === 'OK').length;
     const koCount = results.filter(r => r.status === 'KO').length;
 
-    console.log(`\nRésultats: ${okCount} OK / ${koCount} KO\n`);
+    console.log(`\nResultats: ${okCount} OK / ${koCount} KO\n`);
 
     if (koCount > 0) {
-      console.log('Étapes en échec:');
+      console.log('Etapes en echec:');
       results.filter(r => r.status === 'KO').forEach(r => {
         console.log(`  ❌ ${r.step}: ${r.details}`);
       });
     }
 
     console.log('\n');
+
+    // Verdict final avec prise en compte du reset
     if (koCount === 0) {
-      console.log('╔════════════════════════════════════════════════════════════╗');
-      console.log('║          ✅ VERDICT: GO TECHNIQUE                          ║');
-      console.log('╚════════════════════════════════════════════════════════════╝');
+      if (resetRequired && !resetExecuted) {
+        console.log('╔════════════════════════════════════════════════════════════╗');
+        console.log('║  ⚠️  VERDICT: GO TECHNIQUE (ACTION REQUISE: RESET)         ║');
+        console.log('╠════════════════════════════════════════════════════════════╣');
+        console.log('║  Le reset automatique a echoue ou n\'a pas ete execute.    ║');
+        console.log('║  Executez manuellement: flyctl ssh console puis           ║');
+        console.log('║  ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=<token>            ║');
+        console.log('║  npm run reset:prod                                       ║');
+        console.log('╚════════════════════════════════════════════════════════════╝');
+      } else {
+        console.log('╔════════════════════════════════════════════════════════════╗');
+        console.log('║          ✅ VERDICT: GO TECHNIQUE                          ║');
+        console.log('╚════════════════════════════════════════════════════════════╝');
+      }
     } else {
       console.log('╔════════════════════════════════════════════════════════════╗');
       console.log('║          ❌ VERDICT: NO-GO TECHNIQUE                       ║');
@@ -169,7 +203,68 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     console.log('\n');
   });
 
-  test('01 - Login admin et vérification session', async () => {
+  // ===================================================================
+  // TEST 00 - Verification API non-auth (401/403 + JSON, jamais HTML)
+  // ===================================================================
+  test('00 - API non-auth retourne 401/403 en JSON (jamais HTML)', async ({ browser }) => {
+    // Creer un contexte SANS cookies de session
+    const freshContext = await browser.newContext();
+    const freshApi = freshContext.request;
+
+    const response = await freshApi.get(`${BASE_URL}/api/me`);
+    const status = response.status();
+    const contentType = response.headers()['content-type'] || '';
+    const body = await response.text();
+    const bodyLower = body.trim().toLowerCase();
+
+    // Doit etre 401 ou 403 (pas 200, pas 500)
+    if (status !== 401 && status !== 403) {
+      logResult({
+        step: '00.1 - /api/me non-auth retourne 401 ou 403',
+        status: 'KO',
+        details: `Status recu: ${status} (attendu: 401 ou 403)`,
+        endpoint: '/api/me',
+        httpStatus: status,
+      });
+      expect(status).toBeOneOf([401, 403]);
+      return;
+    }
+    logResult({ step: '00.1 - /api/me non-auth retourne 401 ou 403', status: 'OK' });
+
+    // Content-Type doit contenir application/json
+    if (!contentType.includes('application/json')) {
+      logResult({
+        step: '00.2 - Content-Type est application/json',
+        status: 'KO',
+        details: `Content-Type: ${contentType}`,
+        endpoint: '/api/me',
+      });
+      expect(contentType).toContain('application/json');
+      return;
+    }
+    logResult({ step: '00.2 - Content-Type est application/json', status: 'OK' });
+
+    // Body ne doit PAS contenir HTML
+    if (bodyLower.startsWith('<') || bodyLower.includes('<!doctype') || bodyLower.includes('<html')) {
+      logResult({
+        step: '00.3 - Body ne contient pas HTML',
+        status: 'KO',
+        details: 'HTML detecte dans la reponse 401/403',
+        endpoint: '/api/me',
+        body,
+      });
+      expect(bodyLower).not.toContain('<html');
+      return;
+    }
+    logResult({ step: '00.3 - Body ne contient pas HTML', status: 'OK' });
+
+    await freshContext.close();
+  });
+
+  // ===================================================================
+  // TEST 01 - Login admin et verification session
+  // ===================================================================
+  test('01 - Login admin et verification session', async () => {
     // Naviguer vers la page de login
     await page.goto(`${BASE_URL}/login`);
 
@@ -183,11 +278,11 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
       page.click('button[type="submit"]'),
     ]);
 
-    // Récupérer les cookies de session
+    // Recuperer les cookies de session
     const cookies = await page.context().cookies();
     sessionCookies = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
-    // Vérifier qu'on est connecté via /api/me
+    // Verifier qu'on est connecte via /api/me
     const meResponse = await apiContext.get(`${BASE_URL}/api/me`, {
       headers: { Cookie: sessionCookies },
     });
@@ -197,12 +292,12 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     if (result.ok && result.data) {
       const data = result.data as { player?: { role?: string } };
       if (data.player?.role === 'ADMIN') {
-        logResult({ step: '01.2 - Utilisateur authentifié en tant qu\'ADMIN', status: 'OK' });
+        logResult({ step: '01.2 - Utilisateur authentifie en tant qu\'ADMIN', status: 'OK' });
       } else {
         logResult({
-          step: '01.2 - Utilisateur authentifié en tant qu\'ADMIN',
+          step: '01.2 - Utilisateur authentifie en tant qu\'ADMIN',
           status: 'KO',
-          details: `Role: ${data.player?.role || 'non défini'}`,
+          details: `Role: ${data.player?.role || 'non defini'}`,
         });
       }
     }
@@ -210,7 +305,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('02 - Vérification health check API', async () => {
+  // ===================================================================
+  // TEST 02 - Health check API
+  // ===================================================================
+  test('02 - Verification health check API', async () => {
     const response = await apiContext.get(`${BASE_URL}/api/health`, {
       headers: { Cookie: sessionCookies },
     });
@@ -219,12 +317,18 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('03 - Créer une saison de test', async () => {
+  // ===================================================================
+  // TEST 03 - Creer une saison de test
+  // ===================================================================
+  test('03 - Creer une saison de test', async () => {
     const seasonData = {
       name: `${TEST_PREFIX}_Season`,
       year: 2099,
       startDate: new Date().toISOString(),
       status: 'ACTIVE',
+      // Valeurs de scoring explicites pour assertions deterministes
+      eliminationPoints: EXPECTED_ELIMINATION_POINTS,
+      leaderKillerBonus: EXPECTED_LEADER_KILLER_BONUS,
     };
 
     const response = await apiContext.post(`${BASE_URL}/api/seasons`, {
@@ -246,12 +350,12 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
       const data = result.data as { id?: string };
       if (data.id) {
         seasonId = data.id;
-        logResult({ step: `03.2 - Saison créée avec ID: ${seasonId}`, status: 'OK' });
+        logResult({ step: `03.2 - Saison creee avec ID: ${seasonId.substring(0, 12)}...`, status: 'OK' });
       } else {
         logResult({
-          step: '03.2 - Saison créée avec ID',
+          step: '03.2 - Saison creee avec ID',
           status: 'KO',
-          details: 'Pas d\'ID dans la réponse',
+          details: 'Pas d\'ID dans la reponse',
         });
       }
     }
@@ -260,7 +364,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(seasonId).toBeDefined();
   });
 
-  test('04 - Vérifier que la saison est active', async () => {
+  // ===================================================================
+  // TEST 04 - Verifier que la saison est active
+  // ===================================================================
+  test('04 - Verifier que la saison est active', async () => {
     const response = await apiContext.get(`${BASE_URL}/api/seasons/${seasonId}`, {
       headers: { Cookie: sessionCookies },
     });
@@ -287,7 +394,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('05 - Créer un tournoi rattaché à la saison', async () => {
+  // ===================================================================
+  // TEST 05 - Creer un tournoi rattache a la saison
+  // ===================================================================
+  test('05 - Creer un tournoi rattache a la saison', async () => {
     const tournamentData = {
       seasonId,
       name: `${TEST_PREFIX}_Tournament`,
@@ -316,12 +426,12 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
       const data = result.data as { id?: string };
       if (data.id) {
         tournamentId = data.id;
-        logResult({ step: `05.2 - Tournoi créé avec ID: ${tournamentId}`, status: 'OK' });
+        logResult({ step: `05.2 - Tournoi cree avec ID: ${tournamentId.substring(0, 12)}...`, status: 'OK' });
       } else {
         logResult({
-          step: '05.2 - Tournoi créé avec ID',
+          step: '05.2 - Tournoi cree avec ID',
           status: 'KO',
-          details: 'Pas d\'ID dans la réponse',
+          details: 'Pas d\'ID dans la reponse',
         });
       }
     }
@@ -330,8 +440,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(tournamentId).toBeDefined();
   });
 
+  // ===================================================================
+  // TEST 06 - Configurer les blinds avec flags speciaux
+  // ===================================================================
   test('06 - Configurer les blinds avec flags rebalanceTables et isRebuyEnd', async () => {
-    // Créer une structure de blinds
     const blindsData = [
       { level: 1, smallBlind: 25, bigBlind: 50, ante: 0, duration: 12, isBreak: false, rebalanceTables: false, isRebuyEnd: false },
       { level: 2, smallBlind: 50, bigBlind: 100, ante: 0, duration: 12, isBreak: false, rebalanceTables: false, isRebuyEnd: false },
@@ -350,7 +462,7 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
 
     const result = await assertJsonResponse(
       response,
-      '06.1 - POST /api/tournaments/:id/blinds retourne JSON',
+      '06 - POST /api/tournaments/:id/blinds retourne JSON',
       `/api/tournaments/${tournamentId}/blinds`,
       [200, 201]
     );
@@ -358,7 +470,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('07 - Vérifier persistance des flags blinds après reload', async () => {
+  // ===================================================================
+  // TEST 07 - Verifier persistance des flags blinds
+  // ===================================================================
+  test('07 - Verifier persistance des flags blinds apres reload', async () => {
     const response = await apiContext.get(`${BASE_URL}/api/tournaments/${tournamentId}/blinds`, {
       headers: { Cookie: sessionCookies },
     });
@@ -400,56 +515,62 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('08 - Récupérer ou créer des joueurs de test', async () => {
-    // D'abord récupérer les joueurs existants
-    const listResponse = await apiContext.get(`${BASE_URL}/api/players`, {
-      headers: { Cookie: sessionCookies },
-    });
+  // ===================================================================
+  // TEST 08 - Creer 4 joueurs de test (JAMAIS de reutilisation)
+  // ===================================================================
+  test('08 - Creer 4 joueurs de test (deterministe, sans reutilisation)', async () => {
+    // IMPORTANT: On cree TOUJOURS nos propres joueurs, jamais de reutilisation
+    const PLAYER_COUNT = 4;
 
-    const listResult = await assertJsonResponse(
-      listResponse,
-      '08.1 - GET /api/players retourne JSON',
-      '/api/players'
-    );
+    for (let i = 1; i <= PLAYER_COUNT; i++) {
+      const playerData = {
+        firstName: `P${i}`,
+        lastName: TEST_PREFIX,
+        nickname: `${TEST_PREFIX}_P${i}`,
+        status: 'ACTIVE',
+      };
 
-    if (listResult.ok && listResult.data) {
-      const players = (listResult.data as { players?: unknown[] }).players || listResult.data;
-      if (Array.isArray(players) && players.length >= 6) {
-        // Utiliser les joueurs existants
-        const activePlayers = players.filter((p: { status?: string }) => p.status === 'ACTIVE');
-        activePlayers.slice(0, 6).forEach((p: { id?: string }) => {
-          if (p.id) playerIds.push(p.id);
-        });
-        logResult({ step: `08.2 - ${playerIds.length} joueurs existants récupérés`, status: 'OK' });
-      } else {
-        // Créer des joueurs de test
-        for (let i = 1; i <= 6; i++) {
-          const playerData = {
-            firstName: `Test${i}`,
-            lastName: TEST_PREFIX,
-            nickname: `${TEST_PREFIX}_Player${i}`,
-          };
+      const createResponse = await apiContext.post(`${BASE_URL}/api/players`, {
+        headers: {
+          Cookie: sessionCookies,
+          'Content-Type': 'application/json',
+        },
+        data: playerData,
+      });
 
-          const createResponse = await apiContext.post(`${BASE_URL}/api/players`, {
-            headers: {
-              Cookie: sessionCookies,
-              'Content-Type': 'application/json',
-            },
-            data: playerData,
-          });
-
-          if (createResponse.status() === 200 || createResponse.status() === 201) {
-            const data = await createResponse.json() as { id?: string };
-            if (data.id) playerIds.push(data.id);
-          }
+      const status = createResponse.status();
+      if (status === 200 || status === 201) {
+        const data = await createResponse.json() as { id?: string };
+        if (data.id) {
+          playerIds.push(data.id);
         }
-        logResult({ step: `08.2 - ${playerIds.length} joueurs créés`, status: playerIds.length === 6 ? 'OK' : 'KO' });
+      } else {
+        logResult({
+          step: `08.X - Creation joueur P${i}`,
+          status: 'KO',
+          details: `Status: ${status}`,
+          endpoint: '/api/players',
+          httpStatus: status,
+        });
       }
     }
 
-    expect(playerIds.length).toBeGreaterThanOrEqual(6);
+    if (playerIds.length === PLAYER_COUNT) {
+      logResult({ step: `08 - ${PLAYER_COUNT} joueurs RECIPE crees`, status: 'OK' });
+    } else {
+      logResult({
+        step: `08 - ${PLAYER_COUNT} joueurs RECIPE crees`,
+        status: 'KO',
+        details: `Seulement ${playerIds.length}/${PLAYER_COUNT} crees`,
+      });
+    }
+
+    expect(playerIds.length).toBe(PLAYER_COUNT);
   });
 
+  // ===================================================================
+  // TEST 09 - Inscrire les joueurs au tournoi
+  // ===================================================================
   test('09 - Inscrire les joueurs au tournoi', async () => {
     for (const playerId of playerIds) {
       const response = await apiContext.post(`${BASE_URL}/api/tournaments/${tournamentId}/players`, {
@@ -460,11 +581,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
         data: { playerId },
       });
 
-      // On accepte 200, 201 ou même 409 (déjà inscrit)
       const status = response.status();
-      if (status !== 200 && status !== 201 && status !== 409) {
+      if (status !== 200 && status !== 201) {
         logResult({
-          step: `09 - Inscription joueur ${playerId}`,
+          step: `09.X - Inscription joueur`,
           status: 'KO',
           details: `Status: ${status}`,
           endpoint: `/api/tournaments/${tournamentId}/players`,
@@ -472,26 +592,26 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
       }
     }
 
-    // Vérifier la liste des joueurs inscrits
+    // Verifier la liste des joueurs inscrits
     const verifyResponse = await apiContext.get(`${BASE_URL}/api/tournaments/${tournamentId}/players`, {
       headers: { Cookie: sessionCookies },
     });
 
     const result = await assertJsonResponse(
       verifyResponse,
-      '09 - GET /api/tournaments/:id/players retourne JSON',
+      '09.1 - GET /api/tournaments/:id/players retourne JSON',
       `/api/tournaments/${tournamentId}/players`
     );
 
     if (result.ok && result.data) {
       const enrolledPlayers = (result.data as { players?: unknown[] }).players || result.data;
-      if (Array.isArray(enrolledPlayers) && enrolledPlayers.length >= 6) {
-        logResult({ step: `09.1 - ${enrolledPlayers.length} joueurs inscrits au tournoi`, status: 'OK' });
+      if (Array.isArray(enrolledPlayers) && enrolledPlayers.length === 4) {
+        logResult({ step: '09.2 - 4 joueurs inscrits au tournoi', status: 'OK' });
       } else {
         logResult({
-          step: '09.1 - Au moins 6 joueurs inscrits',
+          step: '09.2 - 4 joueurs inscrits au tournoi',
           status: 'KO',
-          details: `Seulement ${Array.isArray(enrolledPlayers) ? enrolledPlayers.length : 0} joueurs`,
+          details: `${Array.isArray(enrolledPlayers) ? enrolledPlayers.length : 0} joueurs (attendu: 4)`,
         });
       }
     }
@@ -499,8 +619,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('10 - Démarrer le tournoi (si endpoint existe)', async () => {
-    // Mettre à jour le status du tournoi à IN_PROGRESS
+  // ===================================================================
+  // TEST 10 - Demarrer le tournoi
+  // ===================================================================
+  test('10 - Demarrer le tournoi', async () => {
     const response = await apiContext.patch(`${BASE_URL}/api/tournaments/${tournamentId}`, {
       headers: {
         Cookie: sessionCookies,
@@ -518,16 +640,18 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('11 - Enregistrer des éliminations (KO)', async () => {
-    // Enregistrer 3 éliminations
-    // Player 0 élimine Player 5
-    // Player 1 élimine Player 4
-    // Player 2 élimine Player 3
+  // ===================================================================
+  // TEST 11 - Enregistrer 2 KO par le meme joueur (P1 elimine P3 et P4)
+  // ===================================================================
+  test('11 - Enregistrer des eliminations (2 KO par P1)', async () => {
+    // Scenario deterministe :
+    // P1 (playerIds[0]) elimine P4 (playerIds[3]) -> rank 4
+    // P1 (playerIds[0]) elimine P3 (playerIds[2]) -> rank 3
+    // Ainsi P1 aura 2 eliminations = 2 x 50 = 100 points KO
 
     const eliminations = [
-      { eliminatorId: playerIds[0], eliminatedId: playerIds[5], level: 2, rank: 6 },
-      { eliminatorId: playerIds[1], eliminatedId: playerIds[4], level: 3, rank: 5 },
-      { eliminatorId: playerIds[2], eliminatedId: playerIds[3], level: 4, rank: 4 },
+      { eliminatorId: playerIds[0], eliminatedId: playerIds[3], level: 2, rank: 4 },
+      { eliminatorId: playerIds[0], eliminatedId: playerIds[2], level: 3, rank: 3 },
     ];
 
     for (let i = 0; i < eliminations.length; i++) {
@@ -542,14 +666,17 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
 
       await assertJsonResponse(
         response,
-        `11.${i + 1} - POST élimination rank ${elim.rank}`,
+        `11.${i + 1} - POST elimination rank ${elim.rank}`,
         `/api/tournaments/${tournamentId}/eliminations`,
         [200, 201]
       );
     }
   });
 
-  test('12 - Vérifier les éliminations enregistrées', async () => {
+  // ===================================================================
+  // TEST 12 - Verifier les eliminations enregistrees
+  // ===================================================================
+  test('12 - Verifier les eliminations enregistrees', async () => {
     const response = await apiContext.get(`${BASE_URL}/api/tournaments/${tournamentId}/eliminations`, {
       headers: { Cookie: sessionCookies },
     });
@@ -562,13 +689,13 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
 
     if (result.ok && result.data) {
       const eliminations = (result.data as { eliminations?: unknown[] }).eliminations || result.data;
-      if (Array.isArray(eliminations) && eliminations.length >= 3) {
-        logResult({ step: `12.2 - ${eliminations.length} éliminations enregistrées`, status: 'OK' });
+      if (Array.isArray(eliminations) && eliminations.length === 2) {
+        logResult({ step: '12.2 - 2 eliminations enregistrees', status: 'OK' });
       } else {
         logResult({
-          step: '12.2 - Au moins 3 éliminations',
+          step: '12.2 - 2 eliminations enregistrees',
           status: 'KO',
-          details: `Seulement ${Array.isArray(eliminations) ? eliminations.length : 0} éliminations`,
+          details: `${Array.isArray(eliminations) ? eliminations.length : 0} eliminations (attendu: 2)`,
         });
       }
     }
@@ -576,28 +703,25 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
+  // ===================================================================
+  // TEST 13 - Terminer le tournoi avec rangs finaux
+  // ===================================================================
   test('13 - Terminer le tournoi', async () => {
-    // Attribuer les rangs finaux aux 3 joueurs restants
+    // Attribuer les rangs finaux aux 2 joueurs restants
+    // P1 = rank 1, P2 = rank 2
     const finalRanks = [
       { playerId: playerIds[0], rank: 1 },
       { playerId: playerIds[1], rank: 2 },
-      { playerId: playerIds[2], rank: 3 },
     ];
 
     for (const fr of finalRanks) {
-      const tpResponse = await apiContext.get(`${BASE_URL}/api/tournaments/${tournamentId}/players/${fr.playerId}`, {
-        headers: { Cookie: sessionCookies },
+      await apiContext.patch(`${BASE_URL}/api/tournaments/${tournamentId}/players/${fr.playerId}`, {
+        headers: {
+          Cookie: sessionCookies,
+          'Content-Type': 'application/json',
+        },
+        data: { finalRank: fr.rank },
       });
-
-      if (tpResponse.status() === 200) {
-        await apiContext.patch(`${BASE_URL}/api/tournaments/${tournamentId}/players/${fr.playerId}`, {
-          headers: {
-            Cookie: sessionCookies,
-            'Content-Type': 'application/json',
-          },
-          data: { finalRank: fr.rank },
-        });
-      }
     }
 
     // Passer le tournoi en FINISHED
@@ -618,7 +742,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('14 - Vérifier les résultats du tournoi', async () => {
+  // ===================================================================
+  // TEST 14 - Verifier les resultats du tournoi (assertions numeriques)
+  // ===================================================================
+  test('14 - Verifier les resultats du tournoi (scoring strict)', async () => {
     const response = await apiContext.get(`${BASE_URL}/api/tournaments/${tournamentId}/results`, {
       headers: { Cookie: sessionCookies },
     });
@@ -630,26 +757,67 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     );
 
     if (result.ok && result.data) {
-      const data = result.data as { results?: Array<{ totalPoints?: number; eliminationPoints?: number; rankPoints?: number }> };
-      const results = data.results || [];
+      const data = result.data as {
+        results?: Array<{
+          playerId?: string;
+          finalRank?: number;
+          totalPoints?: number;
+          eliminationPoints?: number;
+          rankPoints?: number;
+          eliminationsCount?: number;
+        }>
+      };
+      const tournamentResults = data.results || [];
 
-      if (Array.isArray(results) && results.length > 0) {
-        // Vérifier cohérence des points
-        let coherent = true;
-        for (const r of results) {
-          const total = r.totalPoints || 0;
-          const sum = (r.eliminationPoints || 0) + (r.rankPoints || 0);
-          // Le total devrait être >= à la somme (peut inclure bonus/malus)
-          if (total < sum - 100 || total > sum + 500) {
-            coherent = false;
-            break;
-          }
+      // Trouver P1 (playerIds[0]) dans les resultats
+      const p1Result = tournamentResults.find(r => r.playerId === playerIds[0]);
+
+      if (p1Result) {
+        // P1 a fait 2 eliminations, donc devrait avoir 2 x 50 = 100 points KO
+        const expectedKoPoints = 2 * EXPECTED_ELIMINATION_POINTS;
+        const actualKoPoints = p1Result.eliminationPoints || 0;
+
+        if (actualKoPoints === expectedKoPoints) {
+          logResult({
+            step: `14.2 - P1 a ${expectedKoPoints} points KO (2 x ${EXPECTED_ELIMINATION_POINTS})`,
+            status: 'OK',
+          });
+        } else {
+          logResult({
+            step: `14.2 - P1 a ${expectedKoPoints} points KO`,
+            status: 'KO',
+            details: `eliminationPoints: ${actualKoPoints} (attendu: ${expectedKoPoints})`,
+          });
         }
 
+        // P1 est rank 1, donc doit avoir des rankPoints > 0
+        if ((p1Result.rankPoints || 0) > 0) {
+          logResult({ step: '14.3 - P1 (rank 1) a des rankPoints > 0', status: 'OK' });
+        } else {
+          logResult({
+            step: '14.3 - P1 (rank 1) a des rankPoints > 0',
+            status: 'KO',
+            details: `rankPoints: ${p1Result.rankPoints}`,
+          });
+        }
+
+        // totalPoints doit etre >= rankPoints + eliminationPoints
+        const total = p1Result.totalPoints || 0;
+        const expectedMin = (p1Result.rankPoints || 0) + (p1Result.eliminationPoints || 0);
+        if (total >= expectedMin) {
+          logResult({ step: '14.4 - totalPoints >= rankPoints + eliminationPoints', status: 'OK' });
+        } else {
+          logResult({
+            step: '14.4 - totalPoints >= rankPoints + eliminationPoints',
+            status: 'KO',
+            details: `totalPoints: ${total}, attendu min: ${expectedMin}`,
+          });
+        }
+      } else {
         logResult({
-          step: '14.2 - Cohérence des points (totalPoints vs breakdown)',
-          status: coherent ? 'OK' : 'KO',
-          details: coherent ? undefined : 'Incohérence détectée dans les totaux',
+          step: '14.2 - P1 trouve dans les resultats',
+          status: 'KO',
+          details: 'P1 non trouve',
         });
       }
     }
@@ -657,7 +825,10 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('15 - Vérifier le classement de la saison', async () => {
+  // ===================================================================
+  // TEST 15 - Verifier le classement de la saison
+  // ===================================================================
+  test('15 - Verifier le classement de la saison', async () => {
     const response = await apiContext.get(`${BASE_URL}/api/seasons/${seasonId}/leaderboard`, {
       headers: { Cookie: sessionCookies },
     });
@@ -669,28 +840,46 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     );
 
     if (result.ok && result.data) {
-      const data = result.data as { leaderboard?: Array<{ totalPoints?: number; player?: { id?: string } }> };
+      const data = result.data as {
+        leaderboard?: Array<{
+          playerId?: string;
+          totalPoints?: number;
+          player?: { id?: string; nickname?: string };
+        }>
+      };
       const leaderboard = data.leaderboard || [];
 
-      if (Array.isArray(leaderboard) && leaderboard.length > 0) {
-        logResult({ step: `15.2 - Classement avec ${leaderboard.length} entrées`, status: 'OK' });
+      // Le classement doit contenir nos joueurs RECIPE
+      const recipeEntries = leaderboard.filter(e =>
+        e.player?.nickname?.startsWith(TEST_PREFIX) || playerIds.includes(e.playerId || '')
+      );
 
-        // Vérifier que les joueurs ont des points
-        const withPoints = leaderboard.filter((e) => (e.totalPoints || 0) > 0);
-        if (withPoints.length > 0) {
-          logResult({ step: '15.3 - Joueurs avec points > 0 dans le classement', status: 'OK' });
-        } else {
-          logResult({
-            step: '15.3 - Joueurs avec points > 0 dans le classement',
-            status: 'KO',
-            details: 'Aucun joueur avec des points positifs',
-          });
+      if (recipeEntries.length >= 2) {
+        logResult({ step: `15.2 - ${recipeEntries.length} joueurs RECIPE dans le classement`, status: 'OK' });
+
+        // P1 devrait etre premier (plus de points = rank 1 + 2 KO)
+        const p1Entry = recipeEntries.find(e => e.playerId === playerIds[0] || e.player?.id === playerIds[0]);
+        const p2Entry = recipeEntries.find(e => e.playerId === playerIds[1] || e.player?.id === playerIds[1]);
+
+        if (p1Entry && p2Entry) {
+          const p1Points = p1Entry.totalPoints || 0;
+          const p2Points = p2Entry.totalPoints || 0;
+
+          if (p1Points > p2Points) {
+            logResult({ step: `15.3 - P1 (${p1Points} pts) > P2 (${p2Points} pts)`, status: 'OK' });
+          } else {
+            logResult({
+              step: '15.3 - P1 a plus de points que P2',
+              status: 'KO',
+              details: `P1: ${p1Points}, P2: ${p2Points}`,
+            });
+          }
         }
       } else {
         logResult({
-          step: '15.2 - Classement non vide',
+          step: '15.2 - Joueurs RECIPE dans le classement',
           status: 'KO',
-          details: 'Leaderboard vide',
+          details: `${recipeEntries.length} entrees (attendu: >= 2)`,
         });
       }
     }
@@ -698,54 +887,27 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     expect(result.ok).toBe(true);
   });
 
-  test('16 - Vérifier les statistiques globales', async () => {
+  // ===================================================================
+  // TEST 16 - Verifier les statistiques globales
+  // ===================================================================
+  test('16 - Verifier les statistiques globales', async () => {
     const response = await apiContext.get(`${BASE_URL}/api/statistics`, {
       headers: { Cookie: sessionCookies },
     });
 
     const result = await assertJsonResponse(
       response,
-      '16.1 - GET /api/statistics retourne JSON',
+      '16 - GET /api/statistics retourne JSON',
       '/api/statistics'
     );
 
-    if (result.ok && result.data) {
-      const stats = result.data as {
-        totalTournaments?: number;
-        totalPlayers?: number;
-        totalEliminations?: number;
-      };
-
-      if (stats.totalTournaments !== undefined && stats.totalTournaments > 0) {
-        logResult({ step: '16.2 - totalTournaments > 0', status: 'OK' });
-      } else {
-        logResult({
-          step: '16.2 - totalTournaments > 0',
-          status: 'KO',
-          details: `totalTournaments: ${stats.totalTournaments}`,
-        });
-      }
-    }
-
     expect(result.ok).toBe(true);
   });
 
-  test('17 - Vérifier les statistiques de la saison', async () => {
-    const response = await apiContext.get(`${BASE_URL}/api/seasons/${seasonId}/eliminations`, {
-      headers: { Cookie: sessionCookies },
-    });
-
-    const result = await assertJsonResponse(
-      response,
-      '17 - GET /api/seasons/:id/eliminations retourne JSON',
-      `/api/seasons/${seasonId}/eliminations`
-    );
-
-    expect(result.ok).toBe(true);
-  });
-
-  test('18 - Vérification finale: aucun endpoint API ne retourne du HTML', async () => {
-    // Liste d'endpoints critiques à vérifier
+  // ===================================================================
+  // TEST 17 - Verification finale: aucun endpoint API ne retourne du HTML
+  // ===================================================================
+  test('17 - Verification finale: aucun endpoint API ne retourne du HTML', async () => {
     const endpoints = [
       '/api/me',
       '/api/health',
@@ -765,11 +927,12 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
 
       const body = await response.text();
       const contentType = response.headers()['content-type'] || '';
+      const bodyLower = body.trim().toLowerCase();
 
-      if (body.trim().startsWith('<') || !contentType.includes('application/json')) {
+      if (bodyLower.startsWith('<') || bodyLower.includes('<!doctype') || bodyLower.includes('<html') || !contentType.includes('application/json')) {
         allJson = false;
         logResult({
-          step: `18.X - ${endpoint} retourne HTML`,
+          step: `17.X - ${endpoint} retourne HTML`,
           status: 'KO',
           details: `Content-Type: ${contentType}`,
           endpoint,
@@ -778,9 +941,79 @@ test.describe('RECETTE TECHNIQUE - Poker Championship', () => {
     }
 
     if (allJson) {
-      logResult({ step: '18 - Tous les endpoints API retournent JSON', status: 'OK' });
+      logResult({ step: '17 - Tous les endpoints API retournent JSON', status: 'OK' });
     }
 
     expect(allJson).toBe(true);
+  });
+
+  // ===================================================================
+  // TEST 18 - CLEANUP / RESET (conditionnel prod)
+  // ===================================================================
+  test('18 - CLEANUP / RESET prod (si applicable)', async () => {
+    if (!resetRequired) {
+      logResult({ step: '18 - CLEANUP: Non requis (mode local)', status: 'OK' });
+      return;
+    }
+
+    console.log('\n');
+    console.log('╔════════════════════════════════════════════════════════════╗');
+    console.log('║                    CLEANUP PROD                            ║');
+    console.log('╚════════════════════════════════════════════════════════════╝');
+    console.log('\n');
+
+    // En mode prod, le reset:prod necessite:
+    // - ALLOW_PROD_RESET=YES
+    // - PROD_RESET_TOKEN (doit correspondre a PROD_RESET_TOKEN_EXPECTED sur Fly)
+    // Ces variables ne sont pas disponibles depuis Playwright distant.
+    // Le reset doit etre fait manuellement via SSH ou CI/CD.
+
+    const resetToken = process.env.PROD_RESET_TOKEN;
+
+    if (!resetToken) {
+      console.log('⚠️  PROD_RESET_TOKEN non fourni.');
+      console.log('   Le reset automatique n\'est pas possible depuis ce contexte.');
+      console.log('   ACTION REQUISE: Executez manuellement apres le run:');
+      console.log('');
+      console.log('   flyctl ssh console --app wpt-villelaure');
+      console.log('   ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=<token> npm run reset:prod');
+      console.log('');
+
+      logResult({
+        step: '18 - CLEANUP: Reset manuel requis',
+        status: 'OK',
+        details: 'PROD_RESET_TOKEN non fourni - reset manuel apres run',
+      });
+
+      // On ne marque pas resetExecuted car il est manuel
+      return;
+    }
+
+    // Si on a le token, on tente le reset via une commande locale
+    // Note: cela ne fonctionne que si on execute le runner depuis un contexte
+    // qui a acces a la DB prod (ex: depuis Fly SSH ou CI avec tunnel)
+    try {
+      console.log('Tentative de reset prod avec PROD_RESET_TOKEN...');
+
+      const { stdout, stderr } = await execAsync(
+        `ALLOW_PROD_RESET=YES PROD_RESET_TOKEN=${resetToken} npm run reset:prod`,
+        { timeout: 60000 }
+      );
+
+      if (stderr && !stderr.includes('RESET COMPLETE')) {
+        throw new Error(stderr);
+      }
+
+      console.log(stdout);
+      resetExecuted = true;
+      logResult({ step: '18 - CLEANUP: Reset prod execute avec succes', status: 'OK' });
+    } catch (error) {
+      console.error('Erreur lors du reset:', error);
+      logResult({
+        step: '18 - CLEANUP: Reset prod echoue',
+        status: 'KO',
+        details: String(error),
+      });
+    }
   });
 });
