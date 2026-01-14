@@ -734,6 +734,38 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
       `/api/tournaments/${tournamentId}`
     );
 
+    // DEBUG: Verifier que rebuyEndLevel a ete persiste
+    if (result.ok) {
+      const verifyResponse = await apiContext.get(`${BASE_URL}/api/tournaments/${tournamentId}`, {
+        headers: { Cookie: sessionCookies },
+      });
+      const verifyData = await verifyResponse.json() as {
+        currentLevel?: number;
+        rebuyEndLevel?: number | null;
+        status?: string;
+      };
+      console.log('   [DEBUG 11c] Verification apres PATCH rebuyEndLevel=0:', {
+        currentLevel: verifyData.currentLevel,
+        rebuyEndLevel: verifyData.rebuyEndLevel,
+        rebuyEndLevelType: typeof verifyData.rebuyEndLevel,
+        status: verifyData.status,
+        recavesShoudBeClosed: (verifyData.currentLevel || 0) > (verifyData.rebuyEndLevel ?? Infinity),
+      });
+
+      if (verifyData.rebuyEndLevel !== 0) {
+        logResult({
+          step: '11c.verify - rebuyEndLevel persiste comme 0',
+          status: 'KO',
+          details: `rebuyEndLevel=${verifyData.rebuyEndLevel} (type: ${typeof verifyData.rebuyEndLevel})`,
+        });
+      } else {
+        logResult({
+          step: '11c.verify - rebuyEndLevel persiste comme 0',
+          status: 'OK',
+        });
+      }
+    }
+
     expect(result.ok).toBe(true);
   });
 
@@ -761,6 +793,21 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
       });
 
       const expectedRank = 4 - i;
+
+      // Si erreur 400, afficher les details de diagnostic
+      if (response.status() === 400) {
+        const errorBody = await response.json() as {
+          error?: string;
+          currentLevel?: number;
+          rebuyEndLevel?: number | null;
+        };
+        console.log(`   [DIAG 11d.${i + 1}] POST /eliminations returned 400:`, {
+          error: errorBody.error,
+          currentLevel: errorBody.currentLevel,
+          rebuyEndLevel: errorBody.rebuyEndLevel,
+        });
+      }
+
       await assertJsonResponse(
         response,
         `11d.${i + 1} - POST elimination rank ${expectedRank}`,

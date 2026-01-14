@@ -107,7 +107,12 @@ export async function POST(
     // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
     if (areRecavesOpen(tournament)) {
       return NextResponse.json(
-        { error: 'Période de recaves encore ouverte. Utilisez le formulaire de perte de tapis.' },
+        {
+          error: 'Période de recaves encore ouverte. Utilisez le formulaire de perte de tapis.',
+          // Info de diagnostic pour faciliter le debug en prod
+          currentLevel: tournament.currentLevel,
+          rebuyEndLevel: tournament.rebuyEndLevel,
+        },
         { status: 400 }
       );
     }

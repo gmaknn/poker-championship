@@ -354,5 +354,89 @@ describe('API /api/tournaments/[id]/eliminations RBAC', () => {
       const data = await response.json();
       expect(data.error).toContain('already been eliminated');
     });
+
+    it('should return 400 when recaves are still open (rebuyEndLevel null)', async () => {
+      // rebuyEndLevel null => recaves toujours ouvertes
+      mockPrismaClient.tournament.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+        if (where.id === TEST_IDS.TOURNAMENT) {
+          return Promise.resolve({
+            ...MOCK_TOURNAMENT_ELIM,
+            currentLevel: 1,
+            rebuyEndLevel: null, // null => recaves ouvertes
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const request = createAuthenticatedRequest(
+        `/api/tournaments/${TEST_IDS.TOURNAMENT}/eliminations`,
+        TEST_IDS.TD_PLAYER,
+        {
+          method: 'POST',
+          body: validEliminationData,
+        }
+      );
+      const response = await eliminationsPOST(request, { params: createParams(TEST_IDS.TOURNAMENT) });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain('recaves encore ouverte');
+    });
+
+    it('should return 201 when rebuyEndLevel=0 and currentLevel=1 (recaves closed)', async () => {
+      // CRITICAL TEST: rebuyEndLevel=0, currentLevel=1 => 1 > 0 => recaves fermees
+      mockPrismaClient.tournament.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+        if (where.id === TEST_IDS.TOURNAMENT) {
+          return Promise.resolve({
+            ...MOCK_TOURNAMENT_ELIM,
+            currentLevel: 1,
+            rebuyEndLevel: 0, // 0 => recaves fermees si currentLevel > 0
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const request = createAuthenticatedRequest(
+        `/api/tournaments/${TEST_IDS.TOURNAMENT}/eliminations`,
+        TEST_IDS.TD_PLAYER,
+        {
+          method: 'POST',
+          body: validEliminationData,
+        }
+      );
+      const response = await eliminationsPOST(request, { params: createParams(TEST_IDS.TOURNAMENT) });
+
+      expect(response.status).toBe(201);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+    });
+
+    it('should return 400 when rebuyEndLevel=1 and currentLevel=1 (recaves still open)', async () => {
+      // rebuyEndLevel=1, currentLevel=1 => 1 <= 1 => recaves OUVERTES
+      mockPrismaClient.tournament.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+        if (where.id === TEST_IDS.TOURNAMENT) {
+          return Promise.resolve({
+            ...MOCK_TOURNAMENT_ELIM,
+            currentLevel: 1,
+            rebuyEndLevel: 1, // currentLevel <= rebuyEndLevel => recaves ouvertes
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const request = createAuthenticatedRequest(
+        `/api/tournaments/${TEST_IDS.TOURNAMENT}/eliminations`,
+        TEST_IDS.TD_PLAYER,
+        {
+          method: 'POST',
+          body: validEliminationData,
+        }
+      );
+      const response = await eliminationsPOST(request, { params: createParams(TEST_IDS.TOURNAMENT) });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain('recaves encore ouverte');
+    });
   });
 });
