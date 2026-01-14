@@ -653,11 +653,73 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
   });
 
   // ===================================================================
-  // TEST 10b - Fermer la periode de recaves (prerequis pour eliminations)
+  // TEST 11 - Enregistrer des busts pendant periode de recaves (P1 bust P3 et P4)
   // ===================================================================
-  test('10b - Fermer la periode de recaves', async () => {
-    // La logique metier exige que les recaves soient fermees pour enregistrer des eliminations.
-    // On definit rebuyEndLevel = 0 pour que currentLevel (1) > rebuyEndLevel (0) => recaves fermees.
+  test('11 - Enregistrer des busts pendant recaves (P1 bust P3 et P4)', async () => {
+    // Flow prod : pendant la periode de recaves, on enregistre des "pertes de tapis" (busts)
+    // Les busts ne donnent pas de finalRank - le joueur peut faire une recave
+    // Scenario : P1 bust P4 puis P3 (2 busts)
+
+    const busts = [
+      { eliminatedId: playerIds[3], killerId: playerIds[0] }, // P1 bust P4
+      { eliminatedId: playerIds[2], killerId: playerIds[0] }, // P1 bust P3
+    ];
+
+    for (let i = 0; i < busts.length; i++) {
+      const bust = busts[i];
+      const response = await apiContext.post(`${BASE_URL}/api/tournaments/${tournamentId}/busts`, {
+        headers: {
+          Cookie: sessionCookies,
+          'Content-Type': 'application/json',
+        },
+        data: bust,
+      });
+
+      await assertJsonResponse(
+        response,
+        `11.${i + 1} - POST bust P${4 - i} par P1`,
+        `/api/tournaments/${tournamentId}/busts`,
+        [200, 201]
+      );
+    }
+  });
+
+  // ===================================================================
+  // TEST 11b - Verifier les busts enregistres
+  // ===================================================================
+  test('11b - Verifier les busts enregistres', async () => {
+    const response = await apiContext.get(`${BASE_URL}/api/tournaments/${tournamentId}/busts`, {
+      headers: { Cookie: sessionCookies },
+    });
+
+    const result = await assertJsonResponse(
+      response,
+      '11b.1 - GET /api/tournaments/:id/busts retourne JSON',
+      `/api/tournaments/${tournamentId}/busts`
+    );
+
+    if (result.ok && result.data) {
+      const busts = result.data as unknown[];
+      if (Array.isArray(busts) && busts.length === 2) {
+        logResult({ step: '11b.2 - 2 busts enregistres', status: 'OK' });
+      } else {
+        logResult({
+          step: '11b.2 - 2 busts enregistres',
+          status: 'KO',
+          details: `${Array.isArray(busts) ? busts.length : 0} busts (attendu: 2)`,
+        });
+      }
+    }
+
+    expect(result.ok).toBe(true);
+  });
+
+  // ===================================================================
+  // TEST 11c - Fermer la periode de recaves
+  // ===================================================================
+  test('11c - Fermer la periode de recaves', async () => {
+    // On definit rebuyEndLevel = 0 pour que currentLevel (1) > rebuyEndLevel (0) => recaves fermees
+    // Apres cela, les joueurs bustes sans recave peuvent etre elimines definitivement
     const response = await apiContext.patch(`${BASE_URL}/api/tournaments/${tournamentId}`, {
       headers: {
         Cookie: sessionCookies,
@@ -668,7 +730,7 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
 
     const result = await assertJsonResponse(
       response,
-      '10b - PATCH /api/tournaments/:id (rebuyEndLevel: 0)',
+      '11c - PATCH /api/tournaments/:id (rebuyEndLevel: 0)',
       `/api/tournaments/${tournamentId}`
     );
 
@@ -676,17 +738,16 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
   });
 
   // ===================================================================
-  // TEST 11 - Enregistrer 2 KO par le meme joueur (P1 elimine P3 et P4)
+  // TEST 11d - Convertir les busts en eliminations definitives
   // ===================================================================
-  test('11 - Enregistrer des eliminations (2 KO par P1)', async () => {
-    // Scenario deterministe :
-    // P1 (playerIds[0]) elimine P4 (playerIds[3]) -> rank 4
-    // P1 (playerIds[0]) elimine P3 (playerIds[2]) -> rank 3
-    // Ainsi P1 aura 2 eliminations = 2 x 50 = 100 points KO
+  test('11d - Convertir les busts en eliminations definitives', async () => {
+    // Apres fermeture des recaves, les joueurs bustes sans recave sont elimines definitivement
+    // POST /eliminations pour P3 et P4 (dans l'ordre inverse des busts = ordre des ranks)
+    // P4 = rank 4, P3 = rank 3
 
     const eliminations = [
-      { eliminatorId: playerIds[0], eliminatedId: playerIds[3], level: 2, rank: 4 },
-      { eliminatorId: playerIds[0], eliminatedId: playerIds[2], level: 3, rank: 3 },
+      { eliminatorId: playerIds[0], eliminatedId: playerIds[3] }, // P4 rank 4
+      { eliminatorId: playerIds[0], eliminatedId: playerIds[2] }, // P3 rank 3
     ];
 
     for (let i = 0; i < eliminations.length; i++) {
@@ -699,9 +760,10 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
         data: elim,
       });
 
+      const expectedRank = 4 - i;
       await assertJsonResponse(
         response,
-        `11.${i + 1} - POST elimination rank ${elim.rank}`,
+        `11d.${i + 1} - POST elimination rank ${expectedRank}`,
         `/api/tournaments/${tournamentId}/eliminations`,
         [200, 201]
       );
