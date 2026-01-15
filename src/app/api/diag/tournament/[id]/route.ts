@@ -2,25 +2,76 @@
  * TEMPORARY DIAGNOSTIC ENDPOINT
  * Read tournament directly from DB to verify rebuyEndLevel persistence
  * DELETE THIS FILE AFTER DIAGNOSIS
+ *
+ * SECURITY:
+ * - Requires RECIPE_DIAGNOSTICS=1 env var
+ * - Requires valid DIAG_TOKEN via X-Diag-Token header
+ * - Returns 404 for any auth failure (hides endpoint existence)
+ * - Whitelisted actions only
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getDiagnosticHeaders } from '@/lib/app-version';
 import { areRecavesOpen } from '@/lib/tournament-utils';
 
+// Whitelisted POST actions
+const ALLOWED_ACTIONS = ['test-elimination', 'test-finish', 'set-winner-rank'] as const;
+type AllowedAction = typeof ALLOWED_ACTIONS[number];
+
+/**
+ * Validate diagnostic access
+ * Returns true if access granted, false otherwise
+ */
+function validateDiagAccess(request: NextRequest): boolean {
+  // Check 1: RECIPE_DIAGNOSTICS must be enabled
+  if (process.env.RECIPE_DIAGNOSTICS !== '1') {
+    return false;
+  }
+
+  // Check 2: DIAG_TOKEN must be set and match header
+  const expectedToken = process.env.DIAG_TOKEN;
+  if (!expectedToken) {
+    // If no token configured, deny access
+    return false;
+  }
+
+  const providedToken = request.headers.get('X-Diag-Token');
+  if (!providedToken || providedToken !== expectedToken) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Log diagnostic access (minimal, no sensitive data)
+ */
+function logDiagAccess(method: string, tournamentId: string, action?: string): void {
+  if (process.env.RECIPE_DIAGNOSTICS === '1') {
+    const timestamp = new Date().toISOString();
+    const actionStr = action ? ` action=${action}` : '';
+    console.log(`[DIAG] ${timestamp} ${method} tournament=${tournamentId}${actionStr}`);
+  }
+}
+
+/**
+ * Return 404 to hide endpoint existence
+ */
+function notFoundResponse(): NextResponse {
+  return NextResponse.json({ error: 'Not Found' }, { status: 404 });
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Only allow if RECIPE_DIAGNOSTICS is enabled
-  if (process.env.RECIPE_DIAGNOSTICS !== '1') {
-    return NextResponse.json(
-      { error: 'Diagnostic endpoint disabled' },
-      { status: 403 }
-    );
+  // Security check first - return 404 to hide existence
+  if (!validateDiagAccess(request)) {
+    return notFoundResponse();
   }
 
   const { id } = await params;
+  logDiagAccess('GET', id);
 
   // Raw DB read - no transformations
   const tournament = await prisma.tournament.findUnique({
@@ -67,15 +118,14 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Only allow if RECIPE_DIAGNOSTICS is enabled
-  if (process.env.RECIPE_DIAGNOSTICS !== '1') {
-    return NextResponse.json(
-      { error: 'Diagnostic endpoint disabled' },
-      { status: 403 }
-    );
+  // Security check first - return 404 to hide existence
+  if (!validateDiagAccess(request)) {
+    return notFoundResponse();
   }
 
   const { id } = await params;
+  logDiagAccess('PATCH', id);
+
   const body = await request.json();
 
   // Trace input
@@ -151,21 +201,30 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  // Only allow if RECIPE_DIAGNOSTICS is enabled
-  if (process.env.RECIPE_DIAGNOSTICS !== '1') {
-    return NextResponse.json(
-      { error: 'Diagnostic endpoint disabled' },
-      { status: 403 }
-    );
+  // Security check first - return 404 to hide existence
+  if (!validateDiagAccess(request)) {
+    return notFoundResponse();
   }
 
   const { id: tournamentId } = await params;
   const body = await request.json();
   const { action } = body;
 
+  // Validate action is whitelisted
+  if (!action || !ALLOWED_ACTIONS.includes(action as AllowedAction)) {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
+
+  logDiagAccess('POST', tournamentId, action);
+
   // Action: test-elimination
   if (action === 'test-elimination') {
     const { eliminatedId, eliminatorId } = body;
+
+    // Validate required fields
+    if (!eliminatedId || !eliminatorId) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
 
     // Get tournament state
     const tournament = await prisma.tournament.findUnique({
@@ -363,6 +422,11 @@ export async function POST(
   if (action === 'set-winner-rank') {
     const { playerId } = body;
 
+    // Validate required fields
+    if (!playerId) {
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+
     await prisma.tournamentPlayer.update({
       where: {
         tournamentId_playerId: {
@@ -386,5 +450,6 @@ export async function POST(
     return response;
   }
 
-  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  // Should never reach here due to whitelist check, but safety fallback
+  return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
 }
