@@ -239,7 +239,35 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     }
   };
 
-  const activePlayers = players.filter((p) => p.finalRank === null);
+  const handleCancelLastBust = async () => {
+    if (busts.length === 0) return;
+
+    if (!confirm('Voulez-vous vraiment annuler le dernier bust ?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/busts/last`,
+        { method: 'DELETE' }
+      );
+
+      if (response.ok) {
+        await fetchData();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Erreur lors de l\'annulation');
+      }
+    } catch (error) {
+      console.error('Error canceling bust:', error);
+      alert('Erreur lors de l\'annulation');
+    }
+  };
+
+  const activePlayers = players
+    .filter((p) => p.finalRank === null)
+    .sort((a, b) => a.player.firstName.localeCompare(b.player.firstName));
   const eliminatedPlayers = players.filter((p) => p.finalRank !== null);
 
   const getLeaderKillerCandidates = () => {
@@ -301,7 +329,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       )}
 
       {/* Statistiques - ink variant */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:gap-4 md:grid-cols-4">
         <SectionCard variant="ink" noPadding className="p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Joueurs en jeu</span>
@@ -481,11 +509,19 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {/* Historique des busts */}
       {busts.length > 0 && (
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2">
               <RefreshCw className="h-5 w-5 text-amber-500" />
               Historique des busts ({busts.length})
             </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCancelLastBust}
+            >
+              <Undo2 className="mr-2 h-4 w-4" />
+              Annuler le dernier
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

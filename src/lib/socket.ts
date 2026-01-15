@@ -105,6 +105,14 @@ export interface TournamentEvents {
     killerName: string | null;
     level: number;
   };
+
+  // Bust cancelled event
+  'bust:cancelled': {
+    tournamentId: string;
+    bustId: string;
+    eliminatedName: string;
+    killerName: string | null;
+  };
 }
 
 /**
