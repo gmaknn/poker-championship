@@ -43,6 +43,24 @@ test.describe.serial('FINISH-FLOW GUARD', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
+  // SECURITY: Diag endpoint must be invisible (404 without token)
+  // ─────────────────────────────────────────────────────────────────────────
+  test('00 - Diag endpoint is invisible (security guard)', async () => {
+    // This test ensures /api/diag/** returns 404 when RECIPE_DIAGNOSTICS is not set
+    // If this test fails, diag has been accidentally exposed in prod
+    const res = await api.get(`${CONFIG.BASE_URL}/api/diag/tournament/test-id`);
+    const status = res.status();
+
+    if (status === 404) {
+      reporter.ok('Diag endpoint invisible', 'GET /api/diag/tournament/test-id -> 404');
+    } else {
+      reporter.fail('Diag endpoint EXPOSED', `GET /api/diag/tournament/test-id -> ${status} (expected 404)`);
+    }
+
+    expect(status).toBe(404);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
   // SETUP
   // ─────────────────────────────────────────────────────────────────────────
   test('01 - Login and create sandbox', async () => {
