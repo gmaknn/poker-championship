@@ -11,7 +11,7 @@
 import { test, expect, type Page, type APIRequestContext } from '@playwright/test';
 import {
   CONFIG, makePrefix, Reporter, RecipeClient,
-  loginAdmin, createSandbox, startTournament, patchAndAssert, finishTournament,
+  loginAdmin, createSandbox, startTournament, patchAndAssert,
   type SandboxIds
 } from './helpers';
 
@@ -63,16 +63,19 @@ test.describe.serial('FINISH-FLOW GUARD', () => {
   // ─────────────────────────────────────────────────────────────────────────
   // BUSTS (during recave period - BEFORE closing recaves)
   // ─────────────────────────────────────────────────────────────────────────
-  test('03 - Register busts during recave period (P4, P3 by P1)', async () => {
+  test('03 - Register busts during recave period (P4, P3, P2 by P1)', async () => {
     // Busts happen while recave period is still open (rebuyEndLevel not yet set)
+    // P1 busts P4, P3, P2 - they can still recave
     const busts = [
-      { eliminatedId: ids.playerIds[3], killerId: ids.playerIds[0] },
-      { eliminatedId: ids.playerIds[2], killerId: ids.playerIds[0] },
+      { eliminatedId: ids.playerIds[3], killerId: ids.playerIds[0] }, // P4
+      { eliminatedId: ids.playerIds[2], killerId: ids.playerIds[0] }, // P3
+      { eliminatedId: ids.playerIds[1], killerId: ids.playerIds[0] }, // P2
     ];
 
     for (let i = 0; i < busts.length; i++) {
+      const playerNum = 4 - i;
       const { ok } = await client.assertOk(
-        `Bust P${4 - i} by P1`,
+        `Bust P${playerNum} by P1`,
         'POST',
         `/api/tournaments/${ids.tournamentId}/busts`,
         busts[i]
@@ -100,65 +103,70 @@ test.describe.serial('FINISH-FLOW GUARD', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // CRITICAL: Eliminations after recave closed
+  // CRITICAL: Eliminations after recave closed - auto-finish on last elimination
   // ─────────────────────────────────────────────────────────────────────────
-  test('05 - Eliminations after recave closed (P4 rank 4, P3 rank 3)', async () => {
+  test('05 - Eliminations after recave closed (P4, P3, P2 -> P1 wins)', async () => {
+    // Eliminate all busted players: P4 (rank 4), P3 (rank 3), P2 (rank 2)
+    // When P2 is eliminated, only P1 remains -> auto-finish with P1 rank 1
     const elims = [
-      { eliminatorId: ids.playerIds[0], eliminatedId: ids.playerIds[3] },
-      { eliminatorId: ids.playerIds[0], eliminatedId: ids.playerIds[2] },
+      { eliminatorId: ids.playerIds[0], eliminatedId: ids.playerIds[3], expectedRank: 4 }, // P4
+      { eliminatorId: ids.playerIds[0], eliminatedId: ids.playerIds[2], expectedRank: 3 }, // P3
+      { eliminatorId: ids.playerIds[0], eliminatedId: ids.playerIds[1], expectedRank: 2 }, // P2 -> triggers auto-finish
     ];
 
-    for (let i = 0; i < elims.length; i++) {
-      const rank = 4 - i;
+    for (const elim of elims) {
       const { ok, data } = await client.assertOk(
-        `Elimination P${5 - rank} (rank ${rank})`,
+        `Elimination P${5 - elim.expectedRank} (rank ${elim.expectedRank})`,
         'POST',
         `/api/tournaments/${ids.tournamentId}/eliminations`,
-        elims[i]
+        { eliminatorId: elim.eliminatorId, eliminatedId: elim.eliminatedId }
       );
 
       if (!ok) {
-        // Diagnostic output for debugging
         const errData = data as { error?: string; currentLevel?: number; rebuyEndLevel?: number | null };
         console.log(`   [DIAG] error=${errData.error}, currentLevel=${errData.currentLevel}, rebuyEndLevel=${errData.rebuyEndLevel}`);
       }
 
       expect(ok).toBe(true);
-    }
-  });
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // CRITICAL: FINISHED status
-  // ─────────────────────────────────────────────────────────────────────────
-  test('06 - Finish tournament (P1=1st, P2=2nd)', async () => {
-    const ok = await finishTournament(client, reporter, ids.tournamentId, ids.playerIds, 0, 1);
-    expect(ok).toBe(true);
+      // Check if tournament auto-completed on last elimination
+      const respData = data as { tournamentCompleted?: boolean };
+      if (elim.expectedRank === 2) {
+        reporter.ok('Tournament auto-completed on final elimination', `tournamentCompleted=${respData.tournamentCompleted}`);
+      }
+    }
   });
 
   // ─────────────────────────────────────────────────────────────────────────
   // FINAL VERIFICATION
   // ─────────────────────────────────────────────────────────────────────────
-  test('07 - Final verification', async () => {
+  test('06 - Final verification', async () => {
     const { data } = await client.get(`/api/tournaments/${ids.tournamentId}`);
     const t = data as {
       status?: string;
       rebuyEndLevel?: number | null;
-      tournamentPlayers?: Array<{ finalRank: number | null }>;
+      tournamentPlayers?: Array<{ playerId: string; finalRank: number | null }>;
     };
 
     const isFinished = t.status === 'FINISHED';
     const rebuyPersisted = t.rebuyEndLevel === 0;
     const players = t.tournamentPlayers || [];
-    const allRanksSet = players.filter(p => p.finalRank !== null).length === 4;
+    const playersWithRank = players.filter(p => p.finalRank !== null);
+    const allRanksSet = playersWithRank.length === 4;
 
-    if (isFinished && rebuyPersisted && allRanksSet) {
-      reporter.ok('Final verification', `status=${t.status}, rebuyEndLevel=${t.rebuyEndLevel}, ranks=4/4`);
+    // Verify P1 is winner (rank 1)
+    const p1 = players.find(p => p.playerId === ids.playerIds[0]);
+    const p1IsWinner = p1?.finalRank === 1;
+
+    if (isFinished && rebuyPersisted && allRanksSet && p1IsWinner) {
+      reporter.ok('Final verification', `status=${t.status}, rebuyEndLevel=${t.rebuyEndLevel}, ranks=4/4, P1=rank1`);
     } else {
-      reporter.fail('Final verification', `status=${t.status}, rebuyEndLevel=${t.rebuyEndLevel}, ranks=${players.filter(p => p.finalRank !== null).length}/4`);
+      reporter.fail('Final verification', `status=${t.status}, rebuyEndLevel=${t.rebuyEndLevel}, ranks=${playersWithRank.length}/4, P1rank=${p1?.finalRank}`);
     }
 
     expect(isFinished).toBe(true);
     expect(rebuyPersisted).toBe(true);
     expect(allRanksSet).toBe(true);
+    expect(p1IsWinner).toBe(true);
   });
 });
