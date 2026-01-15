@@ -425,7 +425,7 @@ describe('/api/tournaments/[id]', () => {
       const response = await PATCH(request, { params: createParams('test-id') });
 
       expect(response.status).toBe(200);
-      expect(response.headers.get('X-App-Commit')).toBeTruthy();
+      expect(response.headers.get('X-App-Version')).toBeTruthy();
       expect(response.headers.get('X-Recipe-Diagnostics')).toBe('off');
     });
   });
