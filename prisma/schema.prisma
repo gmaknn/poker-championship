@@ -92,6 +92,10 @@ model Season {
   rebuyPenaltyTier3     Int         @default(-150)  // LEGACY - 5+ recaves
   recavePenaltyTiers    Json?       // Nouveau: [{fromRecaves: number, penaltyPoints: number}]
 
+  // Barème de points détaillé (optionnel - si présent, override les champs individuels)
+  // Format: { "type": "DETAILED", "byRank": { "1": 1500, ..., "18": 50 }, "rank19Plus": 0 }
+  detailedPointsConfig  Json?
+
   // Système de meilleures performances
   totalTournamentsCount Int?
   bestTournamentsCount  Int?        // Nombre de tournois à retenir pour le classement

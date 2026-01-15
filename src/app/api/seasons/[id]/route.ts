@@ -56,6 +56,13 @@ const seasonSchema = z.object({
 
   totalTournamentsCount: z.number().int().optional().nullable(),
   bestTournamentsCount: z.number().int().optional().nullable(),
+
+  // Barème de points détaillé (optionnel - prioritaire sur les champs individuels)
+  detailedPointsConfig: z.object({
+    type: z.literal('DETAILED'),
+    byRank: z.record(z.string(), z.number().int().min(0)),
+    rank19Plus: z.number().int().min(0),
+  }).optional().nullable(),
 });
 
 export async function GET(
@@ -322,6 +329,8 @@ export async function PATCH(
 
     totalTournamentsCount: validatedData.totalTournamentsCount,
     bestTournamentsCount: validatedData.bestTournamentsCount,
+
+    detailedPointsConfig: validatedData.detailedPointsConfig ?? Prisma.JsonNull,
   };
 
   try {

@@ -22,6 +22,24 @@ import { Season } from '@prisma/client';
 import RecavePenaltyTiersEditor from '@/components/RecavePenaltyTiersEditor';
 import { RecavePenaltyTier } from '@/lib/scoring';
 
+// Type for detailed points configuration
+interface DetailedPointsConfig {
+  type: 'DETAILED';
+  byRank: Record<string, number>;
+  rank19Plus: number;
+}
+
+// Default championship 2026 points
+const CHAMPIONSHIP_2026_POINTS: DetailedPointsConfig = {
+  type: 'DETAILED',
+  byRank: {
+    '1': 1500, '2': 1000, '3': 700, '4': 500, '5': 400, '6': 300,
+    '7': 250, '8': 200, '9': 180, '10': 160, '11': 140, '12': 120,
+    '13': 100, '14': 90, '15': 80, '16': 70, '17': 60, '18': 50,
+  },
+  rank19Plus: 0,
+};
+
 type SeasonWithCount = Season & {
   _count?: {
     tournaments: number;
@@ -52,6 +70,7 @@ const DEFAULT_SEASON_PARAMS = {
     { fromRecaves: 4, penaltyPoints: -100 },
     { fromRecaves: 5, penaltyPoints: -150 },
   ] as RecavePenaltyTier[],
+  detailedPointsConfig: null as DetailedPointsConfig | null,
 };
 
 export default function SeasonsPage() {
@@ -123,6 +142,8 @@ export default function SeasonsPage() {
           { fromRecaves: season.freeRebuysCount + 2, penaltyPoints: season.rebuyPenaltyTier2 },
           { fromRecaves: season.freeRebuysCount + 3, penaltyPoints: season.rebuyPenaltyTier3 },
         ],
+        // Charger la config de points détaillée si présente
+        detailedPointsConfig: (season.detailedPointsConfig as DetailedPointsConfig | null) || null,
       });
     } else {
       setEditingSeason(null);
@@ -172,6 +193,7 @@ export default function SeasonsPage() {
         rebuyPenaltyTier2: formData.rebuyPenaltyTier2,
         rebuyPenaltyTier3: formData.rebuyPenaltyTier3,
         recavePenaltyTiers: formData.recavePenaltyTiers,
+        detailedPointsConfig: formData.detailedPointsConfig,
       };
 
       const url = editingSeason ? `/api/seasons/${editingSeason.id}` : '/api/seasons';
@@ -494,111 +516,101 @@ export default function SeasonsPage() {
 
               <TabsContent value="points" className="space-y-4 py-4">
                 <div>
-                  <h3 className="font-semibold mb-3">Barème de points par classement</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsFirst">1er place</Label>
-                      <Input
-                        id="pointsFirst"
-                        type="number"
-                        value={formData.pointsFirst}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsFirst: parseInt(e.target.value) })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsSecond">2e place</Label>
-                      <Input
-                        id="pointsSecond"
-                        type="number"
-                        value={formData.pointsSecond}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsSecond: parseInt(e.target.value) })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsThird">3e place</Label>
-                      <Input
-                        id="pointsThird"
-                        type="number"
-                        value={formData.pointsThird}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsThird: parseInt(e.target.value) })
-                        }
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsFourth">4e place</Label>
-                      <Input
-                        id="pointsFourth"
-                        type="number"
-                        value={formData.pointsFourth}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsFourth: parseInt(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsFifth">5e place</Label>
-                      <Input
-                        id="pointsFifth"
-                        type="number"
-                        value={formData.pointsFifth}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsFifth: parseInt(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsSixth">6e place</Label>
-                      <Input
-                        id="pointsSixth"
-                        type="number"
-                        value={formData.pointsSixth}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsSixth: parseInt(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsSeventh">7-10e places</Label>
-                      <Input
-                        id="pointsSeventh"
-                        type="number"
-                        value={formData.pointsSeventh}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsSeventh: parseInt(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsEleventh">11-15e places</Label>
-                      <Input
-                        id="pointsEleventh"
-                        type="number"
-                        value={formData.pointsEleventh}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsEleventh: parseInt(e.target.value) })
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="pointsSixteenth">16e+ places</Label>
-                      <Input
-                        id="pointsSixteenth"
-                        type="number"
-                        value={formData.pointsSixteenth}
-                        onChange={(e) =>
-                          setFormData({ ...formData, pointsSixteenth: parseInt(e.target.value) })
-                        }
-                      />
-                    </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold">Barème de points par classement (1-18, 19+)</h3>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setFormData({
+                          ...formData,
+                          detailedPointsConfig: { ...CHAMPIONSHIP_2026_POINTS },
+                        });
+                      }}
+                    >
+                      Appliquer barème 2026
+                    </Button>
                   </div>
+
+                  {/* Grille des places 1-18 */}
+                  <div className="grid grid-cols-6 gap-2">
+                    {Array.from({ length: 18 }, (_, i) => i + 1).map((rank) => (
+                      <div key={rank} className="space-y-1">
+                        <Label htmlFor={`rank-${rank}`} className="text-xs">
+                          {rank}{rank === 1 ? 'er' : 'e'}
+                        </Label>
+                        <Input
+                          id={`rank-${rank}`}
+                          type="number"
+                          min="0"
+                          className="h-8 text-sm"
+                          value={formData.detailedPointsConfig?.byRank?.[String(rank)] ?? ''}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                            const currentConfig = formData.detailedPointsConfig || {
+                              type: 'DETAILED' as const,
+                              byRank: {},
+                              rank19Plus: 0,
+                            };
+                            setFormData({
+                              ...formData,
+                              detailedPointsConfig: {
+                                ...currentConfig,
+                                byRank: {
+                                  ...currentConfig.byRank,
+                                  [String(rank)]: value,
+                                },
+                              },
+                            });
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Place 19+ */}
+                  <div className="mt-4 flex items-center gap-4">
+                    <div className="space-y-1">
+                      <Label htmlFor="rank19Plus" className="text-sm font-medium">
+                        19e place et au-delà
+                      </Label>
+                      <Input
+                        id="rank19Plus"
+                        type="number"
+                        min="0"
+                        className="w-24 h-8 text-sm"
+                        value={formData.detailedPointsConfig?.rank19Plus ?? 0}
+                        onChange={(e) => {
+                          const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                          const currentConfig = formData.detailedPointsConfig || {
+                            type: 'DETAILED' as const,
+                            byRank: {},
+                            rank19Plus: 0,
+                          };
+                          setFormData({
+                            ...formData,
+                            detailedPointsConfig: {
+                              ...currentConfig,
+                              rank19Plus: value,
+                            },
+                          });
+                        }}
+                        placeholder="0"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-4">
+                      Points attribués aux joueurs classés 19e ou plus
+                    </p>
+                  </div>
+
+                  {!formData.detailedPointsConfig && (
+                    <p className="text-sm text-amber-600 mt-3 p-2 bg-amber-50 rounded border border-amber-200">
+                      Cliquez sur &quot;Appliquer barème 2026&quot; pour initialiser le barème détaillé,
+                      ou remplissez manuellement les champs ci-dessus.
+                    </p>
+                  )}
                 </div>
 
                 <div className="border-t pt-4">
