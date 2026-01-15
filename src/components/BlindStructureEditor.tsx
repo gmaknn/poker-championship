@@ -744,7 +744,7 @@ export default function BlindStructureEditor({
                           />
                           <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1" title="Rappel affiché sur TV et annonce audio à la fin de ce niveau. La réassignation doit être faite manuellement par le TD.">
                           <Checkbox
                             id={`rebalance-${index}`}
                             checked={level.rebalanceTables || false}
@@ -755,9 +755,10 @@ export default function BlindStructureEditor({
                           <label
                             htmlFor={`rebalance-${index}`}
                             className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                            title="Rappel affiché sur TV et annonce audio à la fin de ce niveau. La réassignation doit être faite manuellement par le TD."
                           >
                             <Shuffle className="h-3 w-3" />
-                            Tables
+                            Rappel tables
                           </label>
                         </div>
                         <div className="flex items-center gap-1">

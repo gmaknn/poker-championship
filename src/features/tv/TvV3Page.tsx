@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { Trophy, Users, DollarSign, Clock, LayoutGrid } from 'lucide-react';
-import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed, getBlindCommentaryEnabled, setBlindCommentaryEnabled } from '@/lib/audioManager';
+import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, announceRebalanceTables, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed, getBlindCommentaryEnabled, setBlindCommentaryEnabled } from '@/lib/audioManager';
 import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { CircularTimer } from '@/components/CircularTimer';
@@ -43,6 +43,7 @@ type BlindLevel = {
   ante: number;
   duration: number;
   isBreak: boolean;
+  rebalanceTables: boolean;
 };
 
 type Tournament = {
@@ -427,26 +428,38 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
     // Check if level has changed
     if (previousLevelRef.current !== 0 && previousLevelRef.current !== currentLevel) {
+      // Check if previous level had rebalanceTables flag - TD reminder!
+      const previousLevelData = blindStructure.find(level => level.level === previousLevelRef.current);
+      if (previousLevelData?.rebalanceTables) {
+        // Announce rebalance reminder (always, regardless of blindCommentaryEnabled)
+        announceRebalanceTables();
+      }
+
       const currentLevelData = blindStructure.find(level => level.level === currentLevel);
 
       if (currentLevelData && blindCommentaryEnabled) {
-        if (currentLevelData.isBreak) {
-          // Announce break (only if commentary enabled)
-          announceBreak(currentLevelData.duration);
-        } else {
-          // Get active players for random selection
-          const activePlayers = resultsData?.results.filter((p) => p.finalRank === null) || [];
-          const playerNicknames = activePlayers.map(p => p.player.nickname || p.player.firstName);
+        // Small delay if we announced rebalance to avoid overlap
+        const delay = previousLevelData?.rebalanceTables ? 4000 : 0;
 
-          // Announce new level (only if commentary enabled)
-          announceLevelChange(
-            currentLevelData.level,
-            currentLevelData.smallBlind,
-            currentLevelData.bigBlind,
-            currentLevelData.ante,
-            playerNicknames
-          );
-        }
+        setTimeout(() => {
+          if (currentLevelData.isBreak) {
+            // Announce break (only if commentary enabled)
+            announceBreak(currentLevelData.duration);
+          } else {
+            // Get active players for random selection
+            const activePlayers = resultsData?.results.filter((p) => p.finalRank === null) || [];
+            const playerNicknames = activePlayers.map(p => p.player.nickname || p.player.firstName);
+
+            // Announce new level (only if commentary enabled)
+            announceLevelChange(
+              currentLevelData.level,
+              currentLevelData.smallBlind,
+              currentLevelData.bigBlind,
+              currentLevelData.ante,
+              playerNicknames
+            );
+          }
+        }, delay);
       }
     }
 
@@ -843,6 +856,17 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
               borderColor: currentTheme.colors.border
             }}>
               <div className="text-3xl font-bold text-white/50">En attente du démarrage...</div>
+            </div>
+          )}
+
+          {/* Reassign Tables Indicator */}
+          {currentBlindLevel?.rebalanceTables && (
+            <div className="bg-orange-500/20 border-2 border-orange-400 rounded-xl py-3 px-6 text-center animate-pulse">
+              <div className="text-2xl font-bold text-orange-300 flex items-center justify-center gap-3">
+                <LayoutGrid className="h-7 w-7" />
+                Réassignation des tables à la fin de ce niveau
+                <LayoutGrid className="h-7 w-7" />
+              </div>
             </div>
           )}
 
