@@ -4,10 +4,11 @@ import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { Trophy, Users, DollarSign, Clock, LayoutGrid } from 'lucide-react';
-import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed } from '@/lib/audioManager';
+import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed, getBlindCommentaryEnabled, setBlindCommentaryEnabled } from '@/lib/audioManager';
+import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { CircularTimer } from '@/components/CircularTimer';
-import { Volume2, Gauge, Camera, Share2, Download, Palette } from 'lucide-react';
+import { Volume2, Gauge, Camera, Share2, Download, Palette, MessageSquare } from 'lucide-react';
 import { capturePodiumPhoto, sharePodiumPhoto } from '@/lib/podiumPhotoGenerator';
 import { TV_THEMES, getSavedTheme, saveTheme, applyThemeToElement, type TVTheme } from '@/lib/tvThemes';
 
@@ -130,6 +131,9 @@ interface TvV3PageProps {
  * @see docs/TV_CANONICAL.md
  */
 export function TvV3Page({ tournamentId }: TvV3PageProps) {
+  const searchParams = useSearchParams();
+  const isFullscreen = searchParams.get('fullscreen') === '1';
+
   const [resultsData, setResultsData] = useState<ResultsData | null>(null);
   const [blindStructure, setBlindStructure] = useState<BlindLevel[] | null>(null);
   const [chips, setChips] = useState<ChipDenomination[]>([]);
@@ -156,6 +160,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const [ttsVolume, setTtsVolume] = useState(1);
   const [ttsSpeed, setTtsSpeed] = useState(1);
   const [showControls, setShowControls] = useState(false);
+  const [blindCommentaryEnabled, setBlindCommentaryEnabledState] = useState(true);
 
   // Theme
   const [currentTheme, setCurrentTheme] = useState<TVTheme>(TV_THEMES[0]);
@@ -170,6 +175,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   useEffect(() => {
     setTtsVolume(getTTSVolume());
     setTtsSpeed(getTTSSpeed());
+    setBlindCommentaryEnabledState(getBlindCommentaryEnabled());
 
     // Load saved theme
     const savedTheme = getSavedTheme();
@@ -423,16 +429,16 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     if (previousLevelRef.current !== 0 && previousLevelRef.current !== currentLevel) {
       const currentLevelData = blindStructure.find(level => level.level === currentLevel);
 
-      if (currentLevelData) {
+      if (currentLevelData && blindCommentaryEnabled) {
         if (currentLevelData.isBreak) {
-          // Announce break
+          // Announce break (only if commentary enabled)
           announceBreak(currentLevelData.duration);
         } else {
           // Get active players for random selection
           const activePlayers = resultsData?.results.filter((p) => p.finalRank === null) || [];
           const playerNicknames = activePlayers.map(p => p.player.nickname || p.player.firstName);
 
-          // Announce new level
+          // Announce new level (only if commentary enabled)
           announceLevelChange(
             currentLevelData.level,
             currentLevelData.smallBlind,
@@ -446,7 +452,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
     // Update previous level
     previousLevelRef.current = currentLevel;
-  }, [resultsData?.tournament.currentLevel, blindStructure]);
+  }, [resultsData?.tournament.currentLevel, blindStructure, blindCommentaryEnabled]);
 
   // Announce players remaining milestones
   useEffect(() => {
@@ -529,6 +535,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const handleSpeedChange = (value: number) => {
     setTtsSpeed(value);
     setTTSSpeed(value);
+  };
+
+  const handleBlindCommentaryToggle = (enabled: boolean) => {
+    setBlindCommentaryEnabledState(enabled);
+    setBlindCommentaryEnabled(enabled);
   };
 
   const formatTime = (seconds: number) => {
@@ -634,7 +645,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
   return (
     <div className="min-h-screen text-white overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
-      {/* Header */}
+      {/* Header - Hidden in fullscreen mode */}
+      {!isFullscreen && (
       <div className="py-4 px-8 border-b-4" style={{
         backgroundColor: currentTheme.colors.primary,
         borderBottomColor: currentTheme.colors.primaryDark
@@ -643,10 +655,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
           {tournament.name || 'Tournoi de Poker'}
         </h1>
       </div>
+      )}
 
       {/* Tournament Finished Screen */}
       {isCompleted ? (
-        <div className="flex items-center justify-center h-[calc(100vh-80px)] bg-gradient-to-br relative" style={{
+        <div className={`flex items-center justify-center ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-80px)]'} bg-gradient-to-br relative`} style={{
           background: `linear-gradient(to bottom right, ${currentTheme.colors.background}, ${currentTheme.colors.backgroundLight})`
         }}>
           {/* Manual Photo Capture Buttons */}
@@ -716,7 +729,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         </div>
       ) : (
       <div className="flex h-[calc(100vh-80px)]">
-        {/* LEFT PANEL */}
+        {/* LEFT PANEL - Hidden in fullscreen mode */}
+        {!isFullscreen && (
         <div className="w-1/5 bg-[hsl(220,15%,18%)] p-6 space-y-8 border-r-2 border-[hsl(220,13%,30%)]">
           {/* Current Time */}
           <div className="text-center">
@@ -756,6 +770,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             </div>
           </div>
         </div>
+        )}
 
         {/* CENTER PANEL */}
         <div className="flex-1 p-8 flex flex-col justify-center space-y-6" style={{ backgroundColor: currentTheme.colors.background }}>
@@ -854,7 +869,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
           )}
         </div>
 
-        {/* RIGHT PANEL */}
+        {/* RIGHT PANEL - Hidden in fullscreen mode */}
+        {!isFullscreen && (
         <div className="w-1/5 bg-[hsl(220,15%,18%)] p-6 space-y-6 border-l-2 border-[hsl(220,13%,30%)]">
           {/* Prize Pool */}
           <div className="text-center">
@@ -890,6 +906,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             </div>
           )}
         </div>
+        )}
       </div>
       )}
 
@@ -1153,6 +1170,30 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                     accentColor: currentTheme.colors.primary,
                   }}
                 />
+              </div>
+
+              {/* Blind Commentary Toggle */}
+              <div>
+                <button
+                  onClick={() => handleBlindCommentaryToggle(!blindCommentaryEnabled)}
+                  className="flex items-center gap-2 w-full p-2 rounded-lg transition-colors"
+                  style={{
+                    backgroundColor: blindCommentaryEnabled ? `${currentTheme.colors.primary}30` : 'transparent',
+                    border: `1px solid ${blindCommentaryEnabled ? currentTheme.colors.primary : 'rgba(255,255,255,0.2)'}`,
+                  }}
+                >
+                  <MessageSquare className="h-4 w-4" style={{ color: blindCommentaryEnabled ? currentTheme.colors.primary : 'rgba(255,255,255,0.5)' }} />
+                  <span className="text-xs text-white/80">Commentaires blinds</span>
+                  <span
+                    className="ml-auto text-xs font-bold"
+                    style={{ color: blindCommentaryEnabled ? currentTheme.colors.primary : 'rgba(255,255,255,0.5)' }}
+                  >
+                    {blindCommentaryEnabled ? 'ON' : 'OFF'}
+                  </span>
+                </button>
+                <p className="text-[10px] text-white/50 mt-1 pl-1">
+                  Sons décompte toujours actifs
+                </p>
               </div>
             </div>
           )}
