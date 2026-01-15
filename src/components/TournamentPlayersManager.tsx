@@ -324,14 +324,14 @@ export default function TournamentPlayersManager({
           {enrolledPlayers.map((enrollment) => (
             <Card key={enrollment.id}>
               <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                      <h3 className="text-base md:text-lg font-semibold truncate">
                         {enrollment.player.firstName} {enrollment.player.lastName}
                       </h3>
                       {enrollment.player.nickname && (
-                        <Badge variant="secondary">{enrollment.player.nickname}</Badge>
+                        <Badge variant="secondary" className="text-xs">{enrollment.player.nickname}</Badge>
                       )}
                       <div className="flex items-center gap-2">
                         <Checkbox
@@ -349,42 +349,43 @@ export default function TournamentPlayersManager({
                         </label>
                       </div>
                     </div>
-                    <div className="mt-2 flex items-center gap-6 text-sm text-muted-foreground">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                       <div>
                         <span className="font-medium">Buy-in:</span> {tournament.buyInAmount}€
                       </div>
                       {enrollment.rebuysCount > 0 && (
                         <div>
-                          <span className="font-medium">Recaves:</span> {enrollment.rebuysCount} (
-                          {enrollment.rebuysCount * tournament.buyInAmount}€)
+                          <span className="font-medium">Recaves:</span> {enrollment.rebuysCount} ({enrollment.rebuysCount * tournament.buyInAmount}€)
                         </div>
                       )}
                       {enrollment.lightRebuyUsed && (
-                        <Badge variant="outline">Light rebuy utilisé</Badge>
+                        <Badge variant="outline" className="text-xs">Light</Badge>
                       )}
                       <div>
                         <span className="font-medium">Total:</span> {getTotalBuyIn(enrollment)}€
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     {canRebuy && (
                       <>
                         <Button
                           variant="outline"
                           size="sm"
+                          className="flex-1 md:flex-none"
                           onClick={() => handleRebuy(enrollment.playerId, 'STANDARD')}
                         >
-                          <DollarSign className="mr-2 h-4 w-4" />
+                          <DollarSign className="mr-1 h-4 w-4" />
                           Recave
                         </Button>
                         {!enrollment.lightRebuyUsed && (
                           <Button
                             variant="outline"
                             size="sm"
+                            className="flex-1 md:flex-none"
                             onClick={() => handleRebuy(enrollment.playerId, 'LIGHT')}
                           >
-                            <DollarSign className="mr-2 h-4 w-4" />
+                            <DollarSign className="mr-1 h-4 w-4" />
                             Light
                           </Button>
                         )}
