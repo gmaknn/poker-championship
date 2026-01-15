@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getDiagnosticHeaders } from '@/lib/app-version';
 
 /**
  * Health check endpoint for monitoring and load balancer probes
@@ -15,13 +16,21 @@ export async function GET() {
 
     const responseTime = Date.now() - startTime;
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
       db: true,
       timestamp: new Date().toISOString(),
       responseTime: `${responseTime}ms`,
       environment: process.env.NODE_ENV || 'development',
     }, { status: 200 });
+
+    // Add diagnostic headers for deployment verification
+    const headers = getDiagnosticHeaders();
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+
+    return response;
   } catch (error) {
     const responseTime = Date.now() - startTime;
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
