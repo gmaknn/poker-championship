@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { getCurrentPlayer, requireTournamentPermission } from '@/lib/auth-helpers';
 import { canDeleteTournament } from '@/lib/permissions';
+import { getDiagnosticHeaders, isDiagnosticsEnabled } from '@/lib/app-version';
 
 const updateTournamentSchema = z.object({
   name: z.string().min(1).optional(),
@@ -79,7 +80,13 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(tournament);
+    // Add diagnostic headers for deployment verification
+    const response = NextResponse.json(tournament);
+    const headers = getDiagnosticHeaders();
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    return response;
   } catch (error) {
     console.error('Error fetching tournament:', error);
     return NextResponse.json(
@@ -207,7 +214,7 @@ export async function PATCH(
       : updateData;
 
     // Diagnostic gated: trace rebuyEndLevel persistence
-    const isDiag = process.env.RECIPE_DIAGNOSTICS === '1';
+    const isDiag = isDiagnosticsEnabled();
     if (isDiag && 'rebuyEndLevel' in body) {
       console.log('[DIAG PATCH /tournaments/:id] rebuyEndLevel trace - BEFORE update:', {
         bodyRebuyEndLevel: body.rebuyEndLevel,
@@ -246,7 +253,13 @@ export async function PATCH(
       });
     }
 
-    return NextResponse.json(tournament);
+    // Add diagnostic headers for deployment verification
+    const response = NextResponse.json(tournament);
+    const headers = getDiagnosticHeaders();
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    return response;
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

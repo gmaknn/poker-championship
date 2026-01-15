@@ -369,6 +369,67 @@ describe('/api/tournaments/[id]', () => {
     });
   });
 
+  describe('PATCH - rebuyEndLevel=0 persistence', () => {
+    beforeEach(() => {
+      // Setup: tournament IN_PROGRESS owned by TD with rebuyEndLevel null
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
+        ...MOCK_TOURNAMENT,
+        status: 'IN_PROGRESS',
+        createdById: TEST_IDS.TD_PLAYER,
+        rebuyEndLevel: null,
+      });
+    });
+
+    it('should call Prisma with rebuyEndLevel=0 (not undefined, not null)', async () => {
+      const request = createAuthenticatedRequest(
+        '/api/tournaments/test-id',
+        TEST_IDS.TD_PLAYER,
+        { method: 'PATCH', body: { rebuyEndLevel: 0 } }
+      );
+
+      const response = await PATCH(request, { params: createParams('test-id') });
+
+      expect(response.status).toBe(200);
+
+      // CRITICAL: Verify Prisma was called with rebuyEndLevel: 0 (not undefined)
+      expect(mockPrisma.tournament.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            rebuyEndLevel: 0,
+          }),
+        })
+      );
+    });
+
+    it('should return rebuyEndLevel=0 in response body', async () => {
+      const request = createAuthenticatedRequest(
+        '/api/tournaments/test-id',
+        TEST_IDS.TD_PLAYER,
+        { method: 'PATCH', body: { rebuyEndLevel: 0 } }
+      );
+
+      const response = await PATCH(request, { params: createParams('test-id') });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.rebuyEndLevel).toBe(0);
+    });
+
+    it('should include diagnostic headers in response', async () => {
+      const request = createAuthenticatedRequest(
+        '/api/tournaments/test-id',
+        TEST_IDS.TD_PLAYER,
+        { method: 'PATCH', body: { rebuyEndLevel: 0 } }
+      );
+
+      const response = await PATCH(request, { params: createParams('test-id') });
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('X-App-Commit')).toBeTruthy();
+      expect(response.headers.get('X-Recipe-Diagnostics')).toBe('off');
+    });
+  });
+
   describe('PATCH - Finish Invariants', () => {
     beforeEach(() => {
       // Setup: tournament IN_PROGRESS owned by TD
