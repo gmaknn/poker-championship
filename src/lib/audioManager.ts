@@ -616,3 +616,22 @@ export const getTTSSpeed = (): number => {
   const manager = getAudioManager();
   return manager.getSpeed();
 };
+
+/**
+ * Get blind commentary enabled state from localStorage
+ * Default: true (enabled)
+ */
+export const getBlindCommentaryEnabled = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  const saved = localStorage.getItem('blind-commentary-enabled');
+  return saved === null ? true : saved === 'true';
+};
+
+/**
+ * Set blind commentary enabled state in localStorage
+ */
+export const setBlindCommentaryEnabled = (enabled: boolean): void => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('blind-commentary-enabled', enabled.toString());
+  }
+};
