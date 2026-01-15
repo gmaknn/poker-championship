@@ -390,7 +390,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
             </div>
 
             {/* Boutons de contrôle */}
-            <div className="flex items-center justify-center gap-4 pt-4">
+            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
               {!timerState.isRunning && !timerState.isPaused && (
                 <Button onClick={handleStart} size="lg">
                   <Play className="mr-2 h-5 w-5" />

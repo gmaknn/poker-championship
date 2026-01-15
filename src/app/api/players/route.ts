@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const players = await prisma.player.findMany({
       where: { status: 'ACTIVE' },
-      orderBy: { nickname: 'asc' },
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
       include: {
         _count: {
           select: {
