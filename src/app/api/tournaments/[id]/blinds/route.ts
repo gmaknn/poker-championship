@@ -85,6 +85,10 @@ export async function POST(
 
     console.log('[Blinds API] Tournament found, starting transaction');
 
+    // Trouver le niveau qui marque la fin des recaves (isRebuyEnd: true)
+    const rebuyEndLevel = validatedData.levels.find((level) => level.isRebuyEnd)?.level ?? null;
+    console.log('[Blinds API] rebuyEndLevel calculated:', rebuyEndLevel);
+
     // Supprimer les niveaux existants et créer les nouveaux
     await prisma.$transaction(async (tx) => {
       // Supprimer les niveaux existants
@@ -105,6 +109,12 @@ export async function POST(
           rebalanceTables: level.rebalanceTables ?? false,
           isRebuyEnd: level.isRebuyEnd ?? false,
         })),
+      });
+
+      // Mettre à jour Tournament.rebuyEndLevel pour que areRecavesOpen() fonctionne
+      await tx.tournament.update({
+        where: { id },
+        data: { rebuyEndLevel },
       });
     });
 
