@@ -359,5 +359,32 @@ export async function POST(
     return response;
   }
 
+  // Action: set-winner-rank
+  if (action === 'set-winner-rank') {
+    const { playerId } = body;
+
+    await prisma.tournamentPlayer.update({
+      where: {
+        tournamentId_playerId: {
+          tournamentId,
+          playerId,
+        },
+      },
+      data: { finalRank: 1 },
+    });
+
+    const response = NextResponse.json({
+      _diagnostic: true,
+      success: true,
+      message: `Set finalRank=1 for player ${playerId}`,
+    });
+
+    const headers = getDiagnosticHeaders();
+    Object.entries(headers).forEach(([key, value]) => {
+      response.headers.set(key, value);
+    });
+    return response;
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }
