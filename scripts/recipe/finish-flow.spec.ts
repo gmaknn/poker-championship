@@ -61,26 +61,10 @@ test.describe.serial('FINISH-FLOW GUARD', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // CRITICAL: rebuyEndLevel=0 persistence
+  // BUSTS (during recave period - BEFORE closing recaves)
   // ─────────────────────────────────────────────────────────────────────────
-  test('03 - PATCH rebuyEndLevel=0 and verify persistence', async () => {
-    const ok = await patchAndAssert<{ rebuyEndLevel?: number | null }>(
-      client, reporter,
-      'rebuyEndLevel=0',
-      `/api/tournaments/${ids.tournamentId}`,
-      { rebuyEndLevel: 0 },
-      (data) => ({
-        ok: data.rebuyEndLevel === 0,
-        details: data.rebuyEndLevel !== 0 ? `rebuyEndLevel=${data.rebuyEndLevel} (expected 0)` : undefined,
-      })
-    );
-    expect(ok).toBe(true);
-  });
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // BUSTS (recave period)
-  // ─────────────────────────────────────────────────────────────────────────
-  test('04 - Register busts (P4, P3 by P1)', async () => {
+  test('03 - Register busts during recave period (P4, P3 by P1)', async () => {
+    // Busts happen while recave period is still open (rebuyEndLevel not yet set)
     const busts = [
       { eliminatedId: ids.playerIds[3], killerId: ids.playerIds[0] },
       { eliminatedId: ids.playerIds[2], killerId: ids.playerIds[0] },
@@ -98,9 +82,27 @@ test.describe.serial('FINISH-FLOW GUARD', () => {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
+  // CRITICAL: rebuyEndLevel=0 persistence (closes recave period)
+  // ─────────────────────────────────────────────────────────────────────────
+  test('04 - PATCH rebuyEndLevel=0 and verify persistence', async () => {
+    // Close recave period: currentLevel(1) > rebuyEndLevel(0)
+    const ok = await patchAndAssert<{ rebuyEndLevel?: number | null }>(
+      client, reporter,
+      'rebuyEndLevel=0',
+      `/api/tournaments/${ids.tournamentId}`,
+      { rebuyEndLevel: 0 },
+      (data) => ({
+        ok: data.rebuyEndLevel === 0,
+        details: data.rebuyEndLevel !== 0 ? `rebuyEndLevel=${data.rebuyEndLevel} (expected 0)` : undefined,
+      })
+    );
+    expect(ok).toBe(true);
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
   // CRITICAL: Eliminations after recave closed
   // ─────────────────────────────────────────────────────────────────────────
-  test('05 - Eliminations (P4 rank 4, P3 rank 3)', async () => {
+  test('05 - Eliminations after recave closed (P4 rank 4, P3 rank 3)', async () => {
     const elims = [
       { eliminatorId: ids.playerIds[0], eliminatedId: ids.playerIds[3] },
       { eliminatorId: ids.playerIds[0], eliminatedId: ids.playerIds[2] },
