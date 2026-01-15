@@ -18,6 +18,10 @@ jobs:
     name: Unit Tests
     runs-on: ubuntu-latest
 
+    env:
+      # Database URL required for Prisma generate
+      DATABASE_URL: 'file:./test.db'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
