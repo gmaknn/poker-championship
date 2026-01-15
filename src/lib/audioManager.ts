@@ -482,6 +482,38 @@ class AudioManager {
   }
 
   /**
+   * Announce table rebalance reminder (TD reminder at end of level)
+   */
+  async announceRebalanceTables(): Promise<void> {
+    this.playJingle(); // Play jingle first to get attention
+
+    await new Promise(resolve => setTimeout(resolve, 700)); // Wait for jingle to finish
+
+    const announcement = 'Attention ! Réassignation des tables requise ! Veuillez équilibrer les tables.';
+
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: announcement }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.playAudioFromBase64(data.audioContent);
+        return;
+      }
+
+      const errorData = await response.json();
+      if (errorData.fallbackToNative) {
+        this.announceWithNativeSpeech(announcement);
+      }
+    } catch (error) {
+      this.announceWithNativeSpeech(announcement);
+    }
+  }
+
+  /**
    * Stop all sounds and speech
    */
   stopAll(): void {
@@ -583,6 +615,14 @@ export const announcePlayersRemaining = (count: number): void => {
 export const announceBreakComingSoon = (minutes: number): void => {
   const manager = getAudioManager();
   manager.announceBreakComingSoon(minutes);
+};
+
+/**
+ * Announce table rebalance reminder (TD reminder at end of level)
+ */
+export const announceRebalanceTables = (): void => {
+  const manager = getAudioManager();
+  manager.announceRebalanceTables();
 };
 
 /**
