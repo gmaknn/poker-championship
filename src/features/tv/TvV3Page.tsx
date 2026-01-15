@@ -966,91 +966,99 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         </div>
       )}
 
-      {/* Tables Plan Overlay */}
+      {/* Tables Plan Overlay - Large modal for TV readability */}
       {showTablesPlan && (
-        <div className="fixed inset-0 z-[9998] bg-black/80 flex items-center justify-center p-8">
+        <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
           <div
-            className="w-full max-w-6xl max-h-[90vh] overflow-auto rounded-2xl p-6"
+            className="w-[92vw] h-[88vh] overflow-hidden rounded-3xl p-8 flex flex-col"
             style={{ backgroundColor: currentTheme.colors.backgroundDark }}
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-                <LayoutGrid className="h-8 w-8" style={{ color: currentTheme.colors.primary }} />
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8 flex-shrink-0">
+              <h2 className="text-4xl font-bold text-white flex items-center gap-4">
+                <LayoutGrid className="h-10 w-10" style={{ color: currentTheme.colors.primary }} />
                 Plan des Tables
               </h2>
               <button
                 onClick={() => setShowTablesPlan(false)}
-                className="text-white/60 hover:text-white text-3xl font-bold"
+                className="text-white/60 hover:text-white text-4xl font-bold w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
               >
                 ×
               </button>
             </div>
 
-            {tablesPlanError ? (
-              <div className="text-center py-12">
-                <div className="text-red-400 text-xl font-bold mb-2">{tablesPlanError}</div>
-                <div className="text-white/60">
-                  {tablesPlanError === 'Accès refusé' && 'Seuls les admins et TD assignés peuvent voir le plan des tables.'}
-                  {tablesPlanError === 'Non authentifié' && 'Vous devez être connecté pour voir le plan des tables.'}
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto">
+              {tablesPlanError ? (
+                <div className="text-center py-16">
+                  <div className="text-red-400 text-2xl font-bold mb-3">{tablesPlanError}</div>
+                  <div className="text-white/60 text-lg">
+                    {tablesPlanError === 'Accès refusé' && 'Seuls les admins et TD assignés peuvent voir le plan des tables.'}
+                    {tablesPlanError === 'Non authentifié' && 'Vous devez être connecté pour voir le plan des tables.'}
+                  </div>
                 </div>
-              </div>
-            ) : !tablesPlanData ? (
-              <div className="text-center py-12">
-                <div className="text-white/60 text-xl">Chargement...</div>
-              </div>
-            ) : tablesPlanData.tables.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-white/60 text-xl">Aucune table configurée</div>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                  {tablesPlanData.tables.map((table) => (
-                    <div
-                      key={table.tableNumber}
-                      className="rounded-xl p-4 border-2"
-                      style={{
-                        backgroundColor: currentTheme.colors.backgroundLight,
-                        borderColor: currentTheme.colors.border,
-                      }}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-lg font-bold" style={{ color: currentTheme.colors.primary }}>
-                          Table {table.tableNumber}
-                        </h3>
-                        <span className="text-sm text-white/60">
-                          {table.activeCount}/{table.totalCount}
-                        </span>
+              ) : !tablesPlanData ? (
+                <div className="text-center py-16">
+                  <div className="text-white/60 text-2xl">Chargement...</div>
+                </div>
+              ) : tablesPlanData.tables.length === 0 ? (
+                <div className="text-center py-16">
+                  <div className="text-white/60 text-2xl">Aucune table configurée</div>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                    {tablesPlanData.tables.map((table) => (
+                      <div
+                        key={table.tableNumber}
+                        className="rounded-2xl p-5 border-2"
+                        style={{
+                          backgroundColor: currentTheme.colors.backgroundLight,
+                          borderColor: currentTheme.colors.border,
+                        }}
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-2xl font-bold" style={{ color: currentTheme.colors.primary }}>
+                            Table {table.tableNumber}
+                          </h3>
+                          <span className="text-lg text-white/60 font-semibold">
+                            {table.activeCount}/{table.totalCount}
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {table.seats.map((seat, idx) => (
+                            <div
+                              key={seat.playerId}
+                              className={`flex items-center gap-3 text-lg p-3 rounded-xl ${
+                                seat.isEliminated ? 'opacity-40 line-through' : ''
+                              }`}
+                              style={{
+                                backgroundColor: seat.isEliminated
+                                  ? 'transparent'
+                                  : `${currentTheme.colors.primary}20`,
+                              }}
+                            >
+                              <span className="text-white/60 font-mono w-8 text-base">
+                                {seat.seatNumber ?? idx + 1}.
+                              </span>
+                              <span className="text-white font-medium truncate">
+                                {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        {table.seats.map((seat, idx) => (
-                          <div
-                            key={seat.playerId}
-                            className={`flex items-center gap-2 text-sm p-2 rounded-lg ${
-                              seat.isEliminated ? 'opacity-40 line-through' : ''
-                            }`}
-                            style={{
-                              backgroundColor: seat.isEliminated
-                                ? 'transparent'
-                                : `${currentTheme.colors.primary}20`,
-                            }}
-                          >
-                            <span className="text-white/60 font-mono w-6">
-                              {seat.seatNumber ?? idx + 1}.
-                            </span>
-                            <span className="text-white font-medium truncate">
-                              {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-6 text-center text-white/60 text-sm">
-                  {tablesPlanData.totalTables} tables • {tablesPlanData.totalActivePlayers} joueurs actifs / {tablesPlanData.totalPlayers} total
-                </div>
-              </>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer - Stats */}
+            {tablesPlanData && tablesPlanData.tables.length > 0 && (
+              <div className="mt-6 pt-4 border-t border-white/10 text-center text-white/60 text-lg flex-shrink-0">
+                {tablesPlanData.totalTables} tables • {tablesPlanData.totalActivePlayers} joueurs actifs / {tablesPlanData.totalPlayers} total
+              </div>
             )}
           </div>
         </div>
