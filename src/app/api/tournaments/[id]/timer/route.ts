@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { areRecavesOpen } from '@/lib/tournament-utils';
 
+// Force dynamic rendering - no caching for live timer state
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET - Récupérer l'état actuel du timer
 export async function GET(
   request: NextRequest,
@@ -80,7 +84,7 @@ export async function GET(
     // Déterminer si les recaves sont ouvertes (inclut la pause après "Fin recaves")
     const recavesOpen = areRecavesOpen(tournament, calculatedLevel, tournament.blindLevels);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       tournamentId: tournament.id,
       status: tournament.status,
       isRunning,
@@ -94,6 +98,13 @@ export async function GET(
       recavesOpen,
       rebuyEndLevel: tournament.rebuyEndLevel,
     });
+
+    // Disable all caching for live timer state
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+
+    return response;
   } catch (error) {
     console.error('Error fetching timer state:', error);
     return NextResponse.json(
