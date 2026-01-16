@@ -1058,14 +1058,14 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                               }`}
                               style={{
                                 backgroundColor: seat.isEliminated
-                                  ? 'transparent'
-                                  : `${currentTheme.colors.primary}15`,
+                                  ? 'rgba(255,255,255,0.3)'
+                                  : 'rgba(255,255,255,0.9)',
                               }}
                             >
-                              <span className="text-slate-400 text-sm font-medium whitespace-nowrap">
+                              <span className="text-slate-500 text-sm font-medium whitespace-nowrap">
                                 Siège {seat.seatNumber ?? idx + 1}
                               </span>
-                              <span className={`text-white font-bold text-xl uppercase truncate ${
+                              <span className={`text-slate-900 font-bold text-xl uppercase truncate ${
                                 seat.isEliminated ? 'line-through' : ''
                               }`}>
                                 {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
