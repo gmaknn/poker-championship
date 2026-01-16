@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
-import Image from 'next/image';
+// Using native img for avatars to avoid next/image restrictions with external SVGs
 import { PageHeader } from '@/components/PageHeader';
 import { normalizeAvatarSrc } from '@/lib/utils';
 
@@ -717,12 +717,15 @@ export default function TournamentsPage() {
                       {/* 1ère place */}
                       <div className="flex-1 flex flex-col items-center p-2 rounded-md border-2 border-yellow-500 bg-yellow-500/5">
                         {getAvatarUrl(tournament.podium[0].player.avatar) ? (
-                          <Image
+                          <img
                             src={getAvatarUrl(tournament.podium[0].player.avatar)!}
                             alt={tournament.podium[0].player.nickname}
                             width={40}
                             height={40}
                             className="rounded-full border-2 border-yellow-500 mb-1"
+                            loading="lazy"
+                            decoding="async"
+                            referrerPolicy="no-referrer"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-yellow-500 mb-1">
@@ -739,12 +742,15 @@ export default function TournamentsPage() {
                       {/* 2e place */}
                       <div className="flex-1 flex flex-col items-center p-2 rounded-md border border-gray-400 bg-gray-400/5">
                         {getAvatarUrl(tournament.podium[1].player.avatar) ? (
-                          <Image
+                          <img
                             src={getAvatarUrl(tournament.podium[1].player.avatar)!}
                             alt={tournament.podium[1].player.nickname}
                             width={32}
                             height={32}
                             className="rounded-full border border-gray-400 mb-1"
+                            loading="lazy"
+                            decoding="async"
+                            referrerPolicy="no-referrer"
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-gray-400 mb-1">
@@ -761,12 +767,15 @@ export default function TournamentsPage() {
                       {/* 3e place */}
                       <div className="flex-1 flex flex-col items-center p-2 rounded-md border border-amber-700 bg-amber-700/5">
                         {getAvatarUrl(tournament.podium[2].player.avatar) ? (
-                          <Image
+                          <img
                             src={getAvatarUrl(tournament.podium[2].player.avatar)!}
                             alt={tournament.podium[2].player.nickname}
                             width={32}
                             height={32}
                             className="rounded-full border border-amber-700 mb-1"
+                            loading="lazy"
+                            decoding="async"
+                            referrerPolicy="no-referrer"
                           />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-amber-700 mb-1">
@@ -898,12 +907,15 @@ export default function TournamentsPage() {
                           {/* 1ère place */}
                           <div className="flex items-center gap-1 px-2 py-1 rounded-md border-2 border-yellow-500 bg-yellow-500/5">
                             {getAvatarUrl(tournament.podium[0].player.avatar) ? (
-                              <Image
+                              <img
                                 src={getAvatarUrl(tournament.podium[0].player.avatar)!}
                                 alt={tournament.podium[0].player.nickname}
                                 width={24}
                                 height={24}
                                 className="rounded-full border border-yellow-500"
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
                               />
                             ) : (
                               <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center border border-yellow-500">
@@ -919,12 +931,15 @@ export default function TournamentsPage() {
                           {/* 2e place */}
                           <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-gray-400 bg-gray-400/5">
                             {getAvatarUrl(tournament.podium[1].player.avatar) ? (
-                              <Image
+                              <img
                                 src={getAvatarUrl(tournament.podium[1].player.avatar)!}
                                 alt={tournament.podium[1].player.nickname}
                                 width={24}
                                 height={24}
                                 className="rounded-full border border-gray-400"
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
                               />
                             ) : (
                               <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center border border-gray-400">
@@ -940,12 +955,15 @@ export default function TournamentsPage() {
                           {/* 3e place */}
                           <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-amber-700 bg-amber-700/5">
                             {getAvatarUrl(tournament.podium[2].player.avatar) ? (
-                              <Image
+                              <img
                                 src={getAvatarUrl(tournament.podium[2].player.avatar)!}
                                 alt={tournament.podium[2].player.nickname}
                                 width={24}
                                 height={24}
                                 className="rounded-full border border-amber-700"
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
                               />
                             ) : (
                               <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center border border-amber-700">
