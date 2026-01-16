@@ -68,6 +68,7 @@ type Props = {
   startingChips: number;
   onSave?: () => void;
   onUnsavedChangesChange?: (hasChanges: boolean) => void;
+  readOnly?: boolean;
 };
 
 export default function BlindStructureEditor({
@@ -75,6 +76,7 @@ export default function BlindStructureEditor({
   startingChips,
   onSave,
   onUnsavedChangesChange,
+  readOnly = false,
 }: Props) {
   const [levels, setLevels] = useState<BlindLevel[]>([]);
   const [stats, setStats] = useState<BlindStats | null>(null);
@@ -422,6 +424,14 @@ export default function BlindStructureEditor({
 
   return (
     <div className="space-y-6">
+      {/* Bandeau lecture seule */}
+      {readOnly && (
+        <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
+          <Info className="h-5 w-5" />
+          <span>Tournoi terminé - Structure en lecture seule</span>
+        </div>
+      )}
+
       {/* Header avec actions */}
       <div className="flex items-center justify-between">
         <div>
@@ -433,32 +443,34 @@ export default function BlindStructureEditor({
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setIsGenerateDialogOpen(true)}
-          >
-            <Wand2 className="mr-2 h-4 w-4" />
-            Générer
-          </Button>
-          {levels.length > 0 && (
+        {!readOnly && (
+          <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => setIsSaveTemplateDialogOpen(true)}
-              disabled={isSaving}
+              onClick={() => setIsGenerateDialogOpen(true)}
             >
-              <FileText className="mr-2 h-4 w-4" />
-              Sauvegarder comme template
+              <Wand2 className="mr-2 h-4 w-4" />
+              Générer
             </Button>
-          )}
-          <Button
-            onClick={handleSave}
-            disabled={isSaving || levels.length === 0}
-          >
-            <Save className="mr-2 h-4 w-4" />
-            {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
-          </Button>
-        </div>
+            {levels.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={() => setIsSaveTemplateDialogOpen(true)}
+                disabled={isSaving}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Sauvegarder comme template
+              </Button>
+            )}
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || levels.length === 0}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+            </Button>
+          </div>
+        )}
       </div>
 
       {!chipConfig && (
@@ -579,17 +591,19 @@ export default function BlindStructureEditor({
         </Card>
       ) : (
         <div className="space-y-4">
-          {/* Boutons en haut */}
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleAddLevel} className="flex-1">
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter un niveau
-            </Button>
-            <Button variant="outline" onClick={handleAddBreak} className="flex-1">
-              <Coffee className="mr-2 h-4 w-4" />
-              Ajouter une pause
-            </Button>
-          </div>
+          {/* Boutons en haut - masqués en lecture seule */}
+          {!readOnly && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleAddLevel} className="flex-1">
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter un niveau
+              </Button>
+              <Button variant="outline" onClick={handleAddBreak} className="flex-1">
+                <Coffee className="mr-2 h-4 w-4" />
+                Ajouter une pause
+              </Button>
+            </div>
+          )}
 
           {/* Scrollable container with sticky header */}
           <div className="max-h-[600px] overflow-y-auto rounded-lg border">
@@ -799,16 +813,18 @@ export default function BlindStructureEditor({
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleAddLevel} className="flex-1">
-              <Plus className="mr-2 h-4 w-4" />
-              Ajouter un niveau
-            </Button>
-            <Button variant="outline" onClick={handleAddBreak} className="flex-1">
-              <Coffee className="mr-2 h-4 w-4" />
-              Ajouter une pause
-            </Button>
-          </div>
+          {!readOnly && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleAddLevel} className="flex-1">
+                <Plus className="mr-2 h-4 w-4" />
+                Ajouter un niveau
+              </Button>
+              <Button variant="outline" onClick={handleAddBreak} className="flex-1">
+                <Coffee className="mr-2 h-4 w-4" />
+                Ajouter une pause
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

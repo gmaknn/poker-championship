@@ -6,6 +6,115 @@ import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
 
+// Type for detailed points configuration
+interface DetailedPointsConfig {
+  type: 'DETAILED';
+  byRank: Record<string, number>;
+  rank19Plus: number;
+}
+
+/**
+ * Get rank points using detailed config if available, otherwise fall back to legacy fields
+ */
+function getRankPointsForPosition(
+  rank: number,
+  season: {
+    detailedPointsConfig?: unknown;
+    pointsFirst: number;
+    pointsSecond: number;
+    pointsThird: number;
+    pointsFourth: number;
+    pointsFifth: number;
+    pointsSixth: number;
+    pointsSeventh: number;
+    pointsEighth: number;
+    pointsNinth: number;
+    pointsTenth: number;
+    pointsEleventh: number;
+    pointsSixteenth: number;
+  }
+): number {
+  const config = season.detailedPointsConfig as DetailedPointsConfig | null;
+  if (config && config.type === 'DETAILED' && config.byRank) {
+    const pointsForRank = config.byRank[String(rank)];
+    if (pointsForRank !== undefined) {
+      return pointsForRank;
+    }
+    return config.rank19Plus ?? 0;
+  }
+
+  const legacyPointsMap: Record<number, number> = {
+    1: season.pointsFirst,
+    2: season.pointsSecond,
+    3: season.pointsThird,
+    4: season.pointsFourth,
+    5: season.pointsFifth,
+    6: season.pointsSixth,
+    7: season.pointsSeventh,
+    8: season.pointsEighth,
+    9: season.pointsNinth,
+    10: season.pointsTenth,
+  };
+
+  if (legacyPointsMap[rank] !== undefined) {
+    return legacyPointsMap[rank];
+  }
+
+  if (rank >= 11 && rank <= 15) {
+    return season.pointsEleventh;
+  }
+
+  return season.pointsSixteenth;
+}
+
+/**
+ * Calculate and save points for all players when tournament finishes
+ */
+async function calculateAndSavePoints(tournamentId: string): Promise<void> {
+  const tournament = await prisma.tournament.findUnique({
+    where: { id: tournamentId },
+    include: {
+      season: true,
+      tournamentPlayers: true,
+    },
+  });
+
+  if (!tournament || !tournament.season || tournament.type !== 'CHAMPIONSHIP') {
+    return; // Points only for CHAMPIONSHIP tournaments with a season
+  }
+
+  const updates = tournament.tournamentPlayers.map(async (tp) => {
+    let rankPoints = 0;
+    let eliminationPoints = 0;
+    let bonusPoints = 0;
+
+    if (tp.finalRank !== null) {
+      rankPoints = getRankPointsForPosition(tp.finalRank, tournament.season!);
+      eliminationPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+      bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus;
+    }
+
+    const totalPoints = rankPoints + eliminationPoints + bonusPoints + tp.penaltyPoints;
+
+    return prisma.tournamentPlayer.update({
+      where: {
+        tournamentId_playerId: {
+          tournamentId,
+          playerId: tp.playerId,
+        },
+      },
+      data: {
+        rankPoints,
+        eliminationPoints,
+        bonusPoints,
+        totalPoints,
+      },
+    });
+  });
+
+  await Promise.all(updates);
+}
+
 const eliminationSchema = z.object({
   eliminatedId: z.string().cuid(),
   eliminatorId: z.string().cuid(),
@@ -346,6 +455,9 @@ export async function POST(
         });
 
         tournamentCompleted = true;
+
+        // Calculer et sauvegarder les points pour le leaderboard saison
+        await calculateAndSavePoints(tournamentId);
 
         // Émettre les événements de fin de tournoi
         emitToTournament(tournamentId, 'elimination:tournament_complete', {

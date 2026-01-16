@@ -49,9 +49,10 @@ type TablesData = {
 type Props = {
   tournamentId: string;
   onUpdate?: () => void;
+  readOnly?: boolean;
 };
 
-export default function TableDistribution({ tournamentId, onUpdate }: Props) {
+export default function TableDistribution({ tournamentId, onUpdate, readOnly = false }: Props) {
   const [tablesData, setTablesData] = useState<TablesData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
@@ -178,6 +179,14 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
   if (!tablesData || tablesData.tables.length === 0) {
     return (
       <div className="space-y-6">
+        {/* Bandeau lecture seule */}
+        {readOnly && (
+          <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
+            <Grid3x3 className="h-5 w-5" />
+            <span>Tournoi terminé - Tables en lecture seule</span>
+          </div>
+        )}
+
         {error && (
           <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
             {error}
@@ -188,12 +197,14 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
           <CardContent className="py-8 text-center">
             <Grid3x3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">
-              Aucune distribution de tables n'a été générée
+              {readOnly ? 'Aucune distribution de tables pour ce tournoi' : 'Aucune distribution de tables n\'a été générée'}
             </p>
-            <Button onClick={() => setIsGenerateDialogOpen(true)}>
-              <Shuffle className="mr-2 h-4 w-4" />
-              Générer la distribution des tables
-            </Button>
+            {!readOnly && (
+              <Button onClick={() => setIsGenerateDialogOpen(true)}>
+                <Shuffle className="mr-2 h-4 w-4" />
+                Générer la distribution des tables
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -250,6 +261,14 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
   // Afficher les tables
   return (
     <div className="space-y-6">
+      {/* Bandeau lecture seule */}
+      {readOnly && (
+        <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
+          <Grid3x3 className="h-5 w-5" />
+          <span>Tournoi terminé - Tables en lecture seule</span>
+        </div>
+      )}
+
       {error && (
         <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
           {error}
@@ -272,32 +291,34 @@ export default function TableDistribution({ tournamentId, onUpdate }: Props) {
             <span className="text-muted-foreground">joueurs actifs</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsRebalanceDialogOpen(true)}
-            disabled={isRebalancing}
-          >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Rééquilibrer
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsGenerateDialogOpen(true)}
-          >
-            <Shuffle className="mr-2 h-4 w-4" />
-            Régénérer
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDeleteTables}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsRebalanceDialogOpen(true)}
+              disabled={isRebalancing}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Rééquilibrer
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsGenerateDialogOpen(true)}
+            >
+              <Shuffle className="mr-2 h-4 w-4" />
+              Régénérer
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDeleteTables}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Grille des tables */}

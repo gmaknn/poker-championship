@@ -283,6 +283,14 @@ export default function TournamentPlayersManager({
 
   return (
     <div className="space-y-6">
+      {/* Bandeau lecture seule si tournoi terminé */}
+      {tournament.status === 'FINISHED' && (
+        <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
+          <Users className="h-5 w-5" />
+          <span>Tournoi terminé - Joueurs en lecture seule</span>
+        </div>
+      )}
+
       {/* Header avec stats et bouton d'inscription */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -294,22 +302,24 @@ export default function TournamentPlayersManager({
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {canRebuy && totalRebuys > 0 && (
-            <Button
-              variant="outline"
-              onClick={handleCancelLastRebuy}
-              disabled={isCancellingRebuy}
-            >
-              <Undo2 className="mr-2 h-4 w-4" />
-              {isCancellingRebuy ? 'Annulation...' : 'Annuler dernière recave'}
+        {tournament.status !== 'FINISHED' && (
+          <div className="flex items-center gap-2">
+            {canRebuy && totalRebuys > 0 && (
+              <Button
+                variant="outline"
+                onClick={handleCancelLastRebuy}
+                disabled={isCancellingRebuy}
+              >
+                <Undo2 className="mr-2 h-4 w-4" />
+                {isCancellingRebuy ? 'Annulation...' : 'Annuler dernière recave'}
+              </Button>
+            )}
+            <Button onClick={() => setIsEnrollDialogOpen(true)} disabled={tournament.status !== 'PLANNED'}>
+              <Plus className="mr-2 h-4 w-4" />
+              Inscrire des joueurs
             </Button>
-          )}
-          <Button onClick={() => setIsEnrollDialogOpen(true)} disabled={tournament.status !== 'PLANNED'}>
-            <Plus className="mr-2 h-4 w-4" />
-            Inscrire des joueurs
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Liste des joueurs inscrits */}
