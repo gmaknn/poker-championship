@@ -34,6 +34,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/server.js ./
 COPY --from=builder /app/create-admin-player.js ./
 COPY --from=builder /app/reset-prod.js ./
+COPY --from=builder /app/purge-prod-safe.js ./
 
 # Variables d'environnement
 ENV NODE_ENV=production
