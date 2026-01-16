@@ -209,7 +209,25 @@ describe('API /api/tournaments/[id]/rebuys RBAC', () => {
       expect(response.status).toBe(200);
     });
 
-    it('should return 200 for light rebuy when enabled', async () => {
+    it('should return 200 for light rebuy when enabled (recaves closed + timer paused)', async () => {
+      // Light rebuy requires: recaves closed (effectiveLevel > rebuyEndLevel) + timer paused
+      mockPrismaClient.tournament.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+        if (where.id === TEST_IDS.TOURNAMENT) {
+          return Promise.resolve({
+            ...MOCK_TOURNAMENT_REBUY,
+            // Recaves terminées: niveau effectif > rebuyEndLevel
+            timerElapsedSeconds: 5000, // Après niveau 6 (72 min = 4320 sec)
+            // Timer en pause pour permettre light rebuy
+            timerPausedAt: new Date(),
+            blindLevels: MOCK_TOURNAMENT_REBUY.blindLevels.map(bl => ({
+              ...bl,
+              isBreak: false, // Pas de break, mais timer en pause
+            })),
+          });
+        }
+        return Promise.resolve(null);
+      });
+
       const request = createAuthenticatedRequest(
         `/api/tournaments/${TEST_IDS.TOURNAMENT}/rebuys`,
         TEST_IDS.TD_PLAYER,
@@ -375,6 +393,22 @@ describe('API /api/tournaments/[id]/rebuys RBAC', () => {
     });
 
     it('should return 400 when light rebuy already used', async () => {
+      // Setup: recaves terminées + timer en pause pour que la light rebuy soit possible
+      mockPrismaClient.tournament.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+        if (where.id === TEST_IDS.TOURNAMENT) {
+          return Promise.resolve({
+            ...MOCK_TOURNAMENT_REBUY,
+            timerElapsedSeconds: 5000, // Après rebuyEndLevel
+            timerPausedAt: new Date(),
+            blindLevels: MOCK_TOURNAMENT_REBUY.blindLevels.map(bl => ({
+              ...bl,
+              isBreak: false,
+            })),
+          });
+        }
+        return Promise.resolve(null);
+      });
+
       mockPrismaClient.tournamentPlayer.findUnique.mockResolvedValue({
         ...MOCK_TOURNAMENT_PLAYER,
         lightRebuyUsed: true,

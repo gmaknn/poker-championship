@@ -147,7 +147,11 @@ describe('API /api/tournaments/[id]/eliminations RBAC', () => {
       update: jest.fn().mockResolvedValue({}),
       count: jest.fn().mockResolvedValue(5),
       aggregate: jest.fn().mockResolvedValue({ _sum: {} }),
+      groupBy: jest.fn().mockResolvedValue([]), // Pour getSeasonLeader (J1 scenario = pas de leader)
     };
+
+    // Setup tournament.findMany mock for getSeasonLeader
+    mockPrismaClient.tournament.findMany = jest.fn().mockResolvedValue([]);
 
     // Setup transaction mock - updated for atomic transaction
     mockPrismaClient.$transaction = jest.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {

@@ -56,6 +56,49 @@ export type LeaderboardResult = {
 };
 
 /**
+ * Get the current season leader (player with most points from FINISHED tournaments)
+ * Returns null if no tournaments have been completed yet (J1 scenario)
+ */
+export async function getSeasonLeader(seasonId: string): Promise<string | null> {
+  // Get all finished championship tournaments for this season
+  const finishedTournaments = await prisma.tournament.findMany({
+    where: {
+      seasonId,
+      status: 'FINISHED',
+      type: 'CHAMPIONSHIP',
+    },
+    select: { id: true },
+  });
+
+  // J1 guard: if no completed tournaments, there's no leader
+  if (finishedTournaments.length === 0) {
+    return null;
+  }
+
+  // Aggregate points by player from finished tournaments
+  const playerPoints = await prisma.tournamentPlayer.groupBy({
+    by: ['playerId'],
+    where: {
+      tournamentId: {
+        in: finishedTournaments.map(t => t.id),
+      },
+    },
+    _sum: {
+      totalPoints: true,
+    },
+    orderBy: {
+      _sum: {
+        totalPoints: 'desc',
+      },
+    },
+    take: 1,
+  });
+
+  // Return the leader's playerId or null if no players found
+  return playerPoints.length > 0 ? playerPoints[0].playerId : null;
+}
+
+/**
  * Calculate leaderboard for a season
  * Can be called directly without HTTP fetch
  */
