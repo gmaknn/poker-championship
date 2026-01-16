@@ -28,6 +28,7 @@ const PLAYER_B_ID = 'cltestplayerb00000002';
 
 // Mock tournament data with players enrolled
 // rebuyEndLevel: 2 et currentLevel: 3 => recaves fermées (currentLevel > rebuyEndLevel)
+// timerElapsedSeconds: 1500 sec = 25 min = après niveau 2 (niveau 3)
 const MOCK_TOURNAMENT_ELIM = {
   id: TEST_IDS.TOURNAMENT,
   name: 'Test Tournament',
@@ -40,6 +41,14 @@ const MOCK_TOURNAMENT_ELIM = {
   currentLevel: 3,
   rebuyEndLevel: 2, // Recaves fermées (currentLevel 3 > rebuyEndLevel 2)
   createdById: TEST_IDS.TD_PLAYER,
+  timerStartedAt: null,
+  timerPausedAt: null,
+  timerElapsedSeconds: 1500, // 25 min = après niveau 2 (12+12=24 min), donc niveau 3
+  blindLevels: [
+    { level: 1, duration: 12 },
+    { level: 2, duration: 12 },
+    { level: 3, duration: 12 },
+  ],
   season: MOCK_SEASON,
   tournamentPlayers: [
     {
@@ -413,12 +422,14 @@ describe('API /api/tournaments/[id]/eliminations RBAC', () => {
 
     it('should return 400 when rebuyEndLevel=1 and currentLevel=1 (recaves still open)', async () => {
       // rebuyEndLevel=1, currentLevel=1 => 1 <= 1 => recaves OUVERTES
+      // Doit réinitialiser timerElapsedSeconds à 0 pour que le niveau effectif soit 1
       mockPrismaClient.tournament.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
         if (where.id === TEST_IDS.TOURNAMENT) {
           return Promise.resolve({
             ...MOCK_TOURNAMENT_ELIM,
             currentLevel: 1,
             rebuyEndLevel: 1, // currentLevel <= rebuyEndLevel => recaves ouvertes
+            timerElapsedSeconds: 0, // Réinitialiser pour niveau effectif = 1
           });
         }
         return Promise.resolve(null);

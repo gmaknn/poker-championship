@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SectionCard } from '@/components/ui/section-card';
-import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -23,6 +23,7 @@ type TournamentPlayer = {
   eliminationsCount: number;
   leaderKills: number;
   rebuysCount: number;
+  lightRebuyUsed: boolean;
   player: Player;
 };
 
@@ -53,6 +54,8 @@ type Tournament = {
   status: string;
   currentLevel: number;
   rebuyEndLevel: number | null;
+  lightRebuyEnabled: boolean;
+  lightRebuyAmount: number;
 };
 
 type Props = {
@@ -61,11 +64,12 @@ type Props = {
 };
 
 // Fonction utilitaire pour déterminer si les recaves sont ouvertes
-function areRecavesOpen(tournament: Tournament | null): boolean {
+// Utilise le niveau effectif (calculé depuis le timer) au lieu du niveau DB
+function areRecavesOpen(tournament: Tournament | null, effectiveLevel: number): boolean {
   if (!tournament) return false;
   if (tournament.status !== 'IN_PROGRESS') return false;
   if (tournament.rebuyEndLevel === null) return true;
-  return tournament.currentLevel <= tournament.rebuyEndLevel;
+  return effectiveLevel <= tournament.rebuyEndLevel;
 }
 
 export default function EliminationManager({ tournamentId, onUpdate }: Props) {
@@ -78,12 +82,39 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  // Niveau effectif calculé depuis le timer (pas la valeur DB qui n'est pas synchronisée)
+  const [effectiveLevel, setEffectiveLevel] = useState(1);
+  // Light rebuy state
+  const [lightRebuyAmount, setLightRebuyAmount] = useState(5);
+  const [isLightRebuySubmitting, setIsLightRebuySubmitting] = useState<string | null>(null);
 
-  const recavesOpen = areRecavesOpen(tournament);
+  const recavesOpen = areRecavesOpen(tournament, effectiveLevel);
 
   useEffect(() => {
     fetchData();
   }, [tournamentId]);
+
+  // Polling du niveau timer toutes les 10 secondes pour détecter la transition recaves->éliminations
+  useEffect(() => {
+    if (!tournament || tournament.status !== 'IN_PROGRESS') return;
+
+    const pollTimer = async () => {
+      try {
+        const timerResponse = await fetch(`/api/tournaments/${tournamentId}/timer`);
+        if (timerResponse.ok) {
+          const timerData = await timerResponse.json();
+          if (timerData.currentLevel && timerData.currentLevel !== effectiveLevel) {
+            setEffectiveLevel(timerData.currentLevel);
+          }
+        }
+      } catch (error) {
+        // Silently ignore polling errors
+      }
+    };
+
+    const interval = setInterval(pollTimer, 10000);
+    return () => clearInterval(interval);
+  }, [tournamentId, tournament?.status, effectiveLevel]);
 
   const fetchData = async () => {
     try {
@@ -92,6 +123,20 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (tournamentResponse.ok) {
         const tournamentData = await tournamentResponse.json();
         setTournament(tournamentData);
+        // Initialiser le montant light rebuy depuis la config tournoi
+        if (tournamentData.lightRebuyAmount) {
+          setLightRebuyAmount(tournamentData.lightRebuyAmount);
+        }
+      }
+
+      // Récupérer le niveau effectif depuis le timer (pas la valeur DB qui n'est pas synchronisée)
+      const timerResponse = await fetch(`/api/tournaments/${tournamentId}/timer`);
+      if (timerResponse.ok) {
+        const timerData = await timerResponse.json();
+        // Le timer calcule le niveau réel basé sur le temps écoulé
+        if (timerData.currentLevel) {
+          setEffectiveLevel(timerData.currentLevel);
+        }
       }
 
       // Récupérer les joueurs inscrits
@@ -265,6 +310,38 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     }
   };
 
+  // Gérer l'application du light rebuy sur un joueur
+  const handleLightRebuy = async (playerId: string) => {
+    if (!tournament?.lightRebuyEnabled) return;
+
+    setIsLightRebuySubmitting(playerId);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/rebuys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId,
+          type: 'LIGHT',
+        }),
+      });
+
+      if (response.ok) {
+        await fetchData();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de l\'application du light rebuy');
+      }
+    } catch (error) {
+      console.error('Error applying light rebuy:', error);
+      setError('Erreur lors de l\'application du light rebuy');
+    } finally {
+      setIsLightRebuySubmitting(null);
+    }
+  };
+
   const activePlayers = players
     .filter((p) => p.finalRank === null)
     .sort((a, b) => a.player.firstName.localeCompare(b.player.firstName));
@@ -309,7 +386,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 <div>
                   <span className="font-medium text-amber-600">Période de recaves</span>
                   <span className="text-muted-foreground ml-2">
-                    (niveau {tournament.currentLevel}/{tournament.rebuyEndLevel || '∞'})
+                    (niveau {effectiveLevel}/{tournament.rebuyEndLevel || '∞'})
                   </span>
                 </div>
               </>
@@ -398,7 +475,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                   <select
                     value={selectedEliminated}
                     onChange={(e) => setSelectedEliminated(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                    className="w-full rounded-md border border-input bg-background px-3 py-3 min-h-[44px] text-base"
                     disabled={isSubmitting}
                   >
                     <option value="">Sélectionner...</option>
@@ -417,7 +494,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                   <select
                     value={selectedEliminator}
                     onChange={(e) => setSelectedEliminator(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                    className="w-full rounded-md border border-input bg-background px-3 py-3 min-h-[44px] text-base"
                     disabled={isSubmitting}
                   >
                     <option value="">Non spécifié</option>
@@ -434,8 +511,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 </div>
               </div>
 
-              <Button type="submit" disabled={isSubmitting} className="w-full bg-amber-600 hover:bg-amber-700">
-                <RefreshCw className="mr-2 h-4 w-4" />
+              <Button type="submit" disabled={isSubmitting} className="w-full bg-amber-600 hover:bg-amber-700 min-h-[48px] text-base">
+                <RefreshCw className="mr-2 h-5 w-5" />
                 Enregistrer le bust
               </Button>
             </form>
@@ -462,7 +539,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                   <select
                     value={selectedEliminated}
                     onChange={(e) => setSelectedEliminated(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                    className="w-full rounded-md border border-input bg-background px-3 py-3 min-h-[44px] text-base"
                     disabled={isSubmitting}
                   >
                     <option value="">Sélectionner...</option>
@@ -480,7 +557,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                   <select
                     value={selectedEliminator}
                     onChange={(e) => setSelectedEliminator(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                    className="w-full rounded-md border border-input bg-background px-3 py-3 min-h-[44px] text-base"
                     disabled={isSubmitting}
                   >
                     <option value="">Sélectionner...</option>
@@ -497,11 +574,69 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 </div>
               </div>
 
-              <Button type="submit" disabled={isSubmitting} className="w-full bg-red-600 hover:bg-red-700">
-                <Skull className="mr-2 h-4 w-4" />
+              <Button type="submit" disabled={isSubmitting} className="w-full bg-red-600 hover:bg-red-700 min-h-[48px] text-base">
+                <Skull className="mr-2 h-5 w-5" />
                 Enregistrer l'élimination
               </Button>
             </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Light Rebuy - affiché après fin des recaves si activé */}
+      {!recavesOpen && tournament?.lightRebuyEnabled && (
+        <Card className="border-green-500/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-green-500" />
+              Light Rebuy ({lightRebuyAmount}€)
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Recave allégée disponible une seule fois par joueur
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {activePlayers.map((p) => (
+                <div
+                  key={p.playerId}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-2"
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium">
+                      {p.player.nickname}
+                    </span>
+                    <span className="text-muted-foreground text-sm hidden sm:inline">
+                      ({p.player.firstName} {p.player.lastName})
+                    </span>
+                    {p.lightRebuyUsed && (
+                      <Badge variant="secondary" className="bg-green-500/10 text-green-600">
+                        <Check className="h-3 w-3 mr-1" />
+                        Light utilisé
+                      </Badge>
+                    )}
+                  </div>
+                  {!p.lightRebuyUsed && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-green-500 text-green-600 hover:bg-green-500/10 min-h-[44px] min-w-[80px]"
+                      onClick={() => handleLightRebuy(p.playerId)}
+                      disabled={isLightRebuySubmitting === p.playerId}
+                    >
+                      {isLightRebuySubmitting === p.playerId ? (
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Coins className="h-4 w-4 mr-1" />
+                          Light
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}

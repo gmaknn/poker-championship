@@ -57,6 +57,7 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
   const eliminatedId = 'clx0000000000000000000001';
   const eliminatorId = 'clx0000000000000000000002';
 
+  // timerElapsedSeconds: 1500 sec = 25 min = après niveau 2, donc niveau 3 (recaves fermées)
   const mockTournament = {
     id: tournamentId,
     name: 'Test Tournament',
@@ -64,6 +65,14 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
     currentLevel: 3,
     rebuyEndLevel: 2, // Recaves fermées (currentLevel 3 > rebuyEndLevel 2)
     createdById: TEST_IDS.TD_PLAYER,
+    timerStartedAt: null,
+    timerPausedAt: null,
+    timerElapsedSeconds: 1500, // 25 min = après niveau 2, donc niveau 3
+    blindLevels: [
+      { level: 1, duration: 12 },
+      { level: 2, duration: 12 },
+      { level: 3, duration: 12 },
+    ],
     season: {
       id: TEST_IDS.SEASON,
       eliminationPoints: 50,
@@ -817,6 +826,14 @@ describe('Concurrency: Atomic eliminations', () => {
       currentLevel: 3,
       rebuyEndLevel: 2, // Recaves fermées (currentLevel 3 > rebuyEndLevel 2)
       createdById: TEST_IDS.TD_PLAYER,
+      timerStartedAt: null,
+      timerPausedAt: null,
+      timerElapsedSeconds: 1500, // 25 min = après niveau 2, donc niveau 3
+      blindLevels: [
+        { level: 1, duration: 12 },
+        { level: 2, duration: 12 },
+        { level: 3, duration: 12 },
+      ],
       season: null,
       tournamentPlayers: [
         {

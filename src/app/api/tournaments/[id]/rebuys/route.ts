@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
+import { calculateEffectiveLevel } from '@/lib/tournament-utils';
 
 const rebuySchema = z.object({
   playerId: z.string().cuid(),
@@ -17,11 +18,14 @@ export async function POST(
   try {
     const { id: tournamentId } = await params;
 
-    // Récupérer le tournoi avec la saison
+    // Récupérer le tournoi avec la saison et les niveaux de blindes
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: {
         season: true,
+        blindLevels: {
+          orderBy: { level: 'asc' },
+        },
       },
     });
 
@@ -57,7 +61,10 @@ export async function POST(
       );
     }
 
-    if (tournament.rebuyEndLevel && tournament.currentLevel > tournament.rebuyEndLevel) {
+    // Calculer le niveau effectif basé sur le timer (pas la valeur DB qui n'est pas synchronisée)
+    const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
+
+    if (tournament.rebuyEndLevel && effectiveLevel > tournament.rebuyEndLevel) {
       return NextResponse.json(
         { error: 'Période de recaves terminée' },
         { status: 400 }

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
-import { areRecavesOpen } from '@/lib/tournament-utils';
+import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
 
 const bustSchema = z.object({
   eliminatedId: z.string().cuid(), // playerId du joueur qui a perdu son tapis
@@ -76,6 +76,9 @@ export async function POST(
             player: true,
           },
         },
+        blindLevels: {
+          orderBy: { level: 'asc' },
+        },
       },
     });
 
@@ -110,8 +113,11 @@ export async function POST(
       );
     }
 
+    // Calculer le niveau effectif basé sur le timer (pas la valeur DB qui n'est pas synchronisée)
+    const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
+
     // Les busts ne sont autorisés que pendant la période de recaves
-    if (!areRecavesOpen(tournament)) {
+    if (!areRecavesOpen(tournament, effectiveLevel)) {
       return NextResponse.json(
         { error: 'Période de recaves terminée. Utilisez l\'élimination définitive.' },
         { status: 400 }
@@ -155,13 +161,13 @@ export async function POST(
 
     // === TRANSACTION ATOMIQUE ===
     const result = await prisma.$transaction(async (tx) => {
-      // Créer le bust event
+      // Créer le bust event avec le niveau effectif (pas la valeur DB)
       const bustEvent = await tx.bustEvent.create({
         data: {
           tournamentId,
           eliminatedId: eliminatedPlayer.id, // TournamentPlayer ID
           killerId: killerPlayer?.id || null, // TournamentPlayer ID
-          level: tournament.currentLevel,
+          level: effectiveLevel,
         },
         include: {
           eliminated: {
@@ -211,7 +217,7 @@ export async function POST(
       eliminatedName: result.eliminated.player.nickname,
       killerId: validatedData.killerId || null,
       killerName: result.killer?.player.nickname || null,
-      level: tournament.currentLevel,
+      level: effectiveLevel,
     });
 
     return NextResponse.json({
