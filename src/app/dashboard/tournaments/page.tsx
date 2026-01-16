@@ -868,11 +868,11 @@ export default function TournamentsPage() {
               return (
                 <div
                   key={tournament.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors gap-4"
                 >
-                  <div className="flex items-center gap-6 flex-1">
-                    <div className="flex flex-col gap-1 min-w-[180px]">
-                      <div className="flex items-center gap-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6 flex-1">
+                    <div className="flex flex-col gap-1 sm:min-w-[180px]">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-lg">{tournament.name}</h3>
                         <Badge variant={statusConfig.variant} className="text-xs">
                           {statusConfig.label}
@@ -883,7 +883,7 @@ export default function TournamentsPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-6 flex-1">
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-6 flex-1">
                       <div className="flex items-center gap-2 text-sm">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
                         <span>
@@ -904,9 +904,9 @@ export default function TournamentsPage() {
                       </div>
                     </div>
 
-                    {/* Podium pour tournois terminés (vue liste) */}
+                    {/* Podium pour tournois terminés (vue liste) - caché sur mobile */}
                     {tournament.status === 'FINISHED' && tournament.podium && tournament.podium.length >= 3 && (
-                      <div className="flex items-center gap-3 pl-6 border-l">
+                      <div className="hidden lg:flex items-center gap-3 pl-6 border-l">
                         <div className="flex items-center gap-1">
                           <Trophy className="h-3 w-3 text-yellow-500" />
                           <span className="text-xs font-semibold text-muted-foreground">Podium:</span>
@@ -979,42 +979,46 @@ export default function TournamentsPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-shrink-0">
                     <Button
                       variant="default"
                       size="sm"
+                      className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                       onClick={() => router.push(`/dashboard/tournaments/${tournament.id}`)}
                     >
-                      <Eye className="mr-1 h-3 w-3" />
-                      Détails
+                      <Eye className="h-4 w-4 sm:mr-1 sm:h-3 sm:w-3" />
+                      <span className="hidden sm:inline">Détails</span>
                     </Button>
                     {canCreateTournament() && (
                       <Button
                         variant="outline"
                         size="icon"
+                        className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                         onClick={() => handleClone(tournament)}
                         title="Cloner ce tournoi"
                       >
-                        <Copy className="h-3 w-3" />
+                        <Copy className="h-4 w-4 sm:h-3 sm:w-3" />
                       </Button>
                     )}
                     {canEditTournament(tournament) && (
                       <Button
                         variant="outline"
                         size="icon"
+                        className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                         onClick={() => handleEdit(tournament)}
                       >
-                        <Edit2 className="h-3 w-3" />
+                        <Edit2 className="h-4 w-4 sm:h-3 sm:w-3" />
                       </Button>
                     )}
                     {canDeleteTournament(tournament) && (
                       <Button
                         variant="outline"
                         size="icon"
+                        className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
                         onClick={() => handleDelete(tournament.id)}
                         disabled={tournament.status === 'FINISHED' || tournament._count.tournamentPlayers > 0}
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
                       </Button>
                     )}
                   </div>

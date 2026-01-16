@@ -23,6 +23,7 @@ type TournamentPlayer = {
   eliminationsCount: number;
   leaderKills: number;
   rebuysCount: number;
+  lightRebuyUsed: boolean;
   player: Player;
 };
 
