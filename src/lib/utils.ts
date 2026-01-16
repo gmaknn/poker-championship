@@ -67,7 +67,7 @@ export function getMinDenomination(values: unknown[]): number | null {
  * - "/avatars/xxx.png" => unchanged
  * - "http://..." or "https://..." => unchanged
  * - null/empty => null
- * - other strings => fallback to dicebear or null
+ * - other strings => DiceBear URL (e.g., "Club" => "https://api.dicebear.com/7.x/adventurer/svg?seed=Club")
  */
 export function normalizeAvatarSrc(avatar: string | null | undefined): string | null {
   if (!avatar || avatar.trim() === '') {
@@ -81,7 +81,7 @@ export function normalizeAvatarSrc(avatar: string | null | undefined): string | 
     return trimmed;
   }
 
-  // Already has leading slash
+  // Already has leading slash (uploaded image)
   if (trimmed.startsWith('/')) {
     return trimmed;
   }
@@ -91,8 +91,8 @@ export function normalizeAvatarSrc(avatar: string | null | undefined): string | 
     return '/' + trimmed;
   }
 
-  // Unknown format - return null (will fallback to initials)
-  return null;
+  // Any other non-empty string is a DiceBear seed
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(trimmed)}`;
 }
 
 /**

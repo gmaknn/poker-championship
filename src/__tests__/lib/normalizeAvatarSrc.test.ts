@@ -32,9 +32,14 @@ describe('normalizeAvatarSrc', () => {
     expect(normalizeAvatarSrc('https://example.com/avatar.png')).toBe('https://example.com/avatar.png');
   });
 
-  it('returns null for unknown formats', () => {
-    expect(normalizeAvatarSrc('random-string')).toBeNull();
-    expect(normalizeAvatarSrc('some/other/path.png')).toBeNull();
+  it('returns DiceBear URL for seed strings', () => {
+    expect(normalizeAvatarSrc('Club')).toBe('https://api.dicebear.com/7.x/adventurer/svg?seed=Club');
+    expect(normalizeAvatarSrc('Heart')).toBe('https://api.dicebear.com/7.x/adventurer/svg?seed=Heart');
+    expect(normalizeAvatarSrc('Joker')).toBe('https://api.dicebear.com/7.x/adventurer/svg?seed=Joker');
+  });
+
+  it('encodes special characters in DiceBear seeds', () => {
+    expect(normalizeAvatarSrc('some/other/path.png')).toBe('https://api.dicebear.com/7.x/adventurer/svg?seed=some%2Fother%2Fpath.png');
   });
 
   it('trims whitespace', () => {
@@ -50,10 +55,15 @@ describe('isValidAvatarUrl', () => {
     expect(isValidAvatarUrl('https://example.com/avatar.png')).toBe(true);
   });
 
+  it('returns true for DiceBear seeds', () => {
+    expect(isValidAvatarUrl('Club')).toBe(true);
+    expect(isValidAvatarUrl('Heart')).toBe(true);
+    expect(isValidAvatarUrl('random-string')).toBe(true);
+  });
+
   it('returns false for invalid inputs', () => {
     expect(isValidAvatarUrl(null)).toBe(false);
     expect(isValidAvatarUrl(undefined)).toBe(false);
     expect(isValidAvatarUrl('')).toBe(false);
-    expect(isValidAvatarUrl('random-string')).toBe(false);
   });
 });
