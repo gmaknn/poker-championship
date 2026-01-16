@@ -275,3 +275,83 @@ describe('calculateEffectiveLevel', () => {
     expect(calculateEffectiveLevel(tournament, blindLevels)).toBe(1);
   });
 });
+
+describe('Integration: recave during break after rebuyEndLevel', () => {
+  /**
+   * Scénario réel:
+   * - rebuyEndLevel = 1 (niveau 1)
+   * - Level 2 is a break (isBreak: true)
+   * - Timer elapsed time puts us in level 2
+   * - Recave should be allowed during break
+   */
+  it('should allow recave when timer shows level 2 (break) after rebuyEndLevel 1', () => {
+    const blindLevels = [
+      { level: 1, duration: 12, isBreak: false }, // 12 min = 720 sec, rebuyEndLevel
+      { level: 2, duration: 15, isBreak: true },  // 15 min break after rebuyEndLevel
+      { level: 3, duration: 12, isBreak: false },
+    ];
+
+    // Timer paused during break (common scenario)
+    const tournament = {
+      status: 'IN_PROGRESS' as const,
+      currentLevel: 1, // DB not updated yet (stale)
+      rebuyEndLevel: 1,
+      timerStartedAt: new Date(Date.now() - 800 * 1000), // Started 800 sec ago
+      timerPausedAt: new Date(Date.now() - 100 * 1000),  // Paused 100 sec ago
+      timerElapsedSeconds: 750, // 750 sec = 12.5 min → level 2 (break)
+    };
+
+    // Calculate effective level (should be 2 - the break)
+    const effectiveLevel = calculateEffectiveLevel(tournament, blindLevels);
+    expect(effectiveLevel).toBe(2);
+
+    // areRecavesOpen should return true because level 2 is a break right after rebuyEndLevel 1
+    const recavesOpen = areRecavesOpen(tournament, effectiveLevel, blindLevels);
+    expect(recavesOpen).toBe(true);
+  });
+
+  it('should deny recave when timer shows level 3 (after the break)', () => {
+    const blindLevels = [
+      { level: 1, duration: 12, isBreak: false }, // 720 sec
+      { level: 2, duration: 15, isBreak: true },  // 900 sec (1620 cumulative)
+      { level: 3, duration: 12, isBreak: false },
+    ];
+
+    const tournament = {
+      status: 'IN_PROGRESS' as const,
+      currentLevel: 1, // DB not updated (stale)
+      rebuyEndLevel: 1,
+      timerStartedAt: null,
+      timerPausedAt: null,
+      timerElapsedSeconds: 1650, // Past level 1 (720) + level 2 (900) = 1620, now in level 3
+    };
+
+    const effectiveLevel = calculateEffectiveLevel(tournament, blindLevels);
+    expect(effectiveLevel).toBe(3);
+
+    const recavesOpen = areRecavesOpen(tournament, effectiveLevel, blindLevels);
+    expect(recavesOpen).toBe(false);
+  });
+
+  it('should allow recave on rebuyEndLevel itself', () => {
+    const blindLevels = [
+      { level: 1, duration: 12, isBreak: false },
+      { level: 2, duration: 15, isBreak: true },
+    ];
+
+    const tournament = {
+      status: 'IN_PROGRESS' as const,
+      currentLevel: 1,
+      rebuyEndLevel: 1,
+      timerStartedAt: null,
+      timerPausedAt: null,
+      timerElapsedSeconds: 600, // 10 minutes, still in level 1
+    };
+
+    const effectiveLevel = calculateEffectiveLevel(tournament, blindLevels);
+    expect(effectiveLevel).toBe(1);
+
+    const recavesOpen = areRecavesOpen(tournament, effectiveLevel, blindLevels);
+    expect(recavesOpen).toBe(true);
+  });
+});
