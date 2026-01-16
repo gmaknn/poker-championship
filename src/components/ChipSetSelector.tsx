@@ -27,6 +27,7 @@ type Props = {
   startingChips: number;
   totalPlayers: number;
   onUpdate?: () => void;
+  readOnly?: boolean;
 };
 
 export default function ChipSetSelector({
@@ -34,6 +35,7 @@ export default function ChipSetSelector({
   startingChips,
   totalPlayers,
   onUpdate,
+  readOnly = false,
 }: Props) {
   const [chipSets, setChipSets] = useState<ChipSet[]>([]);
   const [selectedChipSets, setSelectedChipSets] = useState<string[]>([]);
@@ -157,21 +159,31 @@ export default function ChipSetSelector({
 
   return (
     <div className="space-y-6">
+      {/* Bandeau lecture seule */}
+      {readOnly && (
+        <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
+          <Package className="h-5 w-5" />
+          <span>Tournoi terminé - Configuration en lecture seule</span>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Sélection des mallettes</CardTitle>
               <CardDescription>
-                Choisissez une ou plusieurs mallettes pour ce tournoi
+                {readOnly ? 'Mallettes utilisées pour ce tournoi' : 'Choisissez une ou plusieurs mallettes pour ce tournoi'}
               </CardDescription>
             </div>
-            <Link href="/dashboard/chip-assistant">
-              <Button variant="outline" size="sm">
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Gérer les mallettes
-              </Button>
-            </Link>
+            {!readOnly && (
+              <Link href="/dashboard/chip-assistant">
+                <Button variant="outline" size="sm">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Gérer les mallettes
+                </Button>
+              </Link>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -338,14 +350,16 @@ export default function ChipSetSelector({
               </div>
             )}
 
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="w-full"
-            >
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? 'Sauvegarde...' : 'Sauvegarder les mallettes sélectionnées'}
-            </Button>
+            {!readOnly && (
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="w-full"
+              >
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Sauvegarde...' : 'Sauvegarder les mallettes sélectionnées'}
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

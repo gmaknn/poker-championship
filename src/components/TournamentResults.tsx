@@ -9,9 +9,12 @@ import { Trophy, Calculator, Download, Image as ImageIcon, FileText, Share2, Ext
 import { exportTournamentResults, exportToWhatsAppText, type TournamentResultsData } from '@/lib/exportUtils';
 import NextImage from 'next/image';
 
-// Helper function to check if avatar URL is valid
+// Helper function to check if avatar URL/path is valid
 const isValidAvatarUrl = (url: string | null): boolean => {
   if (!url || url.trim() === '') return false;
+  // Accept relative paths starting with /
+  if (url.startsWith('/')) return true;
+  // Accept full URLs
   try {
     new URL(url);
     return true;

@@ -379,92 +379,43 @@ export default function TournamentDetailPage({
         </div>
 
         <TabsContent value="structure" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <BlindStructureEditor
-              tournamentId={tournament.id}
-              startingChips={tournament.startingChips}
-              onSave={() => fetchTournament()}
-              onUnsavedChangesChange={setHasUnsavedChanges}
-            />
-          )}
+          <BlindStructureEditor
+            tournamentId={tournament.id}
+            startingChips={tournament.startingChips}
+            onSave={() => fetchTournament()}
+            onUnsavedChangesChange={setHasUnsavedChanges}
+            readOnly={tournament.status === 'FINISHED'}
+          />
         </TabsContent>
 
         <TabsContent value="config" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <ChipSetSelector
-              tournamentId={tournament.id}
-              startingChips={tournament.startingChips}
-              totalPlayers={tournament.totalPlayers || tournament._count.tournamentPlayers || 10}
-              onUpdate={() => fetchTournament()}
-            />
-          )}
+          <ChipSetSelector
+            tournamentId={tournament.id}
+            startingChips={tournament.startingChips}
+            totalPlayers={tournament.totalPlayers || tournament._count.tournamentPlayers || 10}
+            onUpdate={() => fetchTournament()}
+            readOnly={tournament.status === 'FINISHED'}
+          />
         </TabsContent>
 
         <TabsContent value="players" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <TournamentPlayersManager
-              tournamentId={tournament.id}
-              tournament={{
-                id: tournament.id,
-                status: tournament.status,
-                buyInAmount: tournament.buyInAmount,
-              }}
-              onUpdate={() => fetchTournament()}
-            />
-          )}
+          <TournamentPlayersManager
+            tournamentId={tournament.id}
+            tournament={{
+              id: tournament.id,
+              status: tournament.status,
+              buyInAmount: tournament.buyInAmount,
+            }}
+            onUpdate={() => fetchTournament()}
+          />
         </TabsContent>
 
         <TabsContent value="tables" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <TableDistribution
-              tournamentId={tournament.id}
-              onUpdate={() => fetchTournament()}
-            />
-          )}
+          <TableDistribution
+            tournamentId={tournament.id}
+            onUpdate={() => fetchTournament()}
+            readOnly={tournament.status === 'FINISHED'}
+          />
         </TabsContent>
 
         <TabsContent value="timer" className="mt-6">
@@ -476,23 +427,10 @@ export default function TournamentDetailPage({
         </TabsContent>
 
         <TabsContent value="eliminations" className="mt-6">
-          {tournament.status === 'FINISHED' ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <div className="text-4xl font-bold text-green-600 mb-4">
-                  Terminé
-                </div>
-                <p className="text-muted-foreground">
-                  Le tournoi est terminé. Les modifications ne sont plus possibles.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <EliminationManager
-              tournamentId={tournament.id}
-              onUpdate={() => fetchTournament()}
-            />
-          )}
+          <EliminationManager
+            tournamentId={tournament.id}
+            onUpdate={() => fetchTournament()}
+          />
         </TabsContent>
 
         <TabsContent value="prizepool" className="mt-6">
