@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
-import { calculateEffectiveLevel } from '@/lib/tournament-utils';
+import { calculateEffectiveLevel, isBreakAfterRebuyEnd } from '@/lib/tournament-utils';
 
 const rebuySchema = z.object({
   playerId: z.string().cuid(),
@@ -64,11 +64,24 @@ export async function POST(
     // Calculer le niveau effectif basé sur le timer (pas la valeur DB qui n'est pas synchronisée)
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
 
+    // Vérifier si on est dans la pause juste après rebuyEndLevel (pour LIGHT uniquement)
+    const inBreakAfterRebuy = isBreakAfterRebuyEnd(
+      tournament.rebuyEndLevel,
+      effectiveLevel,
+      tournament.blindLevels
+    );
+
+    // Guard: période de recaves terminée
+    // - STANDARD: bloqué si effectiveLevel > rebuyEndLevel
+    // - LIGHT: autorisé pendant la pause juste après rebuyEndLevel
     if (tournament.rebuyEndLevel && effectiveLevel > tournament.rebuyEndLevel) {
-      return NextResponse.json(
-        { error: 'Période de recaves terminée' },
-        { status: 400 }
-      );
+      const isLightDuringBreak = validatedData.type === 'LIGHT' && inBreakAfterRebuy;
+      if (!isLightDuringBreak) {
+        return NextResponse.json(
+          { error: 'Période de recaves terminée' },
+          { status: 400 }
+        );
+      }
     }
 
     // Récupérer le joueur inscrit (pre-check rapide)

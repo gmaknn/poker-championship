@@ -3,7 +3,7 @@
  * Specifically for areRecavesOpen() function with break-after-rebuyEndLevel rule
  */
 
-import { areRecavesOpen, calculateEffectiveLevel } from '../tournament-utils';
+import { areRecavesOpen, calculateEffectiveLevel, isBreakAfterRebuyEnd } from '../tournament-utils';
 
 describe('areRecavesOpen', () => {
   describe('Basic rules', () => {
@@ -273,5 +273,46 @@ describe('calculateEffectiveLevel', () => {
     };
 
     expect(calculateEffectiveLevel(tournament, blindLevels)).toBe(1);
+  });
+});
+
+describe('isBreakAfterRebuyEnd', () => {
+  const blindLevels = [
+    { level: 1, isBreak: false },
+    { level: 2, isBreak: true },  // Break after level 1
+    { level: 3, isBreak: false },
+    { level: 4, isBreak: false },
+  ];
+
+  it('should return true when on break immediately after rebuyEndLevel', () => {
+    // rebuyEndLevel = 1, effectiveLevel = 2 (break)
+    expect(isBreakAfterRebuyEnd(1, 2, blindLevels)).toBe(true);
+  });
+
+  it('should return false when level is not a break', () => {
+    // rebuyEndLevel = 2, effectiveLevel = 3 (not a break)
+    expect(isBreakAfterRebuyEnd(2, 3, blindLevels)).toBe(false);
+  });
+
+  it('should return false when not immediately after rebuyEndLevel', () => {
+    // rebuyEndLevel = 1, effectiveLevel = 3 (2 levels after)
+    expect(isBreakAfterRebuyEnd(1, 3, blindLevels)).toBe(false);
+  });
+
+  it('should return false when rebuyEndLevel is null', () => {
+    expect(isBreakAfterRebuyEnd(null, 2, blindLevels)).toBe(false);
+  });
+
+  it('should return false when on rebuyEndLevel itself', () => {
+    // rebuyEndLevel = 1, effectiveLevel = 1 (same level)
+    expect(isBreakAfterRebuyEnd(1, 1, blindLevels)).toBe(false);
+  });
+
+  it('should return false when blind level not found', () => {
+    const limitedBlindLevels = [
+      { level: 1, isBreak: false },
+    ];
+    // Level 2 doesn't exist
+    expect(isBreakAfterRebuyEnd(1, 2, limitedBlindLevels)).toBe(false);
   });
 });

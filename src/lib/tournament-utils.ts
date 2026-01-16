@@ -93,3 +93,32 @@ export function areRecavesOpen(
 
   return false;
 }
+
+/**
+ * Détermine si le niveau actuel est la pause immédiatement après rebuyEndLevel.
+ * Utilisé pour autoriser les recaves LIGHT pendant cette pause spécifique.
+ *
+ * @param rebuyEndLevel - Le niveau de fin des recaves (peut être null)
+ * @param effectiveLevel - Le niveau effectif calculé depuis le timer
+ * @param blindLevels - Liste des niveaux avec isBreak
+ * @returns true si on est dans la pause juste après rebuyEndLevel
+ */
+export function isBreakAfterRebuyEnd(
+  rebuyEndLevel: number | null,
+  effectiveLevel: number,
+  blindLevels: Pick<BlindLevel, 'level' | 'isBreak'>[]
+): boolean {
+  // Si pas de rebuyEndLevel défini, pas de "break après"
+  if (rebuyEndLevel === null || rebuyEndLevel === undefined) {
+    return false;
+  }
+
+  // Vérifier si on est exactement au niveau rebuyEndLevel + 1
+  if (effectiveLevel !== rebuyEndLevel + 1) {
+    return false;
+  }
+
+  // Vérifier si ce niveau est une pause
+  const currentBlindLevel = blindLevels.find(bl => bl.level === effectiveLevel);
+  return currentBlindLevel?.isBreak === true;
+}

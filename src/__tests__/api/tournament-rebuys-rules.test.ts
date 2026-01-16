@@ -307,6 +307,120 @@ describe('POST /api/tournaments/[id]/rebuys - Business Rules', () => {
 
       expect(response.status).toBe(200);
     });
+
+    it('should allow LIGHT rebuy during break immediately after rebuyEndLevel', async () => {
+      // rebuyEndLevel = 1, effectiveLevel = 2 (break)
+      // blindLevels[1] (level 2) has isBreak: true
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
+        ...mockTournament,
+        currentLevel: 2,
+        rebuyEndLevel: 1,
+        timerElapsedSeconds: 750, // Past level 1 (12min = 720sec), into level 2
+        blindLevels: [
+          { level: 1, duration: 12, isBreak: false },
+          { level: 2, duration: 15, isBreak: true },  // Break after rebuyEndLevel
+          { level: 3, duration: 12, isBreak: false },
+        ],
+      });
+
+      const lightPayload = {
+        playerId,
+        type: 'LIGHT',
+      };
+
+      const request = new NextRequest(
+        `http://localhost/api/tournaments/${tournamentId}/rebuys`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            cookie: `player-id=${TEST_IDS.TD_PLAYER}`,
+          },
+          body: JSON.stringify(lightPayload),
+        }
+      );
+
+      const response = await POST(request, { params: Promise.resolve({ id: tournamentId }) });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('should reject LIGHT rebuy when level after break (effectiveLevel > rebuyEndLevel + 1)', async () => {
+      // rebuyEndLevel = 1, effectiveLevel = 3 (after break)
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
+        ...mockTournament,
+        currentLevel: 3,
+        rebuyEndLevel: 1,
+        timerElapsedSeconds: 1700, // Past level 1 (720) + level 2 (900) = 1620, into level 3
+        blindLevels: [
+          { level: 1, duration: 12, isBreak: false },
+          { level: 2, duration: 15, isBreak: true },
+          { level: 3, duration: 12, isBreak: false },
+        ],
+      });
+
+      const lightPayload = {
+        playerId,
+        type: 'LIGHT',
+      };
+
+      const request = new NextRequest(
+        `http://localhost/api/tournaments/${tournamentId}/rebuys`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            cookie: `player-id=${TEST_IDS.TD_PLAYER}`,
+          },
+          body: JSON.stringify(lightPayload),
+        }
+      );
+
+      const response = await POST(request, { params: Promise.resolve({ id: tournamentId }) });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain('Période de recaves terminée');
+    });
+
+    it('should reject STANDARD rebuy during break after rebuyEndLevel (non-regression)', async () => {
+      // rebuyEndLevel = 1, effectiveLevel = 2 (break)
+      // STANDARD rebuy should still be rejected during break
+      (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
+        ...mockTournament,
+        currentLevel: 2,
+        rebuyEndLevel: 1,
+        timerElapsedSeconds: 750, // Past level 1, into level 2 (break)
+        blindLevels: [
+          { level: 1, duration: 12, isBreak: false },
+          { level: 2, duration: 15, isBreak: true },
+          { level: 3, duration: 12, isBreak: false },
+        ],
+      });
+
+      const standardPayload = {
+        playerId,
+        type: 'STANDARD',
+      };
+
+      const request = new NextRequest(
+        `http://localhost/api/tournaments/${tournamentId}/rebuys`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            cookie: `player-id=${TEST_IDS.TD_PLAYER}`,
+          },
+          body: JSON.stringify(standardPayload),
+        }
+      );
+
+      const response = await POST(request, { params: Promise.resolve({ id: tournamentId }) });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain('Période de recaves terminée');
+    });
   });
 
   describe('Business Rule: Player Eliminated', () => {
