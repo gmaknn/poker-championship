@@ -22,7 +22,10 @@ export async function GET(
       where: { tournamentId: id },
       include: {
         eliminated: {
-          include: {
+          select: {
+            id: true,
+            playerId: true,
+            rebuysCount: true,
             player: {
               select: {
                 id: true,

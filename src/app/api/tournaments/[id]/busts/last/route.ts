@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { emitToTournament } from '@/lib/socket';
+import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
 
 /**
  * DELETE - Annuler le dernier bust du tournoi
@@ -9,6 +10,7 @@ import { emitToTournament } from '@/lib/socket';
  * Safety guards:
  * - Vérifie qu'aucune élimination définitive n'a eu lieu après ce bust
  * - Restaure le eliminationsCount du killer si applicable
+ * - SI recaveApplied=true: annule aussi la recave liée (décrémente rebuysCount)
  * - Transaction atomique
  */
 export async function DELETE(
@@ -18,9 +20,12 @@ export async function DELETE(
   try {
     const { id: tournamentId } = await params;
 
-    // Récupérer le tournoi
+    // Récupérer le tournoi avec la saison (pour recalculer pénalités si recave annulée)
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
+      include: {
+        season: true,
+      },
     });
 
     if (!tournament) {
@@ -44,13 +49,17 @@ export async function DELETE(
       );
     }
 
-    // Récupérer le dernier bust
+    // Récupérer le dernier bust (avec rebuysCount pour annuler la recave si nécessaire)
     const lastBust = await prisma.bustEvent.findFirst({
       where: { tournamentId },
       orderBy: { createdAt: 'desc' },
       include: {
         eliminated: {
-          include: {
+          select: {
+            id: true,
+            playerId: true,
+            rebuysCount: true,
+            finalRank: true,
             player: {
               select: {
                 id: true,
@@ -102,23 +111,40 @@ export async function DELETE(
     }
 
     // Safety check: vérifier que le joueur n'a pas été éliminé définitivement entre-temps
-    const eliminatedPlayer = await prisma.tournamentPlayer.findUnique({
-      where: { id: lastBust.eliminatedId },
-    });
-
-    if (eliminatedPlayer?.finalRank !== null) {
+    if (lastBust.eliminated.finalRank !== null) {
       return NextResponse.json(
         { error: 'Le joueur a déjà été éliminé définitivement' },
         { status: 400 }
       );
     }
 
+    // Référence pour la transaction
+    const eliminatedPlayer = lastBust.eliminated;
+
     // === TRANSACTION ATOMIQUE ===
+    let recaveCancelled = false;
     await prisma.$transaction(async (tx) => {
-      // Supprimer le bust
-      await tx.bustEvent.delete({
-        where: { id: lastBust.id },
-      });
+      // Si le bust avait une recave appliquée, l'annuler d'abord
+      if (lastBust.recaveApplied) {
+        const newRebuysCount = Math.max(0, eliminatedPlayer.rebuysCount - 1);
+
+        // Recalculer les pénalités
+        let penaltyPoints = 0;
+        if (tournament.season) {
+          const rules = parseRecavePenaltyRules(tournament.season);
+          penaltyPoints = computeRecavePenalty(newRebuysCount, rules);
+        }
+
+        await tx.tournamentPlayer.update({
+          where: { id: lastBust.eliminatedId },
+          data: {
+            rebuysCount: newRebuysCount,
+            penaltyPoints,
+          },
+        });
+
+        recaveCancelled = true;
+      }
 
       // Si un killer était spécifié, décrémenter son count d'éliminations
       if (lastBust.killerId) {
@@ -129,6 +155,11 @@ export async function DELETE(
           },
         });
       }
+
+      // Supprimer le bust
+      await tx.bustEvent.delete({
+        where: { id: lastBust.id },
+      });
     });
 
     // Émettre l'événement via WebSocket
@@ -137,17 +168,23 @@ export async function DELETE(
       bustId: lastBust.id,
       eliminatedName: lastBust.eliminated.player.nickname,
       killerName: lastBust.killer?.player.nickname || null,
+      recaveCancelled,
     });
+
+    const message = recaveCancelled
+      ? `Bust et recave de ${lastBust.eliminated.player.nickname} annulés`
+      : `Bust de ${lastBust.eliminated.player.nickname} annulé`;
 
     return NextResponse.json({
       success: true,
-      message: `Bust de ${lastBust.eliminated.player.nickname} annulé`,
+      message,
       cancelledBust: {
         id: lastBust.id,
         eliminatedName: lastBust.eliminated.player.nickname,
         killerName: lastBust.killer?.player.nickname || null,
         level: lastBust.level,
       },
+      recaveCancelled,
     });
   } catch (error) {
     console.error('Error cancelling last bust:', error);

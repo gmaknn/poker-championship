@@ -41,7 +41,11 @@ type BustEvent = {
   id: string;
   level: number;
   createdAt: string;
+  recaveApplied: boolean;
   eliminated: {
+    id: string;
+    playerId: string;
+    rebuysCount: number;
     player: Player;
   };
   killer: {
@@ -87,6 +91,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   // Light rebuy state
   const [lightRebuyAmount, setLightRebuyAmount] = useState(5);
   const [isLightRebuySubmitting, setIsLightRebuySubmitting] = useState<string | null>(null);
+  // Bust recave state
+  const [bustRecaveSubmitting, setBustRecaveSubmitting] = useState<string | null>(null);
 
   const recavesOpen = areRecavesOpen(tournament, effectiveLevel);
 
@@ -310,6 +316,61 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     }
   };
 
+  // Gérer l'application d'une recave depuis un bust
+  const handleBustRecave = async (bustId: string) => {
+    setBustRecaveSubmitting(bustId);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/busts/${bustId}/recave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (response.ok) {
+        await fetchData();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de l\'application de la recave');
+      }
+    } catch (error) {
+      console.error('Error applying recave from bust:', error);
+      setError('Erreur lors de l\'application de la recave');
+    } finally {
+      setBustRecaveSubmitting(null);
+    }
+  };
+
+  // Gérer l'annulation d'une recave depuis un bust
+  const handleCancelBustRecave = async (bustId: string) => {
+    if (!confirm('Voulez-vous vraiment annuler cette recave ?')) {
+      return;
+    }
+
+    setBustRecaveSubmitting(bustId);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/busts/${bustId}/recave`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await fetchData();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de l\'annulation de la recave');
+      }
+    } catch (error) {
+      console.error('Error cancelling recave from bust:', error);
+      setError('Erreur lors de l\'annulation de la recave');
+    } finally {
+      setBustRecaveSubmitting(null);
+    }
+  };
+
   // Gérer l'application du light rebuy sur un joueur
   const handleLightRebuy = async (playerId: string) => {
     if (!tournament?.lightRebuyEnabled) return;
@@ -453,8 +514,17 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </SectionCard>
       </div>
 
-      {/* Formulaire bust ou élimination selon l'état des recaves */}
-      {recavesOpen ? (
+      {/* Formulaire bust ou élimination selon l'état des recaves - masqué si tournoi terminé */}
+      {tournament?.status === 'FINISHED' ? (
+        <Card className="border-muted">
+          <CardContent className="flex items-center gap-3 py-4">
+            <Trophy className="h-5 w-5 text-muted-foreground" />
+            <span className="text-muted-foreground">
+              Tournoi terminé - Les éliminations sont en lecture seule
+            </span>
+          </CardContent>
+        </Card>
+      ) : recavesOpen ? (
         /* Formulaire de bust (période de recaves) */
         <Card className="border-amber-500/50">
           <CardHeader>
@@ -583,8 +653,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </Card>
       )}
 
-      {/* Light Rebuy - affiché après fin des recaves si activé */}
-      {!recavesOpen && tournament?.lightRebuyEnabled && (
+      {/* Light Rebuy - affiché après fin des recaves si activé et tournoi pas terminé */}
+      {!recavesOpen && tournament?.lightRebuyEnabled && tournament?.status !== 'FINISHED' && (
         <Card className="border-green-500/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -649,21 +719,23 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               <RefreshCw className="h-5 w-5 text-amber-500" />
               Historique des busts ({busts.length})
             </CardTitle>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCancelLastBust}
-            >
-              <Undo2 className="mr-2 h-4 w-4" />
-              Annuler le dernier
-            </Button>
+            {tournament?.status !== 'FINISHED' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCancelLastBust}
+              >
+                <Undo2 className="mr-2 h-4 w-4" />
+                Annuler le dernier
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {busts.map((bust, index) => (
                 <div
                   key={bust.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border border-amber-500/40 ${
+                  className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-amber-500/40 gap-3 ${
                     index === 0 ? 'bg-amber-500/10' : 'bg-amber-500/5'
                   }`}
                 >
@@ -672,6 +744,12 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                       <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10">
                         Bust
                       </Badge>
+                      {bust.recaveApplied && (
+                        <Badge variant="default" className="bg-green-600">
+                          <Check className="h-3 w-3 mr-1" />
+                          Recave
+                        </Badge>
+                      )}
                       <span className="font-medium truncate">
                         {bust.eliminated.player.firstName} {bust.eliminated.player.lastName}
                       </span>
@@ -693,8 +771,50 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                       )}
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground ml-4 flex-shrink-0">
-                    {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {/* Boutons Recave / Annuler recave - uniquement si tournoi pas terminé et recaves ouvertes */}
+                    {tournament?.status !== 'FINISHED' && recavesOpen && (
+                      <>
+                        {bust.recaveApplied ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-red-500 text-red-600 hover:bg-red-500/10 min-h-[36px]"
+                            onClick={() => handleCancelBustRecave(bust.id)}
+                            disabled={bustRecaveSubmitting === bust.id}
+                          >
+                            {bustRecaveSubmitting === bust.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Undo2 className="h-4 w-4 mr-1" />
+                                Annuler recave
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-green-500 text-green-600 hover:bg-green-500/10 min-h-[36px]"
+                            onClick={() => handleBustRecave(bust.id)}
+                            disabled={bustRecaveSubmitting === bust.id}
+                          >
+                            {bustRecaveSubmitting === bust.id ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-1" />
+                                Recave
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    <div className="text-xs text-muted-foreground">
+                      {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -707,7 +827,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Historique des éliminations</CardTitle>
-          {eliminations.length > 0 && (
+          {eliminations.length > 0 && tournament?.status !== 'FINISHED' && (
             <Button
               variant="outline"
               size="sm"

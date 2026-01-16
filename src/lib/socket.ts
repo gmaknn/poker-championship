@@ -112,6 +112,23 @@ export interface TournamentEvents {
     bustId: string;
     eliminatedName: string;
     killerName: string | null;
+    recaveCancelled: boolean;
+  };
+
+  // Rebuy from bust events
+  'rebuy:applied': {
+    tournamentId: string;
+    playerId: string;
+    playerName: string;
+    rebuysCount: number;
+    fromBustId: string;
+  };
+  'rebuy:cancelled': {
+    tournamentId: string;
+    playerId: string;
+    playerName: string;
+    rebuysCount: number;
+    fromBustId: string;
   };
 }
 
