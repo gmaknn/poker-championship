@@ -120,14 +120,8 @@ export async function POST(
     }
 
     // Pre-check rapide : light rebuy
+    // Note: lightRebuyEnabled flag removed - LIGHT is always allowed when rebuy period is open
     if (validatedData.type === 'LIGHT') {
-      if (!tournament.lightRebuyEnabled) {
-        return NextResponse.json(
-          { error: 'Light rebuy is not enabled for this tournament' },
-          { status: 400 }
-        );
-      }
-
       if (tournamentPlayer.lightRebuyUsed) {
         return NextResponse.json(
           { error: 'Player has already used their light rebuy' },
