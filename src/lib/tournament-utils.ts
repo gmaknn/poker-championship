@@ -53,14 +53,17 @@ export function calculateEffectiveLevel(
  * Les recaves sont ouvertes si:
  * - Le tournoi est en cours (IN_PROGRESS)
  * - Le niveau courant est <= rebuyEndLevel (si rebuyEndLevel est défini)
+ * - OU le niveau courant est la pause immédiatement après rebuyEndLevel
  *
  * @param tournament - Le tournoi à vérifier
  * @param effectiveLevel - Optionnel: niveau effectif calculé (sinon utilise currentLevel de la DB - ATTENTION: peut être désynchronisé)
+ * @param blindLevels - Optionnel: liste des niveaux pour vérifier la pause après fin des recaves
  * @returns true si les recaves sont ouvertes, false sinon
  */
 export function areRecavesOpen(
   tournament: Pick<Tournament, 'status' | 'currentLevel' | 'rebuyEndLevel'>,
-  effectiveLevel?: number
+  effectiveLevel?: number,
+  blindLevels?: Pick<BlindLevel, 'level' | 'isBreak'>[]
 ): boolean {
   // Les recaves ne sont possibles que si le tournoi est en cours
   if (tournament.status !== 'IN_PROGRESS') {
@@ -76,5 +79,17 @@ export function areRecavesOpen(
   const currentLevel = effectiveLevel ?? tournament.currentLevel;
 
   // Les recaves sont ouvertes si le niveau courant est <= au niveau de fin de recave
-  return currentLevel <= tournament.rebuyEndLevel;
+  if (currentLevel <= tournament.rebuyEndLevel) {
+    return true;
+  }
+
+  // Vérifier si le niveau courant est la pause immédiatement après rebuyEndLevel
+  if (blindLevels && currentLevel === tournament.rebuyEndLevel + 1) {
+    const currentBlindLevel = blindLevels.find(bl => bl.level === currentLevel);
+    if (currentBlindLevel?.isBreak) {
+      return true;
+    }
+  }
+
+  return false;
 }

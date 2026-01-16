@@ -220,7 +220,8 @@ export async function POST(
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
 
     // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
-    if (areRecavesOpen(tournament, effectiveLevel)) {
+    // (inclut la pause suivant "Fin recaves" pour permettre les recaves light)
+    if (areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
       // Diagnostic optionnel (activé via RECIPE_DIAGNOSTICS=1)
       const isDiag = process.env.RECIPE_DIAGNOSTICS === '1';
       if (isDiag) {

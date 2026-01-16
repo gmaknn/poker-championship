@@ -67,14 +67,9 @@ type Props = {
   onUpdate?: () => void;
 };
 
-// Fonction utilitaire pour déterminer si les recaves sont ouvertes
-// Utilise le niveau effectif (calculé depuis le timer) au lieu du niveau DB
-function areRecavesOpen(tournament: Tournament | null, effectiveLevel: number): boolean {
-  if (!tournament) return false;
-  if (tournament.status !== 'IN_PROGRESS') return false;
-  if (tournament.rebuyEndLevel === null) return true;
-  return effectiveLevel <= tournament.rebuyEndLevel;
-}
+// Note: L'état des recaves (recavesOpen) est maintenant retourné par l'API timer
+// qui utilise areRecavesOpen() côté serveur avec la logique complète
+// incluant la pause après "Fin recaves" pour permettre les recaves light
 
 export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [tournament, setTournament] = useState<Tournament | null>(null);
@@ -88,13 +83,13 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [error, setError] = useState('');
   // Niveau effectif calculé depuis le timer (pas la valeur DB qui n'est pas synchronisée)
   const [effectiveLevel, setEffectiveLevel] = useState(1);
+  // État des recaves (retourné par l'API timer avec la logique complète)
+  const [recavesOpen, setRecavesOpen] = useState(true);
   // Light rebuy state
   const [lightRebuyAmount, setLightRebuyAmount] = useState(5);
   const [isLightRebuySubmitting, setIsLightRebuySubmitting] = useState<string | null>(null);
   // Bust recave state
   const [bustRecaveSubmitting, setBustRecaveSubmitting] = useState<string | null>(null);
-
-  const recavesOpen = areRecavesOpen(tournament, effectiveLevel);
 
   useEffect(() => {
     fetchData();
@@ -111,6 +106,10 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
           const timerData = await timerResponse.json();
           if (timerData.currentLevel && timerData.currentLevel !== effectiveLevel) {
             setEffectiveLevel(timerData.currentLevel);
+          }
+          // Mettre à jour l'état des recaves depuis l'API (logique complète côté serveur)
+          if (timerData.recavesOpen !== undefined) {
+            setRecavesOpen(timerData.recavesOpen);
           }
         }
       } catch (error) {
@@ -135,13 +134,18 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         }
       }
 
-      // Récupérer le niveau effectif depuis le timer (pas la valeur DB qui n'est pas synchronisée)
+      // Récupérer le niveau effectif et l'état des recaves depuis le timer
       const timerResponse = await fetch(`/api/tournaments/${tournamentId}/timer`);
       if (timerResponse.ok) {
         const timerData = await timerResponse.json();
         // Le timer calcule le niveau réel basé sur le temps écoulé
         if (timerData.currentLevel) {
           setEffectiveLevel(timerData.currentLevel);
+        }
+        // L'état des recaves est calculé côté serveur avec la logique complète
+        // (inclut la pause après "Fin recaves" pour permettre les recaves light)
+        if (timerData.recavesOpen !== undefined) {
+          setRecavesOpen(timerData.recavesOpen);
         }
       }
 

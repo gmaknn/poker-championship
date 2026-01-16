@@ -120,7 +120,8 @@ export async function POST(
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
 
     // Les busts ne sont autorisés que pendant la période de recaves
-    if (!areRecavesOpen(tournament, effectiveLevel)) {
+    // (inclut la pause suivant "Fin recaves" pour permettre les recaves light)
+    if (!areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
       return NextResponse.json(
         { error: 'Période de recaves terminée. Utilisez l\'élimination définitive.' },
         { status: 400 }

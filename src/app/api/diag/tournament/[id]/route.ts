@@ -226,7 +226,7 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     }
 
-    // Get tournament state
+    // Get tournament state with blindLevels for areRecavesOpen
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       select: {
@@ -234,6 +234,10 @@ export async function POST(
         status: true,
         currentLevel: true,
         rebuyEndLevel: true,
+        blindLevels: {
+          orderBy: { level: 'asc' },
+          select: { level: true, isBreak: true },
+        },
       },
     });
 
@@ -241,8 +245,8 @@ export async function POST(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    // Check areRecavesOpen
-    const recavesOpen = areRecavesOpen(tournament);
+    // Check areRecavesOpen (includes break after rebuyEndLevel)
+    const recavesOpen = areRecavesOpen(tournament, tournament.currentLevel, tournament.blindLevels);
 
     if (recavesOpen) {
       const response = NextResponse.json({

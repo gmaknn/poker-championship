@@ -61,8 +61,9 @@ export async function POST(
     }
 
     // Vérifier que les recaves sont ouvertes
+    // (inclut la pause suivant "Fin recaves" pour permettre les recaves light)
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
-    if (!areRecavesOpen(tournament, effectiveLevel)) {
+    if (!areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
       return NextResponse.json(
         { error: 'La période de recaves est terminée' },
         { status: 400 }

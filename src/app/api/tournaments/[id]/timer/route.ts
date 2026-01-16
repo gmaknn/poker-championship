@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { areRecavesOpen } from '@/lib/tournament-utils';
 
 // GET - Récupérer l'état actuel du timer
 export async function GET(
@@ -15,6 +16,7 @@ export async function GET(
         id: true,
         status: true,
         currentLevel: true,
+        rebuyEndLevel: true,
         timerStartedAt: true,
         timerPausedAt: true,
         timerElapsedSeconds: true,
@@ -75,6 +77,9 @@ export async function GET(
     const isRunning = !!tournament.timerStartedAt && !tournament.timerPausedAt;
     const isPaused = !!tournament.timerPausedAt;
 
+    // Déterminer si les recaves sont ouvertes (inclut la pause après "Fin recaves")
+    const recavesOpen = areRecavesOpen(tournament, calculatedLevel, tournament.blindLevels);
+
     return NextResponse.json({
       tournamentId: tournament.id,
       status: tournament.status,
@@ -86,6 +91,8 @@ export async function GET(
       secondsIntoCurrentLevel: timeIntoCurrentLevel,
       timerStartedAt: tournament.timerStartedAt,
       timerPausedAt: tournament.timerPausedAt,
+      recavesOpen,
+      rebuyEndLevel: tournament.rebuyEndLevel,
     });
   } catch (error) {
     console.error('Error fetching timer state:', error);
