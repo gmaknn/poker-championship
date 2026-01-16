@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Trophy, TrendingUp, Users, Calendar } from 'lucide-react';
-import Image from 'next/image';
+// Using native img for avatars to avoid next/image restrictions with external SVGs
 import {
   Select,
   SelectContent,
@@ -217,12 +217,15 @@ export default function LeaderboardPage() {
                       <span className="text-3xl font-bold">#{entry.rank}</span>
                     </div>
                     {isValidAvatarUrl(entry.player.avatar) && (
-                      <Image
+                      <img
                         src={normalizeAvatarSrc(entry.player.avatar)!}
                         alt={entry.player.nickname}
                         width={64}
                         height={64}
                         className="rounded-full"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
                       />
                     )}
                   </div>
@@ -275,12 +278,15 @@ export default function LeaderboardPage() {
                         #{entry.rank}
                       </span>
                       {isValidAvatarUrl(entry.player.avatar) ? (
-                        <Image
+                        <img
                           src={normalizeAvatarSrc(entry.player.avatar)!}
                           alt={entry.player.nickname}
                           width={40}
                           height={40}
                           className="rounded-full"
+                          loading="lazy"
+                          decoding="async"
+                          referrerPolicy="no-referrer"
                         />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
