@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
       },
     ],
     dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox; img-src 'self' https://api.dicebear.com data:;",
   },
   // Configuration vide pour Turbopack pour éviter le conflit avec next-pwa
   turbopack: {},
