@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAdmin } from '@/lib/auth-helpers';
+import { requirePermission } from '@/lib/auth-helpers';
 
 // Type for detailed points configuration
 interface DetailedPointsConfig {
@@ -79,7 +79,7 @@ type Params = {
 export async function POST(request: NextRequest, { params }: Params) {
   try {
     // Check authentication and ADMIN role
-    const authResult = await requireAdmin(request);
+    const authResult = await requirePermission(request, 'ADMIN');
     if (!authResult.success) {
       return NextResponse.json(
         { error: authResult.error },
