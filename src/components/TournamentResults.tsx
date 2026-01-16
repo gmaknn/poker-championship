@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Trophy, Calculator, Download, Image as ImageIcon, FileText, Share2, ExternalLink, Users, MessageCircle } from 'lucide-react';
 import { exportTournamentResults, exportToWhatsAppText, type TournamentResultsData } from '@/lib/exportUtils';
-import NextImage from 'next/image';
+// Using native img for avatars to avoid next/image restrictions with external SVGs
 import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
 
 type Player = {
@@ -319,12 +319,15 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                 <div className="flex flex-col items-center p-6 rounded-lg border-2 border-gray-400 bg-gray-400/5">
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[1].player.avatar) ? (
-                      <NextImage
+                      <img
                         src={normalizeAvatarSrc(rankedPlayers[1].player.avatar)!}
                         alt={rankedPlayers[1].player.nickname}
                         width={80}
                         height={80}
                         className="rounded-full border-4 border-gray-400"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-4 border-gray-400">
@@ -359,12 +362,15 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                 <div className="flex flex-col items-center p-6 rounded-lg border-4 border-yellow-500 bg-yellow-500/10 shadow-lg md:scale-110 md:-mt-4 md:z-10">
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[0].player.avatar) ? (
-                      <NextImage
+                      <img
                         src={normalizeAvatarSrc(rankedPlayers[0].player.avatar)!}
                         alt={rankedPlayers[0].player.nickname}
                         width={96}
                         height={96}
                         className="rounded-full border-4 border-yellow-500"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center border-4 border-yellow-500">
@@ -399,12 +405,15 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                 <div className="flex flex-col items-center p-6 rounded-lg border-2 border-orange-600 bg-orange-600/5">
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[2].player.avatar) ? (
-                      <NextImage
+                      <img
                         src={normalizeAvatarSrc(rankedPlayers[2].player.avatar)!}
                         alt={rankedPlayers[2].player.nickname}
                         width={80}
                         height={80}
                         className="rounded-full border-4 border-orange-600"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
                       />
                     ) : (
                       <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center border-4 border-orange-600">
