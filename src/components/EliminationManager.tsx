@@ -42,11 +42,18 @@ type BustEvent = {
   level: number;
   createdAt: string;
   eliminated: {
+    playerId: string;
+    rebuysCount: number;
     player: Player;
   };
   killer: {
     player: Player;
   } | null;
+};
+
+type BlindLevel = {
+  level: number;
+  isBreak: boolean;
 };
 
 type Tournament = {
@@ -56,6 +63,8 @@ type Tournament = {
   rebuyEndLevel: number | null;
   lightRebuyEnabled: boolean;
   lightRebuyAmount: number;
+  timerPausedAt: string | null;
+  blindLevels: BlindLevel[];
 };
 
 type Props = {
@@ -70,6 +79,26 @@ function areRecavesOpen(tournament: Tournament | null, effectiveLevel: number): 
   if (tournament.status !== 'IN_PROGRESS') return false;
   if (tournament.rebuyEndLevel === null) return true;
   return effectiveLevel <= tournament.rebuyEndLevel;
+}
+
+// Fonction utilitaire pour déterminer si la light recave est autorisée
+// Conditions: recaves terminées + (timer en pause OU niveau actuel est un break)
+function isLightRebuyAllowed(tournament: Tournament | null, effectiveLevel: number): boolean {
+  if (!tournament) return false;
+  if (tournament.status !== 'IN_PROGRESS') return false;
+  if (!tournament.lightRebuyEnabled) return false;
+
+  // Les recaves normales doivent être terminées
+  if (tournament.rebuyEndLevel === null || effectiveLevel <= tournament.rebuyEndLevel) {
+    return false;
+  }
+
+  // Timer en pause OU niveau actuel est un break
+  const isPaused = tournament.timerPausedAt !== null;
+  const currentBlindLevel = tournament.blindLevels?.find((bl) => bl.level === effectiveLevel);
+  const isBreak = currentBlindLevel?.isBreak === true;
+
+  return isPaused || isBreak;
 }
 
 export default function EliminationManager({ tournamentId, onUpdate }: Props) {
@@ -87,8 +116,10 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   // Light rebuy state
   const [lightRebuyAmount, setLightRebuyAmount] = useState(5);
   const [isLightRebuySubmitting, setIsLightRebuySubmitting] = useState<string | null>(null);
+  const [isBustRecaveSubmitting, setIsBustRecaveSubmitting] = useState<string | null>(null);
 
   const recavesOpen = areRecavesOpen(tournament, effectiveLevel);
+  const lightRebuyAvailable = isLightRebuyAllowed(tournament, effectiveLevel);
 
   useEffect(() => {
     fetchData();
@@ -342,6 +373,36 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     }
   };
 
+  // Recave standard depuis une ligne de bust
+  const handleBustRecave = async (playerId: string, bustId: string) => {
+    setIsBustRecaveSubmitting(bustId);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/rebuys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId,
+          type: 'STANDARD',
+        }),
+      });
+
+      if (response.ok) {
+        await fetchData();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de la recave');
+      }
+    } catch (error) {
+      console.error('Error applying rebuy:', error);
+      setError('Erreur lors de la recave');
+    } finally {
+      setIsBustRecaveSubmitting(null);
+    }
+  };
+
   const activePlayers = players
     .filter((p) => p.finalRank === null)
     .sort((a, b) => a.player.firstName.localeCompare(b.player.firstName));
@@ -583,8 +644,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </Card>
       )}
 
-      {/* Light Rebuy - affiché après fin des recaves si activé */}
-      {!recavesOpen && tournament?.lightRebuyEnabled && (
+      {/* Light Rebuy - disponible uniquement pendant pause/break après fin des recaves */}
+      {lightRebuyAvailable && (
         <Card className="border-green-500/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -660,44 +721,74 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {busts.map((bust, index) => (
-                <div
-                  key={bust.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border border-amber-500/40 ${
-                    index === 0 ? 'bg-amber-500/10' : 'bg-amber-500/5'
-                  }`}
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                        Bust
-                      </Badge>
-                      <span className="font-medium truncate">
-                        {bust.eliminated.player.firstName} {bust.eliminated.player.lastName}
-                      </span>
-                      <span className="text-muted-foreground">
-                        ({bust.eliminated.player.nickname})
-                      </span>
+              {busts.map((bust, index) => {
+                // Vérifier si le joueur a recavé après ce bust
+                const hasRecaved = bust.eliminated.rebuysCount > 0;
+                return (
+                  <div
+                    key={bust.id}
+                    className={`flex items-center justify-between p-4 rounded-lg border border-amber-500/40 ${
+                      index === 0 ? 'bg-amber-500/10' : 'bg-amber-500/5'
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10">
+                          Bust
+                        </Badge>
+                        <span className="font-medium truncate">
+                          {bust.eliminated.player.firstName} {bust.eliminated.player.lastName}
+                        </span>
+                        <span className="text-muted-foreground">
+                          ({bust.eliminated.player.nickname})
+                        </span>
+                        {hasRecaved && (
+                          <Badge variant="secondary" className="bg-green-500/10 text-green-600">
+                            <Check className="h-3 w-3 mr-1" />
+                            Recavé ({bust.eliminated.rebuysCount})
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1.5">
+                        {bust.killer ? (
+                          <>
+                            Pris par{' '}
+                            <span className="font-medium text-foreground">
+                              {bust.killer.player.nickname}
+                            </span>
+                            {' '}au niveau {bust.level}
+                          </>
+                        ) : (
+                          <>Killer non spécifié, niveau {bust.level}</>
+                        )}
+                      </div>
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1.5">
-                      {bust.killer ? (
-                        <>
-                          Pris par{' '}
-                          <span className="font-medium text-foreground">
-                            {bust.killer.player.nickname}
-                          </span>
-                          {' '}au niveau {bust.level}
-                        </>
-                      ) : (
-                        <>Killer non spécifié, niveau {bust.level}</>
+                    <div className="flex items-center gap-2">
+                      {recavesOpen && !hasRecaved && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-green-500 text-green-600 hover:bg-green-500/10 min-h-[44px]"
+                          onClick={() => handleBustRecave(bust.eliminated.playerId, bust.id)}
+                          disabled={isBustRecaveSubmitting === bust.id}
+                        >
+                          {isBustRecaveSubmitting === bust.id ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Coins className="h-4 w-4 mr-1" />
+                              Recave
+                            </>
+                          )}
+                        </Button>
                       )}
+                      <div className="text-xs text-muted-foreground flex-shrink-0">
+                        {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground ml-4 flex-shrink-0">
-                    {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

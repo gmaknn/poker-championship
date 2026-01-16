@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
+import { calculatePlayerPoints, SeasonWithPointsConfig } from '@/lib/scoring';
+import { getSeasonLeader } from '@/lib/leaderboard';
 
 const eliminationSchema = z.object({
   eliminatedId: z.string().cuid(),
@@ -136,6 +138,12 @@ export async function POST(
       );
     }
 
+    // Récupérer le leader actuel de la saison (null si J1 = pas de tournois FINISHED)
+    // C'est ce joueur qui déclenche un Leader Kill quand il est éliminé
+    const seasonLeaderId = tournament.seasonId
+      ? await getSeasonLeader(tournament.seasonId)
+      : null;
+
     // Vérifier que les deux joueurs sont inscrits au tournoi (pre-check rapide)
     const eliminatedPlayer = tournament.tournamentPlayers.find(
       (tp) => tp.playerId === validatedData.eliminatedId
@@ -197,24 +205,9 @@ export async function POST(
         throw new Error('RANK_ALREADY_TAKEN');
       }
 
-      // Récupérer les éliminations existantes pour le leader kill
-      const existingEliminations = await tx.elimination.findMany({
-        where: { tournamentId },
-      });
-
-      // Compter les éliminations par joueur
-      const eliminationCounts = new Map<string, number>();
-      existingEliminations.forEach((elim) => {
-        const count = eliminationCounts.get(elim.eliminatorId) || 0;
-        eliminationCounts.set(elim.eliminatorId, count + 1);
-      });
-
-      const currentEliminatorCount =
-        (eliminationCounts.get(validatedData.eliminatorId) || 0) + 1;
-      eliminationCounts.set(validatedData.eliminatorId, currentEliminatorCount);
-
-      const maxEliminations = Math.max(...Array.from(eliminationCounts.values()));
-      const isLeaderKill = currentEliminatorCount === maxEliminations;
+      // Leader Kill: bonus quand on élimine le leader actuel de la saison
+      // Si J1 (pas de tournois FINISHED), seasonLeaderId = null donc isLeaderKill = false
+      const isLeaderKill = seasonLeaderId !== null && validatedData.eliminatedId === seasonLeaderId;
 
       // === ÉCRITURE ATOMIQUE avec updateMany conditionnel ===
       // Utiliser updateMany avec condition finalRank: null pour garantir l'atomicité
@@ -346,6 +339,34 @@ export async function POST(
         });
 
         tournamentCompleted = true;
+
+        // Calculer et sauvegarder les points si tournoi CHAMPIONSHIP avec saison
+        if (tournament.season) {
+          const allPlayers = await prisma.tournamentPlayer.findMany({
+            where: { tournamentId },
+          });
+
+          const season = tournament.season as SeasonWithPointsConfig;
+          const pointsUpdates = allPlayers.map(async (tp) => {
+            const points = calculatePlayerPoints(tp, season);
+            return prisma.tournamentPlayer.update({
+              where: {
+                tournamentId_playerId: {
+                  tournamentId,
+                  playerId: tp.playerId,
+                },
+              },
+              data: {
+                rankPoints: points.rankPoints,
+                eliminationPoints: points.eliminationPoints,
+                bonusPoints: points.bonusPoints,
+                totalPoints: points.totalPoints,
+              },
+            });
+          });
+
+          await Promise.all(pointsUpdates);
+        }
 
         // Émettre les événements de fin de tournoi
         emitToTournament(tournamentId, 'elimination:tournament_complete', {

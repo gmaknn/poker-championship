@@ -140,6 +140,7 @@ export const mockPrismaClient = {
     findFirst: jest.fn(() => Promise.resolve(null)),
     count: jest.fn(() => Promise.resolve(0)),
     aggregate: jest.fn(() => Promise.resolve({ _sum: {} })),
+    groupBy: jest.fn(() => Promise.resolve([])),
   },
   elimination: {
     groupBy: jest.fn(() => Promise.resolve([])),

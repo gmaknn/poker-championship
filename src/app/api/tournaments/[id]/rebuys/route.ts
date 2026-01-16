@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
-import { calculateEffectiveLevel } from '@/lib/tournament-utils';
+import { calculateEffectiveLevel, isLightRebuyAllowed } from '@/lib/tournament-utils';
 
 const rebuySchema = z.object({
   playerId: z.string().cuid(),
@@ -64,7 +64,9 @@ export async function POST(
     // Calculer le niveau effectif basé sur le timer (pas la valeur DB qui n'est pas synchronisée)
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
 
-    if (tournament.rebuyEndLevel && effectiveLevel > tournament.rebuyEndLevel) {
+    // Les recaves STANDARD sont bloquées après rebuyEndLevel
+    // Les recaves LIGHT peuvent être faites après rebuyEndLevel (avec conditions supplémentaires)
+    if (validatedData.type === 'STANDARD' && tournament.rebuyEndLevel && effectiveLevel > tournament.rebuyEndLevel) {
       return NextResponse.json(
         { error: 'Période de recaves terminée' },
         { status: 400 }
@@ -111,6 +113,15 @@ export async function POST(
       if (!tournament.lightRebuyEnabled) {
         return NextResponse.json(
           { error: 'Light rebuy is not enabled for this tournament' },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier que les conditions de light rebuy sont remplies
+      // (recaves terminées + timer en pause ou break)
+      if (!isLightRebuyAllowed(tournament, effectiveLevel, tournament.blindLevels)) {
+        return NextResponse.json(
+          { error: 'Light rebuy uniquement disponible pendant pause/break après fin des recaves' },
           { status: 400 }
         );
       }

@@ -78,3 +78,45 @@ export function areRecavesOpen(
   // Les recaves sont ouvertes si le niveau courant est <= au niveau de fin de recave
   return currentLevel <= tournament.rebuyEndLevel;
 }
+
+/**
+ * Vérifie si une Light Recave est autorisée.
+ *
+ * Conditions pour la light recave:
+ * 1. Le tournoi est en cours (IN_PROGRESS)
+ * 2. La light recave est activée pour ce tournoi
+ * 3. Les recaves normales sont terminées (niveau > rebuyEndLevel)
+ * 4. Le timer est en pause OU le niveau actuel est un break
+ *
+ * @param tournament - Le tournoi à vérifier
+ * @param effectiveLevel - Niveau effectif calculé
+ * @param blindLevels - Les niveaux de blindes (pour vérifier si c'est un break)
+ * @returns true si la light recave est autorisée, false sinon
+ */
+export function isLightRebuyAllowed(
+  tournament: Pick<Tournament, 'status' | 'rebuyEndLevel' | 'lightRebuyEnabled' | 'timerPausedAt'>,
+  effectiveLevel: number,
+  blindLevels: Pick<BlindLevel, 'level' | 'isBreak'>[]
+): boolean {
+  // Condition 1: tournoi en cours
+  if (tournament.status !== 'IN_PROGRESS') {
+    return false;
+  }
+
+  // Condition 2: light rebuy enabled
+  if (!tournament.lightRebuyEnabled) {
+    return false;
+  }
+
+  // Condition 3: recaves normales terminées
+  if (tournament.rebuyEndLevel === null || effectiveLevel <= tournament.rebuyEndLevel) {
+    return false;
+  }
+
+  // Condition 4: timer en pause OU niveau actuel est un break
+  const isPaused = tournament.timerPausedAt !== null;
+  const currentBlindLevel = blindLevels.find((bl) => bl.level === effectiveLevel);
+  const isBreak = currentBlindLevel?.isBreak === true;
+
+  return isPaused || isBreak;
+}

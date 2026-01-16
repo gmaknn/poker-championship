@@ -182,3 +182,129 @@ export function validateTierConfiguration(
 
   return errors;
 }
+
+// ============================================================================
+// Points Calculation System
+// ============================================================================
+
+// Type for detailed points configuration
+export interface DetailedPointsConfig {
+  type: 'DETAILED';
+  byRank: Record<string, number>;
+  rank19Plus: number;
+}
+
+// Season type for points calculation
+export interface SeasonWithPointsConfig {
+  detailedPointsConfig?: unknown;
+  pointsFirst: number;
+  pointsSecond: number;
+  pointsThird: number;
+  pointsFourth: number;
+  pointsFifth: number;
+  pointsSixth: number;
+  pointsSeventh: number;
+  pointsEighth: number;
+  pointsNinth: number;
+  pointsTenth: number;
+  pointsEleventh: number;
+  pointsSixteenth: number;
+  eliminationPoints: number;
+  leaderKillerBonus: number;
+}
+
+// TournamentPlayer type for points calculation
+export interface TournamentPlayerForPoints {
+  playerId: string;
+  finalRank: number | null;
+  eliminationsCount: number;
+  leaderKills: number;
+  penaltyPoints: number;
+}
+
+/**
+ * Get rank points using detailed config if available, otherwise fall back to legacy fields
+ */
+export function getRankPointsForPosition(
+  rank: number,
+  season: SeasonWithPointsConfig
+): number {
+  // Check if detailed config exists and is valid
+  const config = season.detailedPointsConfig as DetailedPointsConfig | null;
+  if (config && config.type === 'DETAILED' && config.byRank) {
+    // Use detailed config
+    const pointsForRank = config.byRank[String(rank)];
+    if (pointsForRank !== undefined) {
+      return pointsForRank;
+    }
+    // Rank not in byRank (19+), use rank19Plus
+    return config.rank19Plus ?? 0;
+  }
+
+  // Fall back to legacy field-based system
+  const legacyPointsMap: Record<number, number> = {
+    1: season.pointsFirst,
+    2: season.pointsSecond,
+    3: season.pointsThird,
+    4: season.pointsFourth,
+    5: season.pointsFifth,
+    6: season.pointsSixth,
+    7: season.pointsSeventh,
+    8: season.pointsEighth,
+    9: season.pointsNinth,
+    10: season.pointsTenth,
+  };
+
+  // Legacy: positions 1-10
+  if (legacyPointsMap[rank] !== undefined) {
+    return legacyPointsMap[rank];
+  }
+
+  // Legacy: positions 11-15
+  if (rank >= 11 && rank <= 15) {
+    return season.pointsEleventh;
+  }
+
+  // Legacy: positions 16+
+  return season.pointsSixteenth;
+}
+
+/**
+ * Calculate points for a single tournament player
+ */
+export function calculatePlayerPoints(
+  player: TournamentPlayerForPoints,
+  season: SeasonWithPointsConfig
+): {
+  rankPoints: number;
+  eliminationPoints: number;
+  bonusPoints: number;
+  penaltyPoints: number;
+  totalPoints: number;
+} {
+  let rankPoints = 0;
+  let eliminationPoints = 0;
+  let bonusPoints = 0;
+
+  if (player.finalRank !== null) {
+    // Points de classement selon la position finale
+    rankPoints = getRankPointsForPosition(player.finalRank, season);
+
+    // Points d'élimination
+    eliminationPoints = player.eliminationsCount * season.eliminationPoints;
+
+    // Bonus Leader Killer
+    bonusPoints = player.leaderKills * season.leaderKillerBonus;
+  }
+
+  // Calculer le total (penaltyPoints déjà stocké)
+  const totalPoints = rankPoints + eliminationPoints + bonusPoints + player.penaltyPoints;
+
+  return {
+    rankPoints,
+    eliminationPoints,
+    bonusPoints,
+    penaltyPoints: player.penaltyPoints,
+    totalPoints,
+  };
+}
