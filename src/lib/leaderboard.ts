@@ -5,6 +5,89 @@
 
 import { prisma } from '@/lib/prisma';
 
+// Type for detailed points configuration
+interface DetailedPointsConfig {
+  type: 'DETAILED';
+  byRank: Record<string, number>;
+  rank19Plus: number;
+}
+
+/**
+ * Get rank points using detailed config if available, otherwise fall back to legacy fields
+ */
+function getRankPointsForPosition(
+  rank: number,
+  season: {
+    detailedPointsConfig?: unknown;
+    pointsFirst: number;
+    pointsSecond: number;
+    pointsThird: number;
+    pointsFourth: number;
+    pointsFifth: number;
+    pointsSixth: number;
+    pointsSeventh: number;
+    pointsEighth: number;
+    pointsNinth: number;
+    pointsTenth: number;
+    pointsEleventh: number;
+    pointsSixteenth: number;
+  }
+): number {
+  const config = season.detailedPointsConfig as DetailedPointsConfig | null;
+  if (config && config.type === 'DETAILED' && config.byRank) {
+    const pointsForRank = config.byRank[String(rank)];
+    if (pointsForRank !== undefined) {
+      return pointsForRank;
+    }
+    return config.rank19Plus ?? 0;
+  }
+
+  const legacyPointsMap: Record<number, number> = {
+    1: season.pointsFirst,
+    2: season.pointsSecond,
+    3: season.pointsThird,
+    4: season.pointsFourth,
+    5: season.pointsFifth,
+    6: season.pointsSixth,
+    7: season.pointsSeventh,
+    8: season.pointsEighth,
+    9: season.pointsNinth,
+    10: season.pointsTenth,
+  };
+
+  if (legacyPointsMap[rank] !== undefined) {
+    return legacyPointsMap[rank];
+  }
+
+  if (rank >= 11 && rank <= 15) {
+    return season.pointsEleventh;
+  }
+
+  return season.pointsSixteenth;
+}
+
+/**
+ * Calculate points for a single tournament player (used in backfill)
+ */
+function calculatePlayerPoints(
+  tp: { finalRank: number | null; eliminationsCount: number; leaderKills: number; penaltyPoints: number },
+  season: Parameters<typeof getRankPointsForPosition>[1] & { eliminationPoints: number; leaderKillerBonus: number }
+): { rankPoints: number; eliminationPoints: number; bonusPoints: number; totalPoints: number } {
+  let rankPoints = 0;
+  let eliminationPoints = 0;
+  let bonusPoints = 0;
+
+  if (tp.finalRank !== null) {
+    rankPoints = getRankPointsForPosition(tp.finalRank, season);
+    eliminationPoints = tp.eliminationsCount * season.eliminationPoints;
+    bonusPoints = tp.leaderKills * season.leaderKillerBonus;
+  }
+
+  const totalPoints = rankPoints + eliminationPoints + bonusPoints + tp.penaltyPoints;
+
+  return { rankPoints, eliminationPoints, bonusPoints, totalPoints };
+}
+
 export type TournamentPerformance = {
   tournamentId: string;
   tournamentName: string | null;
@@ -58,6 +141,8 @@ export type LeaderboardResult = {
 /**
  * Calculate leaderboard for a season
  * Can be called directly without HTTP fetch
+ * Includes automatic backfill: if all points are 0 but there are ranked players,
+ * recalculates points on-the-fly (idempotent, no infinite loop).
  */
 export async function calculateLeaderboard(seasonId: string): Promise<LeaderboardResult | null> {
   // Get season with its configuration
@@ -85,6 +170,18 @@ export async function calculateLeaderboard(seasonId: string): Promise<Leaderboar
 
   if (!season) {
     return null;
+  }
+
+  // Check if we need to backfill points (all totalPoints are 0 but we have ranked players)
+  let needsBackfill = false;
+  if (season.tournaments.length > 0) {
+    const allPointsZero = season.tournaments.every(t =>
+      t.tournamentPlayers.every(tp => tp.totalPoints === 0)
+    );
+    const hasRankedPlayers = season.tournaments.some(t =>
+      t.tournamentPlayers.some(tp => tp.finalRank !== null)
+    );
+    needsBackfill = allPointsZero && hasRankedPlayers;
   }
 
   // Build player statistics
@@ -122,16 +219,28 @@ export async function calculateLeaderboard(seasonId: string): Promise<Leaderboar
         playerStatsMap.set(tp.playerId, playerStats);
       }
 
+      // Calculate points on-the-fly if backfill needed, otherwise use stored values
+      let perfPoints = {
+        totalPoints: tp.totalPoints,
+        rankPoints: tp.rankPoints,
+        eliminationPoints: tp.eliminationPoints,
+        bonusPoints: tp.bonusPoints,
+      };
+
+      if (needsBackfill) {
+        perfPoints = calculatePlayerPoints(tp, season);
+      }
+
       // Add tournament performance
       playerStats.performances.push({
         tournamentId: tournament.id,
         tournamentName: tournament.name,
         tournamentDate: tournament.date,
         finalRank: tp.finalRank,
-        totalPoints: tp.totalPoints,
-        rankPoints: tp.rankPoints,
-        eliminationPoints: tp.eliminationPoints,
-        bonusPoints: tp.bonusPoints,
+        totalPoints: perfPoints.totalPoints,
+        rankPoints: perfPoints.rankPoints,
+        eliminationPoints: perfPoints.eliminationPoints,
+        bonusPoints: perfPoints.bonusPoints,
         penaltyPoints: tp.penaltyPoints,
         eliminationsCount: tp.eliminationsCount,
         leaderKills: tp.leaderKills,
