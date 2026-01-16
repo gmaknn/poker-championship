@@ -351,7 +351,8 @@ describe('API /api/tournaments/[id]/rebuys RBAC', () => {
       expect(data.error).toContain('eliminated');
     });
 
-    it('should return 400 for light rebuy when not enabled', async () => {
+    it('should allow light rebuy even when lightRebuyEnabled flag is false (no feature flag)', async () => {
+      // LIGHT rebuy is always allowed when rebuy period is open, regardless of lightRebuyEnabled flag
       mockPrismaClient.tournament.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
         if (where.id === TEST_IDS.TOURNAMENT) {
           return Promise.resolve({ ...MOCK_TOURNAMENT_REBUY, lightRebuyEnabled: false });
@@ -369,9 +370,8 @@ describe('API /api/tournaments/[id]/rebuys RBAC', () => {
       );
       const response = await rebuysPOST(request, { params: createParams(TEST_IDS.TOURNAMENT) });
 
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.error).toContain('Light rebuy is not enabled');
+      // Should succeed (200) because lightRebuyEnabled flag no longer blocks LIGHT rebuys
+      expect(response.status).toBe(200);
     });
 
     it('should return 400 when light rebuy already used', async () => {
