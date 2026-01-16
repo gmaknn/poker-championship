@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
-import { areRecavesOpen } from '@/lib/tournament-utils';
+import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
 
 const eliminationSchema = z.object({
   eliminatedId: z.string().cuid(),
@@ -70,6 +70,9 @@ export async function POST(
             player: true,
           },
         },
+        blindLevels: {
+          orderBy: { level: 'asc' },
+        },
       },
     });
 
@@ -104,22 +107,24 @@ export async function POST(
       );
     }
 
+    // Calculer le niveau effectif basé sur le timer (pas la valeur DB qui n'est pas synchronisée)
+    const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
+
     // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
-    if (areRecavesOpen(tournament)) {
+    if (areRecavesOpen(tournament, effectiveLevel)) {
       // Diagnostic optionnel (activé via RECIPE_DIAGNOSTICS=1)
       const isDiag = process.env.RECIPE_DIAGNOSTICS === '1';
       if (isDiag) {
         console.log('[DIAG POST /eliminations] recaves ouvertes - blocked:', {
           tournamentId,
-          currentLevel: tournament.currentLevel,
-          currentLevelType: typeof tournament.currentLevel,
+          dbCurrentLevel: tournament.currentLevel,
+          effectiveLevel,
           rebuyEndLevel: tournament.rebuyEndLevel,
-          rebuyEndLevelType: typeof tournament.rebuyEndLevel,
         });
       }
 
       const diagnostics = isDiag
-        ? { currentLevel: tournament.currentLevel, rebuyEndLevel: tournament.rebuyEndLevel }
+        ? { dbCurrentLevel: tournament.currentLevel, effectiveLevel, rebuyEndLevel: tournament.rebuyEndLevel }
         : {};
 
       return NextResponse.json(
@@ -229,14 +234,14 @@ export async function POST(
         throw new Error('PLAYER_ALREADY_ELIMINATED');
       }
 
-      // Créer l'élimination
+      // Créer l'élimination avec le niveau effectif (pas la valeur DB)
       const elimination = await tx.elimination.create({
         data: {
           tournamentId,
           eliminatedId: validatedData.eliminatedId,
           eliminatorId: validatedData.eliminatorId,
           rank,
-          level: tournament.currentLevel,
+          level: effectiveLevel,
           isLeaderKill,
         },
         include: {
@@ -286,7 +291,7 @@ export async function POST(
       eliminatorId: validatedData.eliminatorId,
       eliminatorName: elimination.eliminator.nickname,
       rank,
-      level: tournament.currentLevel,
+      level: effectiveLevel,
       isLeaderKill,
     });
 

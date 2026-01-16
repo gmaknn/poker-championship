@@ -34,6 +34,21 @@ const MOCK_TOURNAMENT_REBUY = {
   rebuyEndLevel: 6,
   lightRebuyEnabled: true,
   createdById: TEST_IDS.TD_PLAYER,
+  timerStartedAt: null,
+  timerPausedAt: null,
+  timerElapsedSeconds: 0,
+  blindLevels: [
+    { level: 1, duration: 12 },
+    { level: 2, duration: 12 },
+    { level: 3, duration: 12 },
+    { level: 4, duration: 12 },
+    { level: 5, duration: 12 },
+    { level: 6, duration: 12 },
+    { level: 7, duration: 12 },
+    { level: 8, duration: 12 },
+    { level: 9, duration: 12 },
+    { level: 10, duration: 12 },
+  ],
   season: {
     ...MOCK_SEASON,
     freeRebuysCount: 2,
@@ -269,7 +284,15 @@ describe('API /api/tournaments/[id]/rebuys RBAC', () => {
     it('should return 400 when rebuy period has ended', async () => {
       mockPrismaClient.tournament.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
         if (where.id === TEST_IDS.TOURNAMENT) {
-          return Promise.resolve({ ...MOCK_TOURNAMENT_REBUY, currentLevel: 10, rebuyEndLevel: 6 }); // Past rebuy end
+          // Simuler un tournoi où le temps écoulé dépasse le niveau de fin de recave
+          // rebuyEndLevel: 6, avec 6 niveaux de 12 min = 72 min = 4320 sec pour finir niveau 6
+          // 4400 sec = niveau 7 (après fin recaves)
+          return Promise.resolve({
+            ...MOCK_TOURNAMENT_REBUY,
+            currentLevel: 10,
+            rebuyEndLevel: 6,
+            timerElapsedSeconds: 4400, // Après niveau 6, donc recaves terminées
+          });
         }
         return Promise.resolve(null);
       });

@@ -56,6 +56,17 @@ describe('POST /api/tournaments/[id]/rebuys - Business Rules', () => {
     lightRebuyAmount: 5,
     buyInAmount: 10,
     createdById: TEST_IDS.TD_PLAYER,
+    timerStartedAt: null,
+    timerPausedAt: null,
+    timerElapsedSeconds: 0,
+    blindLevels: [
+      { level: 1, duration: 12 },
+      { level: 2, duration: 12 },
+      { level: 3, duration: 12 },
+      { level: 4, duration: 12 },
+      { level: 5, duration: 12 },
+      { level: 6, duration: 12 },
+    ],
     season: {
       freeRebuysCount: 2,
       rebuyPenaltyTier1: -50,
@@ -245,10 +256,13 @@ describe('POST /api/tournaments/[id]/rebuys - Business Rules', () => {
 
   describe('Business Rule: Late Registration / Rebuy Period', () => {
     it('should return 400 when rebuy period has ended (currentLevel > rebuyEndLevel)', async () => {
+      // Pour simuler niveau 6 avec rebuyEndLevel 5, on doit simuler un temps écoulé
+      // 6 niveaux de 12 min = 72 min = 4320 sec. Niveau 6 atteint à 3600 sec (5 niveaux complets)
       (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
         ...mockTournament,
         currentLevel: 6, // > rebuyEndLevel (5)
         rebuyEndLevel: 5,
+        timerElapsedSeconds: 3700, // Après niveau 5, dans niveau 6
       });
 
       const request = new NextRequest(
@@ -570,6 +584,17 @@ describe('Concurrency: Atomic rebuys', () => {
       maxRebuysPerPlayer: 1, // Max 1 rebuy - important for race detection
       lightRebuyEnabled: false,
       createdById: TEST_IDS.TD_PLAYER,
+      timerStartedAt: null,
+      timerPausedAt: null,
+      timerElapsedSeconds: 0,
+      blindLevels: [
+        { level: 1, duration: 12 },
+        { level: 2, duration: 12 },
+        { level: 3, duration: 12 },
+        { level: 4, duration: 12 },
+        { level: 5, duration: 12 },
+        { level: 6, duration: 12 },
+      ],
       season: null,
     };
 
