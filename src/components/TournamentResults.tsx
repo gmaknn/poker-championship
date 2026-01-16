@@ -8,20 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trophy, Calculator, Download, Image as ImageIcon, FileText, Share2, ExternalLink, Users, MessageCircle } from 'lucide-react';
 import { exportTournamentResults, exportToWhatsAppText, type TournamentResultsData } from '@/lib/exportUtils';
 import NextImage from 'next/image';
-
-// Helper function to check if avatar URL/path is valid
-const isValidAvatarUrl = (url: string | null): boolean => {
-  if (!url || url.trim() === '') return false;
-  // Accept relative paths starting with /
-  if (url.startsWith('/')) return true;
-  // Accept full URLs
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
+import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
 
 type Player = {
   id: string;
@@ -333,7 +320,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[1].player.avatar) ? (
                       <NextImage
-                        src={rankedPlayers[1].player.avatar!}
+                        src={normalizeAvatarSrc(rankedPlayers[1].player.avatar)!}
                         alt={rankedPlayers[1].player.nickname}
                         width={80}
                         height={80}
@@ -373,7 +360,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[0].player.avatar) ? (
                       <NextImage
-                        src={rankedPlayers[0].player.avatar!}
+                        src={normalizeAvatarSrc(rankedPlayers[0].player.avatar)!}
                         alt={rankedPlayers[0].player.nickname}
                         width={96}
                         height={96}
@@ -413,7 +400,7 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                   <div className="mb-3">
                     {isValidAvatarUrl(rankedPlayers[2].player.avatar) ? (
                       <NextImage
-                        src={rankedPlayers[2].player.avatar!}
+                        src={normalizeAvatarSrc(rankedPlayers[2].player.avatar)!}
                         alt={rankedPlayers[2].player.nickname}
                         width={80}
                         height={80}

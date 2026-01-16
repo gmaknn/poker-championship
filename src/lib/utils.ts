@@ -59,3 +59,46 @@ export function getMinDenomination(values: unknown[]): number | null {
 
   return Math.min(...finiteNumbers);
 }
+
+/**
+ * Normalize avatar URL/path for consistent rendering.
+ * Handles multiple formats:
+ * - "avatars/xxx.png" => "/avatars/xxx.png" (adds leading slash)
+ * - "/avatars/xxx.png" => unchanged
+ * - "http://..." or "https://..." => unchanged
+ * - null/empty => null
+ * - other strings => fallback to dicebear or null
+ */
+export function normalizeAvatarSrc(avatar: string | null | undefined): string | null {
+  if (!avatar || avatar.trim() === '') {
+    return null;
+  }
+
+  const trimmed = avatar.trim();
+
+  // Already a full URL
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
+  // Already has leading slash
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+
+  // Relative path without leading slash (e.g., "avatars/xxx.png")
+  if (trimmed.startsWith('avatars/')) {
+    return '/' + trimmed;
+  }
+
+  // Unknown format - return null (will fallback to initials)
+  return null;
+}
+
+/**
+ * Check if avatar URL/path is valid and can be rendered.
+ * Uses normalizeAvatarSrc internally.
+ */
+export function isValidAvatarUrl(url: string | null | undefined): boolean {
+  return normalizeAvatarSrc(url) !== null;
+}

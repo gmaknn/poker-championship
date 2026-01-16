@@ -15,17 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/PageHeader';
-
-// Helper function to check if avatar URL is valid
-const isValidAvatarUrl = (url: string | null): boolean => {
-  if (!url || url.trim() === '') return false;
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
+import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
 
 type Season = {
   id: string;
@@ -228,7 +218,7 @@ export default function LeaderboardPage() {
                     </div>
                     {isValidAvatarUrl(entry.player.avatar) && (
                       <Image
-                        src={entry.player.avatar!}
+                        src={normalizeAvatarSrc(entry.player.avatar)!}
                         alt={entry.player.nickname}
                         width={64}
                         height={64}
@@ -286,7 +276,7 @@ export default function LeaderboardPage() {
                       </span>
                       {isValidAvatarUrl(entry.player.avatar) ? (
                         <Image
-                          src={entry.player.avatar!}
+                          src={normalizeAvatarSrc(entry.player.avatar)!}
                           alt={entry.player.nickname}
                           width={40}
                           height={40}

@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import Image from 'next/image';
 import { PageHeader } from '@/components/PageHeader';
+import { normalizeAvatarSrc } from '@/lib/utils';
 
 type TournamentStatus = 'PLANNED' | 'REGISTRATION' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
 type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ADMIN';
@@ -81,26 +82,8 @@ const STATUS_CONFIG = {
   CANCELLED: { label: 'Annulé', variant: 'destructive' as const, color: 'text-red-500' },
 };
 
-const getAvatarUrl = (avatar: string | null) => {
-  if (!avatar || avatar.trim() === '') return null;
-
-  // Check if it's already a valid URL
-  if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/')) {
-    try {
-      // Validate the URL
-      if (avatar.startsWith('/')) {
-        return avatar; // Relative URL, assume valid
-      }
-      new URL(avatar);
-      return avatar;
-    } catch {
-      return null;
-    }
-  }
-
-  // Si c'est juste un nom (comme "Heart"), générer une URL Dicebear
-  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
-};
+// Use shared normalizeAvatarSrc from utils
+const getAvatarUrl = normalizeAvatarSrc;
 
 export default function TournamentsPage() {
   console.log('🎬 TournamentsPage component loaded');
@@ -914,9 +897,9 @@ export default function TournamentsPage() {
                         <div className="flex gap-2">
                           {/* 1ère place */}
                           <div className="flex items-center gap-1 px-2 py-1 rounded-md border-2 border-yellow-500 bg-yellow-500/5">
-                            {tournament.podium[0].player.avatar ? (
+                            {getAvatarUrl(tournament.podium[0].player.avatar) ? (
                               <Image
-                                src={tournament.podium[0].player.avatar}
+                                src={getAvatarUrl(tournament.podium[0].player.avatar)!}
                                 alt={tournament.podium[0].player.nickname}
                                 width={24}
                                 height={24}
@@ -935,9 +918,9 @@ export default function TournamentsPage() {
 
                           {/* 2e place */}
                           <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-gray-400 bg-gray-400/5">
-                            {tournament.podium[1].player.avatar ? (
+                            {getAvatarUrl(tournament.podium[1].player.avatar) ? (
                               <Image
-                                src={tournament.podium[1].player.avatar}
+                                src={getAvatarUrl(tournament.podium[1].player.avatar)!}
                                 alt={tournament.podium[1].player.nickname}
                                 width={24}
                                 height={24}
@@ -956,9 +939,9 @@ export default function TournamentsPage() {
 
                           {/* 3e place */}
                           <div className="flex items-center gap-1 px-2 py-1 rounded-md border border-amber-700 bg-amber-700/5">
-                            {tournament.podium[2].player.avatar ? (
+                            {getAvatarUrl(tournament.podium[2].player.avatar) ? (
                               <Image
-                                src={tournament.podium[2].player.avatar}
+                                src={getAvatarUrl(tournament.podium[2].player.avatar)!}
                                 alt={tournament.podium[2].player.nickname}
                                 width={24}
                                 height={24}
