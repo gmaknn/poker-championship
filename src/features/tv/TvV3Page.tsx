@@ -1049,23 +1049,25 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                             {table.activeCount}/{table.totalCount}
                           </span>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {table.seats.map((seat, idx) => (
                             <div
                               key={seat.playerId}
-                              className={`flex items-center gap-3 text-lg p-3 rounded-xl ${
-                                seat.isEliminated ? 'opacity-40 line-through' : ''
+                              className={`flex items-center justify-between gap-4 text-lg py-3 px-4 rounded-xl ${
+                                seat.isEliminated ? 'opacity-40' : ''
                               }`}
                               style={{
                                 backgroundColor: seat.isEliminated
                                   ? 'transparent'
-                                  : `${currentTheme.colors.primary}20`,
+                                  : `${currentTheme.colors.primary}15`,
                               }}
                             >
-                              <span className="text-white/60 font-mono w-8 text-base">
-                                {seat.seatNumber ?? idx + 1}.
+                              <span className="text-slate-400 text-sm font-medium whitespace-nowrap">
+                                Siège {seat.seatNumber ?? idx + 1}
                               </span>
-                              <span className="text-white font-medium truncate">
+                              <span className={`text-white font-bold text-xl uppercase truncate ${
+                                seat.isEliminated ? 'line-through' : ''
+                              }`}>
                                 {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
                               </span>
                             </div>
