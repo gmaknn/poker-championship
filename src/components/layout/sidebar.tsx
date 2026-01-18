@@ -69,29 +69,35 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [currentPlayer, setCurrentPlayer] = useState<CurrentPlayer | null>(null);
 
   useEffect(() => {
-    // Lire le cookie player-id
+    // Lire le cookie player-id - se re-exécute à chaque changement de page
     const cookies = document.cookie;
     const playerIdMatch = cookies.match(/player-id=([^;]+)/);
 
     if (playerIdMatch) {
       const playerId = playerIdMatch[1];
 
-      // Récupérer les infos du joueur
-      fetch(`/api/players/${playerId}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(player => {
-          if (player) {
-            setCurrentPlayer({
-              id: player.id,
-              nickname: player.nickname,
-              avatar: player.avatar,
-              role: player.role,
-            });
-          }
-        })
-        .catch(err => console.error('Error loading current player:', err));
+      // Ne refetch que si le joueur a changé
+      if (currentPlayer?.id !== playerId) {
+        // Récupérer les infos du joueur
+        fetch(`/api/players/${playerId}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(player => {
+            if (player) {
+              setCurrentPlayer({
+                id: player.id,
+                nickname: player.nickname,
+                avatar: player.avatar,
+                role: player.role,
+              });
+            }
+          })
+          .catch(err => console.error('Error loading current player:', err));
+      }
+    } else {
+      // Pas de cookie, réinitialiser le joueur
+      setCurrentPlayer(null);
     }
-  }, []);
+  }, [pathname, currentPlayer?.id]);
 
   const handleLogout = () => {
     // Supprimer le cookie
@@ -215,21 +221,28 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
     if (playerIdMatch) {
       const playerId = playerIdMatch[1];
-      fetch(`/api/players/${playerId}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(player => {
-          if (player) {
-            setCurrentPlayer({
-              id: player.id,
-              nickname: player.nickname,
-              avatar: player.avatar,
-              role: player.role,
-            });
-          }
-        })
-        .catch(err => console.error('Error loading current player:', err));
+
+      // Ne refetch que si le joueur a changé
+      if (currentPlayer?.id !== playerId) {
+        fetch(`/api/players/${playerId}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(player => {
+            if (player) {
+              setCurrentPlayer({
+                id: player.id,
+                nickname: player.nickname,
+                avatar: player.avatar,
+                role: player.role,
+              });
+            }
+          })
+          .catch(err => console.error('Error loading current player:', err));
+      }
+    } else {
+      // Pas de cookie, réinitialiser le joueur
+      setCurrentPlayer(null);
     }
-  }, []);
+  }, [pathname, currentPlayer?.id]);
 
   const handleLogout = () => {
     document.cookie = 'player-id=; path=/; max-age=0';
