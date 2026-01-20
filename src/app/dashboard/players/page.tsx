@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye, Mail, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye, Mail, Check, UserCheck, Key } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import {
@@ -68,6 +68,14 @@ export default function PlayersPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+
+  // Activation manuelle
+  const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
+  const [activatingPlayer, setActivatingPlayer] = useState<PlayerWithStats | null>(null);
+  const [activatePassword, setActivatePassword] = useState('');
+  const [activateConfirmPassword, setActivateConfirmPassword] = useState('');
+  const [activateError, setActivateError] = useState('');
+  const [isActivating, setIsActivating] = useState(false);
 
   useEffect(() => {
     fetchPlayers();
@@ -258,6 +266,59 @@ export default function PlayersPage() {
     return player.email && !(player as any).password && (player as any).status !== 'ACTIVE';
   };
 
+  // Check if player can be manually activated (has email, no password yet)
+  const canActivate = (player: PlayerWithStats) => {
+    return player.email && !(player as any).password && (player as any).status !== 'ACTIVE';
+  };
+
+  const handleOpenActivateDialog = (player: PlayerWithStats) => {
+    setActivatingPlayer(player);
+    setActivatePassword('');
+    setActivateConfirmPassword('');
+    setActivateError('');
+    setIsActivateDialogOpen(true);
+  };
+
+  const handleActivatePlayer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activatingPlayer) return;
+
+    // Validation
+    if (activatePassword.length < 8) {
+      setActivateError('Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+    if (activatePassword !== activateConfirmPassword) {
+      setActivateError('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    setIsActivating(true);
+    setActivateError('');
+
+    try {
+      const response = await fetch(`/api/players/${activatingPlayer.id}/activate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: activatePassword }),
+      });
+
+      if (response.ok) {
+        setIsActivateDialogOpen(false);
+        fetchPlayers();
+        alert(`Compte activé avec succès pour ${activatingPlayer.firstName} ${activatingPlayer.lastName}.\n\nVous pouvez maintenant lui communiquer le mot de passe.`);
+      } else {
+        const data = await response.json();
+        setActivateError(data.error || 'Erreur lors de l\'activation');
+      }
+    } catch (err) {
+      console.error('Error activating player:', err);
+      setActivateError('Erreur lors de l\'activation');
+    } finally {
+      setIsActivating(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -383,13 +444,24 @@ export default function PlayersPage() {
                       </Button>
                       {isAdmin() && (
                         <>
+                          {canActivate(player) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenActivateDialog(player)}
+                              title="Activer manuellement"
+                              className="text-emerald-500 hover:text-emerald-600"
+                            >
+                              <UserCheck className="h-4 w-4" />
+                            </Button>
+                          )}
                           {canInvite(player) && (
                             <Button
                               variant="ghost"
                               size="icon"
                               onClick={() => handleSendInvitation(player)}
                               disabled={invitingPlayerId === player.id}
-                              title="Envoyer invitation"
+                              title="Envoyer invitation par email"
                               className={inviteSuccess === player.id ? 'text-green-500' : ''}
                             >
                               {invitingPlayerId === player.id ? (
@@ -507,13 +579,24 @@ export default function PlayersPage() {
                     </Button>
                     {isAdmin() && (
                       <>
+                        {canActivate(player) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenActivateDialog(player)}
+                            title="Activer manuellement"
+                            className="text-emerald-500 hover:text-emerald-600"
+                          >
+                            <UserCheck className="h-4 w-4" />
+                          </Button>
+                        )}
                         {canInvite(player) && (
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => handleSendInvitation(player)}
                             disabled={invitingPlayerId === player.id}
-                            title="Envoyer invitation"
+                            title="Envoyer invitation par email"
                             className={inviteSuccess === player.id ? 'text-green-500' : ''}
                           >
                             {invitingPlayerId === player.id ? (
@@ -738,6 +821,128 @@ export default function PlayersPage() {
               </Button>
               <Button type="submit">
                 {editingPlayer ? 'Modifier' : 'Ajouter'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale d'activation manuelle */}
+      <Dialog open={isActivateDialogOpen} onOpenChange={setIsActivateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-emerald-500" />
+              Activer le compte joueur
+            </DialogTitle>
+            <DialogDescription>
+              Définissez un mot de passe temporaire pour activer ce compte.
+              Vous devrez ensuite communiquer ce mot de passe au joueur.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleActivatePlayer}>
+            <div className="space-y-4 py-4">
+              {/* Info joueur */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  {activatingPlayer?.avatar && getAvatarUrl(activatingPlayer.avatar) ? (
+                    <img
+                      src={getAvatarUrl(activatingPlayer.avatar)!}
+                      alt={activatingPlayer?.nickname}
+                      className="w-12 h-12 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <Users className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold">
+                      {activatingPlayer?.firstName} {activatingPlayer?.lastName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      @{activatingPlayer?.nickname}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-sm">
+                  <span className="text-muted-foreground">Email: </span>
+                  <span className="font-mono">{activatingPlayer?.email}</span>
+                </div>
+              </div>
+
+              {/* Mot de passe */}
+              <div className="space-y-2">
+                <label htmlFor="activate-password" className="text-sm font-medium flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Mot de passe temporaire
+                </label>
+                <Input
+                  id="activate-password"
+                  type="password"
+                  value={activatePassword}
+                  onChange={(e) => setActivatePassword(e.target.value)}
+                  placeholder="Minimum 8 caractères"
+                  required
+                  minLength={8}
+                  disabled={isActivating}
+                />
+              </div>
+
+              {/* Confirmation */}
+              <div className="space-y-2">
+                <label htmlFor="activate-confirm" className="text-sm font-medium">
+                  Confirmer le mot de passe
+                </label>
+                <Input
+                  id="activate-confirm"
+                  type="password"
+                  value={activateConfirmPassword}
+                  onChange={(e) => setActivateConfirmPassword(e.target.value)}
+                  placeholder="Répétez le mot de passe"
+                  required
+                  disabled={isActivating}
+                />
+              </div>
+
+              {activateError && (
+                <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
+                  {activateError}
+                </div>
+              )}
+
+              <div className="text-xs text-muted-foreground bg-amber-500/10 text-amber-600 p-3 rounded">
+                <strong>Important:</strong> Après activation, communiquez le mot de passe au joueur
+                par un moyen sécurisé (SMS, WhatsApp, en personne...).
+                Le joueur pourra ensuite se connecter sur <span className="font-mono">/player/login</span>.
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsActivateDialogOpen(false)}
+                disabled={isActivating}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                disabled={isActivating}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isActivating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Activation...
+                  </>
+                ) : (
+                  <>
+                    <UserCheck className="mr-2 h-4 w-4" />
+                    Activer le compte
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>
