@@ -109,6 +109,16 @@ export default function LeaderboardPage() {
 
     setIsExporting(true);
     try {
+      // Temporarily show the hidden export div
+      const exportDiv = exportRef.current;
+      exportDiv.style.position = 'fixed';
+      exportDiv.style.left = '0';
+      exportDiv.style.top = '0';
+      exportDiv.style.zIndex = '9999';
+
+      // Wait for render
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const filename = `Saison_${selectedSeason.year}_classement_general`;
       await exportToPNG({
         element: exportRef.current,
@@ -116,6 +126,11 @@ export default function LeaderboardPage() {
         backgroundColor: '#ffffff',
         pixelRatio: 2,
       });
+
+      // Hide it again
+      exportDiv.style.position = 'fixed';
+      exportDiv.style.left = '-9999px';
+      exportDiv.style.zIndex = '0';
     } catch (error) {
       console.error('Error exporting PNG:', error);
     } finally {
