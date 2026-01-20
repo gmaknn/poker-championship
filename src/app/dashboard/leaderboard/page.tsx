@@ -231,17 +231,7 @@ export default function LeaderboardPage() {
           </CardContent>
         </Card>
       ) : (
-        <div ref={exportRef} className="space-y-6 bg-white p-4 rounded-lg">
-          {/* Titre pour l'export */}
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold">Classement Général - {selectedSeason?.name} {selectedSeason?.year}</h1>
-            <p className="text-muted-foreground">
-              {leaderboard.length > 0 && leaderboard[0].tournamentsCount > 0
-                ? `${Math.max(...leaderboard.map(e => e.tournamentsCount))} tournoi(s) joué(s)`
-                : ''}
-            </p>
-          </div>
-
+        <>
           {/* Top 3 podium */}
           <div className="grid gap-4 md:grid-cols-3 mb-8">
             {leaderboard.slice(0, 3).map((entry, index) => (
@@ -363,6 +353,105 @@ export default function LeaderboardPage() {
               </div>
             </CardContent>
           </Card>
+        </>
+      )}
+
+      {/* Zone d'export cachée - pour générer le PNG avec titre */}
+      {leaderboard.length > 0 && (
+        <div
+          ref={exportRef}
+          className="fixed -left-[9999px] top-0 bg-white p-6"
+          style={{ width: '1200px' }}
+        >
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">
+              Classement Général - {selectedSeason?.name} {selectedSeason?.year}
+            </h1>
+            <p className="text-gray-600">
+              {Math.max(...leaderboard.map(e => e.tournamentsCount))} tournoi(s) joué(s)
+            </p>
+          </div>
+
+          {/* Podium Top 3 */}
+          {leaderboard.length >= 3 && (
+            <div className="flex justify-center items-end gap-8 mb-8">
+              {/* 2ème */}
+              <div className="flex flex-col items-center">
+                {isValidAvatarUrl(leaderboard[1].player.avatar) && (
+                  <img
+                    src={normalizeAvatarSrc(leaderboard[1].player.avatar)!}
+                    alt=""
+                    className="w-16 h-16 rounded-full border-4 border-gray-400 mb-2"
+                  />
+                )}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-gray-400">#2</div>
+                  <div className="font-semibold">{leaderboard[1].player.firstName} {leaderboard[1].player.lastName}</div>
+                  <div className="text-lg font-bold text-gray-700">{leaderboard[1].totalPoints} pts</div>
+                </div>
+              </div>
+
+              {/* 1er */}
+              <div className="flex flex-col items-center">
+                <Trophy className="w-8 h-8 text-yellow-500 mb-1" />
+                {isValidAvatarUrl(leaderboard[0].player.avatar) && (
+                  <img
+                    src={normalizeAvatarSrc(leaderboard[0].player.avatar)!}
+                    alt=""
+                    className="w-20 h-20 rounded-full border-4 border-yellow-500 mb-2"
+                  />
+                )}
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-yellow-500">#1</div>
+                  <div className="font-bold text-lg">{leaderboard[0].player.firstName} {leaderboard[0].player.lastName}</div>
+                  <div className="text-xl font-bold text-yellow-600">{leaderboard[0].totalPoints} pts</div>
+                </div>
+              </div>
+
+              {/* 3ème */}
+              <div className="flex flex-col items-center">
+                {isValidAvatarUrl(leaderboard[2].player.avatar) && (
+                  <img
+                    src={normalizeAvatarSrc(leaderboard[2].player.avatar)!}
+                    alt=""
+                    className="w-16 h-16 rounded-full border-4 border-orange-600 mb-2"
+                  />
+                )}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-orange-600">#3</div>
+                  <div className="font-semibold">{leaderboard[2].player.firstName} {leaderboard[2].player.lastName}</div>
+                  <div className="text-lg font-bold text-orange-700">{leaderboard[2].totalPoints} pts</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Table */}
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100">
+                <th className="px-4 py-2 text-left border">Rang</th>
+                <th className="px-4 py-2 text-left border">Joueur</th>
+                <th className="px-4 py-2 text-right border">Points</th>
+                <th className="px-4 py-2 text-right border">Moyenne</th>
+                <th className="px-4 py-2 text-right border">Tournois</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((entry) => (
+                <tr key={entry.playerId} className={entry.rank <= 3 ? 'bg-yellow-50' : ''}>
+                  <td className="px-4 py-2 border font-bold">#{entry.rank}</td>
+                  <td className="px-4 py-2 border">
+                    {entry.player.firstName} {entry.player.lastName}
+                    <span className="text-gray-500 ml-2">@{entry.player.nickname}</span>
+                  </td>
+                  <td className="px-4 py-2 border text-right font-bold">{entry.totalPoints}</td>
+                  <td className="px-4 py-2 border text-right">{entry.averagePoints}</td>
+                  <td className="px-4 py-2 border text-right">{entry.tournamentsCount}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
