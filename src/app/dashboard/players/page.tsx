@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye, Mail, Check } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import {
@@ -66,6 +66,8 @@ export default function PlayersPage() {
   const [error, setError] = useState('');
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlayers();
@@ -222,6 +224,40 @@ export default function PlayersPage() {
     setFormData({ ...formData, avatar: seed });
   };
 
+  const handleSendInvitation = async (player: PlayerWithStats) => {
+    if (!player.email) return;
+
+    setInvitingPlayerId(player.id);
+    setInviteSuccess(null);
+
+    try {
+      const response = await fetch('/api/auth/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: player.id }),
+      });
+
+      if (response.ok) {
+        setInviteSuccess(player.id);
+        // Clear success message after 3 seconds
+        setTimeout(() => setInviteSuccess(null), 3000);
+      } else {
+        const data = await response.json();
+        alert(data.error || 'Erreur lors de l\'envoi de l\'invitation');
+      }
+    } catch (err) {
+      console.error('Error sending invitation:', err);
+      alert('Erreur lors de l\'envoi de l\'invitation');
+    } finally {
+      setInvitingPlayerId(null);
+    }
+  };
+
+  // Check if player can receive invitation (has email, no password yet)
+  const canInvite = (player: PlayerWithStats) => {
+    return player.email && !(player as any).password && (player as any).status !== 'ACTIVE';
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -347,6 +383,24 @@ export default function PlayersPage() {
                       </Button>
                       {isAdmin() && (
                         <>
+                          {canInvite(player) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleSendInvitation(player)}
+                              disabled={invitingPlayerId === player.id}
+                              title="Envoyer invitation"
+                              className={inviteSuccess === player.id ? 'text-green-500' : ''}
+                            >
+                              {invitingPlayerId === player.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : inviteSuccess === player.id ? (
+                                <Check className="h-4 w-4" />
+                              ) : (
+                                <Mail className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -453,6 +507,24 @@ export default function PlayersPage() {
                     </Button>
                     {isAdmin() && (
                       <>
+                        {canInvite(player) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleSendInvitation(player)}
+                            disabled={invitingPlayerId === player.id}
+                            title="Envoyer invitation"
+                            className={inviteSuccess === player.id ? 'text-green-500' : ''}
+                          >
+                            {invitingPlayerId === player.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : inviteSuccess === player.id ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Mail className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
