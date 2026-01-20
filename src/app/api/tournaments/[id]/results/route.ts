@@ -121,8 +121,12 @@ export async function GET(
         // Use new detailed config if available, otherwise fall back to legacy
         rankPoints = getRankPointsForPosition(tp.finalRank, tournament.season);
 
-        // Points d'élimination
-        eliminationPoints = tp.eliminationsCount * tournament.season.eliminationPoints;
+        // Points d'élimination (finales + bust)
+        // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
+        // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
+        const finalElimPoints = tp.eliminationsCount * tournament.season.eliminationPoints;
+        const bustElimPoints = tp.bustEliminations * tournament.season.bustEliminationBonus;
+        eliminationPoints = finalElimPoints + bustElimPoints;
 
         // Bonus Leader Killer
         bonusPoints = tp.leaderKills * tournament.season.leaderKillerBonus;
@@ -149,6 +153,7 @@ export async function GET(
         status: tournament.status,
         type: tournament.type,
         buyInAmount: tournament.buyInAmount,
+        lightRebuyAmount: tournament.lightRebuyAmount,
         prizePool: tournament.prizePool,
       },
       season: tournament.season,
@@ -211,8 +216,12 @@ export async function POST(
         // Use new detailed config if available, otherwise fall back to legacy
         rankPoints = getRankPointsForPosition(tp.finalRank, tournament.season!);
 
-        // Points d'élimination
-        eliminationPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+        // Points d'élimination (finales + bust)
+        // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
+        // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
+        const finalElimPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+        const bustElimPoints = tp.bustEliminations * tournament.season!.bustEliminationBonus;
+        eliminationPoints = finalElimPoints + bustElimPoints;
 
         // Bonus Leader Killer
         bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus;
