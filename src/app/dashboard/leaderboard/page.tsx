@@ -375,14 +375,14 @@ export default function LeaderboardPage() {
       {leaderboard.length > 0 && (
         <div
           ref={exportRef}
-          className="fixed -left-[9999px] top-0 bg-white p-6"
-          style={{ width: '1200px' }}
+          className="fixed -left-[9999px] top-0 bg-white p-6 text-black"
+          style={{ width: '1200px', color: '#000000' }}
         >
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl font-bold" style={{ color: '#111827' }}>
               Classement Général - {selectedSeason?.name} {selectedSeason?.year}
             </h1>
-            <p className="text-gray-600">
+            <p style={{ color: '#4b5563' }}>
               {Math.max(...leaderboard.map(e => e.tournamentsCount))} tournoi(s) joué(s)
             </p>
           </div>
@@ -396,30 +396,32 @@ export default function LeaderboardPage() {
                   <img
                     src={normalizeAvatarSrc(leaderboard[1].player.avatar)!}
                     alt=""
-                    className="w-16 h-16 rounded-full border-4 border-gray-400 mb-2"
+                    className="w-16 h-16 rounded-full mb-2"
+                    style={{ border: '4px solid #9ca3af' }}
                   />
                 )}
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-400">#2</div>
-                  <div className="font-semibold">{leaderboard[1].player.firstName} {leaderboard[1].player.lastName}</div>
-                  <div className="text-lg font-bold text-gray-700">{leaderboard[1].totalPoints} pts</div>
+                  <div className="text-2xl font-bold" style={{ color: '#9ca3af' }}>#2</div>
+                  <div className="font-semibold" style={{ color: '#111827' }}>{leaderboard[1].player.firstName} {leaderboard[1].player.lastName}</div>
+                  <div className="text-lg font-bold" style={{ color: '#374151' }}>{leaderboard[1].totalPoints} pts</div>
                 </div>
               </div>
 
               {/* 1er */}
               <div className="flex flex-col items-center">
-                <Trophy className="w-8 h-8 text-yellow-500 mb-1" />
+                <Trophy className="w-8 h-8 mb-1" style={{ color: '#eab308' }} />
                 {isValidAvatarUrl(leaderboard[0].player.avatar) && (
                   <img
                     src={normalizeAvatarSrc(leaderboard[0].player.avatar)!}
                     alt=""
-                    className="w-20 h-20 rounded-full border-4 border-yellow-500 mb-2"
+                    className="w-20 h-20 rounded-full mb-2"
+                    style={{ border: '4px solid #eab308' }}
                   />
                 )}
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-yellow-500">#1</div>
-                  <div className="font-bold text-lg">{leaderboard[0].player.firstName} {leaderboard[0].player.lastName}</div>
-                  <div className="text-xl font-bold text-yellow-600">{leaderboard[0].totalPoints} pts</div>
+                  <div className="text-3xl font-bold" style={{ color: '#eab308' }}>#1</div>
+                  <div className="font-bold text-lg" style={{ color: '#111827' }}>{leaderboard[0].player.firstName} {leaderboard[0].player.lastName}</div>
+                  <div className="text-xl font-bold" style={{ color: '#ca8a04' }}>{leaderboard[0].totalPoints} pts</div>
                 </div>
               </div>
 
@@ -429,40 +431,41 @@ export default function LeaderboardPage() {
                   <img
                     src={normalizeAvatarSrc(leaderboard[2].player.avatar)!}
                     alt=""
-                    className="w-16 h-16 rounded-full border-4 border-orange-600 mb-2"
+                    className="w-16 h-16 rounded-full mb-2"
+                    style={{ border: '4px solid #ea580c' }}
                   />
                 )}
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">#3</div>
-                  <div className="font-semibold">{leaderboard[2].player.firstName} {leaderboard[2].player.lastName}</div>
-                  <div className="text-lg font-bold text-orange-700">{leaderboard[2].totalPoints} pts</div>
+                  <div className="text-2xl font-bold" style={{ color: '#ea580c' }}>#3</div>
+                  <div className="font-semibold" style={{ color: '#111827' }}>{leaderboard[2].player.firstName} {leaderboard[2].player.lastName}</div>
+                  <div className="text-lg font-bold" style={{ color: '#c2410c' }}>{leaderboard[2].totalPoints} pts</div>
                 </div>
               </div>
             </div>
           )}
 
           {/* Table */}
-          <table className="w-full border-collapse">
+          <table className="w-full border-collapse" style={{ color: '#111827' }}>
             <thead>
-              <tr className="bg-gray-100">
-                <th className="px-4 py-2 text-left border">Rang</th>
-                <th className="px-4 py-2 text-left border">Joueur</th>
-                <th className="px-4 py-2 text-right border">Points</th>
-                <th className="px-4 py-2 text-right border">Moyenne</th>
-                <th className="px-4 py-2 text-right border">Tournois</th>
+              <tr style={{ backgroundColor: '#f3f4f6' }}>
+                <th className="px-4 py-2 text-left" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Rang</th>
+                <th className="px-4 py-2 text-left" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Joueur</th>
+                <th className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Points</th>
+                <th className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Moyenne</th>
+                <th className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Tournois</th>
               </tr>
             </thead>
             <tbody>
               {leaderboard.map((entry) => (
-                <tr key={entry.playerId} className={entry.rank <= 3 ? 'bg-yellow-50' : ''}>
-                  <td className="px-4 py-2 border font-bold">#{entry.rank}</td>
-                  <td className="px-4 py-2 border">
+                <tr key={entry.playerId} style={{ backgroundColor: entry.rank <= 3 ? '#fefce8' : '#ffffff' }}>
+                  <td className="px-4 py-2 font-bold" style={{ border: '1px solid #d1d5db', color: '#111827' }}>#{entry.rank}</td>
+                  <td className="px-4 py-2" style={{ border: '1px solid #d1d5db', color: '#111827' }}>
                     {entry.player.firstName} {entry.player.lastName}
-                    <span className="text-gray-500 ml-2">@{entry.player.nickname}</span>
+                    <span style={{ color: '#6b7280', marginLeft: '8px' }}>@{entry.player.nickname}</span>
                   </td>
-                  <td className="px-4 py-2 border text-right font-bold">{entry.totalPoints}</td>
-                  <td className="px-4 py-2 border text-right">{entry.averagePoints}</td>
-                  <td className="px-4 py-2 border text-right">{entry.tournamentsCount}</td>
+                  <td className="px-4 py-2 text-right font-bold" style={{ border: '1px solid #d1d5db', color: '#111827' }}>{entry.totalPoints}</td>
+                  <td className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>{entry.averagePoints}</td>
+                  <td className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>{entry.tournamentsCount}</td>
                 </tr>
               ))}
             </tbody>
