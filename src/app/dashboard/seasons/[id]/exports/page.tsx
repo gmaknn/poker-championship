@@ -12,13 +12,18 @@ import {
   BarChart3,
   Table2,
   Users,
-  Share2,
+  TrendingUp,
+  Swords,
+  Trophy,
 } from 'lucide-react';
 import { toPng, toJpeg } from 'html-to-image';
 import JSZip from 'jszip';
 import SeasonLeaderboardChart from '@/components/exports/SeasonLeaderboardChart';
 import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
 import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeaderboardWithEliminations';
+import SeasonEvolutionChart from '@/components/exports/SeasonEvolutionChart';
+import SeasonConfrontationsMatrix from '@/components/exports/SeasonConfrontationsMatrix';
+import SeasonGeneralLeaderboard from '@/components/exports/SeasonGeneralLeaderboard';
 
 type Season = {
   id: string;
@@ -46,7 +51,7 @@ type LeaderboardEntry = {
   totalEliminations: number;
   totalLeaderKills: number;
   totalRebuys: number;
-  performances?: TournamentPerformance[];
+  performances: TournamentPerformance[];
 };
 
 type TournamentPerformance = {
@@ -97,12 +102,15 @@ export default function SeasonExportsPage() {
   const [eliminatorStats, setEliminatorStats] = useState<EliminatorStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState('chart');
+  const [activeTab, setActiveTab] = useState('general');
   const [exportFormat, setExportFormat] = useState<'png' | 'jpg'>('png');
 
   const chartRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const eliminationsRef = useRef<HTMLDivElement>(null);
+  const evolutionRef = useRef<HTMLDivElement>(null);
+  const confrontationsRef = useRef<HTMLDivElement>(null);
+  const generalLeaderboardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSeasonData();
@@ -173,7 +181,7 @@ export default function SeasonExportsPage() {
   };
 
   const handleExportAll = async () => {
-    if (!chartRef.current || !tableRef.current || !eliminationsRef.current || !season) return;
+    if (!chartRef.current || !tableRef.current || !eliminationsRef.current || !evolutionRef.current || !confrontationsRef.current || !generalLeaderboardRef.current || !season) return;
 
     setIsExporting(true);
     try {
@@ -200,6 +208,21 @@ export default function SeasonExportsPage() {
       const eliminationsDataUrl = await exportFunction(eliminationsRef.current, options);
       const eliminationsBlob = await (await fetch(eliminationsDataUrl)).blob();
       zip.file(`${season.name}_eliminations.${exportFormat}`, eliminationsBlob);
+
+      // Export evolution
+      const evolutionDataUrl = await exportFunction(evolutionRef.current, options);
+      const evolutionBlob = await (await fetch(evolutionDataUrl)).blob();
+      zip.file(`${season.name}_evolution.${exportFormat}`, evolutionBlob);
+
+      // Export confrontations
+      const confrontationsDataUrl = await exportFunction(confrontationsRef.current, options);
+      const confrontationsBlob = await (await fetch(confrontationsDataUrl)).blob();
+      zip.file(`${season.name}_confrontations.${exportFormat}`, confrontationsBlob);
+
+      // Export general leaderboard
+      const generalDataUrl = await exportFunction(generalLeaderboardRef.current, options);
+      const generalBlob = await (await fetch(generalDataUrl)).blob();
+      zip.file(`Saison_${season.year}_classement_general.${exportFormat}`, generalBlob);
 
       // Generate and download ZIP
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -260,18 +283,21 @@ export default function SeasonExportsPage() {
         tournamentResults: [],
       }));
 
-  // Use real eliminations data
-  const eliminationPlayers = leaderboard.map((entry, index) => {
+  // Use real eliminations data - sort by totalPoints descending to ensure correct order
+  const sortedLeaderboard = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
+  const eliminationPlayers = sortedLeaderboard.map((entry, index) => {
     // Find eliminator stats for this player
     const stats = eliminatorStats.find((s) => s.eliminatorId === entry.playerId);
 
-    // Calculate points change (difference between last 2 tournaments if available)
+    // Calculate points change = points gained in the most recent tournament
+    // Sort performances by date (most recent first)
     let pointsChange = 0;
-    if (entry.performances && entry.performances.length >= 2) {
-      const sorted = [...entry.performances].sort(
+    if (entry.performances && entry.performances.length > 0) {
+      const sortedByDate = [...entry.performances].sort(
         (a, b) => new Date(b.tournamentDate).getTime() - new Date(a.tournamentDate).getTime()
       );
-      pointsChange = sorted[0].totalPoints - sorted[1].totalPoints;
+      // "gain" = points from the most recent tournament
+      pointsChange = sortedByDate[0].totalPoints;
     }
 
     return {
@@ -280,10 +306,64 @@ export default function SeasonExportsPage() {
       avatar: entry.player.avatar,
       totalPoints: entry.totalPoints,
       pointsChange,
-      placeDirect: undefined, // Could be calculated if needed
       victims: stats?.victims || [],
     };
   });
+
+  // Prepare confrontations data for matrix
+  const confrontationsData = (() => {
+    // Build confrontations list from eliminatorStats
+    const confrontations: Array<{
+      eliminatorId: string;
+      eliminatorNickname: string;
+      eliminatedId: string;
+      eliminatedNickname: string;
+      count: number;
+    }> = [];
+
+    // Build a map of playerId -> player for quick lookup
+    const playerMap = new Map(leaderboard.map((e) => [e.playerId, e.player]));
+
+    // Process eliminatorStats to extract confrontation pairs
+    eliminatorStats.forEach((stat) => {
+      stat.victims.forEach((victim) => {
+        // We need to find the victim's playerId from the leaderboard
+        const victimEntry = leaderboard.find(
+          (e) => e.player.nickname === victim.nickname
+        );
+        if (victimEntry) {
+          confrontations.push({
+            eliminatorId: stat.eliminatorId,
+            eliminatorNickname: stat.eliminatorNickname,
+            eliminatedId: victimEntry.playerId,
+            eliminatedNickname: victim.nickname,
+            count: victim.count,
+          });
+        }
+      });
+    });
+
+    // Build player stats (total kills and deaths)
+    const playersStats = leaderboard.map((entry) => {
+      const totalKills = eliminatorStats.find(
+        (s) => s.eliminatorId === entry.playerId
+      )?.totalEliminations || 0;
+
+      // Count total deaths (how many times this player was eliminated)
+      const totalDeaths = confrontations
+        .filter((c) => c.eliminatedId === entry.playerId)
+        .reduce((sum, c) => sum + c.count, 0);
+
+      return {
+        id: entry.playerId,
+        nickname: entry.player.nickname,
+        totalKills,
+        totalDeaths,
+      };
+    });
+
+    return { confrontations, players: playersStats };
+  })();
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -358,7 +438,11 @@ export default function SeasonExportsPage() {
 
       {/* Tabs for different export types */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="general" className="flex items-center gap-2">
+            <Trophy className="h-4 w-4" />
+            Classement
+          </TabsTrigger>
           <TabsTrigger value="chart" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Top Sharks 🦈
@@ -371,7 +455,59 @@ export default function SeasonExportsPage() {
             <Users className="h-4 w-4" />
             Avec Éliminations
           </TabsTrigger>
+          <TabsTrigger value="evolution" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Évolution
+          </TabsTrigger>
+          <TabsTrigger value="confrontations" className="flex items-center gap-2">
+            <Swords className="h-4 w-4" />
+            Confrontations
+          </TabsTrigger>
         </TabsList>
+
+        {/* Export #0: General Leaderboard */}
+        <TabsContent value="general" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Classement Général</CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement_general`)}
+                    disabled={isExporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
+                <div ref={generalLeaderboardRef}>
+                  <SeasonGeneralLeaderboard
+                    seasonName={season.name}
+                    seasonYear={season.year}
+                    players={sortedLeaderboard.map((entry, index) => ({
+                      rank: index + 1,
+                      playerId: entry.playerId,
+                      nickname: entry.player.nickname,
+                      firstName: entry.player.firstName,
+                      lastName: entry.player.lastName,
+                      avatar: entry.player.avatar,
+                      totalPoints: entry.totalPoints,
+                      averagePoints: entry.tournamentsPlayed > 0 ? Math.round(entry.totalPoints / entry.tournamentsPlayed) : 0,
+                      tournamentsCount: entry.tournamentsPlayed,
+                      victories: entry.firstPlaces,
+                      podiums: entry.firstPlaces + entry.secondPlaces + entry.thirdPlaces,
+                    }))}
+                    tournamentsPlayed={tournamentCount}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Export #1: Sharks Chart */}
         <TabsContent value="chart" className="space-y-4">
@@ -466,6 +602,72 @@ export default function SeasonExportsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Export #4: Evolution Chart */}
+        <TabsContent value="evolution" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Evolution du Classement</CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() =>
+                      handleExportImage(evolutionRef, `${season.name}_evolution`)
+                    }
+                    disabled={isExporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
+                <div ref={evolutionRef}>
+                  <SeasonEvolutionChart
+                    seasonName={season.name}
+                    players={detailedPlayers}
+                    tournamentCount={tournamentCount}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Export #5: Confrontations Matrix */}
+        <TabsContent value="confrontations" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>⚔️ Confrontations Directes - Qui élimine qui ?</CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() =>
+                      handleExportImage(confrontationsRef, `${season.name}_confrontations`)
+                    }
+                    disabled={isExporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
+                <div ref={confrontationsRef}>
+                  <SeasonConfrontationsMatrix
+                    seasonName={season.name}
+                    confrontations={confrontationsData.confrontations}
+                    players={confrontationsData.players}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       {/* Tips */}
@@ -485,6 +687,14 @@ export default function SeasonExportsPage() {
           <p>
             • <strong>Avec éliminations :</strong> Met en avant les rivalités et les joueurs
             éliminés, amusant pour créer du storytelling
+          </p>
+          <p>
+            • <strong>Évolution :</strong> Visualise les points gagnés/perdus à chaque journée,
+            avec code couleur vert/rouge
+          </p>
+          <p>
+            • <strong>Confrontations :</strong> Matrice "qui élimine qui" pour voir les rivalités
+            directes entre joueurs
           </p>
           <p>
             • Les images sont optimisées pour WhatsApp, Instagram et l'impression

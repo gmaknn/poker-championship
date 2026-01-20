@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trophy, TrendingUp, Users, Calendar } from 'lucide-react';
+import { Trophy, TrendingUp, Users, Calendar, Download } from 'lucide-react';
 // Using native img for avatars to avoid next/image restrictions with external SVGs
 import {
   Select,
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/PageHeader';
 import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
+import { exportToPNG } from '@/lib/exportUtils';
 
 type Season = {
   id: string;
@@ -49,6 +50,8 @@ export default function LeaderboardPage() {
   const [selectedSeason, setSelectedSeason] = useState<Season | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSeasons();
@@ -98,6 +101,25 @@ export default function LeaderboardPage() {
       console.error('Error fetching leaderboard:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleExportPNG = async () => {
+    if (!exportRef.current || !selectedSeason) return;
+
+    setIsExporting(true);
+    try {
+      const filename = `Saison_${selectedSeason.year}_classement_general`;
+      await exportToPNG({
+        element: exportRef.current,
+        filename,
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+      });
+    } catch (error) {
+      console.error('Error exporting PNG:', error);
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -165,6 +187,18 @@ export default function LeaderboardPage() {
                 ))}
               </SelectContent>
             </Select>
+            {leaderboard.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPNG}
+                disabled={isExporting}
+                className="no-export"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {isExporting ? 'Export...' : 'Export PNG'}
+              </Button>
+            )}
           </div>
         }
       />
@@ -197,7 +231,17 @@ export default function LeaderboardPage() {
           </CardContent>
         </Card>
       ) : (
-        <>
+        <div ref={exportRef} className="space-y-6 bg-white p-4 rounded-lg">
+          {/* Titre pour l'export */}
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold">Classement Général - {selectedSeason?.name} {selectedSeason?.year}</h1>
+            <p className="text-muted-foreground">
+              {leaderboard.length > 0 && leaderboard[0].tournamentsCount > 0
+                ? `${Math.max(...leaderboard.map(e => e.tournamentsCount))} tournoi(s) joué(s)`
+                : ''}
+            </p>
+          </div>
+
           {/* Top 3 podium */}
           <div className="grid gap-4 md:grid-cols-3 mb-8">
             {leaderboard.slice(0, 3).map((entry, index) => (
@@ -319,7 +363,7 @@ export default function LeaderboardPage() {
               </div>
             </CardContent>
           </Card>
-        </>
+        </div>
       )}
     </div>
   );
