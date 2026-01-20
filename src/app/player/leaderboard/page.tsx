@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trophy, ArrowLeft, Medal, LogIn } from 'lucide-react';
+import { Trophy, ArrowLeft, Medal } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -35,18 +35,13 @@ type LeaderboardEntry = {
   podiums: number;
 };
 
-type AuthError = {
-  type: 'unauthenticated' | 'inactive' | 'error';
-  message: string;
-};
-
 export default function PlayerLeaderboardPage() {
   const router = useRouter();
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [authError, setAuthError] = useState<AuthError | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSeasons();
@@ -77,39 +72,20 @@ export default function PlayerLeaderboardPage() {
 
   const fetchLeaderboard = async (seasonId: string) => {
     setIsLoading(true);
-    setAuthError(null);
+    setError(null);
 
     try {
       const response = await fetch(`/api/seasons/${seasonId}/leaderboard`);
 
-      if (response.status === 401) {
-        setAuthError({
-          type: 'unauthenticated',
-          message: 'Vous devez vous connecter pour voir le classement.',
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      if (response.status === 403) {
-        setAuthError({
-          type: 'inactive',
-          message: 'Votre compte est inactif. Veuillez activer votre compte pour acceder au classement.',
-        });
-        setIsLoading(false);
-        return;
-      }
-
       if (response.ok) {
         const data = await response.json();
         setLeaderboard(data.leaderboard || []);
+      } else {
+        setError('Erreur lors du chargement du classement.');
       }
-    } catch (error) {
-      console.error('Error fetching leaderboard:', error);
-      setAuthError({
-        type: 'error',
-        message: 'Erreur lors du chargement du classement.',
-      });
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      setError('Erreur lors du chargement du classement.');
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +104,7 @@ export default function PlayerLeaderboardPage() {
   };
 
   // Error state
-  if (authError) {
+  if (error) {
     return (
       <div className="min-h-screen p-4">
         <div className="max-w-lg mx-auto pt-20">
@@ -136,20 +112,12 @@ export default function PlayerLeaderboardPage() {
             <CardContent className="pt-6">
               <div className="text-center space-y-4">
                 <Trophy className="h-16 w-16 text-muted-foreground mx-auto" />
-                <h2 className="text-xl font-semibold">Acces restreint</h2>
-                <p className="text-muted-foreground">{authError.message}</p>
-                <div className="flex flex-col gap-2 pt-4">
-                  {authError.type === 'unauthenticated' && (
-                    <Button onClick={() => router.push('/login')}>
-                      <LogIn className="h-4 w-4 mr-2" />
-                      Se connecter
-                    </Button>
-                  )}
-                  <Button variant="outline" onClick={() => router.push('/player')}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Retour
-                  </Button>
-                </div>
+                <h2 className="text-xl font-semibold">Erreur</h2>
+                <p className="text-muted-foreground">{error}</p>
+                <Button variant="outline" onClick={() => router.push('/player')}>
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour
+                </Button>
               </div>
             </CardContent>
           </Card>
