@@ -375,97 +375,101 @@ export default function LeaderboardPage() {
       {leaderboard.length > 0 && (
         <div
           ref={exportRef}
-          className="fixed -left-[9999px] top-0 bg-white p-6 text-black"
-          style={{ width: '1200px', color: '#000000' }}
+          style={{
+            position: 'fixed',
+            left: '-9999px',
+            top: '0',
+            width: '1200px',
+            backgroundColor: '#ffffff',
+            padding: '24px',
+            color: '#000000',
+          }}
         >
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold" style={{ color: '#111827' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', margin: '0 0 8px 0' }}>
               Classement Général - {selectedSeason?.name} {selectedSeason?.year}
             </h1>
-            <p style={{ color: '#4b5563' }}>
+            <p style={{ color: '#4b5563', margin: '0' }}>
               {Math.max(...leaderboard.map(e => e.tournamentsCount))} tournoi(s) joué(s)
             </p>
           </div>
 
           {/* Podium Top 3 */}
           {leaderboard.length >= 3 && (
-            <div className="flex justify-center items-end gap-8 mb-8">
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '32px', marginBottom: '32px' }}>
               {/* 2ème */}
-              <div className="flex flex-col items-center">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 {isValidAvatarUrl(leaderboard[1].player.avatar) && (
                   <img
                     src={normalizeAvatarSrc(leaderboard[1].player.avatar)!}
                     alt=""
-                    className="w-16 h-16 rounded-full mb-2"
-                    style={{ border: '4px solid #9ca3af' }}
+                    style={{ width: '64px', height: '64px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #9ca3af' }}
                   />
                 )}
-                <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: '#9ca3af' }}>#2</div>
-                  <div className="font-semibold" style={{ color: '#111827' }}>{leaderboard[1].player.firstName} {leaderboard[1].player.lastName}</div>
-                  <div className="text-lg font-bold" style={{ color: '#374151' }}>{leaderboard[1].totalPoints} pts</div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#9ca3af' }}>#2</div>
+                  <div style={{ fontWeight: '600', color: '#111827' }}>{leaderboard[1].player.firstName} {leaderboard[1].player.lastName}</div>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#374151' }}>{leaderboard[1].totalPoints} pts</div>
                 </div>
               </div>
 
               {/* 1er */}
-              <div className="flex flex-col items-center">
-                <Trophy className="w-8 h-8 mb-1" style={{ color: '#eab308' }} />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Trophy style={{ width: '32px', height: '32px', marginBottom: '4px', color: '#eab308' }} />
                 {isValidAvatarUrl(leaderboard[0].player.avatar) && (
                   <img
                     src={normalizeAvatarSrc(leaderboard[0].player.avatar)!}
                     alt=""
-                    className="w-20 h-20 rounded-full mb-2"
-                    style={{ border: '4px solid #eab308' }}
+                    style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #eab308' }}
                   />
                 )}
-                <div className="text-center">
-                  <div className="text-3xl font-bold" style={{ color: '#eab308' }}>#1</div>
-                  <div className="font-bold text-lg" style={{ color: '#111827' }}>{leaderboard[0].player.firstName} {leaderboard[0].player.lastName}</div>
-                  <div className="text-xl font-bold" style={{ color: '#ca8a04' }}>{leaderboard[0].totalPoints} pts</div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '30px', fontWeight: 'bold', color: '#eab308' }}>#1</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '18px', color: '#111827' }}>{leaderboard[0].player.firstName} {leaderboard[0].player.lastName}</div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#ca8a04' }}>{leaderboard[0].totalPoints} pts</div>
                 </div>
               </div>
 
               {/* 3ème */}
-              <div className="flex flex-col items-center">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 {isValidAvatarUrl(leaderboard[2].player.avatar) && (
                   <img
                     src={normalizeAvatarSrc(leaderboard[2].player.avatar)!}
                     alt=""
-                    className="w-16 h-16 rounded-full mb-2"
-                    style={{ border: '4px solid #ea580c' }}
+                    style={{ width: '64px', height: '64px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #ea580c' }}
                   />
                 )}
-                <div className="text-center">
-                  <div className="text-2xl font-bold" style={{ color: '#ea580c' }}>#3</div>
-                  <div className="font-semibold" style={{ color: '#111827' }}>{leaderboard[2].player.firstName} {leaderboard[2].player.lastName}</div>
-                  <div className="text-lg font-bold" style={{ color: '#c2410c' }}>{leaderboard[2].totalPoints} pts</div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ea580c' }}>#3</div>
+                  <div style={{ fontWeight: '600', color: '#111827' }}>{leaderboard[2].player.firstName} {leaderboard[2].player.lastName}</div>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#c2410c' }}>{leaderboard[2].totalPoints} pts</div>
                 </div>
               </div>
             </div>
           )}
 
           {/* Table */}
-          <table className="w-full border-collapse" style={{ color: '#111827' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#111827' }}>
             <thead>
               <tr style={{ backgroundColor: '#f3f4f6' }}>
-                <th className="px-4 py-2 text-left" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Rang</th>
-                <th className="px-4 py-2 text-left" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Joueur</th>
-                <th className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Points</th>
-                <th className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Moyenne</th>
-                <th className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>Tournois</th>
+                <th style={{ padding: '8px 16px', textAlign: 'left', border: '1px solid #d1d5db', color: '#111827' }}>Rang</th>
+                <th style={{ padding: '8px 16px', textAlign: 'left', border: '1px solid #d1d5db', color: '#111827' }}>Joueur</th>
+                <th style={{ padding: '8px 16px', textAlign: 'right', border: '1px solid #d1d5db', color: '#111827' }}>Points</th>
+                <th style={{ padding: '8px 16px', textAlign: 'right', border: '1px solid #d1d5db', color: '#111827' }}>Moyenne</th>
+                <th style={{ padding: '8px 16px', textAlign: 'right', border: '1px solid #d1d5db', color: '#111827' }}>Tournois</th>
               </tr>
             </thead>
             <tbody>
               {leaderboard.map((entry) => (
                 <tr key={entry.playerId} style={{ backgroundColor: entry.rank <= 3 ? '#fefce8' : '#ffffff' }}>
-                  <td className="px-4 py-2 font-bold" style={{ border: '1px solid #d1d5db', color: '#111827' }}>#{entry.rank}</td>
-                  <td className="px-4 py-2" style={{ border: '1px solid #d1d5db', color: '#111827' }}>
+                  <td style={{ padding: '8px 16px', fontWeight: 'bold', border: '1px solid #d1d5db', color: '#111827' }}>#{entry.rank}</td>
+                  <td style={{ padding: '8px 16px', border: '1px solid #d1d5db', color: '#111827' }}>
                     {entry.player.firstName} {entry.player.lastName}
                     <span style={{ color: '#6b7280', marginLeft: '8px' }}>@{entry.player.nickname}</span>
                   </td>
-                  <td className="px-4 py-2 text-right font-bold" style={{ border: '1px solid #d1d5db', color: '#111827' }}>{entry.totalPoints}</td>
-                  <td className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>{entry.averagePoints}</td>
-                  <td className="px-4 py-2 text-right" style={{ border: '1px solid #d1d5db', color: '#111827' }}>{entry.tournamentsCount}</td>
+                  <td style={{ padding: '8px 16px', textAlign: 'right', fontWeight: 'bold', border: '1px solid #d1d5db', color: '#111827' }}>{entry.totalPoints}</td>
+                  <td style={{ padding: '8px 16px', textAlign: 'right', border: '1px solid #d1d5db', color: '#111827' }}>{entry.averagePoints}</td>
+                  <td style={{ padding: '8px 16px', textAlign: 'right', border: '1px solid #d1d5db', color: '#111827' }}>{entry.tournamentsCount}</td>
                 </tr>
               ))}
             </tbody>
