@@ -160,7 +160,10 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
   }
 
   const { tournament, season, results } = resultsData;
-  const rankedPlayers = results.filter((p) => p.finalRank !== null);
+  // Trier par points totaux décroissants (pas par finalRank)
+  const rankedPlayers = results
+    .filter((p) => p.finalRank !== null)
+    .sort((a, b) => b.totalPoints - a.totalPoints);
   const activePlayers = results.filter((p) => p.finalRank === null);
   const isCompleted = tournament.status === 'FINISHED';
 
