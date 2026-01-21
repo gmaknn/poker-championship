@@ -487,7 +487,7 @@ export default function PlayersPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => router.push(`/player/${player.id}`)}
+                        onClick={() => router.push(`/dashboard/players/${player.id}`)}
                         title="Voir la fiche"
                       >
                         <Eye className="h-4 w-4" />
@@ -622,7 +622,7 @@ export default function PlayersPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => router.push(`/player/${player.id}`)}
+                      onClick={() => router.push(`/dashboard/players/${player.id}`)}
                       title="Voir la fiche"
                     >
                       <Eye className="h-4 w-4" />

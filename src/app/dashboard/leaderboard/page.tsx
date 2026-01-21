@@ -320,7 +320,7 @@ export default function LeaderboardPage() {
                   <div
                     key={entry.playerId}
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                    onClick={() => router.push(`/player/${entry.playerId}`)}
+                    onClick={() => router.push(`/dashboard/players/${entry.playerId}`)}
                   >
                     <div className="flex items-center gap-4">
                       <span className={`text-lg font-bold w-8 ${entry.rank <= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
