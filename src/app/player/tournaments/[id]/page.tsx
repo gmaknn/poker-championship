@@ -392,6 +392,10 @@ function PlayerResultRow({ tp, isFinished }: { tp: TournamentPlayer; isFinished:
       {isExpanded && isFinished && (
         <div className="px-4 pb-4 pt-0 ml-[60px] sm:ml-[68px]">
           <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
+            {/* DEBUG - À SUPPRIMER APRÈS */}
+            <div className="bg-yellow-500 text-black p-2 text-xs mb-2 rounded font-mono">
+              DEBUG: total={tp.totalPoints}, rank={tp.rankPoints}, elim={tp.eliminationPoints}, bonus={tp.bonusPoints}, penalty={tp.penaltyPoints}, implicit={(tp.totalPoints || 0) - (tp.rankPoints || 0) - (tp.eliminationPoints || 0) - (tp.bonusPoints || 0)}
+            </div>
             {/* Stats row */}
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground pb-2 border-b border-border/50">
               {totalRebuys > 0 && (
@@ -438,13 +442,30 @@ function PlayerResultRow({ tp, isFinished }: { tp: TournamentPlayer; isFinished:
                 </div>
               )}
 
-              {/* Pénalités (recaves) */}
-              {tp.penaltyPoints > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Malus recaves</span>
-                  <span className="font-medium text-red-500">-{tp.penaltyPoints}</span>
-                </div>
-              )}
+              {/* Pénalités (recaves) - calculer le malus implicite depuis le total */}
+              {(() => {
+                const rankPts = tp.rankPoints || 0;
+                const elimPts = tp.eliminationPoints || 0;
+                const bonusPts = tp.bonusPoints || 0;
+                const totalPts = tp.totalPoints || 0;
+                const storedPenalty = tp.penaltyPoints || 0;
+
+                // Malus implicite = total - (rank + elim + bonus)
+                const implicitPenalty = totalPts - rankPts - elimPts - bonusPts;
+
+                // Afficher le malus stocké s'il existe, sinon le malus implicite
+                const displayPenalty = storedPenalty !== 0 ? storedPenalty : implicitPenalty;
+
+                if (displayPenalty < 0) {
+                  return (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Malus recaves</span>
+                      <span className="font-medium text-red-500">{displayPenalty}</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Total */}
               <div className="flex justify-between pt-2 border-t border-border/50">

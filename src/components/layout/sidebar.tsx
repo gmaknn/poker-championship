@@ -102,8 +102,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const handleLogout = () => {
     // Supprimer le cookie
     document.cookie = 'player-id=; path=/; max-age=0';
-    // Rediriger vers la page de login
-    router.push('/dev-login');
+    // Rediriger vers la page de login joueur
+    router.push('/player/login');
   };
 
   const handleNavClick = () => {
@@ -246,7 +246,7 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
   const handleLogout = () => {
     document.cookie = 'player-id=; path=/; max-age=0';
-    router.push('/dev-login');
+    router.push('/player/login');
   };
 
   const handleNavClick = () => {
