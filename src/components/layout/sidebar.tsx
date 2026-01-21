@@ -38,13 +38,17 @@ const menuItems = [
   { icon: Settings, label: 'Paramètres', href: '/dashboard/settings', roles: ['ADMIN'] },
 ];
 
-import { getAvatarUrl } from '@/lib/avatar';
-
 const ROLE_CONFIG = {
   PLAYER: { label: 'Joueur', icon: Users, color: 'bg-blue-500' },
   TOURNAMENT_DIRECTOR: { label: 'TD', icon: Shield, color: 'bg-purple-500' },
   ANIMATOR: { label: 'Animateur', icon: MessageSquare, color: 'bg-green-500' },
   ADMIN: { label: 'Admin', icon: Crown, color: 'bg-amber-500' },
+};
+
+const getAvatarUrl = (avatar: string | null) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('/')) return avatar;
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
 };
 
 interface CurrentPlayer {
@@ -161,11 +165,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Utilisateur connecté */}
         {currentPlayer && (
           <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-            <img
-              src={getAvatarUrl(currentPlayer.avatar, currentPlayer.nickname)}
-              alt={currentPlayer.nickname}
-              className="w-10 h-10 rounded-full border-2 border-border"
-            />
+            {currentPlayer.avatar && getAvatarUrl(currentPlayer.avatar) ? (
+              <img
+                src={getAvatarUrl(currentPlayer.avatar)!}
+                alt={currentPlayer.nickname}
+                className="w-10 h-10 rounded-full border-2 border-border"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                <Users className="h-5 w-5 text-muted-foreground" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm truncate">{currentPlayer.nickname}</div>
               <Badge variant="outline" className="text-xs mt-0.5">
@@ -325,11 +335,17 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
         <div className="border-t p-4 space-y-3">
           {currentPlayer && (
             <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-              <img
-                src={getAvatarUrl(currentPlayer.avatar, currentPlayer.nickname)}
-                alt={currentPlayer.nickname}
-                className="w-10 h-10 rounded-full border-2 border-border"
-              />
+              {currentPlayer.avatar && getAvatarUrl(currentPlayer.avatar) ? (
+                <img
+                  src={getAvatarUrl(currentPlayer.avatar)!}
+                  alt={currentPlayer.nickname}
+                  className="w-10 h-10 rounded-full border-2 border-border"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                  <Users className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">{currentPlayer.nickname}</div>
                 <Badge variant="outline" className="text-xs mt-0.5">

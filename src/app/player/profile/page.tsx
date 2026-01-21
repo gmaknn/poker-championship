@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -27,17 +26,21 @@ import {
   Eye,
   EyeOff,
   BarChart3,
-  Check,
 } from 'lucide-react';
 import { useCurrentPlayer } from '@/components/layout/player-nav';
-import {
-  getAvatarUrl,
-  getDiceBearPreviewUrl,
-  DICEBEAR_STYLES,
-  LEGACY_AVATAR_SEEDS,
-  createAvatarValue,
-  parseAvatarValue,
-} from '@/lib/avatar';
+
+const AVATAR_SEEDS = [
+  'Felix', 'Aneka', 'Whiskers', 'Salem', 'Misty', 'Shadow',
+  'Lucky', 'Ace', 'King', 'Queen', 'Jack', 'Joker',
+  'Diamond', 'Spade', 'Heart', 'Club', 'Chip', 'Bluff',
+  'River', 'Flop', 'Turn', 'Poker', 'Royal', 'Flush',
+];
+
+const getAvatarUrl = (avatar: string | null) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('/')) return avatar;
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
+};
 
 type PlayerProfile = {
   id: string;
@@ -148,13 +151,8 @@ export default function PlayerProfilePage() {
     }
   };
 
-  const handleDiceBearStyleSelect = (styleId: string) => {
-    setSelectedAvatar(createAvatarValue('dicebear', styleId));
-    setIsAvatarDialogOpen(false);
-  };
-
-  const handleLegacyAvatarSelect = (seed: string) => {
-    setSelectedAvatar(seed); // Legacy format - just the seed
+  const handleAvatarChange = async (seed: string) => {
+    setSelectedAvatar(seed);
     setIsAvatarDialogOpen(false);
   };
 
@@ -239,23 +237,6 @@ export default function PlayerProfilePage() {
     }
   };
 
-  // Determine which avatar style is currently selected
-  const getSelectedStyleInfo = () => {
-    const parsed = parseAvatarValue(selectedAvatar);
-    if (parsed.type === 'dicebear') {
-      return { type: 'dicebear', styleId: parsed.value };
-    }
-    if (parsed.type === 'legacy' && LEGACY_AVATAR_SEEDS.includes(parsed.value || '')) {
-      return { type: 'legacy', seed: parsed.value };
-    }
-    if (parsed.type === 'upload' || parsed.type === 'url') {
-      return { type: 'custom', url: parsed.value };
-    }
-    return { type: 'none' };
-  };
-
-  const selectedInfo = player ? getSelectedStyleInfo() : { type: 'none' };
-
   if (isLoading || isSessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -286,11 +267,17 @@ export default function PlayerProfilePage() {
       <div className="text-center space-y-4">
         {/* Avatar */}
         <div className="relative inline-block">
-          <img
-            src={getAvatarUrl(selectedAvatar, player.nickname)}
-            alt="Avatar"
-            className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-primary"
-          />
+          {selectedAvatar && getAvatarUrl(selectedAvatar) ? (
+            <img
+              src={getAvatarUrl(selectedAvatar)!}
+              alt="Avatar"
+              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-primary"
+            />
+          ) : (
+            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-primary bg-muted flex items-center justify-center">
+              <User className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
+            </div>
+          )}
           <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
             <DialogTrigger asChild>
               <Button
@@ -301,150 +288,72 @@ export default function PlayerProfilePage() {
                 <Edit className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Choisir un avatar</DialogTitle>
                 <DialogDescription>
-                  Uploadez votre photo ou choisissez un style d'avatar
+                  Uploadez votre photo ou sélectionnez un avatar
                 </DialogDescription>
               </DialogHeader>
 
-              <Tabs defaultValue="dicebear" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="dicebear">Styles</TabsTrigger>
-                  <TabsTrigger value="classic">Classiques</TabsTrigger>
-                  <TabsTrigger value="upload">Photo</TabsTrigger>
-                </TabsList>
-
-                {/* DiceBear Styles */}
-                <TabsContent value="dicebear" className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Choisissez un style. L'avatar sera généré avec votre pseudo.
-                  </p>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                    {DICEBEAR_STYLES.map((style) => {
-                      const isSelected = selectedInfo.type === 'dicebear' && selectedInfo.styleId === style.id;
-                      return (
-                        <button
-                          key={style.id}
-                          onClick={() => handleDiceBearStyleSelect(style.id)}
-                          disabled={isUploadingAvatar}
-                          className={`relative rounded-lg border-2 p-2 transition-all hover:scale-105 ${
-                            isSelected
-                              ? 'border-primary bg-primary/10 ring-2 ring-primary ring-offset-2'
-                              : 'border-border hover:border-primary/50'
-                          }`}
-                        >
-                          {isSelected && (
-                            <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full p-1">
-                              <Check className="h-3 w-3" />
-                            </div>
-                          )}
-                          <img
-                            src={getDiceBearPreviewUrl(style.id, player.nickname)}
-                            alt={style.name}
-                            className="w-full aspect-square rounded"
-                          />
-                          <div className="mt-1 text-center">
-                            <span className="text-lg">{style.emoji}</span>
-                            <p className="text-xs font-medium truncate">{style.name}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </TabsContent>
-
-                {/* Classic/Legacy Avatars */}
-                <TabsContent value="classic" className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Avatars prédéfinis classiques
-                  </p>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-                    {LEGACY_AVATAR_SEEDS.map((seed) => {
-                      const isSelected = selectedInfo.type === 'legacy' && selectedInfo.seed === seed;
-                      return (
-                        <button
-                          key={seed}
-                          onClick={() => handleLegacyAvatarSelect(seed)}
-                          disabled={isUploadingAvatar}
-                          className={`relative rounded-lg border-2 p-1.5 transition-all hover:scale-105 min-h-[48px] ${
-                            isSelected
-                              ? 'border-primary bg-primary/10 ring-2 ring-primary ring-offset-2'
-                              : 'border-transparent hover:border-primary/50'
-                          }`}
-                        >
-                          {isSelected && (
-                            <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground rounded-full p-1">
-                              <Check className="h-3 w-3" />
-                            </div>
-                          )}
-                          <img
-                            src={getDiceBearPreviewUrl('adventurer', seed)}
-                            alt={seed}
-                            className="w-full h-full rounded"
-                          />
-                        </button>
-                      );
-                    })}
-                  </div>
-                </TabsContent>
-
-                {/* Upload Photo */}
-                <TabsContent value="upload" className="space-y-4">
-                  <p className="text-sm text-muted-foreground">
-                    Uploadez votre propre photo
-                  </p>
-                  <input
-                    type="file"
-                    id="avatar-upload"
-                    accept="image/jpeg,image/jpg,image/png,image/webp"
-                    onChange={handleFileUpload}
-                    disabled={isUploadingAvatar}
-                    className="hidden"
-                  />
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => document.getElementById('avatar-upload')?.click()}
-                    disabled={isUploadingAvatar}
-                    className="w-full min-h-[48px]"
-                  >
-                    {isUploadingAvatar ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Upload en cours...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-5 w-5" />
-                        Choisir une image
-                      </>
-                    )}
-                  </Button>
-                  {uploadError && (
-                    <p className="text-sm text-destructive">{uploadError}</p>
+              {/* Upload section */}
+              <div className="space-y-4 p-4 border-b">
+                <input
+                  type="file"
+                  id="avatar-upload"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleFileUpload}
+                  disabled={isUploadingAvatar}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => document.getElementById('avatar-upload')?.click()}
+                  disabled={isUploadingAvatar}
+                  className="w-full min-h-[48px]"
+                >
+                  {isUploadingAvatar ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Upload en cours...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="mr-2 h-5 w-5" />
+                      Uploader une photo
+                    </>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    Formats acceptés : JPG, PNG, WebP. Max 5 Mo.
-                  </p>
-                  {selectedInfo.type === 'custom' && (
-                    <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/50">
+                </Button>
+                {uploadError && (
+                  <p className="text-sm text-destructive">{uploadError}</p>
+                )}
+              </div>
+
+              {/* Predefined avatars */}
+              <div className="p-4">
+                <h4 className="text-sm font-medium mb-4">Avatars prédéfinis</h4>
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                  {AVATAR_SEEDS.map((seed) => (
+                    <button
+                      key={seed}
+                      onClick={() => handleAvatarChange(seed)}
+                      disabled={isUploadingAvatar}
+                      className={`relative rounded-lg border-2 p-1.5 transition-all hover:scale-105 min-h-[48px] ${
+                        selectedAvatar === seed
+                          ? 'border-primary bg-primary/10'
+                          : 'border-transparent hover:border-primary/50'
+                      }`}
+                    >
                       <img
-                        src={selectedInfo.url || ''}
-                        alt="Photo actuelle"
-                        className="w-16 h-16 rounded-full object-cover"
+                        src={getAvatarUrl(seed)!}
+                        alt={seed}
+                        className="w-full h-full rounded"
                       />
-                      <div>
-                        <p className="font-medium">Photo actuelle</p>
-                        <p className="text-sm text-muted-foreground">
-                          Vous utilisez une photo uploadée
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </DialogContent>
           </Dialog>
         </div>

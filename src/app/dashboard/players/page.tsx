@@ -27,19 +27,22 @@ import { PlayerWithStats } from '@/types';
 import { ROLES, getRoleLabel, getRoleDescription } from '@/lib/permissions';
 import { PlayerRole } from '@prisma/client';
 import { PageHeader } from '@/components/PageHeader';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  getAvatarUrl as getAvatarUrlHelper,
-  getDiceBearPreviewUrl,
-  DICEBEAR_STYLES,
-  LEGACY_AVATAR_SEEDS,
-  createAvatarValue,
-  parseAvatarValue,
-} from '@/lib/avatar';
 
-// Helper to get avatar URL with nickname fallback
-const getAvatarUrl = (avatar: string | null, nickname?: string) => {
-  return getAvatarUrlHelper(avatar, nickname || 'Player');
+const AVATAR_SEEDS = [
+  'Felix', 'Aneka', 'Whiskers', 'Salem', 'Misty', 'Shadow',
+  'Lucky', 'Ace', 'King', 'Queen', 'Jack', 'Joker',
+  'Diamond', 'Spade', 'Heart', 'Club', 'Chip', 'Bluff',
+  'River', 'Flop', 'Turn', 'Poker', 'Royal', 'Flush',
+];
+
+const getAvatarUrl = (avatar: string | null) => {
+  if (!avatar) return null;
+  // If avatar starts with /, it's an uploaded image
+  if (avatar.startsWith('/')) {
+    return avatar;
+  }
+  // Otherwise it's a DiceBear seed
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
 };
 
 export default function PlayersPage() {
@@ -465,11 +468,17 @@ export default function PlayersPage() {
                 <Card key={player.id}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <div className="flex items-center gap-3">
-                      <img
-                        src={getAvatarUrl(player.avatar, player.nickname)}
-                        alt={player.nickname}
-                        className="w-12 h-12 rounded-full"
-                      />
+                      {player.avatar && getAvatarUrl(player.avatar) ? (
+                        <img
+                          src={getAvatarUrl(player.avatar)!}
+                          alt={player.nickname}
+                          className="w-12 h-12 rounded-full"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                          <Users className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
                       <CardTitle className="text-lg font-semibold">
                         {player.nickname}
                       </CardTitle>
@@ -572,11 +581,17 @@ export default function PlayersPage() {
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
                 >
                   <div className="flex items-center gap-4 flex-1">
-                    <img
-                      src={getAvatarUrl(player.avatar, player.nickname)}
-                      alt={player.nickname}
-                      className="w-12 h-12 rounded-full"
-                    />
+                    {player.avatar && getAvatarUrl(player.avatar) ? (
+                      <img
+                        src={getAvatarUrl(player.avatar)!}
+                        alt={player.nickname}
+                        className="w-12 h-12 rounded-full"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                        <Users className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold text-lg">{player.nickname}</h3>
@@ -684,144 +699,82 @@ export default function PlayersPage() {
               {/* Avatar section */}
               <div className="space-y-4 pb-4 border-b">
                 <label className="text-sm font-medium">Avatar (optionnel)</label>
-                <div className="flex items-center gap-4 mb-4">
+                <div className="flex items-center gap-4">
                   {/* Current avatar preview */}
-                  <img
-                    src={getAvatarUrl(formData.avatar, formData.nickname || 'Player')}
-                    alt="Avatar"
-                    className="w-16 h-16 rounded-full border-2 border-border"
-                  />
-                  <div className="text-sm text-muted-foreground">
-                    {formData.nickname ? `Preview avec "${formData.nickname}"` : 'Preview'}
-                  </div>
+                  {formData.avatar && getAvatarUrl(formData.avatar) ? (
+                    <img
+                      src={getAvatarUrl(formData.avatar)!}
+                      alt="Avatar"
+                      className="w-16 h-16 rounded-full border-2 border-border"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full border-2 border-border bg-muted flex items-center justify-center">
+                      <Users className="h-8 w-8 text-muted-foreground" />
+                    </div>
+                  )}
+                  {/* Upload button */}
+                  {editingPlayer && (
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        id="avatar-upload"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleFileUpload}
+                        disabled={isUploadingAvatar}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('avatar-upload')?.click()}
+                        disabled={isUploadingAvatar}
+                      >
+                        {isUploadingAvatar ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Upload...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Uploader
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
-
-                <Tabs defaultValue="styles" className="w-full">
-                  <TabsList className="grid w-full grid-cols-3">
-                    <TabsTrigger value="styles">Styles</TabsTrigger>
-                    <TabsTrigger value="classic">Classiques</TabsTrigger>
-                    <TabsTrigger value="upload">Photo</TabsTrigger>
-                  </TabsList>
-
-                  {/* DiceBear Styles */}
-                  <TabsContent value="styles" className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Styles générés avec le pseudo</p>
-                    <div className="grid grid-cols-4 gap-2 max-h-[200px] overflow-y-auto">
-                      {DICEBEAR_STYLES.map((style) => {
-                        const parsed = parseAvatarValue(formData.avatar);
-                        const isSelected = parsed.type === 'dicebear' && parsed.value === style.id;
-                        return (
-                          <button
-                            key={style.id}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, avatar: createAvatarValue('dicebear', style.id) })}
-                            disabled={isUploadingAvatar}
-                            className={`relative rounded-lg border p-1.5 transition-all hover:scale-105 ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary'
-                                : 'border-border hover:border-primary/50'
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                                <Check className="h-2 w-2" />
-                              </div>
-                            )}
-                            <img
-                              src={getDiceBearPreviewUrl(style.id, formData.nickname || 'Player')}
-                              alt={style.name}
-                              className="w-full aspect-square rounded"
-                            />
-                            <p className="text-[10px] text-center mt-0.5 truncate">{style.emoji} {style.name}</p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </TabsContent>
-
-                  {/* Classic/Legacy Avatars */}
-                  <TabsContent value="classic" className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Avatars prédéfinis</p>
-                    <div className="grid grid-cols-6 gap-2 max-h-[200px] overflow-y-auto">
-                      {LEGACY_AVATAR_SEEDS.map((seed) => {
-                        const parsed = parseAvatarValue(formData.avatar);
-                        const isSelected = parsed.type === 'legacy' && parsed.value === seed;
-                        return (
-                          <button
-                            key={seed}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, avatar: seed })}
-                            disabled={isUploadingAvatar}
-                            className={`relative rounded-lg border p-1 transition-all hover:scale-105 ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary'
-                                : 'border-transparent hover:border-primary/50'
-                            }`}
-                          >
-                            {isSelected && (
-                              <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                                <Check className="h-2 w-2" />
-                              </div>
-                            )}
-                            <img
-                              src={getDiceBearPreviewUrl('adventurer', seed)}
-                              alt={seed}
-                              className="w-full h-full rounded"
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </TabsContent>
-
-                  {/* Upload Photo */}
-                  <TabsContent value="upload" className="space-y-2">
-                    {editingPlayer ? (
-                      <>
-                        <input
-                          type="file"
-                          id="avatar-upload"
-                          accept="image/jpeg,image/jpg,image/png,image/webp"
-                          onChange={handleFileUpload}
-                          disabled={isUploadingAvatar}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => document.getElementById('avatar-upload')?.click()}
-                          disabled={isUploadingAvatar}
-                          className="w-full"
-                        >
-                          {isUploadingAvatar ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Upload...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="mr-2 h-4 w-4" />
-                              Uploader une photo
-                            </>
-                          )}
-                        </Button>
-                        <p className="text-xs text-muted-foreground">
-                          Formats: JPG, PNG, WebP. Max 5 Mo.
-                        </p>
-                      </>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        L'upload de photo est disponible après la création du joueur.
-                      </p>
-                    )}
-                  </TabsContent>
-                </Tabs>
-
                 {uploadError && (
                   <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
                     {uploadError}
                   </div>
                 )}
+                {/* Predefined avatars */}
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Choisir un avatar prédéfini:</p>
+                  <div className="grid grid-cols-8 gap-2">
+                    {AVATAR_SEEDS.slice(0, 16).map((seed) => (
+                      <button
+                        key={seed}
+                        type="button"
+                        onClick={() => handleAvatarChange(seed)}
+                        disabled={isUploadingAvatar}
+                        className={`relative rounded-lg border p-1 transition-all hover:scale-105 ${
+                          formData.avatar === seed
+                            ? 'border-primary bg-primary/10'
+                            : 'border-transparent hover:border-primary/50'
+                        } ${isUploadingAvatar ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <img
+                          src={getAvatarUrl(seed)!}
+                          alt={seed}
+                          className="w-full h-full rounded"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -959,11 +912,17 @@ export default function PlayersPage() {
               {/* Info joueur */}
               <div className="bg-muted/50 rounded-lg p-4 space-y-2">
                 <div className="flex items-center gap-3">
-                  <img
-                    src={getAvatarUrl(activatingPlayer?.avatar || null, activatingPlayer?.nickname || 'Player')}
-                    alt={activatingPlayer?.nickname}
-                    className="w-12 h-12 rounded-full"
-                  />
+                  {activatingPlayer?.avatar && getAvatarUrl(activatingPlayer.avatar) ? (
+                    <img
+                      src={getAvatarUrl(activatingPlayer.avatar)!}
+                      alt={activatingPlayer?.nickname}
+                      className="w-12 h-12 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <Users className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
                   <div>
                     <p className="font-semibold">
                       {activatingPlayer?.firstName} {activatingPlayer?.lastName}

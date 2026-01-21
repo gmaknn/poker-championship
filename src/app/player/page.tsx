@@ -7,7 +7,6 @@ import { Users, Search, Trophy, Zap, Calendar, LogIn } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useCurrentPlayer } from '@/components/layout/player-nav';
-import { getAvatarUrl } from '@/lib/avatar';
 
 type Player = {
   id: string;
@@ -16,6 +15,12 @@ type Player = {
   nickname: string;
   avatar: string | null;
   status: string;
+};
+
+const getAvatarUrl = (avatar: string | null) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('/')) return avatar;
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
 };
 
 export default function PlayerHomePage() {
@@ -179,11 +184,17 @@ export default function PlayerHomePage() {
             >
               <CardContent className="flex items-center gap-3 p-4">
                 {/* Avatar */}
-                <img
-                  src={getAvatarUrl(player.avatar, player.nickname)}
-                  alt={player.nickname}
-                  className="w-10 h-10 rounded-full border border-border flex-shrink-0"
-                />
+                {player.avatar && getAvatarUrl(player.avatar) ? (
+                  <img
+                    src={getAvatarUrl(player.avatar)!}
+                    alt={player.nickname}
+                    className="w-10 h-10 rounded-full border border-border flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <h3 className="font-medium truncate">
                     {player.firstName} {player.lastName}
