@@ -17,22 +17,29 @@ type Params = {
   params: Promise<{ id: string }>;
 };
 
-// Validation schema for PUT
+// Validation schema for PUT (payout distribution in €)
 const prizePoolSchema = z.object({
   payoutCount: z.number().int().min(1, 'Au moins 1 place payée'),
-  percents: z
-    .array(z.number().positive('Chaque pourcentage doit être > 0'))
-    .min(1, 'Au moins 1 pourcentage requis'),
+  amounts: z
+    .array(z.number().min(0, 'Chaque montant doit être >= 0'))
+    .min(1, 'Au moins 1 montant requis'),
+  totalPrizePool: z.number().positive('Le prize pool doit être positif'),
 }).refine(
-  (data) => data.percents.length === data.payoutCount,
-  { message: 'Le nombre de pourcentages doit correspondre au nombre de places payées' }
+  (data) => data.amounts.length === data.payoutCount,
+  { message: 'Le nombre de montants doit correspondre au nombre de places payées' }
 ).refine(
   (data) => {
-    const sum = data.percents.reduce((a, b) => a + b, 0);
-    return Math.abs(sum - 100) < 0.01; // Allow small floating point errors
+    const sum = data.amounts.reduce((a, b) => a + b, 0);
+    return sum <= data.totalPrizePool + 0.01; // Allow small floating point errors
   },
-  { message: 'La somme des pourcentages doit être égale à 100' }
+  { message: 'Le total des allocations ne peut pas dépasser le prize pool disponible' }
 );
+
+// Validation schema for PATCH (adjustment)
+const adjustmentSchema = z.object({
+  adjustment: z.number().describe('Montant de l\'ajustement en € (positif ou négatif)'),
+  reason: z.string().max(500).optional().describe('Motif de l\'ajustement'),
+});
 
 /**
  * GET /api/tournaments/[id]/prize-pool
@@ -54,6 +61,8 @@ export async function GET(request: NextRequest, { params }: Params) {
         prizePayoutCount: true,
         prizePayoutPercents: true,
         prizePayoutUpdatedAt: true,
+        prizePoolAdjustment: true,
+        prizePoolAdjustmentReason: true,
         createdById: true,
         tournamentPlayers: {
           select: {
@@ -101,22 +110,29 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     const calculatedPrizePool = totalBuyIns + totalRebuys + totalLightRebuys;
 
-    // Use stored prizePool if set, otherwise use calculated
-    const totalPrizePool = tournament.prizePool ?? calculatedPrizePool;
+    // Apply adjustment to calculated prize pool
+    const adjustment = tournament.prizePoolAdjustment || 0;
+    const adjustedPrizePool = calculatedPrizePool + adjustment;
 
-    // Build breakdown if payout percents are configured
-    const percents = tournament.prizePayoutPercents as number[] | null;
+    // Use stored prizePool if set, otherwise use calculated + adjustment
+    const totalPrizePool = tournament.prizePool ?? adjustedPrizePool;
+
+    // Build breakdown if payout amounts are configured (stored in prizePayoutPercents field)
+    const amounts = tournament.prizePayoutPercents as number[] | null;
     const payoutCount = tournament.prizePayoutCount ?? 0;
 
-    let breakdown: { rank: number; percent: number; amount: number }[] = [];
+    let breakdown: { rank: number; amount: number }[] = [];
+    let totalAllocated = 0;
 
-    if (percents && Array.isArray(percents) && percents.length > 0) {
-      breakdown = percents.map((percent, index) => ({
+    if (amounts && Array.isArray(amounts) && amounts.length > 0) {
+      breakdown = amounts.map((amount, index) => ({
         rank: index + 1,
-        percent,
-        amount: Math.round((totalPrizePool * percent / 100) * 100) / 100,
+        amount,
       }));
+      totalAllocated = amounts.reduce((sum, a) => sum + a, 0);
     }
+
+    const remaining = totalPrizePool - totalAllocated;
 
     return NextResponse.json({
       tournamentId: tournament.id,
@@ -128,9 +144,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       totalRebuys,
       totalLightRebuys,
       calculatedPrizePool,
+      adjustment,
+      adjustmentReason: tournament.prizePoolAdjustmentReason,
+      adjustedPrizePool,
       totalPrizePool,
       payoutCount,
-      percents: percents ?? [],
+      amounts: amounts ?? [],
+      totalAllocated,
+      remaining,
       breakdown,
       updatedAt: tournament.prizePayoutUpdatedAt,
     });
@@ -196,14 +217,18 @@ export async function PUT(request: NextRequest, { params }: Params) {
       );
     }
 
-    const { payoutCount, percents } = validationResult.data;
+    const { payoutCount, amounts, totalPrizePool } = validationResult.data;
 
-    // Update tournament
+    // Calculate totals for response
+    const totalAllocated = amounts.reduce((sum, a) => sum + a, 0);
+    const remaining = totalPrizePool - totalAllocated;
+
+    // Update tournament (store amounts in prizePayoutPercents field)
     const updated = await prisma.tournament.update({
       where: { id: tournamentId },
       data: {
         prizePayoutCount: payoutCount,
-        prizePayoutPercents: percents,
+        prizePayoutPercents: amounts, // Now stores amounts in € instead of %
         prizePayoutUpdatedAt: new Date(),
       },
       select: {
@@ -214,11 +239,44 @@ export async function PUT(request: NextRequest, { params }: Params) {
       },
     });
 
+    // Automatically update prizeAmount for each player based on their final rank
+    // Get all tournament players with final rank
+    const tournamentPlayers = await prisma.tournamentPlayer.findMany({
+      where: { tournamentId },
+      select: {
+        playerId: true,
+        finalRank: true,
+      },
+    });
+
+    // Update prizeAmount for each player
+    const prizeUpdates = tournamentPlayers.map((tp) => {
+      let prizeAmount: number | null = null;
+      if (tp.finalRank !== null && tp.finalRank >= 1 && tp.finalRank <= amounts.length) {
+        prizeAmount = amounts[tp.finalRank - 1];
+      }
+
+      return prisma.tournamentPlayer.update({
+        where: {
+          tournamentId_playerId: {
+            tournamentId,
+            playerId: tp.playerId,
+          },
+        },
+        data: { prizeAmount },
+      });
+    });
+
+    await Promise.all(prizeUpdates);
+
     return NextResponse.json({
       success: true,
       payoutCount: updated.prizePayoutCount,
-      percents: updated.prizePayoutPercents,
+      amounts: updated.prizePayoutPercents,
+      totalAllocated,
+      remaining,
       updatedAt: updated.prizePayoutUpdatedAt,
+      playersUpdated: tournamentPlayers.length,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -231,6 +289,96 @@ export async function PUT(request: NextRequest, { params }: Params) {
     console.error('Error updating prize pool:', error);
     return NextResponse.json(
       { error: 'Erreur lors de la mise à jour du prize pool' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/tournaments/[id]/prize-pool
+ * Update prize pool adjustment (manual +/- amount)
+ */
+export async function PATCH(request: NextRequest, { params }: Params) {
+  try {
+    const { id: tournamentId } = await params;
+
+    // Fetch tournament for RBAC check
+    const tournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: {
+        id: true,
+        createdById: true,
+      },
+    });
+
+    if (!tournament) {
+      return NextResponse.json(
+        { error: 'Tournoi non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    // RBAC check
+    const permResult = await requireTournamentPermission(
+      request,
+      tournament.createdById,
+      'manage',
+      tournamentId
+    );
+
+    if (!permResult.success) {
+      return NextResponse.json(
+        { error: permResult.error },
+        { status: permResult.status }
+      );
+    }
+
+    // Parse and validate body
+    const body = await request.json();
+    const validationResult = adjustmentSchema.safeParse(body);
+
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          error: 'Données invalides',
+          details: validationResult.error.issues,
+        },
+        { status: 400 }
+      );
+    }
+
+    const { adjustment, reason } = validationResult.data;
+
+    // Update tournament
+    const updated = await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: {
+        prizePoolAdjustment: adjustment,
+        prizePoolAdjustmentReason: reason ?? null,
+      },
+      select: {
+        id: true,
+        prizePoolAdjustment: true,
+        prizePoolAdjustmentReason: true,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      adjustment: updated.prizePoolAdjustment,
+      reason: updated.prizePoolAdjustmentReason,
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Données invalides', details: error.issues },
+        { status: 400 }
+      );
+    }
+
+    console.error('Error updating prize pool adjustment:', error);
+    return NextResponse.json(
+      { error: 'Erreur lors de la mise à jour de l\'ajustement' },
       { status: 500 }
     );
   }

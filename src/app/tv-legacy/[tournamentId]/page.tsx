@@ -18,6 +18,7 @@ type TournamentPlayer = {
   playerId: string;
   finalRank: number | null;
   rebuysCount: number;
+  lightRebuyUsed: boolean;
   eliminationsCount: number;
   leaderKills: number;
   rankPoints: number;
@@ -45,7 +46,9 @@ type Tournament = {
   date: string;
   status: string;
   buyInAmount: number;
+  lightRebuyAmount: number;
   prizePool: number | null;
+  prizePoolAdjustment: number;
   currentLevel: number;
   levelStartedAt: string | null;
   levelDuration: number;
@@ -326,7 +329,17 @@ export default function TVSpectatorViewLegacy({
                 <Trophy className="h-6 w-6 text-yellow-400" />
               </div>
               <div className="text-4xl font-bold text-yellow-400">
-                {tournament.prizePool ? `${tournament.prizePool}€` : 'TBD'}
+                {(() => {
+                  // Calculate prize pool if not set
+                  if (tournament.prizePool) return `${tournament.prizePool}€`;
+                  const totalStandardRebuys = results.reduce((sum, p) => sum + p.rebuysCount, 0);
+                  const totalLightRebuys = results.filter(p => p.lightRebuyUsed).length;
+                  const calculated = (results.length * tournament.buyInAmount) +
+                    (totalStandardRebuys * tournament.buyInAmount) +
+                    (totalLightRebuys * (tournament.lightRebuyAmount || 5)) +
+                    (tournament.prizePoolAdjustment || 0);
+                  return `${calculated}€`;
+                })()}
               </div>
             </div>
 

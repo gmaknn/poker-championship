@@ -24,8 +24,7 @@ interface PlayerRanking {
   nickname: string;
   avatar: string | null;
   totalPoints: number;
-  pointsChange: number; // Changement depuis le tournoi précédent
-  placeDirect?: number; // Place si on faisait le tournoi maintenant
+  pointsChange: number; // Points gagnés lors du dernier tournoi
   victims: EliminationVictim[]; // Joueurs que ce joueur a éliminés
 }
 
@@ -69,10 +68,7 @@ export default function SeasonLeaderboardWithEliminations({
                 POINTS
               </th>
               <th className="border-2 border-gray-800 px-3 py-2 text-center font-bold w-20">
-                gain
-              </th>
-              <th className="border-2 border-gray-800 px-3 py-2 text-center font-bold w-24">
-                place direct<br />en pts
+                dernier<br />tournoi
               </th>
               <th className="border-2 border-gray-800 px-4 py-2 text-left font-bold">
                 Victimes ⚔️
@@ -133,15 +129,10 @@ export default function SeasonLeaderboardWithEliminations({
                     {player.totalPoints}
                   </td>
 
-                  {/* Points change */}
+                  {/* Points from last tournament */}
                   <td className={`border-2 border-gray-800 px-3 py-2 text-center font-semibold ${pointsChangeColor}`}>
                     {player.pointsChange > 0 ? '+' : ''}
                     {player.pointsChange}
-                  </td>
-
-                  {/* Place direct */}
-                  <td className="border-2 border-gray-800 px-3 py-2 text-center font-semibold text-gray-700">
-                    {player.placeDirect ? `-${player.placeDirect}` : '-'}
                   </td>
 
                   {/* Victims */}
@@ -176,10 +167,7 @@ export default function SeasonLeaderboardWithEliminations({
         <h3 className="font-bold text-gray-800 mb-2">Légende :</h3>
         <ul className="text-sm text-gray-700 space-y-1">
           <li>
-            <span className="font-semibold">gain :</span> Changement de points depuis le dernier tournoi
-          </li>
-          <li>
-            <span className="font-semibold">place direct en pts :</span> Points nécessaires pour accéder directement à la finale
+            <span className="font-semibold">dernier tournoi :</span> Points gagnés lors du dernier tournoi joué
           </li>
           <li>
             <span className="font-semibold">Victimes ⚔️ :</span> Joueurs éliminés par ce joueur durant la saison

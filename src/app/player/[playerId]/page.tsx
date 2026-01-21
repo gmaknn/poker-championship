@@ -18,7 +18,6 @@ import {
   Zap,
   DollarSign,
   Percent,
-  ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -187,19 +186,7 @@ export default function PlayerDashboardPage({
   const { player, activeSeason, upcomingTournaments, lastTournament, myRanking, leaderboardTop10, tournamentHistory, funStats, badges } = data;
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Bouton retour */}
-      <div className="mb-4">
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/dashboard/players')}
-          className="gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour vers la liste des joueurs
-        </Button>
-      </div>
-
+    <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
       {/* Header */}
       <div className="text-center space-y-4">
         <div className="relative inline-block">
@@ -207,11 +194,11 @@ export default function PlayerDashboardPage({
             <img
               src={getAvatarUrl(selectedAvatar)!}
               alt="Avatar"
-              className="w-32 h-32 rounded-full border-4 border-primary"
+              className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-primary"
             />
           ) : (
-            <div className="w-32 h-32 rounded-full border-4 border-primary bg-muted flex items-center justify-center">
-              <Users className="h-16 w-16 text-muted-foreground" />
+            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-primary bg-muted flex items-center justify-center">
+              <Users className="h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground" />
             </div>
           )}
           <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
@@ -219,12 +206,12 @@ export default function PlayerDashboardPage({
               <Button
                 size="icon"
                 variant="secondary"
-                className="absolute bottom-0 right-0 rounded-full"
+                className="absolute bottom-0 right-0 rounded-full min-h-[44px] min-w-[44px]"
               >
                 <Edit className="h-4 w-4" />
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Choisir un avatar</DialogTitle>
                 <DialogDescription>
@@ -248,7 +235,7 @@ export default function PlayerDashboardPage({
                     size="lg"
                     onClick={() => document.getElementById('avatar-upload')?.click()}
                     disabled={isUploadingAvatar}
-                    className="w-full"
+                    className="w-full min-h-[48px]"
                   >
                     {isUploadingAvatar ? (
                       <>
@@ -258,7 +245,7 @@ export default function PlayerDashboardPage({
                     ) : (
                       <>
                         <Upload className="mr-2 h-5 w-5" />
-                        Uploader une photo personnalisée
+                        Uploader une photo
                       </>
                     )}
                   </Button>
@@ -269,20 +256,20 @@ export default function PlayerDashboardPage({
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Formats acceptés: JPG, PNG, WebP • Maximum 5MB • L'image sera automatiquement redimensionnée
+                  Formats: JPG, PNG, WebP • Max 5MB
                 </p>
               </div>
 
               {/* Predefined avatars */}
               <div className="p-4">
                 <h4 className="text-sm font-medium mb-4">Avatars prédéfinis</h4>
-                <div className="grid grid-cols-6 gap-4">
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
                   {AVATAR_SEEDS.map((seed) => (
                     <button
                       key={seed}
                       onClick={() => handleAvatarChange(seed)}
                       disabled={isUploadingAvatar}
-                      className={`relative rounded-lg border-2 p-2 transition-all hover:scale-105 ${
+                      className={`relative rounded-lg border-2 p-1.5 transition-all hover:scale-105 min-h-[48px] ${
                         selectedAvatar === seed
                           ? 'border-primary bg-primary/10'
                           : 'border-transparent hover:border-primary/50'
@@ -301,38 +288,38 @@ export default function PlayerDashboardPage({
           </Dialog>
         </div>
         <div>
-          <h1 className="text-4xl font-bold">
+          <h1 className="text-2xl sm:text-4xl font-bold">
             {player.firstName} {player.lastName}
           </h1>
-          <p className="text-xl text-muted-foreground">{player.nickname}</p>
+          <p className="text-lg sm:text-xl text-muted-foreground">{player.nickname}</p>
         </div>
         {activeSeason && (
-          <Badge variant="outline" className="text-lg">
+          <Badge variant="outline" className="text-base sm:text-lg">
             {activeSeason.name} {activeSeason.year}
           </Badge>
         )}
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tournois</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Tournois</CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{funStats.totalTournaments}</div>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{funStats.totalTournaments}</div>
             <p className="text-xs text-muted-foreground">Joués</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Victoires</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Victoires</CardTitle>
             <Award className="h-4 w-4 text-yellow-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{funStats.victories}</div>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{funStats.victories}</div>
             <p className="text-xs text-muted-foreground">
               {funStats.totalTournaments > 0
                 ? `${Math.round((funStats.victories / funStats.totalTournaments) * 100)}%`
@@ -342,25 +329,25 @@ export default function PlayerDashboardPage({
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Podiums</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Podiums</CardTitle>
             <Trophy className="h-4 w-4 text-orange-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{funStats.podiums}</div>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{funStats.podiums}</div>
             <p className="text-xs text-muted-foreground">Top 3</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Éliminations</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
+            <CardTitle className="text-xs sm:text-sm font-medium">Éliminations</CardTitle>
             <Target className="h-4 w-4 text-red-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{funStats.totalEliminations}</div>
+          <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
+            <div className="text-xl sm:text-2xl font-bold">{funStats.totalEliminations}</div>
             <p className="text-xs text-muted-foreground">
-              {funStats.totalLeaderKills} Leader Kills
+              {funStats.totalLeaderKills} LK
             </p>
           </CardContent>
         </Card>
@@ -404,11 +391,11 @@ export default function PlayerDashboardPage({
         </Card>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Upcoming Tournaments */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Calendar className="h-5 w-5" />
               Prochains Tournois
             </CardTitle>
@@ -446,8 +433,8 @@ export default function PlayerDashboardPage({
 
         {/* Last Tournament */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <History className="h-5 w-5" />
               Dernier Tournoi
             </CardTitle>
@@ -497,11 +484,11 @@ export default function PlayerDashboardPage({
         </Card>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
         {/* My Ranking */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <TrendingUp className="h-5 w-5" />
               Mon Classement
             </CardTitle>
@@ -555,8 +542,8 @@ export default function PlayerDashboardPage({
 
         {/* Fun Stats */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Users className="h-5 w-5" />
               Stats Amusantes
             </CardTitle>
@@ -567,7 +554,7 @@ export default function PlayerDashboardPage({
                 <div className="flex items-center gap-2">
                   <Skull className="h-5 w-5 text-red-500" />
                   <div>
-                    <div className="text-sm font-medium">Némésis</div>
+                    <div className="text-sm font-medium">Votre bourreau</div>
                     <div className="text-xs text-muted-foreground">
                       {funStats.nemesis.player.firstName}{' '}
                       {funStats.nemesis.player.lastName}
@@ -583,7 +570,7 @@ export default function PlayerDashboardPage({
                 <div className="flex items-center gap-2">
                   <Heart className="h-5 w-5 text-pink-500" />
                   <div>
-                    <div className="text-sm font-medium">Victime Favorite</div>
+                    <div className="text-sm font-medium">Votre victime favorite</div>
                     <div className="text-xs text-muted-foreground">
                       {funStats.favoriteVictim.player.firstName}{' '}
                       {funStats.favoriteVictim.player.lastName}
@@ -639,12 +626,26 @@ export default function PlayerDashboardPage({
                 </span>
                 <span className="font-bold text-primary">{funStats.itmRate}%</span>
               </div>
-              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
-                <span className="flex items-center gap-2">
+              {/* Section Gains et Pertes */}
+              <div className="p-3 rounded-lg border bg-card/50 space-y-2">
+                <div className="flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span>Gains totaux</span>
-                </span>
-                <span className="font-bold text-green-600">{funStats.totalWinnings.toFixed(2)}€</span>
+                  <span className="font-medium">Gains et pertes</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Gains</span>
+                  <span className="font-bold text-green-600">{funStats.totalWinnings?.toFixed(0) || 0} €</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Pertes</span>
+                  <span className="font-bold text-red-500">{funStats.totalLosses?.toFixed(0) || 0} €</span>
+                </div>
+                <div className="flex justify-between items-center text-sm border-t pt-2">
+                  <span className="font-medium">Total</span>
+                  <span className={`font-bold text-lg ${(funStats.netProfit || 0) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {(funStats.netProfit || 0) >= 0 ? '+' : ''}{funStats.netProfit?.toFixed(0) || 0} €
+                  </span>
+                </div>
               </div>
               <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
                 <span className="flex items-center gap-2">

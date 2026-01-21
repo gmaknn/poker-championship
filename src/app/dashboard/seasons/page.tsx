@@ -60,6 +60,7 @@ const DEFAULT_SEASON_PARAMS = {
   pointsEleventh: 100,
   pointsSixteenth: 50,
   eliminationPoints: 50,
+  bustEliminationBonus: 25,
   leaderKillerBonus: 25,
   freeRebuysCount: 2,
   rebuyPenaltyTier1: -50,
@@ -131,6 +132,7 @@ export default function SeasonsPage() {
         pointsEleventh: season.pointsEleventh,
         pointsSixteenth: season.pointsSixteenth,
         eliminationPoints: season.eliminationPoints,
+        bustEliminationBonus: (season as { bustEliminationBonus?: number }).bustEliminationBonus ?? 25,
         leaderKillerBonus: season.leaderKillerBonus,
         freeRebuysCount: season.freeRebuysCount,
         rebuyPenaltyTier1: season.rebuyPenaltyTier1,
@@ -187,6 +189,7 @@ export default function SeasonsPage() {
         pointsEleventh: formData.pointsEleventh,
         pointsSixteenth: formData.pointsSixteenth,
         eliminationPoints: formData.eliminationPoints,
+        bustEliminationBonus: formData.bustEliminationBonus,
         leaderKillerBonus: formData.leaderKillerBonus,
         freeRebuysCount: formData.freeRebuysCount,
         rebuyPenaltyTier1: formData.rebuyPenaltyTier1,
@@ -614,10 +617,24 @@ export default function SeasonsPage() {
                 </div>
 
                 <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-3">Bonus</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <h3 className="font-semibold mb-3">Bonus d&apos;élimination</h3>
+                  <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="eliminationPoints">Points par élimination</Label>
+                      <Label htmlFor="bustEliminationBonus">Bonus élim bust</Label>
+                      <Input
+                        id="bustEliminationBonus"
+                        type="number"
+                        value={formData.bustEliminationBonus}
+                        onChange={(e) =>
+                          setFormData({ ...formData, bustEliminationBonus: parseInt(e.target.value) })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Pendant la période de recaves
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="eliminationPoints">Bonus élim finale</Label>
                       <Input
                         id="eliminationPoints"
                         type="number"
@@ -627,7 +644,7 @@ export default function SeasonsPage() {
                         }
                       />
                       <p className="text-xs text-muted-foreground">
-                        Après la fin de la période de recave
+                        Après la fin des recaves
                       </p>
                     </div>
                     <div className="space-y-2">
@@ -641,7 +658,7 @@ export default function SeasonsPage() {
                         }
                       />
                       <p className="text-xs text-muted-foreground">
-                        Pour élimination du leader
+                        Pour élim du leader (après recaves)
                       </p>
                     </div>
                   </div>

@@ -6,11 +6,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy, ArrowLeft, Mail, Lock } from 'lucide-react';
+import { Trophy, ArrowLeft, Phone, Lock } from 'lucide-react';
 
 export default function PlayerLoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -24,13 +24,13 @@ export default function PlayerLoginPage() {
       const response = await fetch('/api/auth/player-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setError(data.error || 'Email ou mot de passe incorrect');
+        setError(data.error || 'Identifiant ou mot de passe incorrect');
         return;
       }
 
@@ -64,19 +64,19 @@ export default function PlayerLoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                Email
+              <label htmlFor="identifier" className="text-sm font-medium flex items-center gap-2">
+                <Phone className="h-4 w-4" />
+                Téléphone ou Email
               </label>
               <Input
-                id="email"
-                type="email"
-                placeholder="votre@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="identifier"
+                type="text"
+                placeholder="06 12 34 56 78 ou email@example.com"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
                 disabled={isLoading}
-                autoComplete="email"
+                autoComplete="username"
               />
             </div>
             <div className="space-y-2">

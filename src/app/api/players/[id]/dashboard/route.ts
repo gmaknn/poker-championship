@@ -260,7 +260,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       tp => tp.rebuysCount === 0
     ).length;
 
-    // 8. Total winnings
+    // 8. Total winnings and losses
     const totalWinningsSum = await prisma.tournamentPlayer.aggregate({
       where: {
         playerId: id,
@@ -269,6 +269,27 @@ export async function GET(request: NextRequest, { params }: Params) {
       _sum: { prizeAmount: true },
     });
     const totalWinnings = totalWinningsSum._sum.prizeAmount || 0;
+
+    // Calculate total losses (buy-ins + rebuys + light rebuys)
+    let totalLosses = 0;
+    for (const tp of allTournamentParticipations) {
+      const buyIn = tp.tournament.buyInAmount || 0;
+      const lightRebuyAmount = tp.tournament.lightRebuyAmount || 0;
+
+      // Base buy-in (if player paid)
+      totalLosses += buyIn;
+
+      // Full rebuys (each rebuy costs buyIn amount)
+      totalLosses += tp.rebuysCount * buyIn;
+
+      // Light rebuy (half stack, costs lightRebuyAmount)
+      if (tp.lightRebuyUsed) {
+        totalLosses += lightRebuyAmount;
+      }
+    }
+
+    // Net profit/loss
+    const netProfit = totalWinnings - totalLosses;
 
     // 9. Win rate and ITM rate
     const winRate = totalTournaments > 0 ? Math.round((victories / totalTournaments) * 100) : 0;
@@ -442,6 +463,8 @@ export async function GET(request: NextRequest, { params }: Params) {
         bubbleBoyCount,
         ironManTournaments,
         totalWinnings,
+        totalLosses,
+        netProfit,
         winRate,
         itmRate,
         bestStreak,

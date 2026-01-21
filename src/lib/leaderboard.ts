@@ -70,8 +70,8 @@ function getRankPointsForPosition(
  * Calculate points for a single tournament player (used in backfill)
  */
 function calculatePlayerPoints(
-  tp: { finalRank: number | null; eliminationsCount: number; leaderKills: number; penaltyPoints: number },
-  season: Parameters<typeof getRankPointsForPosition>[1] & { eliminationPoints: number; leaderKillerBonus: number }
+  tp: { finalRank: number | null; eliminationsCount: number; bustEliminations: number; leaderKills: number; penaltyPoints: number },
+  season: Parameters<typeof getRankPointsForPosition>[1] & { eliminationPoints: number; bustEliminationBonus: number; leaderKillerBonus: number }
 ): { rankPoints: number; eliminationPoints: number; bonusPoints: number; totalPoints: number } {
   let rankPoints = 0;
   let eliminationPoints = 0;
@@ -79,7 +79,13 @@ function calculatePlayerPoints(
 
   if (tp.finalRank !== null) {
     rankPoints = getRankPointsForPosition(tp.finalRank, season);
-    eliminationPoints = tp.eliminationsCount * season.eliminationPoints;
+    // Points d'élimination:
+    // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
+    // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
+    const finalElimPoints = tp.eliminationsCount * season.eliminationPoints;
+    const bustElimPoints = tp.bustEliminations * season.bustEliminationBonus;
+    eliminationPoints = finalElimPoints + bustElimPoints;
+    // Bonus leader kill (uniquement après recaves)
     bonusPoints = tp.leaderKills * season.leaderKillerBonus;
   }
 
@@ -144,6 +150,69 @@ export type LeaderboardResult = {
  * Includes automatic backfill: if all points are 0 but there are ranked players,
  * recalculates points on-the-fly (idempotent, no infinite loop).
  */
+/**
+ * Get the current leader of a season (player with most points)
+ * Excludes the current tournament from calculation (to get leader BEFORE this tournament)
+ * Returns null if no tournaments completed yet or no leader found
+ */
+export async function getSeasonLeaderId(
+  seasonId: string,
+  excludeTournamentId?: string
+): Promise<string | null> {
+  // Get season with its completed championship tournaments
+  const season = await prisma.season.findUnique({
+    where: { id: seasonId },
+    include: {
+      tournaments: {
+        where: {
+          status: 'FINISHED',
+          type: 'CHAMPIONSHIP',
+          ...(excludeTournamentId ? { id: { not: excludeTournamentId } } : {}),
+        },
+        include: {
+          tournamentPlayers: {
+            select: {
+              playerId: true,
+              totalPoints: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!season || season.tournaments.length === 0) {
+    return null; // Premier tournoi de la saison, pas de leader
+  }
+
+  // Agrégation des points par joueur
+  const playerPoints = new Map<string, number>();
+
+  for (const tournament of season.tournaments) {
+    for (const tp of tournament.tournamentPlayers) {
+      const current = playerPoints.get(tp.playerId) || 0;
+      playerPoints.set(tp.playerId, current + tp.totalPoints);
+    }
+  }
+
+  if (playerPoints.size === 0) {
+    return null;
+  }
+
+  // Trouver le joueur avec le plus de points
+  let leaderId: string | null = null;
+  let maxPoints = -Infinity;
+
+  for (const [playerId, points] of playerPoints.entries()) {
+    if (points > maxPoints) {
+      maxPoints = points;
+      leaderId = playerId;
+    }
+  }
+
+  return leaderId;
+}
+
 export async function calculateLeaderboard(seasonId: string): Promise<LeaderboardResult | null> {
   // Get season with its configuration
   const season = await prisma.season.findUnique({

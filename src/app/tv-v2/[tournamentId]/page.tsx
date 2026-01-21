@@ -18,6 +18,7 @@ type TournamentPlayer = {
   playerId: string;
   finalRank: number | null;
   rebuysCount: number;
+  lightRebuyUsed: boolean;
   eliminationsCount: number;
   leaderKills: number;
   rankPoints: number;
@@ -46,8 +47,10 @@ type Tournament = {
   status: string;
   type: string;
   buyInAmount: number;
+  lightRebuyAmount: number;
   startingChips: number;
   prizePool: number | null;
+  prizePoolAdjustment: number;
   currentLevel: number;
   timerStartedAt: string | null;
   timerPausedAt: string | null;
@@ -146,8 +149,10 @@ export default function TVSpectatorViewV2({
             status: data.status,
             type: data.type || 'TOURNAMENT',
             buyInAmount: data.buyInAmount,
+            lightRebuyAmount: data.lightRebuyAmount || 5, // Default 5€ for half rebuy
             startingChips: data.startingChips,
             prizePool: data.prizePool,
+            prizePoolAdjustment: data.prizePoolAdjustment || 0,
             currentLevel: timerData?.currentLevel || data.currentLevel,
             timerStartedAt: data.timerStartedAt,
             timerPausedAt: data.timerPausedAt,
@@ -337,9 +342,18 @@ export default function TVSpectatorViewV2({
     ? Math.floor(totalChipsInPlay / activePlayers.length)
     : 0;
 
-  // Calculate total prize pool (buy-ins + rebuys)
-  const totalRebuys = results.reduce((sum, p) => sum + p.rebuysCount, 0);
-  const calculatedPrizePool = tournament.prizePool || ((results.length + totalRebuys) * tournament.buyInAmount);
+  // Calculate total prize pool (buy-ins + rebuys standard + light rebuys + adjustment)
+  // rebuysCount = nombre de rebuys standard (full, 10€ chacun) - inclut rebuys après bust ET rebuys volontaires full
+  // lightRebuyUsed = true si le joueur a fait un light rebuy (5€) - après bust OU rebuy volontaire half
+  // prizePoolAdjustment = ajustement manuel (+/- €, ex: sponsor)
+  const totalStandardRebuys = results.reduce((sum, p) => sum + p.rebuysCount, 0);
+  const totalLightRebuys = results.filter(p => p.lightRebuyUsed).length;
+  const calculatedPrizePool = tournament.prizePool || (
+    (results.length * tournament.buyInAmount) +  // Buy-ins
+    (totalStandardRebuys * tournament.buyInAmount) +  // Standard rebuys (10€)
+    (totalLightRebuys * tournament.lightRebuyAmount) +  // Light rebuys (5€)
+    (tournament.prizePoolAdjustment || 0)  // Ajustement manuel
+  );
 
   const tournamentTypeLabel = tournament.type === 'CHAMPIONSHIP' ? 'Texas Hold\'em No Limit' :
                                tournament.type === 'TOURNAMENT' ? 'Texas Hold\'em No Limit' :

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { areRecavesOpen } from '@/lib/tournament-utils';
+import { areRecavesOpen, isBreakAfterRebuyEnd } from '@/lib/tournament-utils';
 
 // Force dynamic rendering - no caching for live timer state
 export const dynamic = 'force-dynamic';
@@ -84,6 +84,13 @@ export async function GET(
     // Déterminer si les recaves sont ouvertes (inclut la pause après "Fin recaves")
     const recavesOpen = areRecavesOpen(tournament, calculatedLevel, tournament.blindLevels);
 
+    // Déterminer si on est dans la pause juste après la fin des recaves (pour rebuy volontaire)
+    const isVoluntaryRebuyPeriod = isBreakAfterRebuyEnd(
+      tournament.rebuyEndLevel,
+      calculatedLevel,
+      tournament.blindLevels
+    );
+
     const response = NextResponse.json({
       tournamentId: tournament.id,
       status: tournament.status,
@@ -96,6 +103,7 @@ export async function GET(
       timerStartedAt: tournament.timerStartedAt,
       timerPausedAt: tournament.timerPausedAt,
       recavesOpen,
+      isVoluntaryRebuyPeriod,
       rebuyEndLevel: tournament.rebuyEndLevel,
     });
 

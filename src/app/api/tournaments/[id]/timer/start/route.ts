@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
+import { getSeasonLeaderId } from '@/lib/leaderboard';
 
 // POST - Démarrer le timer du tournoi
 export async function POST(
@@ -50,6 +51,13 @@ export async function POST(
       );
     }
 
+    // Récupérer le leader actuel de la saison (avant ce tournoi)
+    // pour le bonus Leader Killer
+    let seasonLeaderAtStartId: string | null = null;
+    if (tournament.seasonId) {
+      seasonLeaderAtStartId = await getSeasonLeaderId(tournament.seasonId, id);
+    }
+
     // Démarrer le timer
     const now = new Date();
     const updatedTournament = await prisma.tournament.update({
@@ -59,6 +67,7 @@ export async function POST(
         timerStartedAt: now,
         timerPausedAt: null,
         currentLevel: 1,
+        seasonLeaderAtStartId, // Figer le leader pour le bonus Leader Killer
       },
     });
 

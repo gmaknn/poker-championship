@@ -432,42 +432,48 @@ export default function BlindStructureEditor({
         </div>
       )}
 
-      {/* Header avec actions */}
-      <div className="flex items-center justify-between">
+      {/* Header avec actions - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold">Structure des blinds</h2>
+          <h2 className="text-xl md:text-2xl font-bold">Structure des blinds</h2>
           {stats && (
-            <p className="text-sm text-muted-foreground">
-              {stats.totalLevels} niveaux • {formatTime(stats.totalDuration)} •{' '}
-              Stack: {stats.startingStackBB} BB
+            <p className="text-xs md:text-sm text-muted-foreground">
+              {stats.totalLevels} niv. • {formatTime(stats.totalDuration)} • {stats.startingStackBB} BB
             </p>
           )}
         </div>
         {!readOnly && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
+              size="sm"
+              className="flex-1 sm:flex-none"
               onClick={() => setIsGenerateDialogOpen(true)}
             >
-              <Wand2 className="mr-2 h-4 w-4" />
-              Générer
+              <Wand2 className="mr-1 md:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Générer</span>
+              <span className="sm:hidden">Générer</span>
             </Button>
             {levels.length > 0 && (
               <Button
                 variant="outline"
+                size="sm"
+                className="hidden md:flex"
                 onClick={() => setIsSaveTemplateDialogOpen(true)}
                 disabled={isSaving}
               >
                 <FileText className="mr-2 h-4 w-4" />
-                Sauvegarder comme template
+                Template
               </Button>
             )}
             <Button
+              size="sm"
+              className="flex-1 sm:flex-none"
               onClick={handleSave}
               disabled={isSaving || levels.length === 0}
             >
-              <Save className="mr-2 h-4 w-4" />
-              {isSaving ? 'Sauvegarde...' : 'Sauvegarder'}
+              <Save className="mr-1 md:mr-2 h-4 w-4" />
+              {isSaving ? '...' : 'Sauver'}
             </Button>
           </div>
         )}
@@ -605,20 +611,21 @@ export default function BlindStructureEditor({
             </div>
           )}
 
-          {/* Scrollable container with sticky header */}
-          <div className="max-h-[600px] overflow-y-auto rounded-lg border">
-            {/* Sticky header - ink style */}
-            <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 px-4 py-3 font-medium text-sm bg-ink text-ink-foreground sticky top-0 z-10 border-b border-border">
-              <div></div>
-              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Niveau</div>
-              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Small Blind</div>
-              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Big Blind</div>
-              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Ante</div>
-              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Durée</div>
-              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Réassigner</div>
-              <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Fin recaves</div>
-              <div></div>
-            </div>
+          {/* Scrollable container with sticky header - Mobile optimized */}
+          <div className="max-h-[600px] overflow-auto rounded-lg border">
+            <div className="min-w-[700px]">
+              {/* Sticky header - ink style */}
+              <div className="grid grid-cols-[32px_44px_1fr_1fr_1fr_70px_80px_90px_50px] md:grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-3 font-medium text-sm bg-ink text-ink-foreground sticky top-0 z-10 border-b border-border">
+                <div></div>
+                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Niv.</div>
+                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">SB</div>
+                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">BB</div>
+                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Ante</div>
+                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Durée</div>
+                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70 hidden sm:block">Réassign.</div>
+                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70 hidden sm:block">Fin recaves</div>
+                <div></div>
+              </div>
 
             {/* Levels list with section separators */}
             <div className="space-y-2 p-2">
@@ -704,16 +711,17 @@ export default function BlindStructureEditor({
                         </Button>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-3 items-center">
+                      <div className="grid grid-cols-[32px_44px_1fr_1fr_1fr_70px_80px_90px_50px] md:grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-2 md:gap-3 items-center">
                         <div className="flex justify-center cursor-grab active:cursor-grabbing">
-                          <GripVertical className="h-5 w-5 text-muted-foreground" />
+                          <GripVertical className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
                         </div>
-                        <Badge variant="outline" className="justify-center">
+                        <Badge variant="outline" className="justify-center text-xs md:text-sm">
                           {level.level}
                         </Badge>
                         <Input
                           type="number"
                           value={level.smallBlind}
+                          className="h-9 md:h-10 text-sm px-2"
                           onChange={(e) =>
                             handleLevelChange(
                               index,
@@ -725,6 +733,7 @@ export default function BlindStructureEditor({
                         <Input
                           type="number"
                           value={level.bigBlind}
+                          className="h-9 md:h-10 text-sm px-2"
                           onChange={(e) =>
                             handleLevelChange(
                               index,
@@ -736,6 +745,7 @@ export default function BlindStructureEditor({
                         <Input
                           type="number"
                           value={level.ante}
+                          className="h-9 md:h-10 text-sm px-2"
                           onChange={(e) =>
                             handleLevelChange(
                               index,
@@ -744,10 +754,11 @@ export default function BlindStructureEditor({
                             )
                           }
                         />
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <Input
                             type="number"
                             value={level.duration}
+                            className="h-9 md:h-10 text-sm px-2"
                             onChange={(e) =>
                               handleLevelChange(
                                 index,
@@ -756,9 +767,9 @@ export default function BlindStructureEditor({
                               )
                             }
                           />
-                          <span className="text-sm text-muted-foreground whitespace-nowrap">min</span>
+                          <span className="text-xs text-muted-foreground hidden md:inline">min</span>
                         </div>
-                        <div className="flex items-center gap-1" title="Rappel affiché sur TV et annonce audio à la fin de ce niveau. La réassignation doit être faite manuellement par le TD.">
+                        <div className="hidden sm:flex items-center gap-1" title="Rappel affiché sur TV et annonce audio à la fin de ce niveau.">
                           <Checkbox
                             id={`rebalance-${index}`}
                             checked={level.rebalanceTables || false}
@@ -768,14 +779,14 @@ export default function BlindStructureEditor({
                           />
                           <label
                             htmlFor={`rebalance-${index}`}
-                            className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
-                            title="Rappel affiché sur TV et annonce audio à la fin de ce niveau. La réassignation doit être faite manuellement par le TD."
+                            className="text-[10px] md:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer"
+                            title="Rappel affiché sur TV et annonce audio à la fin de ce niveau."
                           >
                             <Shuffle className="h-3 w-3" />
-                            Rappel tables
+                            <span className="hidden lg:inline">Tables</span>
                           </label>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="hidden sm:flex items-center gap-1">
                           <Checkbox
                             id={`rebuy-end-${index}`}
                             checked={level.isRebuyEnd || false}
@@ -785,15 +796,16 @@ export default function BlindStructureEditor({
                           />
                           <label
                             htmlFor={`rebuy-end-${index}`}
-                            className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer whitespace-nowrap"
+                            className="text-[10px] md:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer"
                           >
                             <AlertCircle className="h-3 w-3" />
-                            Fin recaves
+                            <span className="hidden lg:inline">Fin</span>
                           </label>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 md:h-9 md:w-9"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRemoveLevel(index);
@@ -810,6 +822,7 @@ export default function BlindStructureEditor({
 
             return elements;
           })()}
+            </div>
             </div>
           </div>
 

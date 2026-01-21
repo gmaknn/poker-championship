@@ -5,8 +5,20 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
 
+// Helper to normalize phone number (remove spaces, dashes, dots)
+function normalizePhone(phone: string): string {
+  return phone.replace(/[\s\-\.]/g, '');
+}
+
+// Helper to detect if input is a phone number
+function isPhoneNumber(input: string): boolean {
+  const normalized = normalizePhone(input);
+  // French phone format: 10 digits starting with 0
+  return /^0[1-9]\d{8}$/.test(normalized);
+}
+
 const loginSchema = z.object({
-  email: z.string().email('Email invalide'),
+  identifier: z.string().min(1, 'Téléphone ou email requis'),
   password: z.string().min(1, 'Mot de passe requis'),
 });
 
@@ -16,7 +28,7 @@ const JWT_SECRET = new TextEncoder().encode(
 
 /**
  * POST /api/auth/player-login
- * Authenticate a player with email/password
+ * Authenticate a player with phone/email and password
  *
  * Returns player info and sets a session cookie
  */
@@ -24,8 +36,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
+    // Support both old 'email' field and new 'identifier' field for backwards compatibility
+    const identifier = body.identifier || body.email;
+    const password = body.password;
+
     // Validate input
-    const validation = loginSchema.safeParse(body);
+    const validation = loginSchema.safeParse({ identifier, password });
     if (!validation.success) {
       return NextResponse.json(
         { error: validation.error.issues[0].message },
@@ -33,31 +49,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password } = validation.data;
+    // Determine if identifier is phone or email
+    const isPhone = isPhoneNumber(identifier);
 
-    // Find player by email
-    // Note: For PostgreSQL, use { equals: email, mode: 'insensitive' }
-    // For SQLite (dev), we do a simple match
-    const player = await prisma.player.findFirst({
-      where: {
-        email: email,
-      },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        firstName: true,
-        lastName: true,
-        nickname: true,
-        avatar: true,
-        status: true,
-        role: true,
-      },
-    });
+    let player;
+    if (isPhone) {
+      // Search by phone (normalized)
+      const normalizedPhone = normalizePhone(identifier);
+      player = await prisma.player.findFirst({
+        where: {
+          phone: normalizedPhone,
+        },
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          password: true,
+          firstName: true,
+          lastName: true,
+          nickname: true,
+          avatar: true,
+          status: true,
+          role: true,
+        },
+      });
+    } else {
+      // Search by email
+      player = await prisma.player.findFirst({
+        where: {
+          email: identifier,
+        },
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          password: true,
+          firstName: true,
+          lastName: true,
+          nickname: true,
+          avatar: true,
+          status: true,
+          role: true,
+        },
+      });
+    }
 
     if (!player) {
       return NextResponse.json(
-        { error: 'Email ou mot de passe incorrect' },
+        { error: 'Identifiant ou mot de passe incorrect' },
         { status: 401 }
       );
     }
@@ -65,7 +104,7 @@ export async function POST(request: NextRequest) {
     // Check if player has a password set (account activated)
     if (!player.password) {
       return NextResponse.json(
-        { error: 'Compte non activé. Vérifiez vos emails pour le lien d\'activation.' },
+        { error: 'Compte non activé. Contactez un administrateur.' },
         { status: 401 }
       );
     }
@@ -82,7 +121,7 @@ export async function POST(request: NextRequest) {
     const isPasswordValid = await bcrypt.compare(password, player.password);
     if (!isPasswordValid) {
       return NextResponse.json(
-        { error: 'Email ou mot de passe incorrect' },
+        { error: 'Identifiant ou mot de passe incorrect' },
         { status: 401 }
       );
     }
@@ -91,6 +130,7 @@ export async function POST(request: NextRequest) {
     const token = await new SignJWT({
       playerId: player.id,
       email: player.email,
+      phone: player.phone,
       nickname: player.nickname,
       role: player.role,
       type: 'player', // Distinguish from admin sessions

@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { SectionCard } from '@/components/ui/section-card';
-import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check } from 'lucide-react';
+import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -24,6 +25,7 @@ type TournamentPlayer = {
   leaderKills: number;
   rebuysCount: number;
   lightRebuyUsed: boolean;
+  currentStack: number | null;
   player: Player;
 };
 
@@ -60,6 +62,9 @@ type Tournament = {
   rebuyEndLevel: number | null;
   lightRebuyEnabled: boolean;
   lightRebuyAmount: number;
+  startingChips: number;
+  maxRebuysPerPlayer: number | null;
+  seasonLeaderAtStartId: string | null;
 };
 
 type Props = {
@@ -85,11 +90,21 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [effectiveLevel, setEffectiveLevel] = useState(1);
   // État des recaves (retourné par l'API timer avec la logique complète)
   const [recavesOpen, setRecavesOpen] = useState(true);
+  // Période de rebuy volontaire (uniquement pendant la pause après fin des recaves)
+  const [isVoluntaryRebuyPeriod, setIsVoluntaryRebuyPeriod] = useState(false);
   // Light rebuy state
   const [lightRebuyAmount, setLightRebuyAmount] = useState(5);
   const [isLightRebuySubmitting, setIsLightRebuySubmitting] = useState<string | null>(null);
   // Bust recave state
   const [bustRecaveSubmitting, setBustRecaveSubmitting] = useState<string | null>(null);
+  // Voluntary rebuy state
+  const [voluntaryRebuyStack, setVoluntaryRebuyStack] = useState<Record<string, number>>({});
+  const [voluntaryRebuySubmitting, setVoluntaryRebuySubmitting] = useState<string | null>(null);
+  // Accordion states for collapsible sections
+  const [voluntaryRebuyOpen, setVoluntaryRebuyOpen] = useState(true);
+  const [eliminationFormOpen, setEliminationFormOpen] = useState(true);
+  const [bustHistoryOpen, setBustHistoryOpen] = useState(false);
+  const [eliminationHistoryOpen, setEliminationHistoryOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -110,6 +125,10 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
           // Mettre à jour l'état des recaves depuis l'API (logique complète côté serveur)
           if (timerData.recavesOpen !== undefined) {
             setRecavesOpen(timerData.recavesOpen);
+          }
+          // Mettre à jour la période de rebuy volontaire
+          if (timerData.isVoluntaryRebuyPeriod !== undefined) {
+            setIsVoluntaryRebuyPeriod(timerData.isVoluntaryRebuyPeriod);
           }
         }
       } catch (error) {
@@ -146,6 +165,10 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         // (inclut la pause après "Fin recaves" pour permettre les recaves light)
         if (timerData.recavesOpen !== undefined) {
           setRecavesOpen(timerData.recavesOpen);
+        }
+        // Période de rebuy volontaire (uniquement pendant pause après fin recaves)
+        if (timerData.isVoluntaryRebuyPeriod !== undefined) {
+          setIsVoluntaryRebuyPeriod(timerData.isVoluntaryRebuyPeriod);
         }
       }
 
@@ -407,23 +430,67 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     }
   };
 
+  // Seuil de stack pour le rebuy volontaire (half vs full)
+  const VOLUNTARY_REBUY_STACK_THRESHOLD = 3500;
+
+  // Gérer le rebuy volontaire (joueur non busté qui veut recaver)
+  const handleVoluntaryRebuy = async (playerId: string) => {
+    const currentStack = voluntaryRebuyStack[playerId];
+    if (currentStack === undefined || currentStack < 0) {
+      setError('Veuillez entrer le stack actuel du joueur');
+      return;
+    }
+
+    setVoluntaryRebuySubmitting(playerId);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/rebuys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId,
+          type: currentStack >= VOLUNTARY_REBUY_STACK_THRESHOLD ? 'LIGHT' : 'STANDARD',
+          isVoluntary: true,
+          currentStack,
+        }),
+      });
+
+      if (response.ok) {
+        // Reset le stack input pour ce joueur
+        setVoluntaryRebuyStack(prev => {
+          const updated = { ...prev };
+          delete updated[playerId];
+          return updated;
+        });
+        await fetchData();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors du rebuy volontaire');
+      }
+    } catch (error) {
+      console.error('Error applying voluntary rebuy:', error);
+      setError('Erreur lors du rebuy volontaire');
+    } finally {
+      setVoluntaryRebuySubmitting(null);
+    }
+  };
+
+  // Déterminer le type de rebuy basé sur le stack saisi
+  const getVoluntaryRebuyType = (playerId: string): 'HALF' | 'FULL' | null => {
+    const stack = voluntaryRebuyStack[playerId];
+    if (stack === undefined) return null;
+    return stack >= VOLUNTARY_REBUY_STACK_THRESHOLD ? 'HALF' : 'FULL';
+  };
+
   const activePlayers = players
     .filter((p) => p.finalRank === null)
     .sort((a, b) => a.player.firstName.localeCompare(b.player.firstName));
   const eliminatedPlayers = players.filter((p) => p.finalRank !== null);
 
-  const getLeaderKillerCandidates = () => {
-    const counts = new Map<string, number>();
-    activePlayers.forEach((p) => {
-      counts.set(p.playerId, p.eliminationsCount);
-    });
-    const maxElims = Math.max(...Array.from(counts.values()), 0);
-    return Array.from(counts.entries())
-      .filter(([_, count]) => count === maxElims && maxElims > 0)
-      .map(([playerId]) => playerId);
-  };
-
-  const leaderKillerCandidates = getLeaderKillerCandidates();
+  // Le leader de la saison au début du tournoi (pour afficher la couronne)
+  const seasonLeaderId = tournament?.seasonLeaderAtStartId;
 
   if (isLoading) {
     return (
@@ -434,34 +501,34 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 pb-4">
       {error && (
         <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {/* Indicateur état des recaves */}
+      {/* Indicateur état des recaves - sticky en mobile */}
       {tournament && (
-        <Card className={recavesOpen ? 'border-amber-500' : 'border-red-500'}>
-          <CardContent className="flex items-center gap-3 py-3">
+        <Card className={`${recavesOpen ? 'border-amber-500 bg-amber-500/5' : 'border-red-500 bg-red-500/5'} sticky top-0 z-10`}>
+          <CardContent className="flex items-center gap-3 py-3 px-4">
             {recavesOpen ? (
               <>
-                <RefreshCw className="h-5 w-5 text-amber-500" />
-                <div>
-                  <span className="font-medium text-amber-600">Période de recaves</span>
-                  <span className="text-muted-foreground ml-2">
-                    (niveau {effectiveLevel}/{tournament.rebuyEndLevel || '∞'})
+                <RefreshCw className="h-5 w-5 md:h-6 md:w-6 text-amber-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <span className="font-semibold text-amber-600 text-base md:text-lg">Période de recaves</span>
+                  <span className="text-muted-foreground ml-2 text-sm md:text-base">
+                    (niv. {effectiveLevel}/{tournament.rebuyEndLevel || '∞'})
                   </span>
                 </div>
               </>
             ) : (
               <>
-                <AlertTriangle className="h-5 w-5 text-red-500" />
-                <div>
-                  <span className="font-medium text-red-600">Recaves terminées</span>
-                  <span className="text-muted-foreground ml-2">
-                    - Éliminations définitives
+                <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-red-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <span className="font-semibold text-red-600 text-base md:text-lg">Éliminations définitives</span>
+                  <span className="text-muted-foreground ml-2 text-sm hidden sm:inline">
+                    - Recaves terminées
                   </span>
                 </div>
               </>
@@ -498,28 +565,33 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
         <SectionCard variant="ink" noPadding className="p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-ink-foreground/70">Leader Killer</span>
+            <span className="text-sm font-medium text-ink-foreground/70">Leader Saison 👑</span>
             <Target className="h-4 w-4 text-ink-foreground/50" />
           </div>
-          {leaderKillerCandidates.length > 0 ? (
+          {seasonLeaderId ? (
             <div className="text-sm">
-              {leaderKillerCandidates.map((playerId) => {
-                const player = players.find((p) => p.playerId === playerId);
-                return (
-                  <div key={playerId} className="font-medium">
-                    {player?.player.nickname}
+              {(() => {
+                const leader = players.find((p) => p.playerId === seasonLeaderId);
+                return leader ? (
+                  <div className="font-medium">
+                    {leader.player.nickname}
+                    {leader.finalRank !== null && (
+                      <span className="text-red-400 ml-2">(éliminé)</span>
+                    )}
                   </div>
+                ) : (
+                  <div className="text-ink-foreground/60">Non inscrit</div>
                 );
-              })}
+              })()}
             </div>
           ) : (
-            <div className="text-sm text-ink-foreground/60">Aucun</div>
+            <div className="text-sm text-ink-foreground/60">1er tournoi</div>
           )}
         </SectionCard>
       </div>
 
-      {/* Formulaire bust ou élimination selon l'état des recaves - masqué si tournoi terminé */}
-      {tournament?.status === 'FINISHED' ? (
+      {/* Tournoi terminé - message informatif */}
+      {tournament?.status === 'FINISHED' && (
         <Card className="border-muted">
           <CardContent className="flex items-center gap-3 py-4">
             <Trophy className="h-5 w-5 text-muted-foreground" />
@@ -528,320 +600,401 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             </span>
           </CardContent>
         </Card>
-      ) : recavesOpen ? (
-        /* Formulaire de bust (période de recaves) */
-        <Card className="border-amber-500/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+      )}
+
+      {/* 1. Formulaire de bust - visible pendant période de recaves (PAS en accordéon) */}
+      {recavesOpen && tournament?.status === 'IN_PROGRESS' && (
+        <Card className="border-amber-500/50 border-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
               <RefreshCw className="h-5 w-5 text-amber-500" />
-              Enregistrer une perte de tapis
+              Enregistrer un bust
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Le joueur pourra faire une recave pour continuer
+              Le joueur pourra faire une recave
             </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmitBust} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Joueur qui a perdu */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Joueur qui a perdu son tapis</label>
-                  <select
-                    value={selectedEliminated}
-                    onChange={(e) => setSelectedEliminated(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-3 min-h-[44px] text-base"
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Sélectionner...</option>
-                    {activePlayers.map((p) => (
-                      <option key={p.playerId} value={p.playerId}>
-                        {p.player.firstName} {p.player.lastName} ({p.player.nickname})
-                        {p.rebuysCount > 0 && ` - ${p.rebuysCount} recave(s)`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Killer (optionnel) */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Pris par (optionnel)</label>
-                  <select
-                    value={selectedEliminator}
-                    onChange={(e) => setSelectedEliminator(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-3 min-h-[44px] text-base"
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Non spécifié</option>
-                    {activePlayers
-                      .filter((p) => p.playerId !== selectedEliminated)
-                      .map((p) => (
-                        <option key={p.playerId} value={p.playerId}>
-                          {p.player.firstName} {p.player.lastName} ({p.player.nickname})
-                          {p.eliminationsCount > 0 && ` - ${p.eliminationsCount} élim.`}
-                          {leaderKillerCandidates.includes(p.playerId) && ' 👑'}
-                        </option>
-                      ))}
-                  </select>
-                </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Qui a perdu son tapis ?</label>
+                <select
+                  value={selectedEliminated}
+                  onChange={(e) => setSelectedEliminated(e.target.value)}
+                  className="w-full rounded-lg border-2 border-input bg-background px-4 py-4 min-h-[52px] text-base font-medium focus:border-amber-500 focus:ring-amber-500"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Sélectionner le joueur...</option>
+                  {activePlayers.map((p) => (
+                    <option key={p.playerId} value={p.playerId}>
+                      {p.player.nickname} ({p.player.firstName})
+                      {p.rebuysCount > 0 && ` [${p.rebuysCount}R]`}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <Button type="submit" disabled={isSubmitting} className="w-full bg-amber-600 hover:bg-amber-700 min-h-[48px] text-base">
-                <RefreshCw className="mr-2 h-5 w-5" />
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Pris par qui ?</label>
+                <select
+                  value={selectedEliminator}
+                  onChange={(e) => setSelectedEliminator(e.target.value)}
+                  className="w-full rounded-lg border-2 border-input bg-background px-4 py-4 min-h-[52px] text-base font-medium focus:border-amber-500 focus:ring-amber-500"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Sélectionner le killer...</option>
+                  {activePlayers
+                    .filter((p) => p.playerId !== selectedEliminated)
+                    .map((p) => (
+                      <option key={p.playerId} value={p.playerId}>
+                        {p.player.nickname}
+                        {p.playerId === seasonLeaderId && ' 👑'}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isSubmitting || !selectedEliminated || !selectedEliminator}
+                className="w-full bg-amber-600 hover:bg-amber-700 min-h-[56px] text-lg font-semibold shadow-lg"
+              >
+                <RefreshCw className="mr-2 h-6 w-6" />
                 Enregistrer le bust
               </Button>
             </form>
           </CardContent>
         </Card>
-      ) : (
-        /* Formulaire d'élimination définitive */
-        <Card className="border-red-500/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Skull className="h-5 w-5 text-red-500" />
-              Enregistrer une élimination
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Élimination définitive - le joueur est sorti du tournoi
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmitElimination} className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Joueur éliminé */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Joueur éliminé</label>
-                  <select
-                    value={selectedEliminated}
-                    onChange={(e) => setSelectedEliminated(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-3 min-h-[44px] text-base"
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Sélectionner...</option>
-                    {activePlayers.map((p) => (
-                      <option key={p.playerId} value={p.playerId}>
-                        {p.player.firstName} {p.player.lastName} ({p.player.nickname})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Éliminateur */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Éliminé par</label>
-                  <select
-                    value={selectedEliminator}
-                    onChange={(e) => setSelectedEliminator(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-3 min-h-[44px] text-base"
-                    disabled={isSubmitting}
-                  >
-                    <option value="">Sélectionner...</option>
-                    {activePlayers
-                      .filter((p) => p.playerId !== selectedEliminated)
-                      .map((p) => (
-                        <option key={p.playerId} value={p.playerId}>
-                          {p.player.firstName} {p.player.lastName} ({p.player.nickname})
-                          {p.eliminationsCount > 0 && ` - ${p.eliminationsCount} élim.`}
-                          {leaderKillerCandidates.includes(p.playerId) && ' 👑'}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              </div>
-
-              <Button type="submit" disabled={isSubmitting} className="w-full bg-red-600 hover:bg-red-700 min-h-[48px] text-base">
-                <Skull className="mr-2 h-5 w-5" />
-                Enregistrer l'élimination
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
       )}
 
-      {/* Light Rebuy - affiché après fin des recaves si activé et tournoi pas terminé */}
-      {!recavesOpen && tournament?.lightRebuyEnabled && tournament?.status !== 'FINISHED' && (
-        <Card className="border-green-500/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Coins className="h-5 w-5 text-green-500" />
-              Light Rebuy ({lightRebuyAmount}€)
+      {/* 2. Historique des busts - Accordéon */}
+      {busts.length > 0 && (
+        <Card>
+          <CardHeader
+            className="flex flex-row items-center justify-between gap-2 pb-3 cursor-pointer select-none"
+            onClick={() => setBustHistoryOpen(!bustHistoryOpen)}
+          >
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <RefreshCw className="h-5 w-5 text-amber-500" />
+              Busts ({busts.length})
+              {bustHistoryOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
             </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Recave allégée disponible une seule fois par joueur
-            </p>
+            {tournament?.status !== 'FINISHED' && bustHistoryOpen && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); handleCancelLastBust(); }}
+                className="min-h-[40px]"
+              >
+                <Undo2 className="mr-1 h-4 w-4" />
+                Annuler dernier
+              </Button>
+            )}
           </CardHeader>
-          <CardContent>
+          {bustHistoryOpen && (
+          <CardContent className="px-3 md:px-6">
             <div className="space-y-2">
-              {activePlayers.map((p) => (
+              {busts.map((bust, index) => (
                 <div
-                  key={p.playerId}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg border gap-2"
+                  key={bust.id}
+                  className={`p-3 rounded-lg border border-amber-500/40 ${
+                    index === 0 ? 'bg-amber-500/10' : 'bg-amber-500/5'
+                  }`}
                 >
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">
-                      {p.player.nickname}
-                    </span>
-                    <span className="text-muted-foreground text-sm hidden sm:inline">
-                      ({p.player.firstName} {p.player.lastName})
-                    </span>
-                    {p.lightRebuyUsed && (
-                      <Badge variant="secondary" className="bg-green-500/10 text-green-600">
+                  {/* Ligne 1: Badges + Nom */}
+                  <div className="flex items-center gap-2 flex-wrap mb-2">
+                    <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-xs">
+                      Bust
+                    </Badge>
+                    {bust.recaveApplied && (
+                      <Badge variant="default" className="bg-green-600 text-xs">
                         <Check className="h-3 w-3 mr-1" />
-                        Light utilisé
+                        Recave
                       </Badge>
                     )}
+                    <span className="font-semibold text-base">
+                      {bust.eliminated.player.nickname}
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
+                    </span>
                   </div>
-                  {!p.lightRebuyUsed && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-green-500 text-green-600 hover:bg-green-500/10 min-h-[44px] min-w-[80px]"
-                      onClick={() => handleLightRebuy(p.playerId)}
-                      disabled={isLightRebuySubmitting === p.playerId}
-                    >
-                      {isLightRebuySubmitting === p.playerId ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
+
+                  {/* Ligne 2: Détails */}
+                  <div className="text-sm text-muted-foreground mb-2">
+                    {bust.killer ? (
+                      <>
+                        par <span className="font-medium text-foreground">{bust.killer.player.nickname}</span>
+                        {' '}(niv. {bust.level})
+                      </>
+                    ) : (
+                      <>Killer non spécifié (niv. {bust.level})</>
+                    )}
+                  </div>
+
+                  {/* Ligne 3: Bouton Recave (si applicable) */}
+                  {tournament?.status !== 'FINISHED' && recavesOpen && (
+                    <div className="mt-2">
+                      {bust.recaveApplied ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-red-500 text-red-600 hover:bg-red-500/10 min-h-[44px] w-full"
+                          onClick={() => handleCancelBustRecave(bust.id)}
+                          disabled={bustRecaveSubmitting === bust.id}
+                        >
+                          {bustRecaveSubmitting === bust.id ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Undo2 className="h-4 w-4 mr-2" />
+                              Annuler la recave
+                            </>
+                          )}
+                        </Button>
                       ) : (
-                        <>
-                          <Coins className="h-4 w-4 mr-1" />
-                          Light
-                        </>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-green-500 text-green-600 hover:bg-green-500/10 min-h-[44px] w-full font-semibold"
+                          onClick={() => handleBustRecave(bust.id)}
+                          disabled={bustRecaveSubmitting === bust.id}
+                        >
+                          {bustRecaveSubmitting === bust.id ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2" />
+                              Recave (10€)
+                            </>
+                          )}
+                        </Button>
                       )}
-                    </Button>
+                    </div>
                   )}
                 </div>
               ))}
             </div>
           </CardContent>
+          )}
         </Card>
       )}
 
-      {/* Historique des busts */}
-      {busts.length > 0 && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-amber-500" />
-              Historique des busts ({busts.length})
+      {/* 3. Rebuy Volontaire - ACCORDÉON, visible UNIQUEMENT pendant la pause après fin des recaves */}
+      {isVoluntaryRebuyPeriod && tournament?.status === 'IN_PROGRESS' && (
+        <Card className="border-blue-500/50">
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setVoluntaryRebuyOpen(!voluntaryRebuyOpen)}
+          >
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Hand className="h-5 w-5 text-blue-500" />
+              Rebuy Volontaire (Pause)
+              {voluntaryRebuyOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground ml-auto" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+              )}
             </CardTitle>
-            {tournament?.status !== 'FINISHED' && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCancelLastBust}
-              >
-                <Undo2 className="mr-2 h-4 w-4" />
-                Annuler le dernier
-              </Button>
+            {!voluntaryRebuyOpen && (
+              <p className="text-sm text-muted-foreground">
+                Dernière chance avant éliminations définitives
+              </p>
             )}
           </CardHeader>
+          {voluntaryRebuyOpen && (
           <CardContent>
-            <div className="space-y-3">
-              {busts.map((bust, index) => (
-                <div
-                  key={bust.id}
-                  className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-lg border border-amber-500/40 gap-3 ${
-                    index === 0 ? 'bg-amber-500/10' : 'bg-amber-500/5'
-                  }`}
-                >
-                  <div className="flex-1 min-w-0">
+            <div className="space-y-2">
+              {activePlayers.map((p) => {
+                const rebuyType = getVoluntaryRebuyType(p.playerId);
+                const canRebuy = tournament?.maxRebuysPerPlayer === null || p.rebuysCount < (tournament?.maxRebuysPerPlayer || 0);
+                const canLightRebuy = !p.lightRebuyUsed;
+
+                return (
+                  <div key={p.playerId} className="flex flex-col gap-2 p-3 rounded-lg border">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10">
-                        Bust
+                      <span className="font-medium">{p.player.nickname}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {p.rebuysCount} rebuy{p.rebuysCount !== 1 ? 's' : ''}
                       </Badge>
-                      {bust.recaveApplied && (
-                        <Badge variant="default" className="bg-green-600">
-                          <Check className="h-3 w-3 mr-1" />
-                          Recave
+                      {p.lightRebuyUsed && (
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 text-xs">
+                          Light utilisé
                         </Badge>
                       )}
-                      <span className="font-medium truncate">
-                        {bust.eliminated.player.firstName} {bust.eliminated.player.lastName}
-                      </span>
-                      <span className="text-muted-foreground">
-                        ({bust.eliminated.player.nickname})
-                      </span>
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1.5">
-                      {bust.killer ? (
-                        <>
-                          Pris par{' '}
-                          <span className="font-medium text-foreground">
-                            {bust.killer.player.nickname}
-                          </span>
-                          {' '}au niveau {bust.level}
-                        </>
-                      ) : (
-                        <>Killer non spécifié, niveau {bust.level}</>
+
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <div className="flex-1">
+                        <Input
+                          type="number"
+                          placeholder="Stack actuel"
+                          min={0}
+                          value={voluntaryRebuyStack[p.playerId] ?? ''}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                            setVoluntaryRebuyStack(prev => ({
+                              ...prev,
+                              [p.playerId]: value as number,
+                            }));
+                          }}
+                          className="h-10"
+                        />
+                      </div>
+
+                      {rebuyType && (
+                        <Badge
+                          variant="outline"
+                          className={rebuyType === 'HALF' ? 'border-green-500 text-green-600' : 'border-amber-500 text-amber-600'}
+                        >
+                          {rebuyType === 'HALF' ? 'Half (5€)' : 'Full (10€)'}
+                        </Badge>
                       )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {/* Boutons Recave / Annuler recave - uniquement si tournoi pas terminé et recaves ouvertes */}
-                    {tournament?.status !== 'FINISHED' && recavesOpen && (
-                      <>
-                        {bust.recaveApplied ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-red-500 text-red-600 hover:bg-red-500/10 min-h-[36px]"
-                            onClick={() => handleCancelBustRecave(bust.id)}
-                            disabled={bustRecaveSubmitting === bust.id}
-                          >
-                            {bustRecaveSubmitting === bust.id ? (
-                              <RefreshCw className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Undo2 className="h-4 w-4 mr-1" />
-                                Annuler recave
-                              </>
-                            )}
-                          </Button>
+
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white min-h-[44px] min-w-[100px]"
+                        onClick={() => handleVoluntaryRebuy(p.playerId)}
+                        disabled={
+                          voluntaryRebuySubmitting === p.playerId ||
+                          voluntaryRebuyStack[p.playerId] === undefined ||
+                          (rebuyType === 'FULL' && !canRebuy) ||
+                          (rebuyType === 'HALF' && !canLightRebuy)
+                        }
+                      >
+                        {voluntaryRebuySubmitting === p.playerId ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-green-500 text-green-600 hover:bg-green-500/10 min-h-[36px]"
-                            onClick={() => handleBustRecave(bust.id)}
-                            disabled={bustRecaveSubmitting === bust.id}
-                          >
-                            {bustRecaveSubmitting === bust.id ? (
-                              <RefreshCw className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <>
-                                <RefreshCw className="h-4 w-4 mr-1" />
-                                Recave
-                              </>
-                            )}
-                          </Button>
+                          <>
+                            <Plus className="h-4 w-4 mr-1" />
+                            Rebuy
+                          </>
                         )}
-                      </>
-                    )}
-                    <div className="text-xs text-muted-foreground">
-                      {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
+                      </Button>
                     </div>
+
+                    {rebuyType === 'FULL' && !canRebuy && (
+                      <p className="text-xs text-destructive">Maximum de rebuys atteint</p>
+                    )}
+                    {rebuyType === 'HALF' && !canLightRebuy && (
+                      <p className="text-xs text-destructive">Light rebuy déjà utilisé</p>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
+          )}
         </Card>
       )}
 
-      {/* Historique des éliminations */}
+      {/* 4. Élimination définitive - ACCORDÉON, visible après fin des recaves */}
+      {!recavesOpen && tournament?.status === 'IN_PROGRESS' && (
+        <Card className="border-red-500/50">
+          <CardHeader
+            className="cursor-pointer select-none"
+            onClick={() => setEliminationFormOpen(!eliminationFormOpen)}
+          >
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <Skull className="h-5 w-5 text-red-500" />
+              Élimination définitive
+              {eliminationFormOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground ml-auto" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+              )}
+            </CardTitle>
+            {!eliminationFormOpen && (
+              <p className="text-sm text-muted-foreground">
+                Le joueur sort du tournoi
+              </p>
+            )}
+          </CardHeader>
+          {eliminationFormOpen && (
+          <CardContent>
+            <form onSubmit={handleSubmitElimination} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Qui est éliminé ?</label>
+                <select
+                  value={selectedEliminated}
+                  onChange={(e) => setSelectedEliminated(e.target.value)}
+                  className="w-full rounded-lg border-2 border-input bg-background px-4 py-4 min-h-[52px] text-base font-medium focus:border-red-500 focus:ring-red-500"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Sélectionner le joueur...</option>
+                  {activePlayers.map((p) => (
+                    <option key={p.playerId} value={p.playerId}>
+                      {p.player.nickname} ({p.player.firstName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Éliminé par qui ?</label>
+                <select
+                  value={selectedEliminator}
+                  onChange={(e) => setSelectedEliminator(e.target.value)}
+                  className="w-full rounded-lg border-2 border-input bg-background px-4 py-4 min-h-[52px] text-base font-medium focus:border-red-500 focus:ring-red-500"
+                  disabled={isSubmitting}
+                >
+                  <option value="">Sélectionner l'éliminateur...</option>
+                  {activePlayers
+                    .filter((p) => p.playerId !== selectedEliminated)
+                    .map((p) => (
+                      <option key={p.playerId} value={p.playerId}>
+                        {p.player.nickname}
+                        {p.playerId === seasonLeaderId && ' 👑'}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isSubmitting || !selectedEliminated || !selectedEliminator}
+                className="w-full bg-red-600 hover:bg-red-700 min-h-[56px] text-lg font-semibold shadow-lg"
+              >
+                <Skull className="mr-2 h-6 w-6" />
+                Enregistrer l'élimination
+              </Button>
+            </form>
+          </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* 5. Historique des éliminations - Accordéon */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Historique des éliminations</CardTitle>
-          {eliminations.length > 0 && tournament?.status !== 'FINISHED' && (
+        <CardHeader
+          className="flex flex-row items-center justify-between cursor-pointer select-none"
+          onClick={() => setEliminationHistoryOpen(!eliminationHistoryOpen)}
+        >
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+            <Skull className="h-5 w-5 text-red-500" />
+            Éliminations ({eliminations.length})
+            {eliminationHistoryOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </CardTitle>
+          {eliminations.length > 0 && tournament?.status !== 'FINISHED' && eliminationHistoryOpen && (
             <Button
               variant="outline"
               size="sm"
-              onClick={handleCancelLastElimination}
+              onClick={(e) => { e.stopPropagation(); handleCancelLastElimination(); }}
             >
               <Undo2 className="mr-2 h-4 w-4" />
               Annuler la dernière
             </Button>
           )}
         </CardHeader>
+        {eliminationHistoryOpen && (
         <CardContent>
           {eliminations.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
@@ -887,43 +1040,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             </div>
           )}
         </CardContent>
+        )}
       </Card>
-
-      {/* Joueurs éliminés */}
-      {eliminatedPlayers.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Joueurs éliminés ({eliminatedPlayers.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {eliminatedPlayers
-                .sort((a, b) => (a.finalRank || 0) - (b.finalRank || 0))
-                .map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between py-2 border-b last:border-0"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">#{p.finalRank}</Badge>
-                      <span>
-                        {p.player.firstName} {p.player.lastName}
-                      </span>
-                      <span className="text-muted-foreground">
-                        ({p.player.nickname})
-                      </span>
-                    </div>
-                    {p.eliminationsCount > 0 && (
-                      <Badge variant="secondary">
-                        {p.eliminationsCount} élim.
-                      </Badge>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

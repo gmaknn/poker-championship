@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requirePermission, PERMISSIONS } from '@/lib/permissions';
+import { requirePermission } from '@/lib/auth-helpers';
+import { PERMISSIONS } from '@/lib/permissions';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 

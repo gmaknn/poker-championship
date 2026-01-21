@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye, Mail, Check, UserCheck, Key } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye, Mail, Check, UserCheck, Key, Shuffle, Copy, Phone } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import {
@@ -60,6 +60,7 @@ export default function PlayersPage() {
     lastName: '',
     nickname: '',
     email: '',
+    phone: '',
     avatar: '' as string | null,
     role: ROLES.PLAYER as PlayerRole,
   });
@@ -76,6 +77,8 @@ export default function PlayersPage() {
   const [activateConfirmPassword, setActivateConfirmPassword] = useState('');
   const [activateError, setActivateError] = useState('');
   const [isActivating, setIsActivating] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
     fetchPlayers();
@@ -133,6 +136,7 @@ export default function PlayersPage() {
         lastName: player.lastName,
         nickname: player.nickname,
         email: player.email || '',
+        phone: (player as any).phone || '',
         avatar: player.avatar || null,
         role: (player as any).role || ROLES.PLAYER,
       });
@@ -143,6 +147,7 @@ export default function PlayersPage() {
         lastName: '',
         nickname: '',
         email: '',
+        phone: '',
         avatar: null,
         role: ROLES.PLAYER,
       });
@@ -261,14 +266,15 @@ export default function PlayersPage() {
     }
   };
 
-  // Check if player can receive invitation (has email, no password yet)
+  // Check if player can receive invitation (has email, not yet activated)
   const canInvite = (player: PlayerWithStats) => {
-    return player.email && !(player as any).password && (player as any).status !== 'ACTIVE';
+    return player.email && !(player as any).isActivated;
   };
 
-  // Check if player can be manually activated (has email, no password yet)
+  // Check if player can be manually activated (has email OR phone, not yet activated)
   const canActivate = (player: PlayerWithStats) => {
-    return player.email && !(player as any).password && (player as any).status !== 'ACTIVE';
+    const hasContact = player.email || (player as any).phone;
+    return hasContact && !(player as any).isActivated;
   };
 
   const handleOpenActivateDialog = (player: PlayerWithStats) => {
@@ -276,7 +282,51 @@ export default function PlayersPage() {
     setActivatePassword('');
     setActivateConfirmPassword('');
     setActivateError('');
+    setShowPassword(false);
+    setCopySuccess(false);
     setIsActivateDialogOpen(true);
+  };
+
+  // Génère un mot de passe facile à communiquer oralement
+  const generatePassword = () => {
+    // Mots simples liés au poker (4-5 lettres)
+    const words = [
+      'poker', 'cards', 'chips', 'river', 'flush', 'royal',
+      'bluff', 'check', 'raise', 'table', 'dealer', 'lucky',
+      'ace', 'king', 'queen', 'jack', 'spade', 'heart',
+      'club', 'diamond', 'flop', 'turn', 'blind', 'stack'
+    ];
+    // Chiffres faciles (évite 0, 1 qui ressemblent à O, l)
+    const digits = '23456789';
+
+    // Choisir un mot aléatoire
+    const word = words[Math.floor(Math.random() * words.length)];
+    // Générer 4 chiffres aléatoires
+    let numbers = '';
+    for (let i = 0; i < 4; i++) {
+      numbers += digits[Math.floor(Math.random() * digits.length)];
+    }
+
+    // Capitaliser la première lettre du mot
+    const password = word.charAt(0).toUpperCase() + word.slice(1) + numbers;
+
+    setActivatePassword(password);
+    setActivateConfirmPassword(password);
+    setShowPassword(true);
+    setCopySuccess(false);
+  };
+
+  // Copier le mot de passe dans le presse-papier
+  const copyPassword = async () => {
+    if (!activatePassword) return;
+
+    try {
+      await navigator.clipboard.writeText(activatePassword);
+      setCopySuccess(true);
+      setTimeout(() => setCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy password:', err);
+    }
   };
 
   const handleActivatePlayer = async (e: React.FormEvent) => {
@@ -767,12 +817,29 @@ export default function PlayersPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium">
+                <label htmlFor="phone" className="text-sm font-medium flex items-center gap-2">
+                  <Phone className="h-4 w-4" />
+                  Téléphone
+                </label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="06 12 34 56 78"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
+                  <Mail className="h-4 w-4" />
                   Email (optionnel)
                 </label>
                 <Input
                   id="email"
                   type="email"
+                  placeholder="email@example.com"
                   value={formData.email}
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
@@ -873,37 +940,84 @@ export default function PlayersPage() {
 
               {/* Mot de passe */}
               <div className="space-y-2">
-                <label htmlFor="activate-password" className="text-sm font-medium flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Mot de passe temporaire
-                </label>
-                <Input
-                  id="activate-password"
-                  type="password"
-                  value={activatePassword}
-                  onChange={(e) => setActivatePassword(e.target.value)}
-                  placeholder="Minimum 8 caractères"
-                  required
-                  minLength={8}
-                  disabled={isActivating}
-                />
+                <div className="flex items-center justify-between">
+                  <label htmlFor="activate-password" className="text-sm font-medium flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Mot de passe temporaire
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generatePassword}
+                    disabled={isActivating}
+                    className="h-7 text-xs"
+                  >
+                    <Shuffle className="mr-1 h-3 w-3" />
+                    Générer
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    id="activate-password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={activatePassword}
+                    onChange={(e) => {
+                      setActivatePassword(e.target.value);
+                      setShowPassword(false);
+                    }}
+                    placeholder="Minimum 8 caractères"
+                    required
+                    minLength={8}
+                    disabled={isActivating}
+                    className={showPassword ? 'font-mono text-lg tracking-wider' : ''}
+                  />
+                  {showPassword && activatePassword && (
+                    <Button
+                      type="button"
+                      variant={copySuccess ? 'default' : 'outline'}
+                      size="icon"
+                      onClick={copyPassword}
+                      disabled={isActivating}
+                      className={copySuccess ? 'bg-green-600 hover:bg-green-700' : ''}
+                      title="Copier le mot de passe"
+                    >
+                      {copySuccess ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+                {showPassword && activatePassword && (
+                  <p className="text-xs text-muted-foreground">
+                    {copySuccess ? (
+                      <span className="text-green-600 font-medium">Mot de passe copié !</span>
+                    ) : (
+                      'Cliquez sur le bouton copier ou notez ce mot de passe'
+                    )}
+                  </p>
+                )}
               </div>
 
-              {/* Confirmation */}
-              <div className="space-y-2">
-                <label htmlFor="activate-confirm" className="text-sm font-medium">
-                  Confirmer le mot de passe
-                </label>
-                <Input
-                  id="activate-confirm"
-                  type="password"
-                  value={activateConfirmPassword}
-                  onChange={(e) => setActivateConfirmPassword(e.target.value)}
-                  placeholder="Répétez le mot de passe"
-                  required
-                  disabled={isActivating}
-                />
-              </div>
+              {/* Confirmation - masqué si mot de passe généré */}
+              {!showPassword && (
+                <div className="space-y-2">
+                  <label htmlFor="activate-confirm" className="text-sm font-medium">
+                    Confirmer le mot de passe
+                  </label>
+                  <Input
+                    id="activate-confirm"
+                    type="password"
+                    value={activateConfirmPassword}
+                    onChange={(e) => setActivateConfirmPassword(e.target.value)}
+                    placeholder="Répétez le mot de passe"
+                    required
+                    disabled={isActivating}
+                  />
+                </div>
+              )}
 
               {activateError && (
                 <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">

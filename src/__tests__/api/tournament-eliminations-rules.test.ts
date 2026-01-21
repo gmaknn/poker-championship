@@ -148,6 +148,10 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
     // Default transaction mock - updated for atomic transaction
     (mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn) => {
       const mockTx = {
+        tournament: {
+          // Pour récupérer seasonLeaderAtStartId (Leader Kill check)
+          findUnique: jest.fn().mockResolvedValue({ seasonLeaderAtStartId: eliminatedId }),
+        },
         tournamentPlayer: {
           findMany: jest.fn().mockResolvedValue([
             {
@@ -187,7 +191,7 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
             eliminatorId,
             rank: 3,
             level: 3,
-            isLeaderKill: true,
+            isLeaderKill: true, // La victime est le leader
             eliminated: { id: eliminatedId, firstName: 'Eliminated', lastName: 'Player', nickname: 'eliminated' },
             eliminator: { id: eliminatorId, firstName: 'Eliminator', lastName: 'Player', nickname: 'eliminator' },
           }),
@@ -511,6 +515,9 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
       // Also configure transaction to return the same conflicting data
       (mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn) => {
         const mockTx = {
+          tournament: {
+            findUnique: jest.fn().mockResolvedValue({ seasonLeaderAtStartId: null }),
+          },
           tournamentPlayer: {
             findMany: jest.fn().mockResolvedValue(conflictPlayers),
             updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -732,6 +739,9 @@ describe('Concurrency: Atomic eliminations', () => {
       const callNumber = transactionCallCount;
 
       const mockTx = {
+        tournament: {
+          findUnique: jest.fn().mockResolvedValue({ seasonLeaderAtStartId: eliminatedId }),
+        },
         tournamentPlayer: {
           findMany: jest.fn().mockImplementation(async () => {
             // First call sees player not eliminated

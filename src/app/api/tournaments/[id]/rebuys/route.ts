@@ -8,7 +8,16 @@ import { calculateEffectiveLevel, isBreakAfterRebuyEnd } from '@/lib/tournament-
 const rebuySchema = z.object({
   playerId: z.string().cuid(),
   type: z.enum(['STANDARD', 'LIGHT']),
+  // Rebuy volontaire: joueur non busté qui veut rebuy
+  isVoluntary: z.boolean().optional().default(false),
+  // Stack actuel du joueur (requis pour rebuy volontaire pour déterminer half/full)
+  currentStack: z.number().int().min(0).optional(),
 });
+
+// Seuil de stack pour déterminer le type de rebuy volontaire
+// >= 3500 = half rebuy (LIGHT, 5€)
+// < 3500 = full rebuy (STANDARD, 10€)
+const VOLUNTARY_REBUY_STACK_THRESHOLD = 3500;
 
 // POST - Enregistrer une recave (standard ou light)
 export async function POST(
@@ -72,11 +81,16 @@ export async function POST(
     );
 
     // Guard: période de recaves terminée
-    // - STANDARD: bloqué si effectiveLevel > rebuyEndLevel
+    // - STANDARD: bloqué si effectiveLevel > rebuyEndLevel, SAUF pour rebuy volontaire pendant pause
     // - LIGHT: autorisé pendant la pause juste après rebuyEndLevel
     if (tournament.rebuyEndLevel && effectiveLevel > tournament.rebuyEndLevel) {
-      const isLightDuringBreak = validatedData.type === 'LIGHT' && inBreakAfterRebuy;
-      if (!isLightDuringBreak) {
+      // Autorisé pendant la pause après rebuyEndLevel pour:
+      // - Les LIGHT (half rebuy post-fin recaves)
+      // - Les rebuy volontaires (STANDARD ou LIGHT selon le stack)
+      const isAllowedDuringBreak = inBreakAfterRebuy && (
+        validatedData.type === 'LIGHT' || validatedData.isVoluntary
+      );
+      if (!isAllowedDuringBreak) {
         return NextResponse.json(
           { error: 'Période de recaves terminée' },
           { status: 400 }
@@ -109,8 +123,40 @@ export async function POST(
       );
     }
 
+    // === REBUY VOLONTAIRE: Logique spéciale ===
+    // Si isVoluntary=true, le type de rebuy est déterminé par le stack actuel:
+    // - stack >= 3500 -> LIGHT (half rebuy, 5€)
+    // - stack < 3500 -> STANDARD (full rebuy, 10€)
+    let effectiveType = validatedData.type;
+    let voluntaryStackUpdate: number | null = null;
+
+    if (validatedData.isVoluntary) {
+      // Pour un rebuy volontaire, le stack actuel est requis
+      if (validatedData.currentStack === undefined) {
+        return NextResponse.json(
+          { error: 'Le stack actuel est requis pour un rebuy volontaire' },
+          { status: 400 }
+        );
+      }
+
+      // Déterminer le type de rebuy basé sur le stack
+      if (validatedData.currentStack >= VOLUNTARY_REBUY_STACK_THRESHOLD) {
+        // Stack >= 3500 = half rebuy (LIGHT)
+        effectiveType = 'LIGHT';
+      } else {
+        // Stack < 3500 = full rebuy (STANDARD)
+        effectiveType = 'STANDARD';
+      }
+
+      // Calculer le nouveau stack après rebuy
+      // LIGHT (half rebuy): +2500 jetons
+      // STANDARD (full rebuy): +5000 jetons (stack de départ)
+      const rebuyChips = effectiveType === 'LIGHT' ? 2500 : tournament.startingChips;
+      voluntaryStackUpdate = validatedData.currentStack + rebuyChips;
+    }
+
     // Pre-check rapide : max rebuys
-    if (validatedData.type === 'STANDARD' && tournament.maxRebuysPerPlayer !== null) {
+    if (effectiveType === 'STANDARD' && tournament.maxRebuysPerPlayer !== null) {
       if (tournamentPlayer.rebuysCount >= tournament.maxRebuysPerPlayer) {
         return NextResponse.json(
           { error: `Maximum rebuys reached (${tournament.maxRebuysPerPlayer})` },
@@ -121,7 +167,7 @@ export async function POST(
 
     // Pre-check rapide : light rebuy
     // Note: lightRebuyEnabled flag removed - LIGHT is always allowed when rebuy period is open
-    if (validatedData.type === 'LIGHT') {
+    if (effectiveType === 'LIGHT') {
       if (tournamentPlayer.lightRebuyUsed) {
         return NextResponse.json(
           { error: 'Player has already used their light rebuy' },
@@ -153,26 +199,31 @@ export async function POST(
       }
 
       // Re-vérifier max rebuys (race-safe)
-      if (validatedData.type === 'STANDARD' && tournament.maxRebuysPerPlayer !== null) {
+      if (effectiveType === 'STANDARD' && tournament.maxRebuysPerPlayer !== null) {
         if (currentPlayer.rebuysCount >= tournament.maxRebuysPerPlayer) {
           throw new Error('MAX_REBUYS_REACHED');
         }
       }
 
       // Re-vérifier light rebuy (race-safe)
-      if (validatedData.type === 'LIGHT' && currentPlayer.lightRebuyUsed) {
+      if (effectiveType === 'LIGHT' && currentPlayer.lightRebuyUsed) {
         throw new Error('LIGHT_REBUY_ALREADY_USED');
       }
 
       // Calculer les nouvelles valeurs
-      const newRebuysCount = currentPlayer.rebuysCount + (validatedData.type === 'STANDARD' ? 1 : 0);
-      const lightRebuyUsed = validatedData.type === 'LIGHT' ? true : currentPlayer.lightRebuyUsed;
+      const newRebuysCount = currentPlayer.rebuysCount + (effectiveType === 'STANDARD' ? 1 : 0);
+      const newLightRebuyUsed = effectiveType === 'LIGHT' ? true : currentPlayer.lightRebuyUsed;
+      // Tracker si c'est une recave volontaire full (STANDARD sans bust préalable)
+      const newVoluntaryFullRebuyUsed = (validatedData.isVoluntary && effectiveType === 'STANDARD')
+        ? true
+        : currentPlayer.voluntaryFullRebuyUsed;
 
       // Calculer les malus de recave selon la saison (fonction centralisée)
+      // Note: light rebuy compte comme 0.5 recave dans le calcul du malus
       let penaltyPoints = 0;
       if (tournament.season) {
         const rules = parseRecavePenaltyRules(tournament.season);
-        penaltyPoints = computeRecavePenalty(newRebuysCount, rules);
+        penaltyPoints = computeRecavePenalty(newRebuysCount, rules, newLightRebuyUsed);
       }
 
       // === ÉCRITURE ATOMIQUE avec updateMany conditionnel (optimistic lock) ===
@@ -183,7 +234,7 @@ export async function POST(
         finalRank: null, // Joueur non éliminé
       };
 
-      if (validatedData.type === 'STANDARD') {
+      if (effectiveType === 'STANDARD') {
         // Pour rebuy standard: vérifier que rebuysCount n'a pas changé
         updateCondition.rebuysCount = currentPlayer.rebuysCount;
       } else {
@@ -191,18 +242,33 @@ export async function POST(
         updateCondition.lightRebuyUsed = false;
       }
 
+      // Préparer les données de mise à jour
+      const updateData: {
+        rebuysCount: number;
+        lightRebuyUsed: boolean;
+        voluntaryFullRebuyUsed: boolean;
+        penaltyPoints: number;
+        currentStack?: number;
+      } = {
+        rebuysCount: newRebuysCount,
+        lightRebuyUsed: newLightRebuyUsed,
+        voluntaryFullRebuyUsed: newVoluntaryFullRebuyUsed,
+        penaltyPoints,
+      };
+
+      // Pour rebuy volontaire, mettre à jour le stack
+      if (voluntaryStackUpdate !== null) {
+        updateData.currentStack = voluntaryStackUpdate;
+      }
+
       const updateResult = await tx.tournamentPlayer.updateMany({
-        where: updateCondition,
-        data: {
-          rebuysCount: newRebuysCount,
-          lightRebuyUsed,
-          penaltyPoints,
-        },
+        where: updateCondition as Parameters<typeof tx.tournamentPlayer.updateMany>[0]['where'],
+        data: updateData,
       });
 
       // Si count != 1, une requête concurrente a modifié l'état
       if (updateResult.count !== 1) {
-        if (validatedData.type === 'LIGHT') {
+        if (effectiveType === 'LIGHT') {
           throw new Error('LIGHT_REBUY_ALREADY_USED');
         }
         throw new Error('MAX_REBUYS_REACHED');
@@ -228,13 +294,14 @@ export async function POST(
         },
       });
 
-      return { updatedPlayer, penaltyPoints };
+      return { updatedPlayer, penaltyPoints, effectiveType };
     });
 
     return NextResponse.json({
       success: true,
       tournamentPlayer: result.updatedPlayer,
-      rebuyType: validatedData.type,
+      rebuyType: result.effectiveType,
+      isVoluntary: validatedData.isVoluntary,
       penaltyPoints: result.penaltyPoints,
     }, { status: 200 });
   } catch (error) {
@@ -274,8 +341,15 @@ export async function POST(
     }
 
     console.error('Error processing rebuy:', error);
+    // En dev, renvoyer plus de détails sur l'erreur
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { message: errorMessage, stack: errorStack });
     return NextResponse.json(
-      { error: 'Failed to process rebuy' },
+      {
+        error: 'Failed to process rebuy',
+        details: process.env.NODE_ENV === 'development' ? errorMessage : undefined,
+      },
       { status: 500 }
     );
   }

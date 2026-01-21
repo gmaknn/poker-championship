@@ -35,6 +35,7 @@ interface Tournament {
   seasonId: string | null;
   date: string;
   buyInAmount: number;
+  lightRebuyAmount: number;
   startingChips: number;
   targetDuration: number;
   totalPlayers?: number | null;
@@ -411,6 +412,7 @@ export default function TournamentDetailPage({
               id: tournament.id,
               status: tournament.status,
               buyInAmount: tournament.buyInAmount,
+              lightRebuyAmount: tournament.lightRebuyAmount,
             }}
             onUpdate={() => fetchTournament()}
           />
