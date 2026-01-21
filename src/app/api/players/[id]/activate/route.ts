@@ -50,6 +50,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       select: {
         id: true,
         email: true,
+        phone: true,
         password: true,
         status: true,
         firstName: true,
@@ -64,10 +65,10 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Check if player has an email
-    if (!player.email) {
+    // Check if player has an email OR phone (at least one is required for login)
+    if (!player.email && !player.phone) {
       return NextResponse.json(
-        { error: 'Ce joueur n\'a pas d\'email configuré' },
+        { error: 'Ce joueur n\'a ni email ni téléphone configuré' },
         { status: 400 }
       );
     }
@@ -92,7 +93,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       },
     });
 
-    console.log(`[ADMIN] Player ${player.firstName} ${player.lastName} (${player.email}) manually activated`);
+    const identifier = player.email || player.phone;
+    console.log(`[ADMIN] Player ${player.firstName} ${player.lastName} (${identifier}) manually activated`);
 
     return NextResponse.json({
       success: true,

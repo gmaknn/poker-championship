@@ -11,9 +11,14 @@ import {
   Users,
   Trophy,
   Euro,
-  Clock,
   Target,
   Medal,
+  ChevronDown,
+  ChevronUp,
+  Skull,
+  Crown,
+  Minus,
+  RefreshCw,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -22,11 +27,17 @@ type TournamentPlayer = {
   playerId: string;
   finalRank: number | null;
   totalPoints: number;
+  rankPoints: number;
+  eliminationPoints: number;
+  bonusPoints: number;
+  penaltyPoints: number;
   prizeAmount: number | null;
-  rebuyCount: number;
-  addOnUsed: boolean;
-  bustCount: number;
-  eliminationCount: number;
+  rebuysCount: number;
+  lightRebuyUsed: boolean;
+  voluntaryFullRebuyUsed: boolean;
+  eliminationsCount: number;
+  bustEliminations: number;
+  leaderKills: number;
   player: {
     id: string;
     firstName: string;
@@ -285,69 +296,165 @@ export default function PlayerTournamentDetailPage({
             </div>
           ) : (
             <div className="divide-y">
-              {sortedPlayers.map((tp, index) => (
-                <div
-                  key={tp.playerId}
-                  className="flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/50 transition-colors"
-                >
-                  {/* Rank */}
-                  <div className="w-8 flex justify-center flex-shrink-0">
-                    {tp.finalRank ? (
-                      <span
-                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
-                          tp.finalRank === 1
-                            ? 'bg-yellow-500 text-yellow-950'
-                            : tp.finalRank === 2
-                            ? 'bg-gray-400 text-gray-950'
-                            : tp.finalRank === 3
-                            ? 'bg-amber-600 text-amber-950'
-                            : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {tp.finalRank}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </div>
-
-                  {/* Avatar */}
-                  {tp.player.avatar && getAvatarUrl(tp.player.avatar) ? (
-                    <img
-                      src={getAvatarUrl(tp.player.avatar)!}
-                      alt={tp.player.nickname}
-                      className="w-10 h-10 rounded-full border border-border flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
-                      <Users className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  )}
-
-                  {/* Player Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{tp.player.nickname}</p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                      <span>{tp.totalPoints} pts</span>
-                      {tp.rebuyCount > 0 && <span>{tp.rebuyCount} rebuy</span>}
-                      {tp.eliminationCount > 0 && (
-                        <span>{tp.eliminationCount} élim</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Prize */}
-                  {tp.prizeAmount && tp.prizeAmount > 0 && (
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-bold text-green-600">{tp.prizeAmount}€</p>
-                    </div>
-                  )}
-                </div>
+              {sortedPlayers.map((tp) => (
+                <PlayerResultRow key={tp.playerId} tp={tp} isFinished={tournament.status === 'FINISHED'} />
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// Composant pour une ligne de résultat avec détails expansibles
+function PlayerResultRow({ tp, isFinished }: { tp: TournamentPlayer; isFinished: boolean }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Calcul des recaves totales
+  const totalRebuys = tp.rebuysCount + (tp.lightRebuyUsed ? 1 : 0) + (tp.voluntaryFullRebuyUsed ? 1 : 0);
+  const totalEliminations = tp.eliminationsCount + tp.bustEliminations;
+
+  return (
+    <div className="hover:bg-muted/50 transition-colors">
+      {/* Main row - clickable to expand */}
+      <div
+        className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        {/* Rank */}
+        <div className="w-8 flex justify-center flex-shrink-0">
+          {tp.finalRank ? (
+            <span
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                tp.finalRank === 1
+                  ? 'bg-yellow-500 text-yellow-950'
+                  : tp.finalRank === 2
+                  ? 'bg-gray-400 text-gray-950'
+                  : tp.finalRank === 3
+                  ? 'bg-amber-600 text-amber-950'
+                  : 'bg-muted text-muted-foreground'
+              }`}
+            >
+              {tp.finalRank}
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-sm">-</span>
+          )}
+        </div>
+
+        {/* Avatar */}
+        {tp.player.avatar && getAvatarUrl(tp.player.avatar) ? (
+          <img
+            src={getAvatarUrl(tp.player.avatar)!}
+            alt={tp.player.nickname}
+            className="w-10 h-10 rounded-full border border-border flex-shrink-0"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
+            <Users className="h-5 w-5 text-muted-foreground" />
+          </div>
+        )}
+
+        {/* Player Info */}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium truncate">{tp.player.nickname}</p>
+          <p className="text-xs text-muted-foreground truncate">
+            {tp.player.firstName} {tp.player.lastName}
+          </p>
+        </div>
+
+        {/* Points & Prize */}
+        <div className="text-right flex-shrink-0">
+          <p className="font-bold text-lg text-primary">{tp.totalPoints}</p>
+          <p className="text-xs text-muted-foreground">pts</p>
+        </div>
+
+        {tp.prizeAmount && tp.prizeAmount > 0 && (
+          <div className="text-right flex-shrink-0 ml-2">
+            <p className="font-bold text-green-600">{tp.prizeAmount}€</p>
+          </div>
+        )}
+
+        {/* Expand icon */}
+        {isFinished && (
+          <div className="flex-shrink-0 text-muted-foreground">
+            {isExpanded ? (
+              <ChevronUp className="h-5 w-5" />
+            ) : (
+              <ChevronDown className="h-5 w-5" />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Expanded details */}
+      {isExpanded && isFinished && (
+        <div className="px-4 pb-4 pt-0 ml-[60px] sm:ml-[68px]">
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
+            {/* Stats row */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground pb-2 border-b border-border/50">
+              {totalRebuys > 0 && (
+                <span className="flex items-center gap-1">
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  {totalRebuys} recave{totalRebuys > 1 ? 's' : ''}
+                </span>
+              )}
+              {totalEliminations > 0 && (
+                <span className="flex items-center gap-1">
+                  <Skull className="h-3.5 w-3.5" />
+                  {totalEliminations} élim{totalEliminations > 1 ? 's' : ''}
+                </span>
+              )}
+              {tp.leaderKills > 0 && (
+                <span className="flex items-center gap-1 text-yellow-600">
+                  <Crown className="h-3.5 w-3.5" />
+                  {tp.leaderKills} LK
+                </span>
+              )}
+            </div>
+
+            {/* Points breakdown */}
+            <div className="space-y-1">
+              {/* Classement */}
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Points classement</span>
+                <span className="font-medium">{tp.rankPoints}</span>
+              </div>
+
+              {/* Éliminations */}
+              {tp.eliminationPoints > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Points éliminations</span>
+                  <span className="font-medium text-green-600">+{tp.eliminationPoints}</span>
+                </div>
+              )}
+
+              {/* Bonus (leader kills, etc.) */}
+              {tp.bonusPoints > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Points bonus</span>
+                  <span className="font-medium text-green-600">+{tp.bonusPoints}</span>
+                </div>
+              )}
+
+              {/* Pénalités (recaves) */}
+              {tp.penaltyPoints > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Malus recaves</span>
+                  <span className="font-medium text-red-500">-{tp.penaltyPoints}</span>
+                </div>
+              )}
+
+              {/* Total */}
+              <div className="flex justify-between pt-2 border-t border-border/50">
+                <span className="font-semibold">Total</span>
+                <span className="font-bold text-primary">{tp.totalPoints} pts</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

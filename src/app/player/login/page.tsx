@@ -34,8 +34,17 @@ export default function PlayerLoginPage() {
         return;
       }
 
-      // Redirection vers le profil du joueur
-      router.push(`/player/${data.playerId}`);
+      // Redirection selon le rôle du joueur
+      const role = data.player?.role;
+      let redirectUrl = '/player'; // Par défaut pour PLAYER et ANIMATOR
+
+      if (role === 'ADMIN') {
+        redirectUrl = '/dashboard';
+      } else if (role === 'TOURNAMENT_DIRECTOR') {
+        redirectUrl = '/director';
+      }
+
+      router.push(redirectUrl);
       router.refresh();
     } catch (err) {
       console.error('Login error:', err);
