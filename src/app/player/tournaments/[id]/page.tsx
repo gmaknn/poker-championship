@@ -392,10 +392,6 @@ function PlayerResultRow({ tp, isFinished }: { tp: TournamentPlayer; isFinished:
       {isExpanded && isFinished && (
         <div className="px-4 pb-4 pt-0 ml-[60px] sm:ml-[68px]">
           <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
-            {/* DEBUG - À SUPPRIMER APRÈS */}
-            <div className="bg-yellow-500 text-black p-2 text-xs mb-2 rounded font-mono">
-              DEBUG: total={tp.totalPoints}, rank={tp.rankPoints}, elim={tp.eliminationPoints}, bonus={tp.bonusPoints}, penalty={tp.penaltyPoints}, implicit={(tp.totalPoints || 0) - (tp.rankPoints || 0) - (tp.eliminationPoints || 0) - (tp.bonusPoints || 0)}
-            </div>
             {/* Stats row */}
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground pb-2 border-b border-border/50">
               {totalRebuys > 0 && (
