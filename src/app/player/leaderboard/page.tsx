@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentPlayer } from '@/components/layout/player-nav';
+import { getAvatarUrl } from '@/lib/avatar';
 
 type Season = {
   id: string;
@@ -33,12 +34,6 @@ type LeaderboardEntry = {
   tournamentsCount: number;
   victories: number;
   podiums: number;
-};
-
-const getAvatarUrl = (avatar: string | null) => {
-  if (!avatar) return null;
-  if (avatar.startsWith('/')) return avatar;
-  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
 };
 
 export default function PlayerLeaderboardPage() {
@@ -221,17 +216,11 @@ export default function PlayerLeaderboardPage() {
                     <div className="flex-shrink-0">{getRankDisplay(entry.rank)}</div>
 
                     {/* Avatar */}
-                    {entry.player.avatar && getAvatarUrl(entry.player.avatar) ? (
-                      <img
-                        src={getAvatarUrl(entry.player.avatar)!}
-                        alt={entry.player.nickname}
-                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-border flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
-                        <Users className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    )}
+                    <img
+                      src={getAvatarUrl(entry.player.avatar, entry.player.nickname)}
+                      alt={entry.player.nickname}
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border border-border flex-shrink-0"
+                    />
 
                     {/* Player Info */}
                     <div className="flex-1 min-w-0">

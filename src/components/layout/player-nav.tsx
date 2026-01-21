@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { getAvatarUrl } from '@/lib/avatar';
 
 // Navigation items for player area
 const navItems = [
@@ -30,12 +31,6 @@ const navItems = [
 
 // Stats item (only in sidebar, not bottom nav)
 const statsItem = { icon: BarChart3, label: 'Statistiques', href: '/player/stats' };
-
-const getAvatarUrl = (avatar: string | null) => {
-  if (!avatar) return null;
-  if (avatar.startsWith('/')) return avatar;
-  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
-};
 
 interface CurrentPlayer {
   id: string;
@@ -166,17 +161,11 @@ export function PlayerSidebar() {
               href="/player/profile"
               className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
             >
-              {currentPlayer.avatar && getAvatarUrl(currentPlayer.avatar) ? (
-                <img
-                  src={getAvatarUrl(currentPlayer.avatar)!}
-                  alt={currentPlayer.nickname}
-                  className="w-10 h-10 rounded-full border-2 border-border"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-                  <User className="h-5 w-5 text-muted-foreground" />
-                </div>
-              )}
+              <img
+                src={getAvatarUrl(currentPlayer.avatar, currentPlayer.nickname)}
+                alt={currentPlayer.nickname}
+                className="w-10 h-10 rounded-full border-2 border-border"
+              />
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">{currentPlayer.nickname}</div>
                 <p className="text-xs text-muted-foreground truncate">
@@ -229,17 +218,11 @@ export function PlayerMobileHeader({ onMenuClick }: { onMenuClick: () => void })
 
       {currentPlayer ? (
         <Link href="/player/profile" className="p-1">
-          {currentPlayer.avatar && getAvatarUrl(currentPlayer.avatar) ? (
-            <img
-              src={getAvatarUrl(currentPlayer.avatar)!}
-              alt={currentPlayer.nickname}
-              className="w-8 h-8 rounded-full border-2 border-border"
-            />
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-              <User className="h-4 w-4 text-muted-foreground" />
-            </div>
-          )}
+          <img
+            src={getAvatarUrl(currentPlayer.avatar, currentPlayer.nickname)}
+            alt={currentPlayer.nickname}
+            className="w-8 h-8 rounded-full border-2 border-border"
+          />
         </Link>
       ) : (
         <Link href="/player/login">
@@ -373,17 +356,11 @@ export function PlayerMobileDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
                 onClick={onClose}
                 className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
               >
-                {currentPlayer.avatar && getAvatarUrl(currentPlayer.avatar) ? (
-                  <img
-                    src={getAvatarUrl(currentPlayer.avatar)!}
-                    alt={currentPlayer.nickname}
-                    className="w-10 h-10 rounded-full border-2 border-border"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-                    <User className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                )}
+                <img
+                  src={getAvatarUrl(currentPlayer.avatar, currentPlayer.nickname)}
+                  alt={currentPlayer.nickname}
+                  className="w-10 h-10 rounded-full border-2 border-border"
+                />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm truncate">{currentPlayer.nickname}</div>
                   <p className="text-xs text-muted-foreground truncate">
