@@ -24,6 +24,10 @@ jest.mock('@/lib/prisma', () => ({
     tournamentDirector: {
       findUnique: jest.fn(),
     },
+    tournamentPlayer: {
+      findMany: jest.fn(),
+      update: jest.fn(),
+    },
   },
 }));
 
@@ -92,6 +96,14 @@ describe('Tournament Prize Pool API', () => {
       prizePayoutPercents: [22.5, 13.5, 9], // amounts in €
       prizePayoutUpdatedAt: new Date(),
     });
+
+    // Default tournamentPlayer mocks for automatic prize amount updates
+    (mockPrisma.tournamentPlayer.findMany as jest.Mock).mockResolvedValue([
+      { playerId: 'player-1', finalRank: 1 },
+      { playerId: 'player-2', finalRank: 2 },
+      { playerId: 'player-3', finalRank: 3 },
+    ]);
+    (mockPrisma.tournamentPlayer.update as jest.Mock).mockResolvedValue({});
   });
 
   describe('GET /api/tournaments/[id]/prize-pool', () => {

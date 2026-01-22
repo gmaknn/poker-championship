@@ -69,8 +69,8 @@ describe('GET /api/seasons/[id]/leaderboard', () => {
     mockCalculateLeaderboard.mockResolvedValue(mockLeaderboardResult);
   });
 
-  describe('Authentication', () => {
-    it('should return 401 when not authenticated', async () => {
+  describe('Public Access', () => {
+    it('should return 200 when not authenticated (public endpoint)', async () => {
       const request = new NextRequest(
         `http://localhost/api/seasons/${seasonId}/leaderboard`,
         { method: 'GET' }
@@ -78,14 +78,11 @@ describe('GET /api/seasons/[id]/leaderboard', () => {
 
       const response = await GET(request, { params: Promise.resolve({ id: seasonId }) });
 
-      expect(response.status).toBe(401);
-      const data = await response.json();
-      expect(data.error).toContain('authentifié');
+      // Leaderboard is now public - should return 200 even without auth
+      expect(response.status).toBe(200);
     });
-  });
 
-  describe('RBAC - INACTIVE status', () => {
-    it('should return 403 when player status is INACTIVE', async () => {
+    it('should return 200 for any user including INACTIVE (public endpoint)', async () => {
       // Mock an INACTIVE player
       const inactivePlayerId = 'inactive-player-id';
       (mockPrisma.player.findUnique as jest.Mock).mockImplementation(
@@ -114,9 +111,8 @@ describe('GET /api/seasons/[id]/leaderboard', () => {
 
       const response = await GET(request, { params: Promise.resolve({ id: seasonId }) });
 
-      expect(response.status).toBe(403);
-      const data = await response.json();
-      expect(data.error).toContain('inactif');
+      // Leaderboard is now public - should return 200 even for INACTIVE users
+      expect(response.status).toBe(200);
     });
   });
 
