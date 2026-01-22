@@ -3,25 +3,6 @@
  * Gestion des sons et annonces vocales pour le timer du tournoi
  */
 
-// Liste de templates de phrases humoristiques pour les annonces de changement de niveau
-const LEVEL_CHANGE_PHRASE_TEMPLATES = [
-  "{player}, niveau {level} ! T'es sûr que tes cartes sont pas truquées ?",
-  "Niveau {level} ! {player}, c'est le moment de montrer si t'es un requin ou un poisson !",
-  "{player}, niveau {level} ! Tes jetons tremblent déjà de peur !",
-  "Niveau {level} arrive ! {player}, t'as pensé à recharger ta chance ?",
-  "{player}, niveau {level} ! On parie que tu vas encore bluffer avec rien ?",
-  "Niveau {level} ! {player}, même les cartes ont pitié de toi !",
-  "{player}, niveau {level} ! T'es le pro ou le pigeon ce soir ?",
-  "Niveau {level} ! {player}, ta cave va pas tenir longtemps à ce rythme !",
-  "{player}, niveau {level} ! T'as déjà vu un flop aujourd'hui ou pas ?",
-  "Niveau {level} ! {player}, arrête de prier, joue tes cartes !",
-  "{player}, niveau {level} ! Ton tapis fond plus vite que neige au soleil !",
-  "Niveau {level} ! {player}, c'est du poker pas de la belote !",
-  "{player}, niveau {level} ! T'attends quoi pour montrer ton jeu ?",
-  "Niveau {level} ! {player}, même un débutant jouerait mieux !",
-  "{player}, niveau {level} ! Allez, fais-nous rêver pour une fois !",
-];
-
 /**
  * Audio context for generating beep sounds
  */
@@ -122,22 +103,6 @@ class AudioManager {
 
     // Final long tone "toooo" (440Hz, 1s, after 5 beeps)
     this.playBeep(440, 1, 5 * 0.3);
-  }
-
-  /**
-   * Get a random humorous phrase for level change with a random active player
-   */
-  private getRandomPhrase(level: number, playerNicknames: string[]): string {
-    const template = LEVEL_CHANGE_PHRASE_TEMPLATES[Math.floor(Math.random() * LEVEL_CHANGE_PHRASE_TEMPLATES.length)];
-
-    // Pick a random player from active players
-    const randomPlayer = playerNicknames.length > 0
-      ? playerNicknames[Math.floor(Math.random() * playerNicknames.length)]
-      : 'le joueur mystère';
-
-    return template
-      .replace('{level}', level.toString())
-      .replace('{player}', randomPlayer);
   }
 
   /**
@@ -269,17 +234,14 @@ class AudioManager {
     smallBlind: number,
     bigBlind: number,
     ante?: number,
-    playerNicknames: string[] = []
+    _playerNicknames: string[] = []
   ): Promise<void> {
-    // Get random phrase with a random active player
-    const phrase = this.getRandomPhrase(level, playerNicknames);
-
     // Format blinds for better speech
     const sbText = this.formatNumberForSpeech(smallBlind);
     const bbText = this.formatNumberForSpeech(bigBlind);
 
-    // Add blind information
-    let announcement = phrase;
+    // Build simple, informative announcement
+    let announcement = `Niveau ${level}.`;
     if (ante && ante > 0) {
       const anteText = this.formatNumberForSpeech(ante);
       announcement += ` Blinds : ${sbText} - ${bbText}, ante ${anteText}.`;
