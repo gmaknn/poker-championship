@@ -66,8 +66,12 @@ export async function GET(
     // Calculer le classement en temps réel pour chaque joueur
     const liveLeaderboard = await Promise.all(
       tournament.tournamentPlayers.map(async (tp) => {
-        // Points d'élimination (compte les éliminations actuelles)
-        const eliminationPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+        // Points d'élimination (finales + bust)
+        // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
+        // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
+        const finalElimPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+        const bustElimPoints = tp.bustEliminations * tournament.season!.bustEliminationBonus;
+        const eliminationPoints = finalElimPoints + bustElimPoints;
 
         // Bonus Leader Killer (compte les leader kills actuels)
         const bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus;

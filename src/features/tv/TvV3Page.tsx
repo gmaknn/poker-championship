@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
-import { Trophy, Users, DollarSign, Clock, LayoutGrid } from 'lucide-react';
+import { Trophy, Users, DollarSign, Clock, LayoutGrid, Coins, Play, Pause } from 'lucide-react';
 import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, announceRebalanceTables, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed, getBlindCommentaryEnabled, setBlindCommentaryEnabled } from '@/lib/audioManager';
 import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
@@ -24,6 +24,7 @@ type TournamentPlayer = {
   playerId: string;
   finalRank: number | null;
   rebuysCount: number;
+  lightRebuyUsed: boolean;
   eliminationsCount: number;
   leaderKills: number;
   rankPoints: number;
@@ -53,8 +54,10 @@ type Tournament = {
   status: string;
   type: string;
   buyInAmount: number;
+  lightRebuyAmount: number;
   startingChips: number;
   prizePool: number | null;
+  prizePoolAdjustment: number;
   currentLevel: number;
   timerStartedAt: string | null;
   timerPausedAt: string | null;
@@ -66,6 +69,33 @@ type Season = {
   id: string;
   name: string;
   year: number;
+};
+
+type LeaderboardPlayer = {
+  rank: number;
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    nickname: string;
+    avatar: string | null;
+  };
+  totalPoints: number;
+  tournamentsPlayed: number;
+  victories: number;
+  podiums: number;
+};
+
+type LeaderboardResponse = {
+  season: {
+    id: string;
+    name: string;
+    year: number;
+    totalTournamentsCount: number | null;
+    bestTournamentsCount: number | null;
+    completedTournamentsCount: number;
+  };
+  leaderboard: LeaderboardPlayer[];
 };
 
 type ResultsData = {
@@ -172,6 +202,36 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const [tablesPlanData, setTablesPlanData] = useState<TablesPlanResponse | null>(null);
   const [tablesPlanError, setTablesPlanError] = useState<string | null>(null);
 
+  // Chips Modal
+  const [showChipsModal, setShowChipsModal] = useState(false);
+
+  // Championship Leaderboard
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
+
+  // Mobile detection
+  const [isMobilePortrait, setIsMobilePortrait] = useState(false);
+  const [isMobileLandscape, setIsMobileLandscape] = useState(false);
+
+  useEffect(() => {
+    const checkOrientation = () => {
+      const isMobile = window.innerWidth < 768 || window.innerHeight < 500;
+      const isPortrait = window.innerHeight > window.innerWidth;
+      const isLandscape = window.innerWidth > window.innerHeight && window.innerHeight < 500;
+      setIsMobilePortrait(isMobile && isPortrait);
+      setIsMobileLandscape(isLandscape);
+    };
+
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    return () => window.removeEventListener('resize', checkOrientation);
+  }, []);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
+
+  // Timer control state for mobile
+  const [isTogglingTimer, setIsTogglingTimer] = useState(false);
+  const [timerToast, setTimerToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+
   // Initialize TTS controls and theme from localStorage
   useEffect(() => {
     setTtsVolume(getTTSVolume());
@@ -194,6 +254,71 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     setCurrentTheme(theme);
     saveTheme(theme.id);
     setShowThemeSelector(false);
+  };
+
+  // Toggle timer play/pause
+  const handleToggleTimer = async (e?: React.MouseEvent | React.TouchEvent) => {
+    // Debug: Log every call to help diagnose mobile issues
+    const isPaused = !!serverTimerData?.timerPausedAt;
+    const debugInfo = `isPaused: ${isPaused}, isTogglingTimer: ${isTogglingTimer}`;
+    console.log(`[Timer] handleToggleTimer called - ${debugInfo}`);
+
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    if (isTogglingTimer) {
+      console.log('[Timer] Already toggling, ignoring');
+      return;
+    }
+
+    setIsTogglingTimer(true);
+    setTimerToast(null);
+    try {
+      const endpoint = isPaused ? 'resume' : 'pause';
+      console.log(`[Timer] Calling API: /api/tournaments/${tournamentId}/timer/${endpoint}`);
+      const response = await fetch(`/api/tournaments/${tournamentId}/timer/${endpoint}`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error(`[Timer] Failed to ${endpoint} timer:`, response.status, errorData);
+        setTimerToast({
+          message: errorData.error || `Erreur ${response.status}`,
+          type: 'error'
+        });
+      } else {
+        const responseData = await response.json().catch(() => ({}));
+        console.log(`[Timer] Timer ${endpoint} successful`, responseData);
+
+        // Update local state immediately with new timer data
+        setServerTimerData(prev => prev ? {
+          ...prev,
+          timerPausedAt: isPaused ? null : new Date().toISOString(),
+          fetchedAt: Date.now(),
+        } : null);
+
+        setTimerToast({
+          message: isPaused ? 'Timer relancé' : 'Timer en pause',
+          type: 'success'
+        });
+      }
+    } catch (error) {
+      console.error('[Timer] Error toggling timer:', error);
+      setTimerToast({
+        message: 'Erreur de connexion',
+        type: 'error'
+      });
+    } finally {
+      setIsTogglingTimer(false);
+      // Auto-hide toast after 3 seconds
+      setTimeout(() => setTimerToast(null), 3000);
+    }
   };
 
   // Fetch tables plan data
@@ -228,9 +353,25 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   // Toggle tables plan view
   const handleToggleTablesPlan = () => {
     if (!showTablesPlan) {
+      // Fermer les autres modales avant d'ouvrir celle-ci
+      setShowChipsModal(false);
+      setShowLeaderboardModal(false);
       fetchTablesPlan();
     }
     setShowTablesPlan(!showTablesPlan);
+  };
+
+  // Fetch championship leaderboard
+  const fetchLeaderboard = async (seasonId: string) => {
+    try {
+      const response = await fetch(`/api/seasons/${seasonId}/leaderboard-public`);
+      if (response.ok) {
+        const data = await response.json();
+        setLeaderboardData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+    }
   };
 
   useEffect(() => {
@@ -246,6 +387,16 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       return () => clearInterval(interval);
     }
   }, [showTablesPlan, tournamentId]);
+
+  // Fetch leaderboard when season is available (for CHAMPIONSHIP tournaments)
+  useEffect(() => {
+    if (resultsData?.season?.id && resultsData?.tournament?.type === 'CHAMPIONSHIP') {
+      fetchLeaderboard(resultsData.season.id);
+      // Refresh leaderboard every 30 seconds
+      const interval = setInterval(() => fetchLeaderboard(resultsData.season!.id), 30000);
+      return () => clearInterval(interval);
+    }
+  }, [resultsData?.season?.id, resultsData?.tournament?.type]);
 
   // Trigger confetti when tournament finishes
   useEffect(() => {
@@ -332,8 +483,10 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             status: data.status,
             type: data.type || 'TOURNAMENT',
             buyInAmount: data.buyInAmount,
+            lightRebuyAmount: data.lightRebuyAmount || 5,
             startingChips: data.startingChips,
             prizePool: data.prizePool,
+            prizePoolAdjustment: data.prizePoolAdjustment || 0,
             currentLevel: timerData?.currentLevel || data.currentLevel,
             timerStartedAt: data.timerStartedAt,
             timerPausedAt: data.timerPausedAt,
@@ -637,8 +790,14 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     ? Math.floor(totalChipsInPlay / activePlayers.length)
     : 0;
 
-  // Calculate total prize pool (buy-ins + rebuys)
-  const calculatedPrizePool = tournament.prizePool || ((results.length + totalRebuys) * tournament.buyInAmount);
+  // Calculate total prize pool (buy-ins + rebuys standard + light rebuys + adjustment)
+  const totalLightRebuys = results.filter(p => p.lightRebuyUsed).length;
+  const calculatedPrizePool = tournament.prizePool || (
+    (results.length * tournament.buyInAmount) +  // Buy-ins
+    (totalRebuys * tournament.buyInAmount) +  // Standard rebuys
+    (totalLightRebuys * tournament.lightRebuyAmount) +  // Light rebuys
+    (tournament.prizePoolAdjustment || 0)  // Ajustement manuel
+  );
 
   const tournamentTypeLabel = tournament.type === 'CHAMPIONSHIP' ? 'Texas Hold\'em No Limit' :
                                tournament.type === 'TOURNAMENT' ? 'Texas Hold\'em No Limit' :
@@ -660,11 +819,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     <div className="min-h-screen text-white overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
       {/* Header - Hidden in fullscreen mode */}
       {!isFullscreen && (
-      <div className="py-4 px-8 border-b-4" style={{
+      <div className={`border-b-4 ${isMobilePortrait ? 'py-2 px-3' : isMobileLandscape ? 'py-1 px-3' : 'py-4 px-8'}`} style={{
         backgroundColor: currentTheme.colors.primary,
         borderBottomColor: currentTheme.colors.primaryDark
       }}>
-        <h1 className="text-4xl font-bold text-center text-white drop-shadow-lg uppercase tracking-wider">
+        <h1 className={`font-bold text-center text-white drop-shadow-lg uppercase tracking-wider ${isMobilePortrait ? 'text-lg leading-tight' : isMobileLandscape ? 'text-base' : 'text-4xl'}`}>
           {tournament.name || 'Tournoi de Poker'}
         </h1>
       </div>
@@ -698,38 +857,43 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             </button>
           </div>
 
-          <div id="podium-content" className="text-center space-y-12 p-12">
-            <div className="text-9xl font-black drop-shadow-2xl uppercase tracking-wider animate-pulse" style={{ color: currentTheme.colors.primary }}>
+          <div id="podium-content" className="text-center space-y-6 md:space-y-12 p-4 md:p-12 max-w-full overflow-hidden">
+            <div className="text-4xl sm:text-6xl md:text-9xl font-black drop-shadow-2xl uppercase tracking-wider animate-pulse" style={{ color: currentTheme.colors.primary }}>
               Terminé
             </div>
 
             {rankedPlayers.length > 0 && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-center gap-6">
-                  <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl" />
-                  <div className="text-left">
-                    <div className="text-3xl text-white/80 mb-2">Vainqueur</div>
-                    <div className="text-8xl font-black text-white drop-shadow-2xl">
+              <div className="space-y-4 md:space-y-6">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-3 md:gap-6">
+                  <Trophy className="h-16 w-16 md:h-32 md:w-32 text-yellow-400 drop-shadow-2xl hidden md:block" />
+                  <div className="text-center md:text-left">
+                    <div className="flex items-center justify-center gap-2 md:hidden mb-2">
+                      <Trophy className="h-8 w-8 text-yellow-400" />
+                      <span className="text-xl text-white/80">Vainqueur</span>
+                      <Trophy className="h-8 w-8 text-yellow-400" />
+                    </div>
+                    <div className="text-xl text-white/80 mb-2 hidden md:block">Vainqueur</div>
+                    <div className="text-3xl sm:text-5xl md:text-8xl font-black text-white drop-shadow-2xl break-words">
                       {rankedPlayers[0].player.nickname || `${rankedPlayers[0].player.firstName} ${rankedPlayers[0].player.lastName}`}
                     </div>
                   </div>
-                  <Trophy className="h-32 w-32 text-yellow-400 drop-shadow-2xl" />
+                  <Trophy className="h-16 w-16 md:h-32 md:w-32 text-yellow-400 drop-shadow-2xl hidden md:block" />
                 </div>
 
                 {rankedPlayers.length > 1 && (
-                  <div className="flex justify-center gap-12 mt-12">
+                  <div className="flex flex-col sm:flex-row justify-center gap-4 md:gap-12 mt-4 md:mt-12">
                     {rankedPlayers[1] && (
                       <div className="text-center">
-                        <div className="text-2xl text-white/60 mb-2">2ème place</div>
-                        <div className="text-4xl font-bold text-white/90">
+                        <div className="text-lg md:text-2xl text-white/60 mb-1 md:mb-2">2ème place</div>
+                        <div className="text-2xl md:text-4xl font-bold text-white/90">
                           {rankedPlayers[1].player.nickname || `${rankedPlayers[1].player.firstName} ${rankedPlayers[1].player.lastName}`}
                         </div>
                       </div>
                     )}
                     {rankedPlayers[2] && (
                       <div className="text-center">
-                        <div className="text-2xl text-white/60 mb-2">3ème place</div>
-                        <div className="text-4xl font-bold text-white/90">
+                        <div className="text-lg md:text-2xl text-white/60 mb-1 md:mb-2">3ème place</div>
+                        <div className="text-2xl md:text-4xl font-bold text-white/90">
                           {rankedPlayers[2].player.nickname || `${rankedPlayers[2].player.firstName} ${rankedPlayers[2].player.lastName}`}
                         </div>
                       </div>
@@ -740,61 +904,397 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             )}
           </div>
         </div>
-      ) : (
-      <div className="flex h-[calc(100vh-80px)]">
-        {/* LEFT PANEL - Hidden in fullscreen mode */}
-        {!isFullscreen && (
-        <div className="w-1/5 bg-[hsl(220,15%,18%)] p-6 space-y-8 border-r-2 border-[hsl(220,13%,30%)]">
-          {/* Current Time */}
-          <div className="text-center">
-            <div className="text-white/80 text-lg font-semibold mb-2">Il est</div>
-            <div className="text-6xl font-black text-white drop-shadow-lg">
-              {format(currentTime, 'HH:mm:ss')}
+      ) : isMobilePortrait ? (
+        /* MOBILE PORTRAIT LAYOUT - Single column with essential info */
+        <div className="flex flex-col h-[calc(100vh-60px)] overflow-y-auto relative" style={{ backgroundColor: currentTheme.colors.background }}>
+          {/* Compact Header - Players + Prize */}
+          <div className="flex justify-between items-center px-3 py-2 border-b" style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.backgroundDark }}>
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5" style={{ color: currentTheme.colors.primary }} />
+              <span className="text-2xl font-black text-white">{activePlayers.length}</span>
+              <span className="text-white/60 text-sm">/{results.length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" style={{ color: currentTheme.colors.primary }} />
+              <span className="text-xl font-bold text-white">{calculatedPrizePool.toFixed(0)}€</span>
             </div>
           </div>
 
-          {/* Players Count */}
-          <div className="text-center">
-            <div className="text-white/80 text-lg font-semibold mb-2">Joueurs : {results.length}</div>
-            <div className="text-5xl font-black text-white drop-shadow-lg">
-              {activePlayers.length}
+          {/* Current Round Badge */}
+          {currentBlindLevel && !currentBlindLevel.isBreak && (
+            <div className="text-center py-2 px-3" style={{ backgroundColor: currentTheme.colors.backgroundLight }}>
+              <span className="text-lg font-bold" style={{ color: currentTheme.colors.primaryLight }}>
+                Round {currentBlindLevel.level}
+              </span>
             </div>
-            <div className="text-white/80 text-sm mt-1">en jeu</div>
-          </div>
+          )}
 
-          {/* Average Stack */}
-          <div className="text-center">
-            <div className="text-white/80 text-lg font-semibold mb-2">Tapis moyen :</div>
-            <div className="text-5xl font-black text-white drop-shadow-lg">
-              {averageStack > 0 ? averageStack.toLocaleString() : '0'}
+          {/* Main Timer - Centered */}
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-4 min-h-0">
+            {/* Circular Timer (smaller on mobile) */}
+            <div className="mb-3">
+              <CircularTimer
+                timeRemaining={timeRemaining}
+                totalDuration={currentBlindLevel ? currentBlindLevel.duration * 60 : tournament.levelDuration * 60}
+                size={160}
+                strokeWidth={10}
+              />
             </div>
-            {currentBlindLevel && averageStack > 0 && (
-              <div className="text-white/80 text-sm mt-1">
-                {Math.floor(averageStack / currentBlindLevel.bigBlind)} BB
+
+            {/* Time Display */}
+            <div className={`text-6xl font-black leading-none mb-2 ${
+              timeRemaining !== null && timeRemaining < 60
+                ? 'text-red-500 animate-pulse'
+                : timeRemaining !== null && timeRemaining < 120
+                ? 'text-orange-400'
+                : 'text-white'
+            }`}>
+              {timeRemaining !== null ? formatTime(timeRemaining) : '--:--'}
+            </div>
+
+            {/* Pause indicator (display only) */}
+            {serverTimerData?.timerPausedAt && (
+              <div className="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold text-lg animate-pulse mb-2">
+                ⏸ PAUSE
+              </div>
+            )}
+
+            {/* Current Blinds */}
+            {currentBlindLevel && !currentBlindLevel.isBreak ? (
+              <div className="border-2 rounded-xl py-3 px-4 text-center w-full max-w-sm" style={{
+                backgroundColor: currentTheme.colors.backgroundDark,
+                borderColor: currentTheme.colors.primary
+              }}>
+                <div className="text-xs text-white/60 mb-1">Blinds</div>
+                <div className="text-2xl font-black text-white">
+                  {currentBlindLevel.smallBlind.toLocaleString()} / {currentBlindLevel.bigBlind.toLocaleString()}
+                </div>
+                {currentBlindLevel.ante > 0 && (
+                  <div className="text-lg font-bold" style={{ color: currentTheme.colors.primaryLight }}>
+                    Ante: {currentBlindLevel.ante.toLocaleString()}
+                  </div>
+                )}
+              </div>
+            ) : currentBlindLevel && currentBlindLevel.isBreak ? (
+              <div className="bg-blue-500/20 border-2 border-blue-400 rounded-xl py-3 px-4 text-center w-full max-w-sm">
+                <div className="text-3xl font-black text-blue-300">☕ PAUSE</div>
+              </div>
+            ) : null}
+
+            {/* Next Blinds (compact) */}
+            {nextBlindLevel && !nextBlindLevel.isBreak && (
+              <div className="mt-3 text-center">
+                <span className="text-white/60 text-sm">Suivant: </span>
+                <span className="text-lg font-bold" style={{ color: currentTheme.colors.primaryLight }}>
+                  {nextBlindLevel.smallBlind.toLocaleString()} / {nextBlindLevel.bigBlind.toLocaleString()}
+                </span>
               </div>
             )}
           </div>
 
-          {/* Time Elapsed */}
-          <div className="text-center">
-            <div className="text-white/80 text-lg font-semibold mb-2">Temps écoulé :</div>
-            <div className="text-3xl font-bold text-white drop-shadow-lg">
-              {formatTimeWithHours(timeElapsed)}
+          {/* Bottom Stats Bar */}
+          <div className="flex justify-around items-center px-3 py-3 border-t" style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.backgroundDark }}>
+            <div className="text-center">
+              <div className="text-white/60 text-xs">Tapis moy.</div>
+              <div className="text-lg font-bold text-white">{averageStack > 0 ? averageStack.toLocaleString() : '0'}</div>
+              {currentBlindLevel && averageStack > 0 && (
+                <div className="text-xs" style={{ color: currentTheme.colors.primaryLight }}>
+                  {Math.floor(averageStack / currentBlindLevel.bigBlind)} BB
+                </div>
+              )}
+            </div>
+            <div className="text-center">
+              <div className="text-white/60 text-xs">Temps</div>
+              <div className="text-lg font-bold text-white">{formatTimeWithHours(timeElapsed)}</div>
+            </div>
+            <div className="text-center">
+              <div className="text-white/60 text-xs">Heure</div>
+              <div className="text-lg font-bold text-white">{format(currentTime, 'HH:mm')}</div>
             </div>
           </div>
+
+          {/* Reassign Tables Indicator (mobile compact) */}
+          {currentBlindLevel?.rebalanceTables && (
+            <div className="bg-orange-500/20 border-t-2 border-orange-400 py-2 px-3 text-center animate-pulse">
+              <div className="text-sm font-bold text-orange-300 flex items-center justify-center gap-2">
+                <LayoutGrid className="h-4 w-4" />
+                Réassignation des tables
+              </div>
+            </div>
+          )}
+
+          {/* Bouton Play/Pause - toujours visible, l'API vérifie les permissions */}
+          {tournament.status === 'IN_PROGRESS' && (
+            <button
+              onPointerDown={(e) => {
+                // Use pointerdown for unified touch/mouse handling
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Timer] Mobile portrait button: pointerdown');
+                handleToggleTimer(e as unknown as React.MouseEvent);
+              }}
+              style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent', backgroundColor: serverTimerData?.timerPausedAt ? '#22c55e' : '#ef4444' }}
+              className="fixed bottom-4 right-4 z-[9999] w-16 h-16 rounded-full shadow-2xl flex items-center justify-center select-none"
+            >
+              {isTogglingTimer ? (
+                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : serverTimerData?.timerPausedAt ? (
+                <Play className="h-8 w-8 text-white ml-1" />
+              ) : (
+                <Pause className="h-8 w-8 text-white" />
+              )}
+            </button>
+          )}
+
+          {/* Timer Toast Notification */}
+          {timerToast && (
+            <div
+              className={`fixed bottom-20 left-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white text-sm font-medium animate-in fade-in slide-in-from-bottom-2 ${
+                timerToast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+              }`}
+            >
+              {timerToast.message}
+            </div>
+          )}
+        </div>
+      ) : isMobileLandscape ? (
+        /* MOBILE LANDSCAPE LAYOUT - Horizontal optimized */
+        <div className="flex h-[calc(100vh-40px)] overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
+          {/* Left Section - Timer & Blinds */}
+          <div className="flex-1 flex flex-col items-center justify-center px-4 py-2">
+            {/* Timer Row */}
+            <div className="flex items-center gap-4">
+              {/* Circular Timer (smaller in landscape) */}
+              <CircularTimer
+                timeRemaining={timeRemaining}
+                totalDuration={currentBlindLevel ? currentBlindLevel.duration * 60 : tournament.levelDuration * 60}
+                size={100}
+                strokeWidth={8}
+              />
+
+              {/* Time Display */}
+              <div className="flex flex-col items-center">
+                <div className={`text-5xl font-black leading-none ${
+                  timeRemaining !== null && timeRemaining < 60
+                    ? 'text-red-500 animate-pulse'
+                    : timeRemaining !== null && timeRemaining < 120
+                    ? 'text-orange-400'
+                    : 'text-white'
+                }`}>
+                  {timeRemaining !== null ? formatTime(timeRemaining) : '--:--'}
+                </div>
+
+                {/* Pause indicator (display only) */}
+                {serverTimerData?.timerPausedAt && (
+                  <div className="bg-yellow-500 text-black px-3 py-1 rounded font-bold text-sm animate-pulse mt-1">
+                    ⏸ PAUSE
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Current Blinds */}
+            {currentBlindLevel && !currentBlindLevel.isBreak ? (
+              <div className="mt-2 text-center">
+                <div className="text-white/60 text-xs">Blinds</div>
+                <div className="text-2xl font-black text-white">
+                  {currentBlindLevel.smallBlind.toLocaleString()} / {currentBlindLevel.bigBlind.toLocaleString()}
+                  {currentBlindLevel.ante > 0 && (
+                    <span className="text-lg ml-2" style={{ color: currentTheme.colors.primaryLight }}>
+                      (A: {currentBlindLevel.ante.toLocaleString()})
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : currentBlindLevel && currentBlindLevel.isBreak ? (
+              <div className="mt-2 text-center">
+                <div className="text-2xl font-black text-blue-300">☕ PAUSE</div>
+              </div>
+            ) : null}
+
+            {/* Next Blinds */}
+            {nextBlindLevel && !nextBlindLevel.isBreak && (
+              <div className="mt-1 text-center">
+                <span className="text-white/60 text-xs">Suivant: </span>
+                <span className="text-base font-bold" style={{ color: currentTheme.colors.primaryLight }}>
+                  {nextBlindLevel.smallBlind.toLocaleString()} / {nextBlindLevel.bigBlind.toLocaleString()}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Right Section - Stats */}
+          <div className="w-40 flex flex-col justify-center gap-2 px-3 py-2 border-l" style={{ borderColor: currentTheme.colors.border, backgroundColor: currentTheme.colors.backgroundDark }}>
+            {/* Round */}
+            {currentBlindLevel && !currentBlindLevel.isBreak && (
+              <div className="text-center">
+                <div className="text-xs text-white/60">Round</div>
+                <div className="text-xl font-bold" style={{ color: currentTheme.colors.primaryLight }}>
+                  {currentBlindLevel.level}
+                </div>
+              </div>
+            )}
+
+            {/* Players */}
+            <div className="text-center">
+              <div className="text-xs text-white/60">Joueurs</div>
+              <div className="text-xl font-black text-white">
+                {activePlayers.length}<span className="text-sm text-white/60">/{results.length}</span>
+              </div>
+            </div>
+
+            {/* Average Stack */}
+            <div className="text-center">
+              <div className="text-xs text-white/60">Tapis moy.</div>
+              <div className="text-lg font-bold text-white">{averageStack > 0 ? averageStack.toLocaleString() : '0'}</div>
+              {currentBlindLevel && averageStack > 0 && (
+                <div className="text-xs" style={{ color: currentTheme.colors.primaryLight }}>
+                  {Math.floor(averageStack / currentBlindLevel.bigBlind)} BB
+                </div>
+              )}
+            </div>
+
+            {/* Prize Pool */}
+            <div className="text-center">
+              <div className="text-xs text-white/60">Pot</div>
+              <div className="text-lg font-bold text-white">{calculatedPrizePool.toFixed(0)}€</div>
+            </div>
+          </div>
+
+          {/* Reassign Tables Indicator */}
+          {currentBlindLevel?.rebalanceTables && (
+            <div className="absolute top-0 left-0 right-0 bg-orange-500/20 border-b-2 border-orange-400 py-1 px-3 text-center animate-pulse">
+              <div className="text-xs font-bold text-orange-300 flex items-center justify-center gap-2">
+                <LayoutGrid className="h-3 w-3" />
+                Réassignation des tables
+              </div>
+            </div>
+          )}
+
+          {/* Bouton Play/Pause - toujours visible, l'API vérifie les permissions */}
+          {tournament.status === 'IN_PROGRESS' && (
+            <button
+              onPointerDown={(e) => {
+                // Use pointerdown for unified touch/mouse handling
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Timer] Mobile landscape button: pointerdown');
+                handleToggleTimer(e as unknown as React.MouseEvent);
+              }}
+              style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent', backgroundColor: serverTimerData?.timerPausedAt ? '#22c55e' : '#ef4444' }}
+              className="fixed bottom-2 right-2 z-[9999] w-14 h-14 rounded-full shadow-2xl flex items-center justify-center select-none"
+            >
+              {isTogglingTimer ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : serverTimerData?.timerPausedAt ? (
+                <Play className="h-7 w-7 text-white ml-0.5" />
+              ) : (
+                <Pause className="h-7 w-7 text-white" />
+              )}
+            </button>
+          )}
+
+          {/* Timer Toast Notification */}
+          {timerToast && (
+            <div
+              className={`fixed bottom-16 left-2 z-50 px-3 py-1.5 rounded-lg shadow-lg text-white text-xs font-medium animate-in fade-in slide-in-from-bottom-2 ${
+                timerToast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+              }`}
+            >
+              {timerToast.message}
+            </div>
+          )}
+        </div>
+      ) : (
+      <div className="flex h-[calc(100vh-80px)]">
+        {/* LEFT PANEL - Hidden in fullscreen mode */}
+        {!isFullscreen && (
+        <div className="w-1/5 bg-[hsl(220,15%,18%)] p-6 flex flex-col border-r-2 border-[hsl(220,13%,30%)]">
+          <div className="space-y-6">
+            {/* Current Time */}
+            <div className="text-center">
+              <div className="text-6xl font-black text-white drop-shadow-lg">
+                {format(currentTime, 'HH:mm:ss')}
+              </div>
+            </div>
+
+            {/* Players Count */}
+            <div className="text-center">
+              <div className="text-white/80 text-lg font-semibold mb-2">Joueurs : {results.length}</div>
+              <div className="text-5xl font-black text-white drop-shadow-lg">
+                {activePlayers.length}
+              </div>
+              <div className="text-white/80 text-sm mt-1">en jeu</div>
+            </div>
+
+            {/* Average Stack */}
+            <div className="text-center">
+              <div className="text-white/80 text-lg font-semibold mb-2">Tapis moyen :</div>
+              <div className="text-5xl font-black text-white drop-shadow-lg">
+                {averageStack > 0 ? averageStack.toLocaleString() : '0'}
+              </div>
+              {currentBlindLevel && averageStack > 0 && (
+                <div className="text-white/80 text-sm mt-1">
+                  {Math.floor(averageStack / currentBlindLevel.bigBlind)} BB
+                </div>
+              )}
+            </div>
+
+            {/* Time Elapsed */}
+            <div className="text-center">
+              <div className="text-white/80 text-lg font-semibold mb-2">Temps écoulé :</div>
+              <div className="text-3xl font-bold text-white drop-shadow-lg">
+                {formatTimeWithHours(timeElapsed)}
+              </div>
+            </div>
+          </div>
+
+          {/* Championship Leaderboard (Top 3) - At bottom of left panel */}
+          {leaderboardData && leaderboardData.leaderboard.length > 0 && (
+            <div className="mt-auto pt-6 border-t border-[hsl(220,13%,30%)]">
+              <div className="text-white/80 text-lg font-semibold mb-3 text-center flex items-center justify-center gap-2">
+                <Trophy className="h-5 w-5" style={{ color: currentTheme.colors.primary }} />
+                Classement Championnat
+              </div>
+              <div className="space-y-2">
+                {leaderboardData.leaderboard.slice(0, 3).map((player, index) => (
+                  <div
+                    key={player.player.id}
+                    className="flex items-center gap-3 p-3 rounded-xl"
+                    style={{ backgroundColor: currentTheme.colors.backgroundDark }}
+                  >
+                    <span className="text-2xl">
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-bold text-lg truncate">
+                        {player.player.nickname || `${player.player.firstName} ${player.player.lastName.charAt(0)}.`}
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black" style={{ color: currentTheme.colors.primary }}>
+                      {player.totalPoints}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => {
+                  setShowTablesPlan(false);
+                  setShowChipsModal(false);
+                  setShowLeaderboardModal(true);
+                }}
+                className="w-full text-center text-sm font-semibold py-2 mt-2 rounded-lg transition-colors hover:bg-white/10"
+                style={{ color: currentTheme.colors.primaryLight }}
+              >
+                Voir le classement complet
+              </button>
+            </div>
+          )}
         </div>
         )}
 
         {/* CENTER PANEL */}
         <div className="flex-1 p-8 flex flex-col justify-center space-y-6" style={{ backgroundColor: currentTheme.colors.background }}>
-          {/* Tournament Type */}
-          <div className="border-2 rounded-xl py-3 px-6 text-center" style={{
-            backgroundColor: currentTheme.colors.backgroundDark,
-            borderColor: currentTheme.colors.border
-          }}>
-            <div className="text-3xl font-bold text-white">{tournamentTypeLabel}</div>
-          </div>
-
           {/* Current Round */}
           {currentBlindLevel && !currentBlindLevel.isBreak && (
             <div className="border-2 rounded-xl py-3 px-6 text-center" style={{
@@ -872,11 +1372,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
           {/* Next Blinds */}
           {nextBlindLevel && !nextBlindLevel.isBreak && (
-            <div className="border rounded-xl py-3 px-6 text-center" style={{
+            <div className="border-2 rounded-xl py-4 px-6 text-center" style={{
               backgroundColor: currentTheme.colors.backgroundLight,
               borderColor: currentTheme.colors.border
             }}>
-              <div className="text-2xl font-bold" style={{ color: currentTheme.colors.primaryLight }}>
+              <div className="text-4xl font-bold" style={{ color: currentTheme.colors.primaryLight }}>
                 Prochaines Blinds : {nextBlindLevel.smallBlind.toLocaleString()} / {nextBlindLevel.bigBlind.toLocaleString()}
                 {nextBlindLevel.ante > 0 && ` (${nextBlindLevel.ante.toLocaleString()})`}
               </div>
@@ -885,8 +1385,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
           {/* Next break info */}
           {timeUntilBreak !== null && nextBreak && (
-            <div className="bg-blue-500/10 border border-blue-400/30 rounded-xl py-3 px-6 text-center">
-              <div className="text-xl font-bold text-blue-300">
+            <div className="bg-blue-500/10 border-2 border-blue-400/50 rounded-xl py-4 px-6 text-center">
+              <div className="text-2xl font-bold text-blue-300">
                 Prochain break dans : {formatTimeWithHours(timeUntilBreak)}
               </div>
             </div>
@@ -895,39 +1395,84 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
         {/* RIGHT PANEL - Hidden in fullscreen mode */}
         {!isFullscreen && (
-        <div className="w-1/5 bg-[hsl(220,15%,18%)] p-6 space-y-6 border-l-2 border-[hsl(220,13%,30%)]">
-          {/* Prize Pool */}
-          <div className="text-center">
-            <div className="text-white/80 text-lg font-semibold mb-2 italic">Pot Total :</div>
-            <div className="text-5xl font-black text-white drop-shadow-lg">
-              {calculatedPrizePool.toFixed(0)} €
+        <div className="w-1/5 bg-[hsl(220,15%,18%)] p-6 flex flex-col border-l-2 border-[hsl(220,13%,30%)]">
+          <div className="space-y-6">
+            {/* Prize Pool */}
+            <div className="text-center">
+              <div className="text-white/80 text-lg font-semibold mb-2 italic">Pot Total :</div>
+              <div className="text-5xl font-black text-white drop-shadow-lg">
+                {calculatedPrizePool.toFixed(0)} €
+              </div>
             </div>
+
+            {/* Top Sharks */}
+            {topSharks.length > 0 && (
+              <div className="border-2 border-red-500 rounded-2xl p-4">
+                <div className="flex items-center gap-3 mb-4 justify-center">
+                  <span className="text-3xl">🦈</span>
+                  <h3 className="text-xl font-bold text-red-400 uppercase tracking-wide">Top Sharks</h3>
+                </div>
+                <div className="space-y-3">
+                  {topSharks.map((player, index) => (
+                    <div key={player.id} className="flex items-center gap-3">
+                      <span className="text-2xl">
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                      </span>
+                      <span className="text-white font-bold text-xl flex-1 truncate">
+                        {player.player.nickname || `${player.player.firstName} ${player.player.lastName.charAt(0)}.`}
+                      </span>
+                      <span className="text-red-400 font-black text-2xl">
+                        {player.eliminationsCount} 💀
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top Rebuyers */}
+            {topRebuyers.length > 0 && (
+              <div className="border-2 border-yellow-500 rounded-2xl p-4">
+                <div className="flex items-center gap-3 mb-4 justify-center">
+                  <span className="text-3xl">💸</span>
+                  <h3 className="text-xl font-bold text-yellow-400 uppercase tracking-wide">Top Recavers</h3>
+                </div>
+                <div className="space-y-3">
+                  {topRebuyers.map((player, index) => (
+                    <div key={player.id} className="flex items-center gap-3">
+                      <span className="text-2xl">
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                      </span>
+                      <span className="text-white font-bold text-xl flex-1 truncate">
+                        {player.player.nickname || `${player.player.firstName} ${player.player.lastName.charAt(0)}.`}
+                      </span>
+                      <span className="text-yellow-400 font-black text-2xl">
+                        {player.rebuysCount} 🔄
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Chip Denominations */}
-          {chips.length > 0 ? (
-            <div className="space-y-3">
-              {chips.map((chip) => (
-                <div key={chip.id} className="flex items-center gap-3 justify-between">
-                  <div
-                    className="w-14 h-14 rounded-full border-4 border-white shadow-xl flex items-center justify-center font-bold text-lg flex-shrink-0"
-                    style={{
-                      backgroundColor: chip.color,
-                      color: getTextColor(chip.color),
-                    }}
-                  >
-                    {chip.value >= 1000 ? `${chip.value / 1000}K` : chip.value}
-                  </div>
-                  <div className="text-3xl font-black text-white drop-shadow-lg">
-                    {chip.value.toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center text-white/60 text-sm">
-              Aucun jeton configuré
-            </div>
+          {/* Chip Denominations Button - At bottom */}
+          {chips.length > 0 && (
+            <button
+              onClick={() => {
+                setShowTablesPlan(false);
+                setShowLeaderboardModal(false);
+                setShowChipsModal(true);
+              }}
+              className="mt-auto pt-4 w-full flex items-center justify-center gap-3 py-4 px-6 rounded-xl border-2 transition-all hover:opacity-90"
+              style={{
+                backgroundColor: currentTheme.colors.backgroundDark,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
+              <Coins className="h-8 w-8" style={{ color: currentTheme.colors.primary }} />
+              <span className="text-2xl font-bold text-white">Voir les jetons</span>
+            </button>
           )}
         </div>
         )}
@@ -1031,29 +1576,29 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                 </div>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                     {tablesPlanData.tables.map((table) => (
                       <div
                         key={table.tableNumber}
-                        className="rounded-2xl p-5 border-2"
+                        className="rounded-2xl p-6 border-3"
                         style={{
                           backgroundColor: currentTheme.colors.backgroundLight,
                           borderColor: currentTheme.colors.border,
                         }}
                       >
-                        <div className="flex items-center justify-between mb-4">
-                          <h3 className="text-2xl font-bold" style={{ color: currentTheme.colors.primary }}>
+                        <div className="flex items-center justify-between mb-6">
+                          <h3 className="text-4xl font-black" style={{ color: currentTheme.colors.primary }}>
                             Table {table.tableNumber}
                           </h3>
-                          <span className="text-lg text-white/60 font-semibold">
+                          <span className="text-2xl text-white/60 font-bold">
                             {table.activeCount}/{table.totalCount}
                           </span>
                         </div>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {table.seats.map((seat, idx) => (
                             <div
                               key={seat.playerId}
-                              className={`flex items-center justify-between gap-4 text-lg py-3 px-4 rounded-xl ${
+                              className={`flex items-center justify-between gap-6 py-4 px-6 rounded-xl ${
                                 seat.isEliminated ? 'opacity-40' : ''
                               }`}
                               style={{
@@ -1062,10 +1607,10 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                                   : 'rgba(255,255,255,0.9)',
                               }}
                             >
-                              <span className="text-slate-500 text-sm font-medium whitespace-nowrap">
-                                Siège {seat.seatNumber ?? idx + 1}
+                              <span className="text-slate-500 text-2xl font-bold whitespace-nowrap">
+                                S{seat.seatNumber ?? idx + 1}
                               </span>
-                              <span className={`text-slate-900 font-bold text-xl uppercase truncate ${
+                              <span className={`text-slate-900 font-black text-4xl uppercase truncate ${
                                 seat.isEliminated ? 'line-through' : ''
                               }`}>
                                 {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
@@ -1090,12 +1635,150 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         </div>
       )}
 
-      {/* Bottom Right - TTS Controls & Theme Selector & Tables Plan Toggle */}
-      <div className="fixed bottom-4 right-4 z-[9999] space-y-3">
+      {/* Chips Modal */}
+      {showChipsModal && chips.length > 0 && (
+        <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
+          <div
+            className="w-[60vw] max-w-[700px] overflow-hidden rounded-3xl p-8 flex flex-col"
+            style={{ backgroundColor: currentTheme.colors.backgroundDark }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8 flex-shrink-0">
+              <h2 className="text-4xl font-bold text-white flex items-center gap-4">
+                <Coins className="h-10 w-10" style={{ color: currentTheme.colors.primary }} />
+                Valeur des Jetons
+              </h2>
+              <button
+                onClick={() => setShowChipsModal(false)}
+                className="text-white/60 hover:text-white text-4xl font-bold w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Chips Grid */}
+            <div className="grid grid-cols-2 gap-6">
+              {chips.map((chip) => (
+                <div
+                  key={chip.id}
+                  className="flex items-center gap-6 p-4 rounded-2xl"
+                  style={{ backgroundColor: currentTheme.colors.backgroundLight }}
+                >
+                  <div
+                    className="w-20 h-20 rounded-full border-4 border-white shadow-xl flex items-center justify-center font-bold text-2xl flex-shrink-0"
+                    style={{
+                      backgroundColor: chip.color,
+                      color: getTextColor(chip.color),
+                    }}
+                  >
+                    {chip.value >= 1000 ? `${chip.value / 1000}K` : chip.value}
+                  </div>
+                  <div className="text-5xl font-black text-white drop-shadow-lg">
+                    {chip.value.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Championship Leaderboard Modal */}
+      {showLeaderboardModal && leaderboardData && (
+        <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
+          <div
+            className="w-[80vw] max-w-[1000px] max-h-[90vh] overflow-hidden rounded-3xl p-8 flex flex-col"
+            style={{ backgroundColor: currentTheme.colors.backgroundDark }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8 flex-shrink-0">
+              <h2 className="text-4xl font-bold text-white flex items-center gap-4">
+                <Trophy className="h-10 w-10" style={{ color: currentTheme.colors.primary }} />
+                Classement Championnat {leaderboardData.season.year}
+              </h2>
+              <button
+                onClick={() => setShowLeaderboardModal(false)}
+                className="text-white/60 hover:text-white text-4xl font-bold w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Season Info */}
+            <div className="text-center mb-6 text-white/60">
+              <span className="text-lg">
+                {leaderboardData.season.completedTournamentsCount} tournoi{leaderboardData.season.completedTournamentsCount > 1 ? 's' : ''} joué{leaderboardData.season.completedTournamentsCount > 1 ? 's' : ''}
+                {leaderboardData.season.totalTournamentsCount && ` / ${leaderboardData.season.totalTournamentsCount}`}
+              </span>
+              {leaderboardData.season.bestTournamentsCount && (
+                <span className="ml-4 text-lg">
+                  (Top {leaderboardData.season.bestTournamentsCount} comptabilisés)
+                </span>
+              )}
+            </div>
+
+            {/* Leaderboard Table */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="space-y-3">
+                {leaderboardData.leaderboard.map((player, index) => (
+                  <div
+                    key={player.player.id}
+                    className={`flex items-center gap-4 p-4 rounded-2xl ${
+                      index < 3 ? 'border-2' : ''
+                    }`}
+                    style={{
+                      backgroundColor: currentTheme.colors.backgroundLight,
+                      borderColor: index === 0 ? '#FFD700' : index === 1 ? '#C0C0C0' : index === 2 ? '#CD7F32' : 'transparent',
+                    }}
+                  >
+                    {/* Rank */}
+                    <div className="w-16 flex-shrink-0 text-center">
+                      {index < 3 ? (
+                        <span className="text-4xl">
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                        </span>
+                      ) : (
+                        <span className="text-3xl font-bold text-white/60">#{player.rank}</span>
+                      )}
+                    </div>
+
+                    {/* Player Name */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-2xl font-bold text-white truncate">
+                        {player.player.nickname || `${player.player.firstName} ${player.player.lastName}`}
+                      </div>
+                      <div className="text-sm text-white/50 flex gap-4 mt-1">
+                        <span>{player.tournamentsPlayed} tournoi{player.tournamentsPlayed > 1 ? 's' : ''}</span>
+                        {player.victories > 0 && (
+                          <span className="text-yellow-400">{player.victories} victoire{player.victories > 1 ? 's' : ''}</span>
+                        )}
+                        {player.podiums > 0 && (
+                          <span className="text-orange-400">{player.podiums} podium{player.podiums > 1 ? 's' : ''}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Points */}
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-4xl font-black" style={{ color: currentTheme.colors.primary }}>
+                        {player.totalPoints}
+                      </div>
+                      <div className="text-sm text-white/50">points</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Right - Tables Plan Toggle - Responsive position */}
+      <div className="fixed bottom-2 right-2 md:bottom-4 md:right-4 z-[9999] space-y-3">
         {/* Tables Plan Toggle */}
         <button
           onClick={handleToggleTablesPlan}
-          className={`flex items-center gap-2 text-white font-bold text-sm px-4 py-3 rounded-xl shadow-2xl transition-all ${
+          className={`flex items-center gap-1 md:gap-2 text-white font-bold text-sm md:text-lg px-3 py-2 md:px-5 md:py-4 rounded-lg md:rounded-xl shadow-2xl transition-all ${
             showTablesPlan ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''
           }`}
           style={{
@@ -1105,189 +1788,12 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             borderStyle: 'solid',
           }}
         >
-          <LayoutGrid className="h-5 w-5" />
-          <span>{showTablesPlan ? 'Masquer Tables' : 'Plan des Tables'}</span>
+          <LayoutGrid className="h-4 w-4 md:h-6 md:w-6" />
+          <span className="hidden sm:inline">{showTablesPlan ? 'Masquer Tables' : 'Plan des Tables'}</span>
+          <span className="sm:hidden">{showTablesPlan ? 'Masquer' : 'Tables'}</span>
         </button>
-
-        {/* Theme Selector */}
-        <div className="bg-[hsl(220,15%,18%)] border-2 rounded-xl p-4 shadow-2xl" style={{ borderColor: currentTheme.colors.primary }}>
-          <button
-            onClick={() => setShowThemeSelector(!showThemeSelector)}
-            className="flex items-center gap-2 text-white font-bold text-sm mb-2 transition-colors w-full"
-            style={{ color: showThemeSelector ? currentTheme.colors.primaryLight : '#ffffff' }}
-          >
-            <Palette className="h-5 w-5" />
-            <span>Thème: {currentTheme.name}</span>
-            <span className="text-xs ml-auto">{showThemeSelector ? '▼' : '▶'}</span>
-          </button>
-
-          {showThemeSelector && (
-            <div className="space-y-2 pt-2 border-t border-white/20 max-h-[300px] overflow-y-auto">
-              {TV_THEMES.map((theme) => (
-                <button
-                  key={theme.id}
-                  onClick={() => handleThemeChange(theme)}
-                  className="w-full flex items-center gap-3 p-2 rounded-lg transition-all hover:bg-white/10"
-                  style={{
-                    backgroundColor: currentTheme.id === theme.id ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
-                  }}
-                >
-                  <div
-                    className="w-6 h-6 rounded-full border-2 border-white"
-                    style={{ backgroundColor: theme.colors.primary }}
-                  />
-                  <span className="text-sm text-white font-medium">{theme.name}</span>
-                  {currentTheme.id === theme.id && (
-                    <span className="ml-auto text-xs" style={{ color: theme.colors.primary }}>✓</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* TTS Controls */}
-        <div className="bg-[hsl(220,15%,18%)] border-2 rounded-xl p-4 shadow-2xl" style={{ borderColor: currentTheme.colors.primary }}>
-          <button
-            onClick={() => setShowControls(!showControls)}
-            className="flex items-center gap-2 text-white font-bold text-sm mb-2 transition-colors w-full"
-            style={{ color: showControls ? currentTheme.colors.primaryLight : '#ffffff' }}
-          >
-            <Volume2 className="h-5 w-5" />
-            <span>Contrôles TTS</span>
-            <span className="text-xs ml-auto">{showControls ? '▼' : '▶'}</span>
-          </button>
-
-          {showControls && (
-            <div className="space-y-3 pt-2 border-t border-white/20">
-              {/* Volume Control */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-white/80 flex items-center gap-1">
-                    <Volume2 className="h-3 w-3" />
-                    Volume
-                  </label>
-                  <span className="text-xs text-white font-bold">{Math.round(ttsVolume * 100)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={ttsVolume}
-                  onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
-                  style={{
-                    accentColor: currentTheme.colors.primary,
-                  }}
-                />
-              </div>
-
-              {/* Speed Control */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-white/80 flex items-center gap-1">
-                    <Gauge className="h-3 w-3" />
-                    Vitesse
-                  </label>
-                  <span className="text-xs text-white font-bold">{ttsSpeed.toFixed(1)}x</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="2"
-                  step="0.1"
-                  value={ttsSpeed}
-                  onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
-                  className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer"
-                  style={{
-                    accentColor: currentTheme.colors.primary,
-                  }}
-                />
-              </div>
-
-              {/* Blind Commentary Toggle */}
-              <div>
-                <button
-                  onClick={() => handleBlindCommentaryToggle(!blindCommentaryEnabled)}
-                  className="flex items-center gap-2 w-full p-2 rounded-lg transition-colors"
-                  style={{
-                    backgroundColor: blindCommentaryEnabled ? `${currentTheme.colors.primary}30` : 'transparent',
-                    border: `1px solid ${blindCommentaryEnabled ? currentTheme.colors.primary : 'rgba(255,255,255,0.2)'}`,
-                  }}
-                >
-                  <MessageSquare className="h-4 w-4" style={{ color: blindCommentaryEnabled ? currentTheme.colors.primary : 'rgba(255,255,255,0.5)' }} />
-                  <span className="text-xs text-white/80">Commentaires blinds</span>
-                  <span
-                    className="ml-auto text-xs font-bold"
-                    style={{ color: blindCommentaryEnabled ? currentTheme.colors.primary : 'rgba(255,255,255,0.5)' }}
-                  >
-                    {blindCommentaryEnabled ? 'ON' : 'OFF'}
-                  </span>
-                </button>
-                <p className="text-[10px] text-white/50 mt-1 pl-1">
-                  Sons décompte toujours actifs
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
-      {/* Bottom Left - Top Sharks & Rebuyers */}
-      {(topSharks.length > 0 || topRebuyers.length > 0) && (
-        <div className="fixed bottom-4 left-4 flex gap-4 z-[9999]">
-          {/* Top 3 Sharks */}
-          {topSharks.length > 0 && (
-            <div className="bg-[hsl(220,15%,18%)] border-2 border-red-500 rounded-xl p-3 shadow-2xl">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">🦈</span>
-                <h3 className="text-sm font-bold text-red-400 uppercase">Top Sharks</h3>
-              </div>
-              <div className="space-y-1">
-                {topSharks.map((player, index) => (
-                  <div key={player.id} className="flex items-center gap-2 text-xs">
-                    <span className="text-white/80 font-bold">
-                      {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                    </span>
-                    <span className="text-white font-medium">
-                      {player.player.nickname || `${player.player.firstName} ${player.player.lastName.charAt(0)}.`}
-                    </span>
-                    <span className="text-red-400 font-bold ml-auto">
-                      {player.eliminationsCount} 💀
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Top 3 Rebuyers */}
-          {topRebuyers.length > 0 && (
-            <div className="bg-[hsl(220,15%,18%)] border-2 border-yellow-500 rounded-xl p-3 shadow-2xl">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xl">💸</span>
-                <h3 className="text-sm font-bold text-yellow-400 uppercase">Top Recavers</h3>
-              </div>
-              <div className="space-y-1">
-                {topRebuyers.map((player, index) => (
-                  <div key={player.id} className="flex items-center gap-2 text-xs">
-                    <span className="text-white/80 font-bold">
-                      {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
-                    </span>
-                    <span className="text-white font-medium">
-                      {player.player.nickname || `${player.player.firstName} ${player.player.lastName.charAt(0)}.`}
-                    </span>
-                    <span className="text-yellow-400 font-bold ml-auto">
-                      {player.rebuysCount} 🔄
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

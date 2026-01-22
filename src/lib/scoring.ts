@@ -26,42 +26,47 @@ export interface SeasonWithPenaltyRules {
 /**
  * Compute the recave penalty for a player based on their total rebuys.
  *
- * Logic (NON-CUMULATIVE):
- * 1. If totalRebuys <= freeRebuysCount, penalty = 0
- * 2. Otherwise, find the highest tier where totalRebuys >= tier.fromRecaves
- * 3. Return that tier's penaltyPoints (or 0 if no tier matches)
+ * Logic (CUMULATIVE - Règle WPT Villelaure):
+ * - Light rebuy compte comme 0.5 recave équivalente
+ * - 1 recave gratuite (freeRebuysCount configurable dans la saison)
+ * - Chaque recave payante au-delà de la gratuite : -50 pts
  *
- * @param totalRebuys - Total number of rebuys (standard only, not light)
+ * Formule:
+ * recavesEquivalentes = rebuysCount + (lightRebuyUsed ? 0.5 : 0)
+ * recavesPayantes = max(0, recavesEquivalentes - freeRebuysCount)
+ * penaltyPoints = round(recavesPayantes * -50)
+ *
+ * Exemple: Bruno avec 4 rebuys + 1 light (freeRebuysCount=1):
+ * - Recaves équivalentes: 4 + 0.5 = 4.5
+ * - Recaves payantes: max(0, 4.5 - 1) = 3.5
+ * - Malus: round(3.5 × -50) = -175 pts
+ *
+ * @param totalRebuys - Total number of standard rebuys
  * @param rules - The season's rebuy penalty rules
+ * @param lightRebuyUsed - Whether a light rebuy was used
  * @returns The penalty points (negative number or 0)
  */
 export function computeRecavePenalty(
   totalRebuys: number,
-  rules: RecavePenaltyRules
+  rules: RecavePenaltyRules,
+  lightRebuyUsed: boolean = false
 ): number {
-  // No penalty if within free rebuys
-  if (totalRebuys <= rules.freeRebuysCount) {
+  // Light rebuy compte comme 0.5 recave équivalente
+  const recavesEquivalentes = totalRebuys + (lightRebuyUsed ? 0.5 : 0);
+
+  // Nombre de recaves payantes (au-delà des gratuites)
+  const recavesPayantes = Math.max(0, recavesEquivalentes - rules.freeRebuysCount);
+
+  // Si pas de recaves payantes, retourner 0 (évite -0)
+  if (recavesPayantes === 0) {
     return 0;
   }
 
-  // Handle empty tiers
-  if (!rules.tiers || rules.tiers.length === 0) {
-    return 0;
-  }
+  // Malus par recave payante (utiliser le tier1 comme malus unitaire, ou -50 par défaut)
+  const penaltyPerUnit = rules.tiers.length > 0 ? Math.abs(rules.tiers[0].penaltyPoints) : 50;
 
-  // Sort tiers by fromRecaves descending to find highest matching tier first
-  const sortedTiers = [...rules.tiers].sort(
-    (a, b) => b.fromRecaves - a.fromRecaves
-  );
-
-  // Find the highest tier that applies
-  for (const tier of sortedTiers) {
-    if (totalRebuys >= tier.fromRecaves) {
-      return tier.penaltyPoints;
-    }
-  }
-
-  return 0;
+  // Total: arrondi pour éviter les problèmes de virgule flottante
+  return Math.round(recavesPayantes * -penaltyPerUnit);
 }
 
 /**

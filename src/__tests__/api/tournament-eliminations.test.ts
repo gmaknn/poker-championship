@@ -152,6 +152,10 @@ describe('API /api/tournaments/[id]/eliminations RBAC', () => {
     // Setup transaction mock - updated for atomic transaction
     mockPrismaClient.$transaction = jest.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
+        tournament: {
+          // Pour récupérer seasonLeaderAtStartId (Leader Kill check)
+          findUnique: jest.fn().mockResolvedValue({ seasonLeaderAtStartId: PLAYER_A_ID }),
+        },
         tournamentPlayer: {
           findMany: jest.fn().mockResolvedValue(MOCK_TOURNAMENT_ELIM.tournamentPlayers),
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -166,7 +170,7 @@ describe('API /api/tournaments/[id]/eliminations RBAC', () => {
             eliminatorId: PLAYER_B_ID,
             rank: 2,
             level: 3,
-            isLeaderKill: true,
+            isLeaderKill: true, // PLAYER_A est le leader, donc c'est un leader kill
             eliminated: { id: PLAYER_A_ID, firstName: 'Player', lastName: 'A', nickname: 'playerA' },
             eliminator: { id: PLAYER_B_ID, firstName: 'Player', lastName: 'B', nickname: 'playerB' },
           }),

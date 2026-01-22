@@ -3,19 +3,29 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Search, Trophy, Zap } from 'lucide-react';
+import { Users, Search, Trophy, Zap, Calendar, LogIn } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { useCurrentPlayer } from '@/components/layout/player-nav';
 
 type Player = {
   id: string;
   firstName: string;
   lastName: string;
   nickname: string;
+  avatar: string | null;
   status: string;
 };
 
-export default function PlayerSelectPage() {
+const getAvatarUrl = (avatar: string | null) => {
+  if (!avatar) return null;
+  if (avatar.startsWith('/')) return avatar;
+  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
+};
+
+export default function PlayerHomePage() {
   const router = useRouter();
+  const { currentPlayer } = useCurrentPlayer();
   const [players, setPlayers] = useState<Player[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,55 +72,82 @@ export default function PlayerSelectPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p className="text-muted-foreground">Chargement...</p>
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center space-y-2">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+          <p className="text-muted-foreground">Chargement...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen p-6 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <h1 className="text-4xl font-bold">Espace Joueur</h1>
-        <p className="text-xl text-muted-foreground">
-          Sélectionnez votre profil pour accéder à vos statistiques
+        <h1 className="text-2xl sm:text-4xl font-bold">Bienvenue</h1>
+        <p className="text-sm sm:text-xl text-muted-foreground">
+          {currentPlayer
+            ? `Bonjour ${currentPlayer.firstName} !`
+            : 'Connectez-vous pour accéder à votre profil'}
         </p>
+        {!currentPlayer && (
+          <Button
+            onClick={() => router.push('/player/login')}
+            className="mt-4 min-h-[44px]"
+          >
+            <LogIn className="h-5 w-5 mr-2" />
+            Se connecter
+          </Button>
+        )}
       </div>
 
-      {/* Quick Access - Leaderboards */}
-      <div className="max-w-4xl mx-auto">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card
-            className="cursor-pointer hover:bg-accent transition-colors border-primary/20"
-            onClick={() => router.push('/player/leaderboard')}
-          >
-            <CardHeader className="flex flex-row items-center gap-4">
-              <Trophy className="h-10 w-10 text-yellow-500" />
-              <div>
-                <CardTitle>Classement Général</CardTitle>
-                <CardDescription>
-                  Voir le classement de la saison en cours
-                </CardDescription>
-              </div>
-            </CardHeader>
-          </Card>
+      {/* Quick Access Cards */}
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <Card
+          className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/20"
+          onClick={() => router.push('/player/leaderboard')}
+        >
+          <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
+            <Trophy className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg">Classement</CardTitle>
+              <CardDescription className="text-sm truncate">
+                Saison en cours
+              </CardDescription>
+            </div>
+          </CardHeader>
+        </Card>
 
-          <Card
-            className="cursor-pointer hover:bg-accent transition-colors border-primary/20"
-            onClick={() => router.push('/player/live')}
-          >
-            <CardHeader className="flex flex-row items-center gap-4">
-              <Zap className="h-10 w-10 text-orange-500" />
-              <div>
-                <CardTitle>Classement Live</CardTitle>
-                <CardDescription>
-                  Suivre les points en direct pendant un tournoi
-                </CardDescription>
-              </div>
-            </CardHeader>
-          </Card>
-        </div>
+        <Card
+          className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/20"
+          onClick={() => router.push('/player/tournaments')}
+        >
+          <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
+            <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg">Tournois</CardTitle>
+              <CardDescription className="text-sm truncate">
+                Historique et résultats
+              </CardDescription>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card
+          className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/20 sm:col-span-2 lg:col-span-1"
+          onClick={() => router.push('/player/live')}
+        >
+          <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
+            <Zap className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500 flex-shrink-0" />
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-lg">Live</CardTitle>
+              <CardDescription className="text-sm truncate">
+                Points en direct
+              </CardDescription>
+            </div>
+          </CardHeader>
+        </Card>
       </div>
 
       {/* Search */}
@@ -122,43 +159,55 @@ export default function PlayerSelectPage() {
             placeholder="Rechercher un joueur..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 min-h-[44px]"
           />
         </div>
       </div>
 
       {/* Players Grid */}
-      <div className="max-w-4xl mx-auto">
-        {filteredPlayers.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Users className="h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                {searchQuery ? 'Aucun joueur trouvé' : 'Aucun joueur disponible'}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredPlayers.map((player) => (
-              <Card
-                key={player.id}
-                className="cursor-pointer hover:bg-accent transition-colors"
-                onClick={() => handlePlayerSelect(player.id)}
-              >
-                <CardHeader>
-                  <CardTitle className="text-xl">
+      {filteredPlayers.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Users className="h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">
+              {searchQuery ? 'Aucun joueur trouvé' : 'Aucun joueur disponible'}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredPlayers.map((player) => (
+            <Card
+              key={player.id}
+              className="cursor-pointer hover:bg-accent/50 transition-colors"
+              onClick={() => handlePlayerSelect(player.id)}
+            >
+              <CardContent className="flex items-center gap-3 p-4">
+                {/* Avatar */}
+                {player.avatar && getAvatarUrl(player.avatar) ? (
+                  <img
+                    src={getAvatarUrl(player.avatar)!}
+                    alt={player.nickname}
+                    className="w-10 h-10 rounded-full border border-border flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium truncate">
                     {player.firstName} {player.lastName}
-                  </CardTitle>
-                  <CardDescription className="text-base">
+                  </h3>
+                  <p className="text-sm text-muted-foreground truncate">
                     {player.nickname}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

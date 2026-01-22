@@ -502,13 +502,14 @@ describe('Penalty recalculation with null values', () => {
       ],
     };
 
+    // New linear penalty system: -50 per rebuy beyond freeRebuysCount (2)
     expect(computeRecavePenalty(0, rules)).toBe(0);
     expect(computeRecavePenalty(1, rules)).toBe(0);
     expect(computeRecavePenalty(2, rules)).toBe(0);
-    expect(computeRecavePenalty(3, rules)).toBe(-50);
-    expect(computeRecavePenalty(4, rules)).toBe(-100);
-    expect(computeRecavePenalty(5, rules)).toBe(-150);
-    expect(computeRecavePenalty(6, rules)).toBe(-150);
+    expect(computeRecavePenalty(3, rules)).toBe(-50);  // 1 payante
+    expect(computeRecavePenalty(4, rules)).toBe(-100); // 2 payantes
+    expect(computeRecavePenalty(5, rules)).toBe(-150); // 3 payantes
+    expect(computeRecavePenalty(6, rules)).toBe(-200); // 4 payantes (linear, no cap)
   });
 
   it('should correctly calculate total points with null values', () => {

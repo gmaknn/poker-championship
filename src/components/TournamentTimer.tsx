@@ -310,44 +310,44 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {error && (
         <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {/* Niveau actuel - ink variant pour KPIs */}
+      {/* Niveau actuel - Optimisé mobile avec blinds côte à côte */}
       <SectionCard
         variant="ink"
         title="Niveau actuel"
         actions={
-          <Badge variant="outline">
-            Niveau {timerState.currentLevelData.level}
+          <Badge variant="outline" className="text-base px-3 py-1">
+            Niv. {timerState.currentLevelData.level}
           </Badge>
         }
       >
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2 md:gap-6">
           {/* Small Blind */}
           <div className="text-center">
-            <div className="text-sm text-ink-foreground/70 mb-1">Small Blind</div>
-            <div className="text-3xl font-bold">
+            <div className="text-xs md:text-sm text-ink-foreground/70 mb-1">SB</div>
+            <div className="text-xl md:text-3xl font-bold">
               {timerState.currentLevelData.smallBlind.toLocaleString()}
             </div>
           </div>
 
           {/* Big Blind */}
           <div className="text-center">
-            <div className="text-sm text-ink-foreground/70 mb-1">Big Blind</div>
-            <div className="text-3xl font-bold">
+            <div className="text-xs md:text-sm text-ink-foreground/70 mb-1">BB</div>
+            <div className="text-xl md:text-3xl font-bold">
               {timerState.currentLevelData.bigBlind.toLocaleString()}
             </div>
           </div>
 
           {/* Ante */}
           <div className="text-center">
-            <div className="text-sm text-ink-foreground/70 mb-1">Ante</div>
-            <div className="text-3xl font-bold">
+            <div className="text-xs md:text-sm text-ink-foreground/70 mb-1">Ante</div>
+            <div className="text-xl md:text-3xl font-bold">
               {timerState.currentLevelData.ante > 0
                 ? timerState.currentLevelData.ante.toLocaleString()
                 : '-'}
@@ -356,19 +356,19 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
         </div>
       </SectionCard>
 
-      {/* Timer */}
+      {/* Timer - Grand et lisible */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 md:pt-6 px-3 md:px-6">
           <div className="space-y-4">
-            {/* Temps restant */}
+            {/* Temps restant - TRÈS visible */}
             <div className="text-center">
-              <div className="text-sm text-muted-foreground mb-2 flex items-center justify-center gap-2">
+              <div className="text-xs md:text-sm text-muted-foreground mb-1 flex items-center justify-center gap-2">
                 <Clock className="h-4 w-4" />
-                Temps restant dans le niveau
+                Temps restant
               </div>
               <div
-                className={`text-6xl font-mono font-bold transition-all ${
-                  isFlashing ? 'animate-pulse text-orange-500 scale-110' :
+                className={`text-5xl md:text-7xl font-mono font-bold transition-all ${
+                  isFlashing ? 'animate-pulse text-orange-500 scale-105' :
                   isLowTime ? 'text-destructive' : ''
                 }`}
               >
@@ -377,67 +377,67 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
             </div>
 
             {/* Barre de progression */}
-            <div className="space-y-2">
-              <div className="h-4 bg-secondary rounded-full overflow-hidden">
+            <div className="space-y-1">
+              <div className="h-3 md:h-4 bg-secondary rounded-full overflow-hidden">
                 <div
                   className="h-full bg-primary transition-all duration-1000"
                   style={{ width: `${progress}%` }}
                 />
               </div>
               <div className="text-xs text-muted-foreground text-center">
-                {Math.floor(progress)}% du niveau complété
+                {Math.floor(progress)}% du niveau
               </div>
             </div>
 
-            {/* Boutons de contrôle */}
-            <div className="flex flex-wrap items-center justify-center gap-3 md:gap-4 pt-4">
+            {/* Boutons de contrôle - GROS pour mobile */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 pt-2">
               {!timerState.isRunning && !timerState.isPaused && (
-                <Button onClick={handleStart} size="lg">
-                  <Play className="mr-2 h-5 w-5" />
+                <Button onClick={handleStart} className="min-h-[56px] text-lg font-semibold flex-1 sm:flex-none sm:min-w-[160px]">
+                  <Play className="mr-2 h-6 w-6" />
                   Démarrer
                 </Button>
               )}
 
               {timerState.isRunning && (
-                <Button onClick={handlePause} size="lg" variant="outline">
-                  <Pause className="mr-2 h-5 w-5" />
+                <Button onClick={handlePause} variant="outline" className="min-h-[56px] text-lg font-semibold flex-1 sm:flex-none sm:min-w-[160px] border-2">
+                  <Pause className="mr-2 h-6 w-6" />
                   Pause
                 </Button>
               )}
 
               {timerState.isPaused && (
-                <Button onClick={handleResume} size="lg">
-                  <Play className="mr-2 h-5 w-5" />
+                <Button onClick={handleResume} className="min-h-[56px] text-lg font-semibold flex-1 sm:flex-none sm:min-w-[160px] bg-green-600 hover:bg-green-700">
+                  <Play className="mr-2 h-6 w-6" />
                   Reprendre
                 </Button>
               )}
 
               <Button
                 onClick={handleReset}
-                size="lg"
                 variant="destructive"
+                className="min-h-[48px] sm:min-h-[56px] font-semibold flex-1 sm:flex-none sm:min-w-[140px]"
                 disabled={!timerState.timerStartedAt}
               >
                 <RotateCcw className="mr-2 h-5 w-5" />
-                Réinitialiser
+                Reset
               </Button>
             </div>
 
             {/* Statut */}
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-2 pt-2">
               <div>
                 {timerState.isRunning && (
-                  <Badge variant="default">En cours</Badge>
+                  <Badge variant="default" className="text-sm px-3 py-1">En cours</Badge>
                 )}
                 {timerState.isPaused && (
-                  <Badge variant="secondary">En pause</Badge>
+                  <Badge variant="secondary" className="text-sm px-3 py-1">En pause</Badge>
                 )}
                 {!timerState.isRunning && !timerState.isPaused && (
-                  <Badge variant="outline">Non démarré</Badge>
+                  <Badge variant="outline" className="text-sm px-3 py-1">Non démarré</Badge>
                 )}
               </div>
               {(timerState.isRunning || timerState.isPaused) && (
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-muted-foreground hidden md:block">
                   Appuyez sur <kbd className="px-2 py-1 text-xs font-semibold bg-secondary rounded">Espace</kbd> pour pause/reprendre
                 </div>
               )}

@@ -90,7 +90,13 @@ async function calculateAndSavePoints(tournamentId: string): Promise<void> {
 
     if (tp.finalRank !== null) {
       rankPoints = getRankPointsForPosition(tp.finalRank, tournament.season!);
-      eliminationPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+      // Points d'élimination:
+      // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
+      // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
+      const finalElimPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+      const bustElimPoints = tp.bustEliminations * tournament.season!.bustEliminationBonus;
+      eliminationPoints = finalElimPoints + bustElimPoints;
+      // Bonus leader kill (uniquement après recaves)
       bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus;
     }
 
@@ -307,24 +313,15 @@ export async function POST(
         throw new Error('RANK_ALREADY_TAKEN');
       }
 
-      // Récupérer les éliminations existantes pour le leader kill
-      const existingEliminations = await tx.elimination.findMany({
-        where: { tournamentId },
+      // Vérifier si c'est un Leader Kill
+      // Un Leader Kill se produit quand la victime est le leader du classement
+      // de la saison au début du tournoi (seasonLeaderAtStartId)
+      // Note: On récupère le tournoi frais dans la transaction pour avoir seasonLeaderAtStartId
+      const tournamentData = await tx.tournament.findUnique({
+        where: { id: tournamentId },
+        select: { seasonLeaderAtStartId: true },
       });
-
-      // Compter les éliminations par joueur
-      const eliminationCounts = new Map<string, number>();
-      existingEliminations.forEach((elim) => {
-        const count = eliminationCounts.get(elim.eliminatorId) || 0;
-        eliminationCounts.set(elim.eliminatorId, count + 1);
-      });
-
-      const currentEliminatorCount =
-        (eliminationCounts.get(validatedData.eliminatorId) || 0) + 1;
-      eliminationCounts.set(validatedData.eliminatorId, currentEliminatorCount);
-
-      const maxEliminations = Math.max(...Array.from(eliminationCounts.values()));
-      const isLeaderKill = currentEliminatorCount === maxEliminations;
+      const isLeaderKill = tournamentData?.seasonLeaderAtStartId === validatedData.eliminatedId;
 
       // === ÉCRITURE ATOMIQUE avec updateMany conditionnel ===
       // Utiliser updateMany avec condition finalRank: null pour garantir l'atomicité

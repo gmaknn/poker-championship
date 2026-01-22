@@ -33,6 +33,7 @@ model Player {
   lastName          String
   nickname          String              @unique
   email             String?
+  phone             String?             @unique // Numéro de téléphone normalisé (ex: 0612345678)
   password          String?             // Hash du mot de passe (null = compte non activé)
   avatar            String?
   status            PlayerStatus        @default(INACTIVE)  // INACTIVE par défaut, passe à ACTIVE après activation
@@ -82,8 +83,9 @@ model Season {
   pointsEleventh        Int         @default(100)
   pointsSixteenth       Int         @default(50)
 
-  eliminationPoints     Int         @default(50)
-  leaderKillerBonus     Int         @default(25)
+  eliminationPoints     Int         @default(50)    // Bonus élim finale (après recaves)
+  bustEliminationBonus  Int         @default(25)    // Bonus élim bust (pendant recaves)
+  leaderKillerBonus     Int         @default(25)    // Bonus élim leader (après recaves)
 
   // Malus de recave
   freeRebuysCount       Int         @default(2)
@@ -144,6 +146,8 @@ model Tournament {
   prizePayoutCount      Int?                // Nombre de places payées
   prizePayoutPercents   Json?               // Array de pourcentages ex: [50, 30, 20]
   prizePayoutUpdatedAt  DateTime?           // Dernière mise à jour de la distribution
+  prizePoolAdjustment   Float               @default(0)  // Ajustement manuel (+/- €)
+  prizePoolAdjustmentReason String?         // Motif de l'ajustement
 
   // Données du tournoi
   totalPlayers          Int?
@@ -156,6 +160,10 @@ model Tournament {
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
   finishedAt            DateTime?
+
+  // Leader du classement saison au démarrage du tournoi (pour bonus Leader Killer)
+  // Figé au moment du démarrage, null si premier tournoi de la saison
+  seasonLeaderAtStartId String?
 
   // Relations
   tournamentPlayers     TournamentPlayer[]
@@ -187,7 +195,10 @@ model TournamentPlayer {
   finalRank         Int?
   rebuysCount       Int         @default(0)
   lightRebuyUsed    Boolean     @default(false)
-  eliminationsCount Int         @default(0)
+  voluntaryFullRebuyUsed Boolean @default(false)  // True si le joueur a fait une recave volontaire full (10€ sans bust)
+  currentStack      Int?        // Stack actuel du joueur (null = stack de départ, utilisé pour rebuy volontaire)
+  eliminationsCount Int         @default(0)   // Éliminations finales (après recaves)
+  bustEliminations  Int         @default(0)   // Éliminations bust (pendant recaves)
   leaderKills       Int         @default(0)
 
   // Points calculés

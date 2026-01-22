@@ -121,8 +121,12 @@ export async function GET(
         // Use new detailed config if available, otherwise fall back to legacy
         rankPoints = getRankPointsForPosition(tp.finalRank, tournament.season);
 
-        // Points d'élimination
-        eliminationPoints = tp.eliminationsCount * tournament.season.eliminationPoints;
+        // Points d'élimination (finales + bust)
+        // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
+        // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
+        const finalElimPoints = tp.eliminationsCount * tournament.season.eliminationPoints;
+        const bustElimPoints = tp.bustEliminations * tournament.season.bustEliminationBonus;
+        eliminationPoints = finalElimPoints + bustElimPoints;
 
         // Bonus Leader Killer
         bonusPoints = tp.leaderKills * tournament.season.leaderKillerBonus;
@@ -149,6 +153,7 @@ export async function GET(
         status: tournament.status,
         type: tournament.type,
         buyInAmount: tournament.buyInAmount,
+        lightRebuyAmount: tournament.lightRebuyAmount,
         prizePool: tournament.prizePool,
       },
       season: tournament.season,
@@ -171,14 +176,27 @@ export async function POST(
   try {
     const { id: tournamentId } = await params;
 
-    // Récupérer le tournoi avec la saison et tous les joueurs
+    // Récupérer le tournoi avec la saison, les joueurs et les montants de gains
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       include: {
         season: true,
         tournamentPlayers: true,
       },
+      // Also get prize payout config
     });
+
+    // Get prize amounts from tournament (stored in prizePayoutPercents as € amounts)
+    const tournamentWithPrizes = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: {
+        prizePayoutPercents: true,
+        prizePayoutCount: true,
+      },
+    });
+
+    // Parse prize amounts (stored as JSON array of € amounts)
+    const prizeAmounts = (tournamentWithPrizes?.prizePayoutPercents as number[] | null) || [];
 
     if (!tournament) {
       return NextResponse.json(
@@ -211,8 +229,12 @@ export async function POST(
         // Use new detailed config if available, otherwise fall back to legacy
         rankPoints = getRankPointsForPosition(tp.finalRank, tournament.season!);
 
-        // Points d'élimination
-        eliminationPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+        // Points d'élimination (finales + bust)
+        // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
+        // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
+        const finalElimPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
+        const bustElimPoints = tp.bustEliminations * tournament.season!.bustEliminationBonus;
+        eliminationPoints = finalElimPoints + bustElimPoints;
 
         // Bonus Leader Killer
         bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus;
@@ -220,6 +242,13 @@ export async function POST(
 
       // Calculer le total (penaltyPoints déjà stocké)
       const totalPoints = rankPoints + eliminationPoints + bonusPoints + tp.penaltyPoints;
+
+      // Déterminer le gain (prize) selon le classement final
+      // prizeAmounts[0] = gain pour le 1er, prizeAmounts[1] = gain pour le 2ème, etc.
+      let prizeAmount: number | null = null;
+      if (tp.finalRank !== null && tp.finalRank >= 1 && tp.finalRank <= prizeAmounts.length) {
+        prizeAmount = prizeAmounts[tp.finalRank - 1];
+      }
 
       // Mettre à jour dans la base de données
       return prisma.tournamentPlayer.update({
@@ -234,6 +263,7 @@ export async function POST(
           eliminationPoints,
           bonusPoints,
           totalPoints,
+          prizeAmount,
         },
       });
     });

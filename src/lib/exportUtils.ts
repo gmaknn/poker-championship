@@ -61,7 +61,7 @@ const downloadDataUrl = (dataUrl: string, filename: string) => {
 
 /**
  * Export element as PNG image
- * Optimized for WhatsApp sharing (high quality, proper sizing)
+ * Captures the full content including scrolled areas
  */
 export const exportToPNG = async ({
   element,
@@ -70,13 +70,30 @@ export const exportToPNG = async ({
   pixelRatio = 2,
 }: ExportImageOptions): Promise<void> => {
   try {
+    // Get the full scrollable dimensions
+    const scrollHeight = element.scrollHeight;
+    const scrollWidth = element.scrollWidth;
+
     const dataUrl = await toPng(element, {
       backgroundColor,
       pixelRatio,
       cacheBust: true,
+      // Capture full content dimensions
+      width: scrollWidth,
+      height: scrollHeight,
       style: {
-        // Ensure good rendering
+        // Ensure full content is rendered
         transform: 'scale(1)',
+        transformOrigin: 'top left',
+        // Override any overflow hidden
+        overflow: 'visible',
+      },
+      // Filter out elements with 'no-export' class
+      filter: (node) => {
+        if (node instanceof Element) {
+          return !node.classList.contains('no-export');
+        }
+        return true;
       },
     });
 

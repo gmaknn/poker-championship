@@ -124,12 +124,14 @@ describe('exportUtils', () => {
         filename: 'test-export',
       });
 
-      expect(mockToPng).toHaveBeenCalledWith(mockElement, {
-        backgroundColor: '#ffffff',
-        pixelRatio: 2,
-        cacheBust: true,
-        style: { transform: 'scale(1)' },
-      });
+      expect(mockToPng).toHaveBeenCalledWith(
+        mockElement,
+        expect.objectContaining({
+          backgroundColor: '#ffffff',
+          pixelRatio: 2,
+          cacheBust: true,
+        })
+      );
     });
 
     it('should use custom backgroundColor when provided', async () => {

@@ -127,7 +127,12 @@ export async function POST(request: NextRequest, { params }: Params) {
 
         if (tp.finalRank !== null) {
           rankPoints = getRankPointsForPosition(tp.finalRank, season);
-          eliminationPoints = tp.eliminationsCount * season.eliminationPoints;
+          // Points d'élimination (finales + bust)
+          // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
+          // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
+          const finalElimPoints = tp.eliminationsCount * season.eliminationPoints;
+          const bustElimPoints = tp.bustEliminations * season.bustEliminationBonus;
+          eliminationPoints = finalElimPoints + bustElimPoints;
           bonusPoints = tp.leaderKills * season.leaderKillerBonus;
         }
 

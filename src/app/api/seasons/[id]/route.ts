@@ -43,6 +43,7 @@ const seasonSchema = z.object({
   pointsSixteenth: z.number().int().default(50),
 
   eliminationPoints: z.number().int().default(50),
+  bustEliminationBonus: z.number().int().default(25),
   leaderKillerBonus: z.number().int().default(25),
 
   // Champs legacy (gardés pour rétrocompat)
@@ -219,11 +220,13 @@ async function recalculateSeasonPenalties(
     for (const tp of tournament.tournamentPlayers) {
       // Protection contre les valeurs null/undefined (données legacy ou incohérentes)
       const rebuysCount = tp.rebuysCount ?? 0;
+      const lightRebuyUsed = tp.lightRebuyUsed ?? false;
       const rankPoints = tp.rankPoints ?? 0;
       const eliminationPoints = tp.eliminationPoints ?? 0;
       const bonusPoints = tp.bonusPoints ?? 0;
 
-      const newPenalty = computeRecavePenalty(rebuysCount, rules);
+      // Note: light rebuy compte comme 0.5 recave dans le calcul du malus
+      const newPenalty = computeRecavePenalty(rebuysCount, rules, lightRebuyUsed);
 
       // Recalculer totalPoints
       const newTotal = rankPoints + eliminationPoints + bonusPoints + newPenalty;
@@ -319,6 +322,7 @@ export async function PATCH(
     pointsSixteenth: validatedData.pointsSixteenth,
 
     eliminationPoints: validatedData.eliminationPoints,
+    bustEliminationBonus: validatedData.bustEliminationBonus,
     leaderKillerBonus: validatedData.leaderKillerBonus,
 
     freeRebuysCount: validatedData.freeRebuysCount,

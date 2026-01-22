@@ -5,11 +5,17 @@ import { PlayerRole } from '@prisma/client';
 import { getCurrentPlayer, requirePermission } from '@/lib/auth-helpers';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
+// Helper to normalize phone number (remove spaces, dashes, dots)
+function normalizePhone(phone: string): string {
+  return phone.replace(/[\s\-\.]/g, '');
+}
+
 const playerSchema = z.object({
   firstName: z.string().min(1, 'Le prénom est requis'),
   lastName: z.string().min(1, 'Le nom est requis'),
   nickname: z.string().min(1, 'Le pseudo est requis'),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
   avatar: z.string().nullable().optional(),
   role: z.nativeEnum(PlayerRole).optional(),
 });
@@ -23,7 +29,19 @@ export async function GET(request: NextRequest) {
     const players = await prisma.player.findMany({
       where: { status: 'ACTIVE' },
       orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-      include: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        email: true,
+        phone: true,
+        avatar: true,
+        status: true,
+        role: true,
+        password: true, // Needed to compute isActivated, will be removed from response
+        createdAt: true,
+        updatedAt: true,
         _count: {
           select: {
             tournamentPlayers: true,
@@ -36,17 +54,15 @@ export async function GET(request: NextRequest) {
     // Si pas connecté ou pas les permissions, masquer certaines infos
     const hasViewPermission = currentPlayer && hasPermission(currentPlayer.role, PERMISSIONS.VIEW_PLAYERS);
 
-    if (!hasViewPermission) {
-      return NextResponse.json(
-        players.map(p => ({
-          ...p,
-          email: undefined, // Masquer l'email
-          // role reste visible pour la page de connexion
-        }))
-      );
-    }
+    // Transform players: remove password, add isActivated
+    const transformedPlayers = players.map(({ password, ...player }) => ({
+      ...player,
+      isActivated: !!password, // true if password is set
+      email: hasViewPermission ? player.email : undefined, // Masquer l'email si pas de permission
+      phone: hasViewPermission ? player.phone : undefined, // Masquer le téléphone si pas de permission
+    }));
 
-    return NextResponse.json(players);
+    return NextResponse.json(transformedPlayers);
   } catch (error) {
     console.error('Error fetching players:', error);
     return NextResponse.json(
@@ -81,12 +97,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Normalize phone if provided
+    const phone = validatedData.phone ? normalizePhone(validatedData.phone) : null;
+
     const player = await prisma.player.create({
       data: {
         firstName: validatedData.firstName,
         lastName: validatedData.lastName,
         nickname: validatedData.nickname,
         email: validatedData.email || null,
+        phone: phone || null,
         avatar: validatedData.avatar,
         role,
         status: 'ACTIVE', // Forcer ACTIVE à la création (override du default DB INACTIVE)

@@ -7,7 +7,7 @@ import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils'
 
 const bustSchema = z.object({
   eliminatedId: z.string().cuid(), // playerId du joueur qui a perdu son tapis
-  killerId: z.string().cuid().optional(), // playerId du killer (optionnel)
+  killerId: z.string().cuid(), // playerId du killer (obligatoire)
 });
 
 // GET - Récupérer tous les busts du tournoi
@@ -148,19 +148,24 @@ export async function POST(
       );
     }
 
-    // Vérifier le killer s'il est spécifié
-    let killerPlayer = null;
-    if (validatedData.killerId) {
-      killerPlayer = tournament.tournamentPlayers.find(
-        (tp) => tp.playerId === validatedData.killerId
-      );
+    // Vérifier le killer (obligatoire)
+    const killerPlayer = tournament.tournamentPlayers.find(
+      (tp) => tp.playerId === validatedData.killerId
+    );
 
-      if (!killerPlayer) {
-        return NextResponse.json(
-          { error: 'Killer is not enrolled in this tournament' },
-          { status: 400 }
-        );
-      }
+    if (!killerPlayer) {
+      return NextResponse.json(
+        { error: 'Killer is not enrolled in this tournament' },
+        { status: 400 }
+      );
+    }
+
+    // Vérifier que le killer n'est pas le joueur éliminé
+    if (validatedData.killerId === validatedData.eliminatedId) {
+      return NextResponse.json(
+        { error: 'A player cannot eliminate themselves' },
+        { status: 400 }
+      );
     }
 
     // === TRANSACTION ATOMIQUE ===
@@ -170,7 +175,7 @@ export async function POST(
         data: {
           tournamentId,
           eliminatedId: eliminatedPlayer.id, // TournamentPlayer ID
-          killerId: killerPlayer?.id || null, // TournamentPlayer ID
+          killerId: killerPlayer.id, // TournamentPlayer ID (obligatoire)
           level: effectiveLevel,
         },
         include: {
@@ -201,15 +206,15 @@ export async function POST(
         },
       });
 
-      // Incrémenter le nombre d'éliminations du killer s'il est spécifié
-      if (killerPlayer) {
-        await tx.tournamentPlayer.update({
-          where: { id: killerPlayer.id },
-          data: {
-            eliminationsCount: { increment: 1 },
-          },
-        });
-      }
+      // Incrémenter le nombre d'éliminations bust du killer
+      // Note: bustEliminations sont les éliminations PENDANT la période de recaves
+      // (pas les éliminations finales qui rapportent plus de points)
+      await tx.tournamentPlayer.update({
+        where: { id: killerPlayer.id },
+        data: {
+          bustEliminations: { increment: 1 },
+        },
+      });
 
       return bustEvent;
     });

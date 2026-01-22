@@ -52,6 +52,31 @@ export async function GET(
     // Récupérer les directeurs assignés
     const directors = await getTournamentDirectors(tournamentId);
 
+    // Récupérer les directeurs disponibles (joueurs avec rôle TD ou ADMIN non encore assignés)
+    const assignedPlayerIds = directors.map(d => d.playerId);
+
+    const availableDirectors = await prisma.player.findMany({
+      where: {
+        OR: [
+          { role: { in: ['TOURNAMENT_DIRECTOR', 'ADMIN'] } },
+          { roles: { some: { role: { in: ['TOURNAMENT_DIRECTOR', 'ADMIN'] } } } }
+        ],
+        // Exclure les joueurs déjà assignés à ce tournoi
+        NOT: assignedPlayerIds.length > 0 ? {
+          id: { in: assignedPlayerIds }
+        } : undefined,
+      },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        role: true,
+        avatar: true,
+      },
+      orderBy: { nickname: 'asc' },
+    });
+
     return NextResponse.json({
       tournamentId,
       createdBy: tournament.createdBy,
@@ -61,6 +86,7 @@ export async function GET(
         player: d.player,
         assignedAt: d.assignedAt,
       })),
+      availableDirectors,
     });
   } catch (error) {
     console.error('Error fetching tournament directors:', error);

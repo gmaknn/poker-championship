@@ -188,33 +188,39 @@ export default function SeasonLeaderboardPage({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-6 border-2 border-border">
-        <div className="flex items-center gap-4">
+      {/* Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-lg p-4 md:p-6 border-2 border-border">
+        <div className="flex items-start sm:items-center gap-3 md:gap-4">
           <Button
             variant="ghost"
             size="icon"
+            className="flex-shrink-0 mt-1 sm:mt-0"
             onClick={() => router.push('/dashboard/seasons')}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-4xl font-bold">Classement - {season.name}</h1>
-            <p className="text-muted-foreground mt-1 text-base">
-              {season.completedTournamentsCount} tournoi(s) complété(s)
-              {season.bestTournamentsCount &&
-                ` • Top ${season.bestTournamentsCount} performances comptabilisées`
-              }
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl md:text-4xl font-bold leading-tight">
+              Classement
+              <span className="block sm:inline"> - {season.name}</span>
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm md:text-base">
+              {season.completedTournamentsCount} tournoi(s)
+              {season.bestTournamentsCount && (
+                <span className="hidden sm:inline"> • Top {season.bestTournamentsCount} perfs</span>
+              )}
             </p>
           </div>
         </div>
         <Button
           onClick={() => router.push(`/dashboard/seasons/${id}/exports`)}
           variant="default"
-          size="lg"
+          size="default"
+          className="w-full sm:w-auto"
         >
-          <Download className="h-5 w-5 mr-2" />
-          Exports Visuels
+          <Download className="h-4 w-4 mr-2" />
+          <span className="sm:hidden">Exports</span>
+          <span className="hidden sm:inline">Exports Visuels</span>
         </Button>
       </div>
 

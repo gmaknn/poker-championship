@@ -5,11 +5,17 @@ import { PlayerRole } from '@prisma/client';
 import { requirePermission } from '@/lib/auth-helpers';
 import { hasPermission, PERMISSIONS } from '@/lib/permissions';
 
+// Helper to normalize phone number (remove spaces, dashes, dots)
+function normalizePhone(phone: string): string {
+  return phone.replace(/[\s\-\.]/g, '');
+}
+
 const playerSchema = z.object({
   firstName: z.string().min(1, 'Le prénom est requis'),
   lastName: z.string().min(1, 'Le nom est requis'),
   nickname: z.string().min(1, 'Le pseudo est requis'),
   email: z.string().email('Email invalide').optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
   avatar: z.string().nullable().optional(),
   role: z.nativeEnum(PlayerRole).optional(),
 });
@@ -71,12 +77,16 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = playerSchema.parse(body);
 
+    // Normalize phone if provided
+    const phone = validatedData.phone ? normalizePhone(validatedData.phone) : null;
+
     // Préparer les données de mise à jour
     const updateData: any = {
       firstName: validatedData.firstName,
       lastName: validatedData.lastName,
       nickname: validatedData.nickname,
       email: validatedData.email || null,
+      phone: phone || null,
       avatar: validatedData.avatar,
     };
 

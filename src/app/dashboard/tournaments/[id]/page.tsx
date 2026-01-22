@@ -35,6 +35,7 @@ interface Tournament {
   seasonId: string | null;
   date: string;
   buyInAmount: number;
+  lightRebuyAmount: number;
   startingChips: number;
   targetDuration: number;
   totalPlayers?: number | null;
@@ -256,9 +257,9 @@ export default function TournamentDetailPage({
   return (
     <div className="space-y-6">
       {/* Header - Zone HERO avec variant ink */}
-      <SectionCard variant="ink" noPadding className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+      <SectionCard variant="ink" noPadding className="p-4 md:p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
             <Button
               variant="ghost"
               size="icon"
@@ -266,26 +267,30 @@ export default function TournamentDetailPage({
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold">{tournament.name}</h1>
-                <Badge variant={statusConfig.variant} className="text-lg px-4 py-1">{statusConfig.label}</Badge>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl md:text-3xl font-bold truncate">{tournament.name}</h1>
+                <Badge variant={statusConfig.variant} className="text-sm md:text-lg px-2 md:px-4 py-0.5 md:py-1">{statusConfig.label}</Badge>
               </div>
-              <p className="text-ink-foreground/70 mt-1 text-base">
+              <p className="text-ink-foreground/70 mt-1 text-sm md:text-base truncate">
                 {tournament.season?.name} ({tournament.season?.year})
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
+              size="sm"
+              className="md:size-default"
               onClick={() => window.open(`/tv-v3/${tournament.id}`, '_blank')}
             >
-              <Tv className="mr-2 h-4 w-4" />
-              Vue TV
+              <Tv className="mr-1 md:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Vue </span>TV
             </Button>
             <Button
               variant="outline"
+              size="sm"
+              className="md:size-default"
               onClick={handleCopyTvUrl}
               title="Copier l'URL du mode TV"
             >
@@ -294,23 +299,25 @@ export default function TournamentDetailPage({
               ) : (
                 <Copy className="mr-2 h-4 w-4" />
               )}
-              {isCopied ? 'Copié !' : 'Copier URL'}
+              {isCopied ? 'Copié !' : <span className="hidden sm:inline">Copier URL</span>}
             </Button>
             <Button
               variant="outline"
+              size="sm"
+              className="md:size-default"
               onClick={handleEditClick}
               disabled={tournament.status === 'FINISHED'}
               title={tournament.status === 'FINISHED' ? 'Impossible de modifier un tournoi terminé' : ''}
             >
-              <Edit2 className="mr-2 h-4 w-4" />
-              Modifier
+              <Edit2 className="mr-1 md:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Modifier</span>
             </Button>
           </div>
         </div>
       </SectionCard>
 
       {/* Info cards - KPIs avec variant ink */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-3 grid-cols-2 md:gap-4 md:grid-cols-4">
         <SectionCard variant="ink" noPadding className="p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Date</span>
@@ -364,17 +371,17 @@ export default function TournamentDetailPage({
 
       {/* Tabs - Navigation avec fond ink */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-        <div className="bg-ink rounded-lg p-1 border border-border shadow-md">
-          <TabsList className="bg-transparent w-full justify-start">
-            <TabsTrigger value="structure">Structure des blinds</TabsTrigger>
-            <TabsTrigger value="config">Jetons</TabsTrigger>
-            <TabsTrigger value="players" data-admin-tab="players">Joueurs & Recaves</TabsTrigger>
-            <TabsTrigger value="tables" data-admin-tab="tables">Tables</TabsTrigger>
-            <TabsTrigger value="timer">Timer</TabsTrigger>
-            <TabsTrigger value="eliminations">Éliminations</TabsTrigger>
-            <TabsTrigger value="prizepool">Prize Pool</TabsTrigger>
-            <TabsTrigger value="results" data-admin-tab="results">Résultats</TabsTrigger>
-            {isAdmin && <TabsTrigger value="directors">Directeurs</TabsTrigger>}
+        <div className="bg-ink rounded-lg p-1 border border-border shadow-md overflow-x-auto">
+          <TabsList className="bg-transparent w-max md:w-full justify-start flex-nowrap">
+            <TabsTrigger value="structure" className="whitespace-nowrap text-xs md:text-sm">Structure</TabsTrigger>
+            <TabsTrigger value="config" className="whitespace-nowrap text-xs md:text-sm">Jetons</TabsTrigger>
+            <TabsTrigger value="players" data-admin-tab="players" className="whitespace-nowrap text-xs md:text-sm">Joueurs</TabsTrigger>
+            <TabsTrigger value="tables" data-admin-tab="tables" className="whitespace-nowrap text-xs md:text-sm">Tables</TabsTrigger>
+            <TabsTrigger value="timer" className="whitespace-nowrap text-xs md:text-sm">Timer</TabsTrigger>
+            <TabsTrigger value="eliminations" className="whitespace-nowrap text-xs md:text-sm">Élims</TabsTrigger>
+            <TabsTrigger value="prizepool" className="whitespace-nowrap text-xs md:text-sm">Prizes</TabsTrigger>
+            <TabsTrigger value="results" data-admin-tab="results" className="whitespace-nowrap text-xs md:text-sm">Résultats</TabsTrigger>
+            {isAdmin && <TabsTrigger value="directors" className="whitespace-nowrap text-xs md:text-sm">TD</TabsTrigger>}
           </TabsList>
         </div>
 
@@ -405,6 +412,7 @@ export default function TournamentDetailPage({
               id: tournament.id,
               status: tournament.status,
               buyInAmount: tournament.buyInAmount,
+              lightRebuyAmount: tournament.lightRebuyAmount,
             }}
             onUpdate={() => fetchTournament()}
           />

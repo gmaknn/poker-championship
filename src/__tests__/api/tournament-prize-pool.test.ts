@@ -1,6 +1,8 @@
 /**
  * Tests for GET/PUT /api/tournaments/[id]/prize-pool
  * RBAC enforcement and validation rules
+ *
+ * Note: The prize pool distribution uses amounts in € (not percentages)
  */
 
 import { NextRequest } from 'next/server';
@@ -21,6 +23,10 @@ jest.mock('@/lib/prisma', () => ({
     },
     tournamentDirector: {
       findUnique: jest.fn(),
+    },
+    tournamentPlayer: {
+      findMany: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));
@@ -45,8 +51,10 @@ describe('Tournament Prize Pool API', () => {
     lightRebuyAmount: 5,
     prizePool: null,
     prizePayoutCount: null,
-    prizePayoutPercents: null,
+    prizePayoutPercents: null, // Now stores amounts in €
     prizePayoutUpdatedAt: null,
+    prizePoolAdjustment: 0,
+    prizePoolAdjustmentReason: null,
     createdById: TEST_IDS.TD_PLAYER,
     tournamentPlayers: [
       { hasPaid: true, rebuysCount: 1, lightRebuyUsed: false },
@@ -85,9 +93,17 @@ describe('Tournament Prize Pool API', () => {
     (mockPrisma.tournament.update as jest.Mock).mockResolvedValue({
       id: tournamentId,
       prizePayoutCount: 3,
-      prizePayoutPercents: [50, 30, 20],
+      prizePayoutPercents: [22.5, 13.5, 9], // amounts in €
       prizePayoutUpdatedAt: new Date(),
     });
+
+    // Default tournamentPlayer mocks for automatic prize amount updates
+    (mockPrisma.tournamentPlayer.findMany as jest.Mock).mockResolvedValue([
+      { playerId: 'player-1', finalRank: 1 },
+      { playerId: 'player-2', finalRank: 2 },
+      { playerId: 'player-3', finalRank: 3 },
+    ]);
+    (mockPrisma.tournamentPlayer.update as jest.Mock).mockResolvedValue({});
   });
 
   describe('GET /api/tournaments/[id]/prize-pool', () => {
@@ -206,12 +222,12 @@ describe('Tournament Prize Pool API', () => {
     });
 
     describe('Response format', () => {
-      it('should return calculated prize pool with breakdown', async () => {
-        // Configure with payout percents
+      it('should return calculated prize pool with breakdown in euros', async () => {
+        // Configure with payout amounts in €
         (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
           ...mockTournament,
           prizePayoutCount: 3,
-          prizePayoutPercents: [50, 30, 20],
+          prizePayoutPercents: [22.5, 13.5, 9], // amounts in €
         });
 
         const request = new NextRequest(
@@ -230,7 +246,9 @@ describe('Tournament Prize Pool API', () => {
         expect(data).toHaveProperty('tournamentId');
         expect(data).toHaveProperty('totalPrizePool');
         expect(data).toHaveProperty('breakdown');
-        expect(data).toHaveProperty('percents');
+        expect(data).toHaveProperty('amounts');
+        expect(data).toHaveProperty('totalAllocated');
+        expect(data).toHaveProperty('remaining');
 
         // 3 paid players * 10€ + 1 rebuy * 10€ + 1 light rebuy * 5€ = 45€
         expect(data.totalBuyIns).toBe(30); // 3 * 10
@@ -240,8 +258,10 @@ describe('Tournament Prize Pool API', () => {
 
         expect(data.breakdown).toHaveLength(3);
         expect(data.breakdown[0].rank).toBe(1);
-        expect(data.breakdown[0].percent).toBe(50);
-        expect(data.breakdown[0].amount).toBe(22.5); // 45 * 0.5
+        expect(data.breakdown[0].amount).toBe(22.5); // directly in €
+
+        expect(data.totalAllocated).toBe(45); // 22.5 + 13.5 + 9
+        expect(data.remaining).toBe(0);
       });
     });
 
@@ -281,9 +301,11 @@ describe('Tournament Prize Pool API', () => {
   });
 
   describe('PUT /api/tournaments/[id]/prize-pool', () => {
+    // Valid payload with amounts in € (totalPrizePool = 45€ calculated from mockTournament)
     const validPayload = {
       payoutCount: 3,
-      percents: [50, 30, 20],
+      amounts: [22.5, 13.5, 9], // Total = 45€
+      totalPrizePool: 45,
     };
 
     describe('Authentication', () => {
@@ -359,8 +381,8 @@ describe('Tournament Prize Pool API', () => {
       });
     });
 
-    describe('Validation - Sum not 100', () => {
-      it('should return 400 when percents sum is not 100', async () => {
+    describe('Validation - Total exceeds prize pool', () => {
+      it('should return 400 when amounts sum exceeds prize pool', async () => {
         const request = new NextRequest(
           `http://localhost/api/tournaments/${tournamentId}/prize-pool`,
           {
@@ -371,7 +393,8 @@ describe('Tournament Prize Pool API', () => {
             },
             body: JSON.stringify({
               payoutCount: 3,
-              percents: [50, 30, 10], // Sum = 90, not 100
+              amounts: [30, 20, 10], // Sum = 60€, exceeds 45€
+              totalPrizePool: 45,
             }),
           }
         );
@@ -385,7 +408,7 @@ describe('Tournament Prize Pool API', () => {
     });
 
     describe('Validation - Count mismatch', () => {
-      it('should return 400 when payoutCount does not match percents length', async () => {
+      it('should return 400 when payoutCount does not match amounts length', async () => {
         const request = new NextRequest(
           `http://localhost/api/tournaments/${tournamentId}/prize-pool`,
           {
@@ -396,7 +419,8 @@ describe('Tournament Prize Pool API', () => {
             },
             body: JSON.stringify({
               payoutCount: 3,
-              percents: [60, 40], // Only 2 percents but count is 3
+              amounts: [30, 15], // Only 2 amounts but count is 3
+              totalPrizePool: 45,
             }),
           }
         );
@@ -407,8 +431,8 @@ describe('Tournament Prize Pool API', () => {
       });
     });
 
-    describe('Validation - Negative or zero percent', () => {
-      it('should return 400 when a percent is not positive', async () => {
+    describe('Validation - Negative amount', () => {
+      it('should return 400 when an amount is negative', async () => {
         const request = new NextRequest(
           `http://localhost/api/tournaments/${tournamentId}/prize-pool`,
           {
@@ -419,7 +443,8 @@ describe('Tournament Prize Pool API', () => {
             },
             body: JSON.stringify({
               payoutCount: 3,
-              percents: [60, 40, 0], // 0 is not positive
+              amounts: [30, 20, -5], // Negative amount
+              totalPrizePool: 45,
             }),
           }
         );
@@ -442,7 +467,8 @@ describe('Tournament Prize Pool API', () => {
             },
             body: JSON.stringify({
               payoutCount: 0,
-              percents: [],
+              amounts: [],
+              totalPrizePool: 45,
             }),
           }
         );
@@ -454,7 +480,7 @@ describe('Tournament Prize Pool API', () => {
     });
 
     describe('Success case', () => {
-      it('should update prize pool and return success', async () => {
+      it('should update prize pool with amounts in euros and return success', async () => {
         const request = new NextRequest(
           `http://localhost/api/tournaments/${tournamentId}/prize-pool`,
           {
@@ -473,17 +499,54 @@ describe('Tournament Prize Pool API', () => {
         const data = await response.json();
         expect(data.success).toBe(true);
         expect(data.payoutCount).toBe(3);
-        expect(data.percents).toEqual([50, 30, 20]);
+        expect(data.amounts).toEqual([22.5, 13.5, 9]);
+        expect(data.totalAllocated).toBe(45);
+        expect(data.remaining).toBe(0);
 
         expect(mockPrisma.tournament.update).toHaveBeenCalledWith({
           where: { id: tournamentId },
           data: {
             prizePayoutCount: 3,
-            prizePayoutPercents: [50, 30, 20],
+            prizePayoutPercents: [22.5, 13.5, 9], // amounts stored in this field
             prizePayoutUpdatedAt: expect.any(Date),
           },
           select: expect.any(Object),
         });
+      });
+
+      it('should allow partial distribution (remaining > 0)', async () => {
+        const partialPayload = {
+          payoutCount: 2,
+          amounts: [25, 15], // Total = 40€, remaining = 5€
+          totalPrizePool: 45,
+        };
+
+        (mockPrisma.tournament.update as jest.Mock).mockResolvedValue({
+          id: tournamentId,
+          prizePayoutCount: 2,
+          prizePayoutPercents: [25, 15],
+          prizePayoutUpdatedAt: new Date(),
+        });
+
+        const request = new NextRequest(
+          `http://localhost/api/tournaments/${tournamentId}/prize-pool`,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              cookie: `player-id=${TEST_IDS.ADMIN_PLAYER}`,
+            },
+            body: JSON.stringify(partialPayload),
+          }
+        );
+
+        const response = await PUT(request, { params: Promise.resolve({ id: tournamentId }) });
+
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        expect(data.success).toBe(true);
+        expect(data.totalAllocated).toBe(40);
+        expect(data.remaining).toBe(5);
       });
     });
   });

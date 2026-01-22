@@ -31,10 +31,10 @@ describe('Player Routes - Route Sentinel Tests', () => {
       expect(content).toContain("'use client'");
     });
 
-    it('should handle 401/403 auth errors', () => {
+    it('should use public API endpoint (no auth required)', () => {
       const content = fs.readFileSync(leaderboardPage, 'utf-8');
-      expect(content).toContain('401');
-      expect(content).toContain('403');
+      // Leaderboard is now public - uses /api/seasons endpoint without auth
+      expect(content).toContain('/api/seasons');
     });
   });
 

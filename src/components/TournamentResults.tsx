@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Calculator, Download, Image as ImageIcon, FileText, Share2, ExternalLink, Users, MessageCircle } from 'lucide-react';
-import { exportTournamentResults, exportToWhatsAppText, type TournamentResultsData } from '@/lib/exportUtils';
+import { Trophy, Download, Image as ImageIcon, ExternalLink, Users } from 'lucide-react';
+import { exportTournamentResults } from '@/lib/exportUtils';
 // Using native img for avatars to avoid next/image restrictions with external SVGs
 import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
 
@@ -41,7 +41,17 @@ type Tournament = {
   status: string;
   type: string;
   buyInAmount: number;
+  lightRebuyAmount: number;
   prizePool: number | null;
+};
+
+type PrizePoolData = {
+  totalPrizePool: number;
+  breakdown: { rank: number; amount: number }[];
+  paidPlayersCount: number;
+  totalBuyIns: number;
+  totalRebuys: number;
+  totalLightRebuys: number;
 };
 
 type Season = {
@@ -66,14 +76,15 @@ type Props = {
 export default function TournamentResults({ tournamentId, onUpdate }: Props) {
   const router = useRouter();
   const [resultsData, setResultsData] = useState<ResultsData | null>(null);
+  const [prizePoolData, setPrizePoolData] = useState<PrizePoolData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isCalculating, setIsCalculating] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [error, setError] = useState('');
   const exportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchResults();
+    fetchPrizePool();
   }, [tournamentId]);
 
   const fetchResults = async () => {
@@ -93,31 +104,26 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
     }
   };
 
-  const handleCalculatePoints = async () => {
-    setIsCalculating(true);
-    setError('');
-
+  const fetchPrizePool = async () => {
     try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/results`, {
-        method: 'POST',
-      });
-
+      const response = await fetch(`/api/tournaments/${tournamentId}/prize-pool`);
       if (response.ok) {
-        await fetchResults();
-        onUpdate?.();
-      } else {
         const data = await response.json();
-        setError(data.error || 'Erreur lors du calcul des points');
+        setPrizePoolData({
+          totalPrizePool: data.totalPrizePool,
+          breakdown: data.breakdown || [],
+          paidPlayersCount: data.paidPlayersCount,
+          totalBuyIns: data.totalBuyIns,
+          totalRebuys: data.totalRebuys,
+          totalLightRebuys: data.totalLightRebuys,
+        });
       }
     } catch (error) {
-      console.error('Error calculating points:', error);
-      setError('Erreur lors du calcul des points');
-    } finally {
-      setIsCalculating(false);
+      console.error('Error fetching prize pool:', error);
     }
   };
 
-  const handleExport = async (format: 'png' | 'jpeg' | 'whatsapp' | 'pdf') => {
+  const handleExportPNG = async () => {
     if (!exportRef.current || !resultsData) return;
 
     setIsExporting(true);
@@ -126,59 +132,13 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
     try {
       const tournamentName = resultsData.tournament.name || 'tournoi';
       const exportFn = exportTournamentResults(exportRef.current, tournamentName);
-
-      switch (format) {
-        case 'png':
-          await exportFn.png();
-          break;
-        case 'jpeg':
-          await exportFn.jpeg();
-          break;
-        case 'whatsapp':
-          await exportFn.whatsapp();
-          break;
-        case 'pdf':
-          await exportFn.pdf();
-          break;
-      }
+      await exportFn.png();
     } catch (error) {
       console.error('Error exporting:', error);
       setError('Erreur lors de l\'export');
     } finally {
       setIsExporting(false);
     }
-  };
-
-  const handleExportWhatsAppText = () => {
-    if (!resultsData) return;
-
-    const { tournament, season, results } = resultsData;
-
-    const exportData: TournamentResultsData = {
-      tournamentName: tournament.name || 'Tournoi',
-      date: new Date(tournament.date),
-      season: season ? {
-        name: season.name,
-        year: season.year,
-      } : undefined,
-      players: results.map((r) => ({
-        finalRank: r.finalRank,
-        player: {
-          nickname: r.player.nickname,
-          firstName: r.player.firstName,
-          lastName: r.player.lastName,
-        },
-        totalPoints: r.totalPoints,
-        eliminationPoints: r.eliminationPoints,
-        bonusPoints: r.bonusPoints,
-        penaltyPoints: r.penaltyPoints,
-        prizeAmount: r.prizeAmount ?? undefined,
-      })),
-      buyIn: tournament.buyInAmount ?? undefined,
-      prizePool: tournament.prizePool ?? undefined,
-    };
-
-    exportToWhatsAppText(exportData);
   };
 
   if (isLoading) {
@@ -200,7 +160,10 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
   }
 
   const { tournament, season, results } = resultsData;
-  const rankedPlayers = results.filter((p) => p.finalRank !== null);
+  // Trier par points totaux décroissants (pas par finalRank)
+  const rankedPlayers = results
+    .filter((p) => p.finalRank !== null)
+    .sort((a, b) => b.totalPoints - a.totalPoints);
   const activePlayers = results.filter((p) => p.finalRank === null);
   const isCompleted = tournament.status === 'FINISHED';
 
@@ -224,92 +187,56 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
         </div>
         <div className="flex items-center gap-2">
           {isCompleted && (
-            <>
-              {tournament.type === 'CHAMPIONSHIP' && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCalculatePoints}
-                    disabled={isCalculating || !season}
-                  >
-                    <Calculator className="mr-2 h-4 w-4" />
-                    {isCalculating ? 'Calcul...' : 'Recalculer les points'}
-                  </Button>
-
-                  <div className="h-4 w-px bg-border mx-1" />
-                </>
-              )}
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportWhatsAppText}
-                disabled={isExporting}
-                title="Copier le texte formaté pour WhatsApp"
-              >
-                <MessageCircle className="mr-2 h-4 w-4" />
-                Texte WhatsApp
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport('whatsapp')}
-                disabled={isExporting}
-                title="Export image optimisée WhatsApp"
-              >
-                <Share2 className="mr-2 h-4 w-4" />
-                Image WhatsApp
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport('png')}
-                disabled={isExporting}
-                title="Export PNG"
-              >
-                <ImageIcon className="mr-2 h-4 w-4" />
-                PNG
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport('pdf')}
-                disabled={isExporting}
-                title="Export PDF"
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                PDF
-              </Button>
-            </>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPNG}
+              disabled={isExporting}
+              title="Exporter le classement en image PNG"
+            >
+              <ImageIcon className="mr-2 h-4 w-4" />
+              {isExporting ? 'Export...' : 'Export PNG'}
+            </Button>
           )}
         </div>
       </div>
 
-      {/* Podium TOP 3 */}
-      {isCompleted && rankedPlayers.length >= 3 && (
-        <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                  <Trophy className="h-6 w-6 text-yellow-500" />
-                  Podium
-                </CardTitle>
-                <CardDescription>Les 3 premiers du tournoi</CardDescription>
-              </div>
-              {season && tournament.type === 'CHAMPIONSHIP' && (
-                <Button
-                  variant="outline"
-                  onClick={() => router.push('/dashboard/leaderboard')}
-                >
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  Voir le classement général
-                </Button>
-              )}
+      {/* Zone exportable - contient podium + classement */}
+      <div ref={exportRef} className="space-y-6 bg-background p-4 rounded-lg">
+        {/* Titre du tournoi pour l'export */}
+        {isCompleted && (
+          <div className="text-center pb-2">
+            <h2 className="text-2xl font-bold">{tournament.name}</h2>
+            {season && (
+              <p className="text-sm text-muted-foreground">
+                {season.name} ({season.year})
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Podium TOP 3 */}
+        {isCompleted && rankedPlayers.length >= 3 && (
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    <Trophy className="h-6 w-6 text-yellow-500" />
+                    Podium
+                  </CardTitle>
+                  <CardDescription>Les 3 premiers du tournoi</CardDescription>
+                </div>
+                {season && tournament.type === 'CHAMPIONSHIP' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/dashboard/leaderboard')}
+                    className="no-export"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Voir le classement général
+                  </Button>
+                )}
             </div>
           </CardHeader>
           <CardContent>
@@ -445,50 +372,45 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
             </div>
           </CardContent>
         </Card>
-      )}
+        )}
 
-      {/* Zone exportable */}
-      <div ref={exportRef} className="space-y-6">
-        {/* Statistiques du tournoi */}
-        {isCompleted && (
-          <div className="grid gap-4 md:grid-cols-3">
+        {/* Répartition du Prize Pool */}
+        {isCompleted && prizePoolData && prizePoolData.breakdown.length > 0 && (
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Prize Pool</CardTitle>
-              <Trophy className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-green-600" />
+                  Prize Pool : {prizePoolData.totalPrizePool}€
+                </CardTitle>
+                <div className="text-sm text-muted-foreground">
+                  {prizePoolData.paidPlayersCount} joueurs
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {tournament.prizePool ? `${tournament.prizePool}€` : 'À calculer'}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {prizePoolData.breakdown.map((payout) => (
+                  <div
+                    key={payout.rank}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      payout.rank === 1
+                        ? 'bg-yellow-500/10 border-yellow-500'
+                        : payout.rank === 2
+                        ? 'bg-gray-300/10 border-gray-400'
+                        : payout.rank === 3
+                        ? 'bg-orange-500/10 border-orange-600'
+                        : 'bg-muted/50'
+                    }`}
+                  >
+                    <span className="font-medium">#{payout.rank}</span>
+                    <span className="font-bold text-green-600">{payout.amount}€</span>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Buy-in</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{tournament.buyInAmount}€</div>
-              <p className="text-xs text-muted-foreground">{results.length} joueurs</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Recaves</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {results.reduce((sum, p) => sum + p.rebuysCount, 0)}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {results.reduce((sum, p) => sum + p.rebuysCount * tournament.buyInAmount, 0)}€
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        )}
 
       {/* Classement */}
       {rankedPlayers.length > 0 ? (

@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, UserMinus, Users, Search, DollarSign, Undo2 } from 'lucide-react';
+import { Plus, UserMinus, Users, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 type Player = {
@@ -31,6 +31,7 @@ type TournamentPlayer = {
   hasPaid: boolean;
   rebuysCount: number;
   lightRebuyUsed: boolean;
+  voluntaryFullRebuyUsed: boolean;
   player: Player;
   createdAt: string;
 };
@@ -39,6 +40,7 @@ type Tournament = {
   id: string;
   status: string;
   buyInAmount: number;
+  lightRebuyAmount: number;
 };
 
 type Props = {
@@ -59,7 +61,6 @@ export default function TournamentPlayersManager({
   const [isLoading, setIsLoading] = useState(true);
   const [isEnrollDialogOpen, setIsEnrollDialogOpen] = useState(false);
   const [isEnrolling, setIsEnrolling] = useState(false);
-  const [isCancellingRebuy, setIsCancellingRebuy] = useState(false);
   const [error, setError] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
 
@@ -191,56 +192,6 @@ export default function TournamentPlayersManager({
     }
   };
 
-  const handleRebuy = async (playerId: string, type: 'STANDARD' | 'LIGHT') => {
-    try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/rebuys`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playerId, type }),
-      });
-
-      if (response.ok) {
-        await fetchData();
-        onUpdate?.();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Erreur lors de l\'enregistrement de la recave');
-      }
-    } catch (error) {
-      console.error('Error processing rebuy:', error);
-      alert('Erreur lors de l\'enregistrement de la recave');
-    }
-  };
-
-  const handleCancelLastRebuy = async () => {
-    if (!confirm('Voulez-vous vraiment annuler la dernière recave ?')) {
-      return;
-    }
-
-    setIsCancellingRebuy(true);
-
-    try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/recaves/last`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        alert(data.message);
-        await fetchData();
-        onUpdate?.();
-      } else {
-        const data = await response.json();
-        alert(data.error || 'Erreur lors de l\'annulation de la recave');
-      }
-    } catch (error) {
-      console.error('Error cancelling rebuy:', error);
-      alert('Erreur lors de l\'annulation de la recave');
-    } finally {
-      setIsCancellingRebuy(false);
-    }
-  };
-
   const handleTogglePayment = async (playerId: string, hasPaid: boolean) => {
     try {
       const response = await fetch(
@@ -266,12 +217,14 @@ export default function TournamentPlayersManager({
   };
 
   const getTotalBuyIn = (player: TournamentPlayer) => {
-    return tournament.buyInAmount * (1 + player.rebuysCount);
+    // Total = buyIn initial + (rebuysCount × buyIn) + (light ? lightRebuyAmount : 0)
+    const baseBuyIn = tournament.buyInAmount;
+    const rebuysCost = player.rebuysCount * tournament.buyInAmount;
+    const lightCost = player.lightRebuyUsed ? tournament.lightRebuyAmount : 0;
+    return baseBuyIn + rebuysCost + lightCost;
   };
 
   const canUnenroll = tournament.status === 'PLANNED';
-  const canRebuy = tournament.status === 'IN_PROGRESS';
-  const totalRebuys = enrolledPlayers.reduce((sum, p) => sum + p.rebuysCount, 0);
 
   if (isLoading) {
     return (
@@ -304,16 +257,7 @@ export default function TournamentPlayersManager({
         </div>
         {tournament.status !== 'FINISHED' && (
           <div className="flex items-center gap-2">
-            {canRebuy && totalRebuys > 0 && (
-              <Button
-                variant="outline"
-                onClick={handleCancelLastRebuy}
-                disabled={isCancellingRebuy}
-              >
-                <Undo2 className="mr-2 h-4 w-4" />
-                {isCancellingRebuy ? 'Annulation...' : 'Annuler dernière recave'}
-              </Button>
-            )}
+            {/* Les recaves et leur annulation se gèrent dans l'onglet Élims */}
             <Button onClick={() => setIsEnrollDialogOpen(true)} disabled={tournament.status !== 'PLANNED'}>
               <Plus className="mr-2 h-4 w-4" />
               Inscrire des joueurs
@@ -363,13 +307,22 @@ export default function TournamentPlayersManager({
                       <div>
                         <span className="font-medium">Buy-in:</span> {tournament.buyInAmount}€
                       </div>
-                      {enrollment.rebuysCount > 0 && (
-                        <div>
-                          <span className="font-medium">Recaves:</span> {enrollment.rebuysCount} ({enrollment.rebuysCount * tournament.buyInAmount}€)
+                      {(enrollment.rebuysCount > 0 || enrollment.lightRebuyUsed) && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Recaves:</span>
+                          {enrollment.rebuysCount > 0 && (
+                            <span>{enrollment.rebuysCount} ({enrollment.rebuysCount * tournament.buyInAmount}€)</span>
+                          )}
+                          {enrollment.lightRebuyUsed && (
+                            <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300">Light {tournament.lightRebuyAmount}€</Badge>
+                          )}
+                          {enrollment.voluntaryFullRebuyUsed && (
+                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">Full {tournament.buyInAmount}€</Badge>
+                          )}
                         </div>
                       )}
-                      {enrollment.lightRebuyUsed && (
-                        <Badge variant="outline" className="text-xs">Light</Badge>
+                      {!enrollment.rebuysCount && !enrollment.lightRebuyUsed && enrollment.voluntaryFullRebuyUsed && (
+                        <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">Full {tournament.buyInAmount}€</Badge>
                       )}
                       <div>
                         <span className="font-medium">Total:</span> {getTotalBuyIn(enrollment)}€
@@ -377,30 +330,7 @@ export default function TournamentPlayersManager({
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {canRebuy && (
-                      <>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 md:flex-none"
-                          onClick={() => handleRebuy(enrollment.playerId, 'STANDARD')}
-                        >
-                          <DollarSign className="mr-1 h-4 w-4" />
-                          Recave
-                        </Button>
-                        {!enrollment.lightRebuyUsed && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 md:flex-none"
-                            onClick={() => handleRebuy(enrollment.playerId, 'LIGHT')}
-                          >
-                            <DollarSign className="mr-1 h-4 w-4" />
-                            Light
-                          </Button>
-                        )}
-                      </>
-                    )}
+                    {/* Les recaves se font dans l'onglet Élims, pas ici */}
                     {canUnenroll && (
                       <Button
                         variant="ghost"

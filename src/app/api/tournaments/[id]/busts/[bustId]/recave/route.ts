@@ -124,10 +124,11 @@ export async function POST(
       const newRebuysCount = bust.eliminated.rebuysCount + 1;
 
       // Calculer les malus de recave selon la saison
+      // Note: light rebuy compte comme 0.5 recave dans le calcul du malus
       let penaltyPoints = 0;
       if (tournament.season) {
         const rules = parseRecavePenaltyRules(tournament.season);
-        penaltyPoints = computeRecavePenalty(newRebuysCount, rules);
+        penaltyPoints = computeRecavePenalty(newRebuysCount, rules, bust.eliminated.lightRebuyUsed);
       }
 
       // Mettre à jour le joueur (incrémenter rebuysCount)
@@ -279,10 +280,11 @@ export async function DELETE(
       const newRebuysCount = Math.max(0, bust.eliminated.rebuysCount - 1);
 
       // Recalculer les malus de recave selon la saison
+      // Note: light rebuy compte comme 0.5 recave dans le calcul du malus
       let penaltyPoints = 0;
       if (tournament.season) {
         const rules = parseRecavePenaltyRules(tournament.season);
-        penaltyPoints = computeRecavePenalty(newRebuysCount, rules);
+        penaltyPoints = computeRecavePenalty(newRebuysCount, rules, bust.eliminated.lightRebuyUsed);
       }
 
       // Mettre à jour le joueur (décrémenter rebuysCount)
