@@ -52,6 +52,7 @@ type LeaderboardEntry = {
   totalLeaderKills: number;
   totalRebuys: number;
   performances: TournamentPerformance[];
+  rankChange?: number; // Positive = moved up, negative = moved down, undefined = new
 };
 
 type TournamentPerformance = {
@@ -116,12 +117,84 @@ export default function SeasonExportsPage() {
     fetchSeasonData();
   }, [seasonId]);
 
+  /**
+   * Calculate rank changes by comparing current leaderboard with previous state
+   * (simulated by removing the most recent tournament from everyone's performances)
+   */
+  const calculateRankChanges = (leaderboardData: LeaderboardEntry[], bestTournamentsCount: number | null): LeaderboardEntry[] => {
+    if (leaderboardData.length === 0) return leaderboardData;
+
+    // Find the most recent tournament date
+    let mostRecentDate: Date | null = null;
+    for (const entry of leaderboardData) {
+      for (const perf of entry.performances) {
+        const perfDate = new Date(perf.tournamentDate);
+        if (!mostRecentDate || perfDate > mostRecentDate) {
+          mostRecentDate = perfDate;
+        }
+      }
+    }
+
+    if (!mostRecentDate) return leaderboardData;
+
+    // Calculate previous leaderboard (without most recent tournament)
+    const previousLeaderboard = leaderboardData.map(entry => {
+      // Filter out the most recent tournament
+      const previousPerfs = entry.performances.filter(
+        perf => new Date(perf.tournamentDate).getTime() !== mostRecentDate!.getTime()
+      );
+
+      if (previousPerfs.length === 0) return null; // Player didn't exist before
+
+      // Sort by points (same logic as API)
+      const sortedPerfs = [...previousPerfs].sort((a, b) => b.totalPoints - a.totalPoints);
+
+      // Apply best tournaments count filter
+      const perfsToCount = bestTournamentsCount && bestTournamentsCount > 0
+        ? sortedPerfs.slice(0, bestTournamentsCount)
+        : sortedPerfs;
+
+      const totalPoints = perfsToCount.reduce((sum, perf) => sum + perf.totalPoints, 0);
+
+      return {
+        playerId: entry.playerId,
+        totalPoints,
+      };
+    }).filter((entry): entry is { playerId: string; totalPoints: number } => entry !== null);
+
+    // Sort previous leaderboard by points
+    previousLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
+
+    // Create rank map for previous state
+    const previousRankMap = new Map<string, number>();
+    previousLeaderboard.forEach((entry, index) => {
+      previousRankMap.set(entry.playerId, index + 1);
+    });
+
+    // Sort current leaderboard by points to get current ranks
+    const sortedCurrent = [...leaderboardData].sort((a, b) => b.totalPoints - a.totalPoints);
+
+    // Calculate rank changes
+    return sortedCurrent.map((entry, index) => {
+      const currentRank = index + 1;
+      const previousRank = previousRankMap.get(entry.playerId);
+      if (previousRank === undefined) {
+        // New player (no previous rank)
+        return { ...entry, rankChange: undefined };
+      }
+
+      const rankChange = previousRank - currentRank; // Positive = moved up
+      return { ...entry, rankChange };
+    });
+  };
+
   const fetchSeasonData = async () => {
     try {
       // Fetch season info
       const seasonRes = await fetch(`/api/seasons/${seasonId}`);
+      let seasonData = null;
       if (seasonRes.ok) {
-        const seasonData = await seasonRes.json();
+        seasonData = await seasonRes.json();
         setSeason(seasonData);
       }
 
@@ -129,7 +202,12 @@ export default function SeasonExportsPage() {
       const leaderboardRes = await fetch(`/api/seasons/${seasonId}/leaderboard`);
       if (leaderboardRes.ok) {
         const leaderboardData = await leaderboardRes.json();
-        setLeaderboard(leaderboardData.leaderboard || []);
+        // Calculate rank changes
+        const leaderboardWithChanges = calculateRankChanges(
+          leaderboardData.leaderboard || [],
+          seasonData?.bestTournamentsCount || null
+        );
+        setLeaderboard(leaderboardWithChanges);
       }
 
       // Fetch tournament details
@@ -154,7 +232,7 @@ export default function SeasonExportsPage() {
     }
   };
 
-  const handleExportImage = async (ref: React.RefObject<HTMLDivElement | null>, filename: string, format?: 'png' | 'jpg') => {
+  const handleExportImage = async (ref: React.RefObject<HTMLDivElement | null>, filename: string, format?: 'png' | 'jpg', bgColor?: string) => {
     if (!ref.current) return;
 
     const useFormat = format || exportFormat;
@@ -162,7 +240,7 @@ export default function SeasonExportsPage() {
     try {
       const exportFunction = useFormat === 'png' ? toPng : toJpeg;
       const dataUrl = await exportFunction(ref.current, {
-        backgroundColor: '#ffffff',
+        backgroundColor: bgColor || '#ffffff',
         pixelRatio: 3, // Increased for better quality
         quality: useFormat === 'jpg' ? 0.95 : undefined,
         cacheBust: true,
@@ -473,7 +551,7 @@ export default function SeasonExportsPage() {
                 <CardTitle>Classement Général</CardTitle>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement_general`)}
+                    onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement_general`, undefined, '#1a472a')}
                     disabled={isExporting}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -500,6 +578,7 @@ export default function SeasonExportsPage() {
                       tournamentsCount: entry.tournamentsPlayed,
                       victories: entry.firstPlaces,
                       podiums: entry.firstPlaces + entry.secondPlaces + entry.thirdPlaces,
+                      rankChange: entry.rankChange,
                     }))}
                     tournamentsPlayed={tournamentCount}
                   />

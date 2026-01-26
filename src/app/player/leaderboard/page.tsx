@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy, Medal, Users } from 'lucide-react';
+import { Trophy, Medal, Users, Star } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -206,17 +206,36 @@ export default function PlayerLeaderboardPage() {
             </div>
           ) : (
             <div className="divide-y">
+              {/* Zone Master indicator */}
+              {leaderboard.length > 0 && (
+                <div className="flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-yellow-500/10 via-yellow-500/20 to-yellow-500/10 border-b">
+                  <Star className="h-4 w-4 text-yellow-500" />
+                  <span className="text-sm font-bold text-yellow-600">Zone Master - Top 10</span>
+                  <Star className="h-4 w-4 text-yellow-500" />
+                </div>
+              )}
               {leaderboard.map((entry) => {
                 const isCurrentPlayer = currentPlayer?.id === entry.playerId;
 
+                const isTop10 = entry.rank <= 10;
+
                 return (
-                  <div
-                    key={entry.playerId}
-                    className={`flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/50 transition-colors cursor-pointer ${
-                      isCurrentPlayer ? 'bg-primary/5 border-l-4 border-l-primary' : ''
-                    }`}
-                    onClick={() => handlePlayerClick(entry.playerId)}
-                  >
+                  <>
+                    {/* Separator after Top 10 */}
+                    {entry.rank === 11 && (
+                      <div key="separator" className="flex items-center gap-3 py-2 px-4 bg-muted/30">
+                        <div className="flex-1 h-px bg-yellow-500/50" />
+                        <span className="text-xs text-muted-foreground">Hors Zone Master</span>
+                        <div className="flex-1 h-px bg-yellow-500/50" />
+                      </div>
+                    )}
+                    <div
+                      key={entry.playerId}
+                      className={`flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/50 transition-colors cursor-pointer ${
+                        isCurrentPlayer ? 'bg-primary/5 border-l-4 border-l-primary' : ''
+                      } ${isTop10 && !isCurrentPlayer ? 'bg-yellow-500/5' : ''}`}
+                      onClick={() => handlePlayerClick(entry.playerId)}
+                    >
                     {/* Rank */}
                     <div className="flex-shrink-0">{getRankDisplay(entry.rank)}</div>
 
@@ -261,7 +280,8 @@ export default function PlayerLeaderboardPage() {
                       </p>
                       <p className="text-xs text-muted-foreground">pts</p>
                     </div>
-                  </div>
+                    </div>
+                  </>
                 );
               })}
             </div>
