@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Trophy, TrendingUp, Users, Calendar, Download } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Minus, Users, Calendar, Download, Star, Medal } from 'lucide-react';
 // Using native img for avatars to avoid next/image restrictions with external SVGs
 import {
   Select,
@@ -28,6 +28,13 @@ type Season = {
   };
 };
 
+type TournamentPerformance = {
+  tournamentId: string;
+  tournamentName: string | null;
+  tournamentDate: Date;
+  totalPoints: number;
+};
+
 type LeaderboardEntry = {
   rank: number;
   playerId: string;
@@ -42,6 +49,8 @@ type LeaderboardEntry = {
   averagePoints: number;
   victories: number;
   podiums: number;
+  performances?: TournamentPerformance[];
+  rankChange?: number; // Positive = moved up, negative = moved down, undefined = new
 };
 
 export default function LeaderboardPage() {
@@ -90,12 +99,74 @@ export default function LeaderboardPage() {
     }
   };
 
+  /**
+   * Calculate rank changes by comparing current leaderboard with previous state
+   */
+  const calculateRankChanges = (leaderboardData: LeaderboardEntry[], bestTournamentsCount: number | null): LeaderboardEntry[] => {
+    if (leaderboardData.length === 0) return leaderboardData;
+
+    // Find the most recent tournament date
+    let mostRecentDate: Date | null = null;
+    for (const entry of leaderboardData) {
+      if (entry.performances) {
+        for (const perf of entry.performances) {
+          const perfDate = new Date(perf.tournamentDate);
+          if (!mostRecentDate || perfDate > mostRecentDate) {
+            mostRecentDate = perfDate;
+          }
+        }
+      }
+    }
+
+    if (!mostRecentDate) return leaderboardData;
+
+    // Calculate previous leaderboard (without most recent tournament)
+    const previousLeaderboard = leaderboardData.map(entry => {
+      if (!entry.performances) return null;
+
+      const previousPerfs = entry.performances.filter(
+        perf => new Date(perf.tournamentDate).getTime() !== mostRecentDate!.getTime()
+      );
+
+      if (previousPerfs.length === 0) return null;
+
+      const sortedPerfs = [...previousPerfs].sort((a, b) => b.totalPoints - a.totalPoints);
+      const perfsToCount = bestTournamentsCount && bestTournamentsCount > 0
+        ? sortedPerfs.slice(0, bestTournamentsCount)
+        : sortedPerfs;
+
+      const totalPoints = perfsToCount.reduce((sum, perf) => sum + perf.totalPoints, 0);
+
+      return { playerId: entry.playerId, totalPoints };
+    }).filter((entry): entry is { playerId: string; totalPoints: number } => entry !== null);
+
+    previousLeaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
+
+    const previousRankMap = new Map<string, number>();
+    previousLeaderboard.forEach((entry, index) => {
+      previousRankMap.set(entry.playerId, index + 1);
+    });
+
+    return leaderboardData.map(entry => {
+      const previousRank = previousRankMap.get(entry.playerId);
+      if (previousRank === undefined) {
+        return { ...entry, rankChange: undefined };
+      }
+      const rankChange = previousRank - entry.rank;
+      return { ...entry, rankChange };
+    });
+  };
+
   const fetchLeaderboard = async (seasonId: string) => {
     try {
       const response = await fetch(`/api/seasons/${seasonId}/leaderboard`);
       if (response.ok) {
         const data = await response.json();
-        setLeaderboard(data.leaderboard || []);
+        const leaderboardWithChanges = calculateRankChanges(
+          data.leaderboard || [],
+          data.season?.bestTournamentsCount || null
+        );
+        setLeaderboard(leaderboardWithChanges);
       }
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
@@ -263,7 +334,7 @@ export default function LeaderboardPage() {
                             : 'text-orange-600'
                         }`}
                       />
-                      <span className="text-3xl font-bold">#{entry.rank}</span>
+                      <span className="text-3xl font-bold">{entry.rank}</span>
                     </div>
                     {isValidAvatarUrl(entry.player.avatar) && (
                       <img
@@ -312,20 +383,54 @@ export default function LeaderboardPage() {
           {/* Reste du classement */}
           <Card>
             <CardHeader>
-              <CardTitle>Classement complet</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Classement complet
+              </CardTitle>
             </CardHeader>
             <CardContent>
+              {/* Zone Master indicator */}
+              <div className="flex items-center justify-center gap-2 py-3 mb-4 bg-gradient-to-r from-yellow-500/10 via-yellow-500/20 to-yellow-500/10 rounded-lg border border-yellow-500/30">
+                <Star className="h-5 w-5 text-yellow-500" />
+                <span className="font-bold text-yellow-600">Zone Master - Top 10</span>
+                <Star className="h-5 w-5 text-yellow-500" />
+              </div>
+
               <div className="space-y-2">
                 {leaderboard.map((entry) => (
-                  <div
-                    key={entry.playerId}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                    onClick={() => router.push(`/dashboard/players/${entry.playerId}`)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <span className={`text-lg font-bold w-8 ${entry.rank <= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
-                        #{entry.rank}
-                      </span>
+                  <>
+                    {/* Separator after Top 10 */}
+                    {entry.rank === 11 && (
+                      <div key="separator" className="flex items-center gap-4 py-2">
+                        <div className="flex-1 h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
+                        <span className="text-sm text-muted-foreground">Hors Zone Master</span>
+                        <div className="flex-1 h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
+                      </div>
+                    )}
+                    <div
+                      key={entry.playerId}
+                      className={`flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer ${
+                        entry.rank <= 3
+                          ? 'bg-yellow-500/10 border-yellow-500/30'
+                          : entry.rank <= 10
+                          ? 'bg-yellow-500/5 border-yellow-500/20'
+                          : ''
+                      }`}
+                      onClick={() => router.push(`/dashboard/players/${entry.playerId}`)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 w-16">
+                          {entry.rank <= 3 && (
+                            <Trophy className={`h-5 w-5 ${
+                              entry.rank === 1 ? 'text-yellow-500' : entry.rank === 2 ? 'text-gray-400' : 'text-orange-600'
+                            }`} />
+                          )}
+                          {entry.rank > 3 && entry.rank <= 10 && (
+                            <Medal className="h-5 w-5 text-yellow-500/70" />
+                          )}
+                          <span className={`text-lg font-bold ${entry.rank <= 3 ? 'text-primary' : 'text-muted-foreground'}`}>
+                            {entry.rank}
+                          </span>
+                        </div>
                       {isValidAvatarUrl(entry.player.avatar) ? (
                         <img
                           src={normalizeAvatarSrc(entry.player.avatar)!}
@@ -362,8 +467,27 @@ export default function LeaderboardPage() {
                         <div className="text-sm text-muted-foreground">Tournois</div>
                         <div className="text-sm font-medium">{entry.tournamentsCount}</div>
                       </div>
+                      {/* Rank Change Indicator */}
+                      <div className="w-16 flex justify-end">
+                        {entry.rankChange === undefined ? (
+                          <Badge variant="outline" className="text-blue-500 border-blue-500 text-xs">NEW</Badge>
+                        ) : entry.rankChange > 0 ? (
+                          <span className="flex items-center gap-1 text-green-500 font-semibold text-sm">
+                            <TrendingUp className="h-4 w-4" />+{entry.rankChange}
+                          </span>
+                        ) : entry.rankChange < 0 ? (
+                          <span className="flex items-center gap-1 text-red-500 font-semibold text-sm">
+                            <TrendingDown className="h-4 w-4" />{entry.rankChange}
+                          </span>
+                        ) : (
+                          <span className="flex items-center text-muted-foreground">
+                            <Minus className="h-4 w-4" />
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                    </div>
+                  </>
                 ))}
               </div>
             </CardContent>
