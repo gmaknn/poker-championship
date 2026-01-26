@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -194,7 +194,7 @@ export default function LeaderboardPage() {
       await exportToPNG({
         element: exportRef.current,
         filename,
-        backgroundColor: '#0a0a0a',
+        backgroundColor: '#1a472a', // Fond vert tapis de poker
         pixelRatio: 2,
       });
 
@@ -495,7 +495,7 @@ export default function LeaderboardPage() {
         </>
       )}
 
-      {/* Zone d'export cachée - pour générer le PNG avec titre (fond sombre) */}
+      {/* Zone d'export cachée - fond vert tapis de poker, synchronisé avec l'affichage online */}
       {leaderboard.length > 0 && (
         <div
           ref={exportRef}
@@ -504,17 +504,18 @@ export default function LeaderboardPage() {
             left: '-9999px',
             top: '0',
             width: '1200px',
-            backgroundColor: '#0a0a0a',
-            padding: '32px',
-            color: '#fafafa',
+            backgroundColor: '#1a472a', // Fond vert tapis de poker
+            padding: '40px',
+            color: '#ffffff',
             fontFamily: 'system-ui, -apple-system, sans-serif',
           }}
         >
+          {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#fafafa', margin: '0 0 8px 0' }}>
+            <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: '#ffffff', margin: '0 0 12px 0' }}>
               Classement Général - {selectedSeason?.name} {selectedSeason?.year}
             </h1>
-            <p style={{ color: '#a1a1aa', margin: '0', fontSize: '16px' }}>
+            <p style={{ color: '#86efac', margin: '0', fontSize: '20px' }}>
               {Math.max(...leaderboard.map(e => e.tournamentsCount))} tournoi(s) joué(s)
             </p>
           </div>
@@ -528,30 +529,30 @@ export default function LeaderboardPage() {
                   <img
                     src={normalizeAvatarSrc(leaderboard[1].player.avatar)!}
                     alt=""
-                    style={{ width: '72px', height: '72px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #a1a1aa' }}
+                    style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #9ca3af' }}
                   />
                 )}
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#a1a1aa' }}>#2</div>
-                  <div style={{ fontWeight: '600', color: '#fafafa', fontSize: '16px' }}>{leaderboard[1].player.firstName} {leaderboard[1].player.lastName}</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#d4d4d8' }}>{leaderboard[1].totalPoints} pts</div>
+                  <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#9ca3af' }}>🥈 2</div>
+                  <div style={{ fontWeight: '600', color: '#ffffff', fontSize: '18px' }}>{leaderboard[1].player.firstName} {leaderboard[1].player.lastName}</div>
+                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#d1d5db' }}>{leaderboard[1].totalPoints} pts</div>
                 </div>
               </div>
 
               {/* 1er */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <Trophy style={{ width: '40px', height: '40px', marginBottom: '8px', color: '#eab308' }} />
+                <div style={{ fontSize: '48px', marginBottom: '8px' }}>🏆</div>
                 {isValidAvatarUrl(leaderboard[0].player.avatar) && (
                   <img
                     src={normalizeAvatarSrc(leaderboard[0].player.avatar)!}
                     alt=""
-                    style={{ width: '88px', height: '88px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #eab308' }}
+                    style={{ width: '96px', height: '96px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #eab308' }}
                   />
                 )}
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#eab308' }}>#1</div>
-                  <div style={{ fontWeight: 'bold', fontSize: '20px', color: '#fafafa' }}>{leaderboard[0].player.firstName} {leaderboard[0].player.lastName}</div>
-                  <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#facc15' }}>{leaderboard[0].totalPoints} pts</div>
+                  <div style={{ fontSize: '40px', fontWeight: 'bold', color: '#eab308' }}>🥇 1</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '22px', color: '#ffffff' }}>{leaderboard[0].player.firstName} {leaderboard[0].player.lastName}</div>
+                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#fde047' }}>{leaderboard[0].totalPoints} pts</div>
                 </div>
               </div>
 
@@ -561,44 +562,102 @@ export default function LeaderboardPage() {
                   <img
                     src={normalizeAvatarSrc(leaderboard[2].player.avatar)!}
                     alt=""
-                    style={{ width: '72px', height: '72px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #ea580c' }}
+                    style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #ea580c' }}
                   />
                 )}
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c' }}>#3</div>
-                  <div style={{ fontWeight: '600', color: '#fafafa', fontSize: '16px' }}>{leaderboard[2].player.firstName} {leaderboard[2].player.lastName}</div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#fb923c' }}>{leaderboard[2].totalPoints} pts</div>
+                  <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#ea580c' }}>🥉 3</div>
+                  <div style={{ fontWeight: '600', color: '#ffffff', fontSize: '18px' }}>{leaderboard[2].player.firstName} {leaderboard[2].player.lastName}</div>
+                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#fb923c' }}>{leaderboard[2].totalPoints} pts</div>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Zone Master Banner */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            padding: '16px',
+            marginBottom: '20px',
+            background: 'linear-gradient(90deg, rgba(234,179,8,0.1) 0%, rgba(234,179,8,0.25) 50%, rgba(234,179,8,0.1) 100%)',
+            borderRadius: '12px',
+            border: '2px solid rgba(234,179,8,0.4)',
+          }}>
+            <span style={{ fontSize: '24px' }}>⭐</span>
+            <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#fde047' }}>Zone Master - Top 10</span>
+            <span style={{ fontSize: '24px' }}>⭐</span>
+          </div>
+
           {/* Table */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#fafafa' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', color: '#ffffff', borderRadius: '12px', overflow: 'hidden' }}>
             <thead>
-              <tr style={{ backgroundColor: '#27272a' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', border: '1px solid #3f3f46', color: '#fafafa', fontSize: '14px' }}>Rang</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', border: '1px solid #3f3f46', color: '#fafafa', fontSize: '14px' }}>Joueur</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', border: '1px solid #3f3f46', color: '#fafafa', fontSize: '14px' }}>Points</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', border: '1px solid #3f3f46', color: '#fafafa', fontSize: '14px' }}>Moyenne</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', border: '1px solid #3f3f46', color: '#fafafa', fontSize: '14px' }}>Tournois</th>
+              <tr style={{ backgroundColor: '#0d3320' }}>
+                <th style={{ padding: '16px 20px', textAlign: 'left', borderBottom: '2px solid #166534', color: '#86efac', fontSize: '18px', fontWeight: 'bold' }}>Rang</th>
+                <th style={{ padding: '16px 20px', textAlign: 'left', borderBottom: '2px solid #166534', color: '#86efac', fontSize: '18px', fontWeight: 'bold' }}>Tendance</th>
+                <th style={{ padding: '16px 20px', textAlign: 'left', borderBottom: '2px solid #166534', color: '#86efac', fontSize: '18px', fontWeight: 'bold' }}>Joueur</th>
+                <th style={{ padding: '16px 20px', textAlign: 'right', borderBottom: '2px solid #166534', color: '#86efac', fontSize: '18px', fontWeight: 'bold' }}>Points</th>
+                <th style={{ padding: '16px 20px', textAlign: 'right', borderBottom: '2px solid #166534', color: '#86efac', fontSize: '18px', fontWeight: 'bold' }}>Moyenne</th>
+                <th style={{ padding: '16px 20px', textAlign: 'right', borderBottom: '2px solid #166534', color: '#86efac', fontSize: '18px', fontWeight: 'bold' }}>Tournois</th>
               </tr>
             </thead>
             <tbody>
-              {leaderboard.map((entry) => (
-                <tr key={entry.playerId} style={{ backgroundColor: entry.rank <= 3 ? '#1c1917' : '#18181b' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 'bold', border: '1px solid #3f3f46', color: entry.rank === 1 ? '#eab308' : entry.rank === 2 ? '#a1a1aa' : entry.rank === 3 ? '#ea580c' : '#fafafa' }}>#{entry.rank}</td>
-                  <td style={{ padding: '12px 16px', border: '1px solid #3f3f46', color: '#fafafa' }}>
-                    {entry.player.firstName} {entry.player.lastName}
-                    <span style={{ color: '#71717a', marginLeft: '8px' }}>@{entry.player.nickname}</span>
-                  </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 'bold', border: '1px solid #3f3f46', color: '#22c55e', fontSize: '16px' }}>{entry.totalPoints}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', border: '1px solid #3f3f46', color: '#d4d4d8' }}>{entry.averagePoints}</td>
-                  <td style={{ padding: '12px 16px', textAlign: 'right', border: '1px solid #3f3f46', color: '#d4d4d8' }}>{entry.tournamentsCount}</td>
-                </tr>
-              ))}
+              {leaderboard.map((entry, index) => {
+                const isTop3 = entry.rank <= 3;
+                const isTop10 = entry.rank <= 10;
+                const bgColor = isTop3
+                  ? 'rgba(234,179,8,0.15)'
+                  : isTop10
+                  ? 'rgba(234,179,8,0.08)'
+                  : index % 2 === 0
+                  ? '#1a472a'
+                  : '#153d24';
+
+                return (
+                  <React.Fragment key={entry.playerId}>
+                    {/* Separator after Top 10 */}
+                    {entry.rank === 11 && (
+                      <tr>
+                        <td colSpan={6} style={{ padding: '0', height: '4px', backgroundColor: '#eab308' }} />
+                      </tr>
+                    )}
+                    <tr style={{ backgroundColor: bgColor }}>
+                      <td style={{ padding: '14px 20px', fontWeight: 'bold', fontSize: '20px', color: entry.rank === 1 ? '#eab308' : entry.rank === 2 ? '#9ca3af' : entry.rank === 3 ? '#ea580c' : isTop10 ? '#fde68a' : '#ffffff' }}>
+                        {entry.rank <= 3 ? '🏆 ' : entry.rank <= 10 ? '🎖️ ' : ''}{entry.rank}
+                      </td>
+                      <td style={{ padding: '14px 20px', fontSize: '16px' }}>
+                        {entry.rankChange === undefined ? (
+                          <span style={{ color: '#60a5fa', fontWeight: 'bold', padding: '4px 10px', backgroundColor: 'rgba(96,165,250,0.2)', borderRadius: '6px', border: '1px solid #60a5fa' }}>NEW</span>
+                        ) : entry.rankChange > 0 ? (
+                          <span style={{ color: '#4ade80', fontWeight: 'bold' }}>▲ +{entry.rankChange}</span>
+                        ) : entry.rankChange < 0 ? (
+                          <span style={{ color: '#f87171', fontWeight: 'bold' }}>▼ {entry.rankChange}</span>
+                        ) : (
+                          <span style={{ color: '#9ca3af' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 20px', fontSize: '18px', color: '#ffffff', fontWeight: '500' }}>
+                        {entry.player.firstName} {entry.player.lastName}
+                        <span style={{ color: '#86efac', marginLeft: '10px', fontSize: '16px' }}>@{entry.player.nickname}</span>
+                      </td>
+                      <td style={{ padding: '14px 20px', textAlign: 'right', fontWeight: 'bold', fontSize: '22px', color: '#fde047' }}>{entry.totalPoints}</td>
+                      <td style={{ padding: '14px 20px', textAlign: 'right', fontSize: '18px', color: '#bbf7d0' }}>{entry.averagePoints}</td>
+                      <td style={{ padding: '14px 20px', textAlign: 'right', fontSize: '18px', color: '#bbf7d0' }}>{entry.tournamentsCount}</td>
+                    </tr>
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
+
+          {/* Footer */}
+          <div style={{ textAlign: 'center', marginTop: '24px', padding: '16px' }}>
+            <p style={{ color: '#86efac', fontSize: '18px', margin: '0' }}>
+              ⭐ Les 10 premiers disputent le Master de fin d'année ⭐
+            </p>
+          </div>
         </div>
       )}
     </div>
