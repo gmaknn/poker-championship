@@ -138,6 +138,7 @@ export default function TournamentExportPng({
                 <img
                   src={normalizeAvatarSrc(top3[1].avatar)!}
                   alt=""
+                  crossOrigin="anonymous"
                   style={{ width: '70px', height: '70px', borderRadius: '50%', marginBottom: '8px', border: '3px solid #9ca3af', objectFit: 'cover' }}
                 />
               ) : (
@@ -160,6 +161,7 @@ export default function TournamentExportPng({
                 <img
                   src={normalizeAvatarSrc(top3[0].avatar)!}
                   alt=""
+                  crossOrigin="anonymous"
                   style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #fbbf24', objectFit: 'cover' }}
                 />
               ) : (
@@ -181,6 +183,7 @@ export default function TournamentExportPng({
                 <img
                   src={normalizeAvatarSrc(top3[2].avatar)!}
                   alt=""
+                  crossOrigin="anonymous"
                   style={{ width: '70px', height: '70px', borderRadius: '50%', marginBottom: '8px', border: '3px solid #ea580c', objectFit: 'cover' }}
                 />
               ) : (
@@ -245,6 +248,7 @@ export default function TournamentExportPng({
                         <img
                           src={normalizeAvatarSrc(player.avatar)!}
                           alt=""
+                          crossOrigin="anonymous"
                           style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', objectFit: 'cover' }}
                         />
                       ) : (
