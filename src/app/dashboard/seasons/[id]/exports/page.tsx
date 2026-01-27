@@ -602,6 +602,7 @@ export default function SeasonExportsPage() {
           <Badge variant="outline" className="text-lg">
             {leaderboard.length} joueurs
           </Badge>
+          {/* TODO: Réactiver quand le bug ZIP sera corrigé
           <Button
             onClick={handleExportAll}
             disabled={isExporting}
@@ -611,6 +612,7 @@ export default function SeasonExportsPage() {
             <Download className="h-5 w-5" />
             {isExporting ? 'Export en cours...' : 'Tout télécharger (ZIP)'}
           </Button>
+          */}
         </div>
       </div>
 
