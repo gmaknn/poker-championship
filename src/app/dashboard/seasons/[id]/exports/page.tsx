@@ -15,7 +15,15 @@ import {
   TrendingUp,
   Swords,
   Trophy,
+  Calendar,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toPng, toJpeg } from 'html-to-image';
 import JSZip from 'jszip';
 import SeasonLeaderboardChart from '@/components/exports/SeasonLeaderboardChart';
@@ -24,6 +32,7 @@ import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeader
 import SeasonEvolutionChart from '@/components/exports/SeasonEvolutionChart';
 import SeasonConfrontationsMatrix from '@/components/exports/SeasonConfrontationsMatrix';
 import LeaderboardExportPng from '@/components/exports/LeaderboardExportPng';
+import TournamentExportPng from '@/components/exports/TournamentExportPng';
 
 type Season = {
   id: string;
@@ -91,6 +100,37 @@ type EliminatorStats = {
   }>;
 };
 
+type TournamentInfo = {
+  id: string;
+  number: number;
+  name: string | null;
+  date: string;
+};
+
+type TournamentData = {
+  id: string;
+  name: string | null;
+  date: string;
+  buyInAmount: number;
+  lightRebuyAmount: number;
+  prizePool: number | null;
+  tournamentPlayers: Array<{
+    playerId: string;
+    player: Player;
+    finalRank: number | null;
+    rankPoints: number;
+    eliminationPoints: number;
+    bonusPoints: number;
+    penaltyPoints: number;
+    totalPoints: number;
+    prizeAmount: number | null;
+    eliminationsCount: number;
+    bustEliminations: number;
+    leaderKills: number;
+    rebuysCount: number;
+  }>;
+};
+
 export default function SeasonExportsPage() {
   const params = useParams();
   const router = useRouter();
@@ -101,9 +141,13 @@ export default function SeasonExportsPage() {
   const [tournamentDetails, setTournamentDetails] = useState<PlayerDetail[]>([]);
   const [tournamentCount, setTournamentCount] = useState(0);
   const [eliminatorStats, setEliminatorStats] = useState<EliminatorStats[]>([]);
+  const [tournaments, setTournaments] = useState<TournamentInfo[]>([]);
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string>('');
+  const [selectedTournamentData, setSelectedTournamentData] = useState<TournamentData | null>(null);
+  const [isLoadingTournament, setIsLoadingTournament] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeTab, setActiveTab] = useState('tournaments');
   const [exportFormat, setExportFormat] = useState<'png' | 'jpg'>('png');
 
   const chartRef = useRef<HTMLDivElement>(null);
@@ -112,10 +156,33 @@ export default function SeasonExportsPage() {
   const evolutionRef = useRef<HTMLDivElement>(null);
   const confrontationsRef = useRef<HTMLDivElement>(null);
   const generalLeaderboardRef = useRef<HTMLDivElement>(null);
+  const tournamentExportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchSeasonData();
   }, [seasonId]);
+
+  // Fetch tournament data when selection changes
+  useEffect(() => {
+    if (selectedTournamentId) {
+      fetchTournamentData(selectedTournamentId);
+    }
+  }, [selectedTournamentId]);
+
+  const fetchTournamentData = async (tournamentId: string) => {
+    setIsLoadingTournament(true);
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedTournamentData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching tournament data:', error);
+    } finally {
+      setIsLoadingTournament(false);
+    }
+  };
 
   /**
    * Calculate rank changes by comparing current leaderboard with previous state
@@ -216,6 +283,13 @@ export default function SeasonExportsPage() {
         const detailsData = await detailsRes.json();
         setTournamentDetails(detailsData.players || []);
         setTournamentCount(detailsData.tournamentCount || 0);
+        // Store tournaments list (sorted from most recent to oldest)
+        const tournamentsList = (detailsData.tournaments || []).reverse();
+        setTournaments(tournamentsList);
+        // Select the most recent tournament by default
+        if (tournamentsList.length > 0) {
+          setSelectedTournamentId(tournamentsList[0].id);
+        }
       }
 
       // Fetch eliminations
@@ -516,7 +590,11 @@ export default function SeasonExportsPage() {
 
       {/* Tabs for different export types */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
+          <TabsTrigger value="tournaments" className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            Tournois
+          </TabsTrigger>
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Trophy className="h-4 w-4" />
             Classement
@@ -542,6 +620,104 @@ export default function SeasonExportsPage() {
             Confrontations
           </TabsTrigger>
         </TabsList>
+
+        {/* Export: Individual Tournament */}
+        <TabsContent value="tournaments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <CardTitle>Export Tournoi</CardTitle>
+                  {tournaments.length > 0 && (
+                    <Select
+                      value={selectedTournamentId}
+                      onValueChange={setSelectedTournamentId}
+                    >
+                      <SelectTrigger className="w-[300px]">
+                        <SelectValue placeholder="Sélectionner un tournoi" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {tournaments.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            Tournoi #{t.number} - {new Date(t.date).toLocaleDateString('fr-FR')}
+                            {t.name && ` (${t.name})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {selectedTournamentData && (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => handleExportImage(
+                        tournamentExportRef,
+                        `Tournoi_${tournaments.find(t => t.id === selectedTournamentId)?.number || 'export'}`,
+                        undefined,
+                        '#1a472a'
+                      )}
+                      disabled={isExporting || isLoadingTournament}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {tournaments.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg">Aucun tournoi joué pour le moment</p>
+                  <p className="text-sm">Les tournois terminés apparaîtront ici</p>
+                </div>
+              ) : isLoadingTournament ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Chargement du tournoi...</p>
+                </div>
+              ) : selectedTournamentData ? (
+                <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
+                  <div ref={tournamentExportRef}>
+                    <TournamentExportPng
+                      tournamentName={selectedTournamentData.name || ''}
+                      tournamentDate={selectedTournamentData.date}
+                      tournamentNumber={tournaments.find(t => t.id === selectedTournamentId)?.number}
+                      seasonName={season?.name || ''}
+                      seasonYear={season?.year || 0}
+                      buyInAmount={selectedTournamentData.buyInAmount}
+                      prizePool={selectedTournamentData.prizePool}
+                      players={selectedTournamentData.tournamentPlayers
+                        .filter(tp => tp.finalRank !== null)
+                        .sort((a, b) => (a.finalRank || 999) - (b.finalRank || 999))
+                        .map(tp => ({
+                          rank: tp.finalRank || 0,
+                          playerId: tp.playerId,
+                          nickname: tp.player.nickname,
+                          firstName: tp.player.firstName,
+                          lastName: tp.player.lastName,
+                          avatar: tp.player.avatar,
+                          rankPoints: tp.rankPoints,
+                          eliminationPoints: tp.eliminationPoints,
+                          bonusPoints: tp.bonusPoints,
+                          penaltyPoints: tp.penaltyPoints || 0,
+                          totalPoints: tp.totalPoints,
+                          prizeAmount: tp.prizeAmount,
+                          eliminationsCount: tp.eliminationsCount || tp.bustEliminations || 0,
+                          leaderKills: tp.leaderKills,
+                          rebuysCount: tp.rebuysCount,
+                        }))}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>Sélectionnez un tournoi pour voir les résultats</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* Export #0: General Leaderboard */}
         <TabsContent value="general" className="space-y-4">
