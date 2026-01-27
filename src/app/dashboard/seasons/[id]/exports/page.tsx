@@ -332,6 +332,19 @@ export default function SeasonExportsPage() {
     }
   };
 
+  // Fonction utilitaire pour convertir un data URL en Blob sans fetch
+  const dataUrlToBlob = (dataUrl: string): Blob => {
+    const parts = dataUrl.split(',');
+    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
   const handleExportAll = async () => {
     if (!chartRef.current || !tableRef.current || !eliminationsRef.current || !evolutionRef.current || !confrontationsRef.current || !generalLeaderboardRef.current || !season) return;
 
@@ -339,42 +352,39 @@ export default function SeasonExportsPage() {
     try {
       const zip = new JSZip();
       const exportFunction = exportFormat === 'png' ? toPng : toJpeg;
-      const options = {
-        backgroundColor: '#ffffff',
+      const baseOptions = {
         pixelRatio: 3,
         quality: exportFormat === 'jpg' ? 0.95 : undefined,
         cacheBust: true,
       };
 
-      // Export chart
-      const chartDataUrl = await exportFunction(chartRef.current, options);
-      const chartBlob = await (await fetch(chartDataUrl)).blob();
-      zip.file(`${season.name}_sharks.${exportFormat}`, chartBlob);
+      // Options spécifiques par type d'export (design system slate)
+      const slateOptions = { ...baseOptions, backgroundColor: '#0f172a' };
+      const whiteOptions = { ...baseOptions, backgroundColor: '#ffffff' };
 
-      // Export table
-      const tableDataUrl = await exportFunction(tableRef.current, options);
-      const tableBlob = await (await fetch(tableDataUrl)).blob();
-      zip.file(`${season.name}_tableau.${exportFormat}`, tableBlob);
+      // Export chart (Top Sharks - fond blanc)
+      const chartDataUrl = await exportFunction(chartRef.current, whiteOptions);
+      zip.file(`${season.name}_sharks.${exportFormat}`, dataUrlToBlob(chartDataUrl));
 
-      // Export eliminations
-      const eliminationsDataUrl = await exportFunction(eliminationsRef.current, options);
-      const eliminationsBlob = await (await fetch(eliminationsDataUrl)).blob();
-      zip.file(`${season.name}_eliminations.${exportFormat}`, eliminationsBlob);
+      // Export table (fond slate)
+      const tableDataUrl = await exportFunction(tableRef.current, slateOptions);
+      zip.file(`${season.name}_tableau.${exportFormat}`, dataUrlToBlob(tableDataUrl));
 
-      // Export evolution
-      const evolutionDataUrl = await exportFunction(evolutionRef.current, options);
-      const evolutionBlob = await (await fetch(evolutionDataUrl)).blob();
-      zip.file(`${season.name}_evolution.${exportFormat}`, evolutionBlob);
+      // Export eliminations (fond slate)
+      const eliminationsDataUrl = await exportFunction(eliminationsRef.current, slateOptions);
+      zip.file(`${season.name}_eliminations.${exportFormat}`, dataUrlToBlob(eliminationsDataUrl));
 
-      // Export confrontations
-      const confrontationsDataUrl = await exportFunction(confrontationsRef.current, options);
-      const confrontationsBlob = await (await fetch(confrontationsDataUrl)).blob();
-      zip.file(`${season.name}_confrontations.${exportFormat}`, confrontationsBlob);
+      // Export evolution (fond slate)
+      const evolutionDataUrl = await exportFunction(evolutionRef.current, slateOptions);
+      zip.file(`${season.name}_evolution.${exportFormat}`, dataUrlToBlob(evolutionDataUrl));
 
-      // Export general leaderboard
-      const generalDataUrl = await exportFunction(generalLeaderboardRef.current, options);
-      const generalBlob = await (await fetch(generalDataUrl)).blob();
-      zip.file(`Saison_${season.year}_classement_general.${exportFormat}`, generalBlob);
+      // Export confrontations (fond slate)
+      const confrontationsDataUrl = await exportFunction(confrontationsRef.current, slateOptions);
+      zip.file(`${season.name}_confrontations.${exportFormat}`, dataUrlToBlob(confrontationsDataUrl));
+
+      // Export general leaderboard (fond slate)
+      const generalDataUrl = await exportFunction(generalLeaderboardRef.current, slateOptions);
+      zip.file(`Saison_${season.year}_classement_general.${exportFormat}`, dataUrlToBlob(generalDataUrl));
 
       // Generate and download ZIP
       const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -420,17 +430,23 @@ export default function SeasonExportsPage() {
       tournamentsPlayed: entry.tournamentsPlayed,
     }));
 
-  // Use real tournament details data
+  // Use real tournament details data - include avatar info
   const detailedPlayers = tournamentDetails.length > 0
     ? tournamentDetails.map((detail) => ({
         rank: detail.rank,
         nickname: detail.player.nickname,
+        firstName: detail.player.firstName,
+        lastName: detail.player.lastName,
+        avatar: detail.player.avatar,
         totalPoints: detail.totalPoints,
         tournamentResults: detail.tournamentResults,
       }))
     : leaderboard.map((entry, index) => ({
         rank: index + 1,
         nickname: entry.player.nickname,
+        firstName: entry.player.firstName,
+        lastName: entry.player.lastName,
+        avatar: entry.player.avatar,
         totalPoints: entry.totalPoints,
         tournamentResults: [],
       }));
@@ -455,6 +471,8 @@ export default function SeasonExportsPage() {
     return {
       rank: index + 1,
       nickname: entry.player.nickname,
+      firstName: entry.player.firstName,
+      lastName: entry.player.lastName,
       avatar: entry.player.avatar,
       totalPoints: entry.totalPoints,
       pointsChange,
@@ -654,7 +672,7 @@ export default function SeasonExportsPage() {
                         tournamentExportRef,
                         `Tournoi_${tournaments.find(t => t.id === selectedTournamentId)?.number || 'export'}`,
                         undefined,
-                        '#1a472a'
+                        '#0f172a'
                       )}
                       disabled={isExporting || isLoadingTournament}
                     >
@@ -727,7 +745,7 @@ export default function SeasonExportsPage() {
                 <CardTitle>Classement Général</CardTitle>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement_general`, undefined, '#1a472a')}
+                    onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement_general`, undefined, '#0f172a')}
                     disabled={isExporting}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -803,7 +821,7 @@ export default function SeasonExportsPage() {
                 <CardTitle>Tableau Détaillé par Tournoi</CardTitle>
                 <div className="flex gap-2">
                   <Button
-                    onClick={() => handleExportImage(tableRef, `${season.name}_tableau`)}
+                    onClick={() => handleExportImage(tableRef, `${season.name}_tableau`, undefined, '#0f172a')}
                     disabled={isExporting}
                   >
                     <Download className="h-4 w-4 mr-2" />
@@ -835,7 +853,7 @@ export default function SeasonExportsPage() {
                 <div className="flex gap-2">
                   <Button
                     onClick={() =>
-                      handleExportImage(eliminationsRef, `${season.name}_eliminations`)
+                      handleExportImage(eliminationsRef, `${season.name}_eliminations`, undefined, '#0f172a')
                     }
                     disabled={isExporting}
                   >
@@ -867,7 +885,7 @@ export default function SeasonExportsPage() {
                 <div className="flex gap-2">
                   <Button
                     onClick={() =>
-                      handleExportImage(evolutionRef, `${season.name}_evolution`)
+                      handleExportImage(evolutionRef, `${season.name}_evolution`, undefined, '#0f172a')
                     }
                     disabled={isExporting}
                   >
@@ -900,7 +918,7 @@ export default function SeasonExportsPage() {
                 <div className="flex gap-2">
                   <Button
                     onClick={() =>
-                      handleExportImage(confrontationsRef, `${season.name}_confrontations`)
+                      handleExportImage(confrontationsRef, `${season.name}_confrontations`, undefined, '#0f172a')
                     }
                     disabled={isExporting}
                   >

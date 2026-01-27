@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Archive, Trophy, BarChart3 } from 'lucide-react';
+import { Plus, Pencil, Archive, Trophy, BarChart3, Image } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import {
   Dialog,
@@ -21,6 +21,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Season } from '@prisma/client';
 import RecavePenaltyTiersEditor from '@/components/RecavePenaltyTiersEditor';
 import { RecavePenaltyTier } from '@/lib/scoring';
+
+type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
 
 // Type for detailed points configuration
 interface DetailedPointsConfig {
@@ -80,6 +82,7 @@ export default function SeasonsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSeason, setEditingSeason] = useState<SeasonWithCount | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<PlayerRole | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     year: new Date().getFullYear(),
@@ -91,9 +94,30 @@ export default function SeasonsPage() {
   });
   const [error, setError] = useState('');
 
+  // Vérifier si l'utilisateur peut modifier (Admin uniquement)
+  const canEdit = currentUserRole === 'ADMIN';
+
   useEffect(() => {
     fetchSeasons();
+    fetchCurrentUserRole();
   }, []);
+
+  const fetchCurrentUserRole = async () => {
+    try {
+      const cookies = document.cookie;
+      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+      if (playerIdMatch) {
+        const playerId = playerIdMatch[1];
+        const response = await fetch(`/api/players/${playerId}`);
+        if (response.ok) {
+          const player = await response.json();
+          setCurrentUserRole(player.role);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching current user role:', error);
+    }
+  };
 
   const fetchSeasons = async () => {
     try {
@@ -251,13 +275,15 @@ export default function SeasonsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Saisons"
-        description="Gérez les saisons du championnat"
+        description={canEdit ? "Gérez les saisons du championnat" : "Consultez les saisons du championnat"}
         icon={<Trophy className="h-10 w-10" />}
         actions={
-          <Button onClick={() => handleOpenDialog()} size="lg">
-            <Plus className="mr-2 h-5 w-5" />
-            Nouvelle saison
-          </Button>
+          canEdit ? (
+            <Button onClick={() => handleOpenDialog()} size="lg">
+              <Plus className="mr-2 h-5 w-5" />
+              Nouvelle saison
+            </Button>
+          ) : undefined
         }
       />
 
@@ -267,12 +293,14 @@ export default function SeasonsPage() {
             <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Aucune saison</h3>
             <p className="text-muted-foreground mb-4">
-              Commencez par créer votre première saison
+              {canEdit ? "Commencez par créer votre première saison" : "Aucune saison disponible pour le moment"}
             </p>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nouvelle saison
-            </Button>
+            {canEdit && (
+              <Button onClick={() => handleOpenDialog()}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nouvelle saison
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -320,33 +348,46 @@ export default function SeasonsPage() {
                         )}
                       </div>
                       <div className="flex flex-col gap-2 mt-4">
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => router.push(`/dashboard/seasons/${season.id}/leaderboard`)}
-                        >
-                          <BarChart3 className="mr-2 h-4 w-4" />
-                          Voir le classement
-                        </Button>
                         <div className="flex gap-2">
                           <Button
-                            variant="outline"
+                            variant="default"
                             size="sm"
                             className="flex-1"
-                            onClick={() => handleOpenDialog(season)}
+                            onClick={() => router.push(`/dashboard/seasons/${season.id}/leaderboard`)}
                           >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Modifier
+                            <BarChart3 className="mr-2 h-4 w-4" />
+                            Classement
                           </Button>
                           <Button
-                            variant="outline"
+                            variant="default"
                             size="sm"
-                            onClick={() => handleArchive(season.id)}
+                            className="flex-1"
+                            onClick={() => router.push(`/dashboard/seasons/${season.id}/exports`)}
                           >
-                            <Archive className="h-4 w-4" />
+                            <Image className="mr-2 h-4 w-4" />
+                            Exports
                           </Button>
                         </div>
+                        {canEdit && (
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleOpenDialog(season)}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Modifier
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleArchive(season.id)}
+                            >
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -378,15 +419,24 @@ export default function SeasonsPage() {
                           <span className="font-medium">{season._count?.tournaments || 0}</span>
                         </div>
                       </div>
-                      <div className="mt-4">
+                      <div className="flex gap-2 mt-4">
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full"
+                          className="flex-1"
                           onClick={() => router.push(`/dashboard/seasons/${season.id}/leaderboard`)}
                         >
                           <BarChart3 className="mr-2 h-4 w-4" />
-                          Voir le classement
+                          Classement
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => router.push(`/dashboard/seasons/${season.id}/exports`)}
+                        >
+                          <Image className="mr-2 h-4 w-4" />
+                          Exports
                         </Button>
                       </div>
                     </CardContent>

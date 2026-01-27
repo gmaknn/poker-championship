@@ -19,6 +19,7 @@ interface PlayerStats {
 
 interface SeasonConfrontationsMatrixProps {
   seasonName: string;
+  seasonYear?: number;
   confrontations: Confrontation[];
   players: PlayerStats[];
 }
@@ -27,25 +28,25 @@ interface SeasonConfrontationsMatrixProps {
  * Get background color based on elimination count
  */
 function getEliminationColor(count: number): string {
-  if (count === 0) return '#f9fafb'; // gray-50
-  if (count === 1) return '#fef3c7'; // amber-100
-  if (count === 2) return '#fdba74'; // orange-300
-  if (count >= 3) return '#f87171'; // red-400 (rivalry!)
-  return '#f9fafb';
+  if (count === 0) return 'rgba(71,85,105,0.2)'; // slate
+  if (count === 1) return 'rgba(251,191,36,0.4)'; // amber
+  if (count === 2) return 'rgba(249,115,22,0.5)'; // orange
+  if (count >= 3) return 'rgba(239,68,68,0.6)'; // red (rivalry!)
+  return 'rgba(71,85,105,0.2)';
 }
 
 /**
  * Get text color based on background
  */
 function getTextColor(count: number): string {
-  if (count >= 3) return '#7f1d1d'; // red-900
-  if (count >= 2) return '#9a3412'; // orange-800
-  if (count >= 1) return '#92400e'; // amber-800
-  return '#6b7280'; // gray-500
+  if (count >= 2) return '#ffffff';
+  if (count >= 1) return '#fde047';
+  return '#64748b';
 }
 
 export default function SeasonConfrontationsMatrix({
   seasonName,
+  seasonYear,
   confrontations,
   players,
 }: SeasonConfrontationsMatrixProps) {
@@ -67,220 +68,293 @@ export default function SeasonConfrontationsMatrix({
     return confrontationMap.get(`${eliminatorId}-${eliminatedId}`) || 0;
   };
 
-  // Calculate max width needed
-  const cellWidth = 40;
-  const headerWidth = 120;
-  const totalWidth = headerWidth + (sortedPlayers.length + 1) * cellWidth + 20;
+  // Calculate width
+  const cellWidth = 36;
+  const headerWidth = 140;
 
   return (
     <div
       id="season-confrontations-matrix"
-      className="relative bg-white p-6"
       style={{
-        minWidth: `${Math.max(800, totalWidth)}px`,
-        fontFamily: 'Arial, sans-serif',
+        width: '100%',
+        minWidth: `${headerWidth + (sortedPlayers.length + 1) * cellWidth + 100}px`,
+        backgroundColor: '#0f172a',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">{seasonName}</h1>
-        <p className="text-lg text-gray-600">Confrontations directes - Qui elimine qui ?</p>
-      </div>
-
-      {/* Main table */}
-      <div className="overflow-x-auto">
-        <table className="border-collapse border-2 border-gray-800">
-          {/* Header row with victim names */}
-          <thead>
-            <tr className="bg-gray-800 text-white">
-              {/* Top-left corner cell */}
-              <th
-                className="border-2 border-gray-800 px-2 py-2 text-center font-bold"
-                style={{ minWidth: `${headerWidth}px` }}
-              >
-                Eliminateur ↓ / Victime →
-              </th>
-              {/* Victim names (columns) */}
-              {sortedPlayers.map((player) => (
-                <th
-                  key={player.id}
-                  className="border-2 border-gray-800 px-1 py-2 text-center font-bold text-xs"
-                  style={{
-                    minWidth: `${cellWidth}px`,
-                    maxWidth: `${cellWidth}px`,
-                    writingMode: 'vertical-lr',
-                    textOrientation: 'mixed',
-                    transform: 'rotate(180deg)',
-                    height: '100px',
-                  }}
-                >
-                  {player.nickname}
-                </th>
-              ))}
-              {/* Total deaths column header */}
-              <th
-                className="border-2 border-gray-800 px-2 py-2 text-center font-bold bg-red-800 text-white text-xs"
-                style={{
-                  minWidth: `${cellWidth}px`,
-                  writingMode: 'vertical-lr',
-                  textOrientation: 'mixed',
-                  transform: 'rotate(180deg)',
-                  height: '100px',
-                }}
-              >
-                TOTAL KO
-              </th>
-            </tr>
-          </thead>
-
-          {/* Body rows */}
-          <tbody>
-            {sortedPlayers.map((eliminator, rowIndex) => (
-              <tr key={eliminator.id}>
-                {/* Eliminator name (row header) */}
-                <td
-                  className={`border-2 border-gray-800 px-2 py-1 font-semibold text-gray-800 truncate ${
-                    rowIndex % 2 === 0 ? 'bg-gray-100' : 'bg-white'
-                  }`}
-                  style={{ maxWidth: `${headerWidth}px` }}
-                >
-                  {eliminator.nickname}
-                </td>
-
-                {/* Elimination cells */}
-                {sortedPlayers.map((victim) => {
-                  const isSelf = eliminator.id === victim.id;
-                  const count = isSelf ? -1 : getCount(eliminator.id, victim.id);
-
-                  if (isSelf) {
-                    // Diagonal - player can't eliminate themselves
-                    return (
-                      <td
-                        key={victim.id}
-                        className="border-2 border-gray-800 px-1 py-1 text-center"
-                        style={{
-                          backgroundColor: '#d1d5db', // gray-300
-                          minWidth: `${cellWidth}px`,
-                        }}
-                      >
-                        -
-                      </td>
-                    );
-                  }
-
-                  const bgColor = getEliminationColor(count);
-                  const textColor = getTextColor(count);
-
-                  return (
-                    <td
-                      key={victim.id}
-                      className="border-2 border-gray-800 px-1 py-1 text-center font-bold"
-                      style={{
-                        backgroundColor: bgColor,
-                        color: textColor,
-                        minWidth: `${cellWidth}px`,
-                      }}
-                    >
-                      {count > 0 ? count : ''}
-                    </td>
-                  );
-                })}
-
-                {/* Total kills for this eliminator */}
-                <td
-                  className="border-2 border-gray-800 px-2 py-1 text-center font-bold bg-red-100 text-red-900"
-                  style={{ minWidth: `${cellWidth}px` }}
-                >
-                  {eliminator.totalKills}
-                </td>
-              </tr>
-            ))}
-
-            {/* Total deaths row */}
-            <tr className="bg-blue-800 text-white">
-              <td className="border-2 border-gray-800 px-2 py-2 font-bold">TOTAL MORTS</td>
-              {sortedPlayers.map((player) => (
-                <td
-                  key={player.id}
-                  className="border-2 border-gray-800 px-1 py-2 text-center font-bold bg-blue-100 text-blue-900"
-                  style={{ minWidth: `${cellWidth}px` }}
-                >
-                  {player.totalDeaths}
-                </td>
-              ))}
-              {/* Empty corner cell */}
-              <td
-                className="border-2 border-gray-800 px-1 py-2 text-center bg-gray-400"
-                style={{ minWidth: `${cellWidth}px` }}
-              >
-                -
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {/* Legend */}
-      <div className="mt-6 p-4 bg-gray-100 rounded border border-gray-300">
-        <h3 className="font-bold text-gray-800 mb-3">Legende :</h3>
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400 flex items-center justify-center text-xs"
-              style={{ backgroundColor: '#f9fafb' }}
-            >
-              0
-            </div>
-            <span className="text-gray-700">Aucune elimination</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400 flex items-center justify-center text-xs font-bold"
-              style={{ backgroundColor: '#fef3c7', color: '#92400e' }}
-            >
-              1
-            </div>
-            <span className="text-gray-700">1 elimination</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400 flex items-center justify-center text-xs font-bold"
-              style={{ backgroundColor: '#fdba74', color: '#9a3412' }}
-            >
-              2
-            </div>
-            <span className="text-gray-700">2 eliminations</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400 flex items-center justify-center text-xs font-bold"
-              style={{ backgroundColor: '#f87171', color: '#7f1d1d' }}
-            >
-              3+
-            </div>
-            <span className="text-gray-700">3+ eliminations (rivalite !)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400 flex items-center justify-center text-xs"
-              style={{ backgroundColor: '#d1d5db' }}
-            >
-              -
-            </div>
-            <span className="text-gray-700">Diagonale (soi-meme)</span>
-          </div>
+      {/* Header - Fond vert poker */}
+      <div style={{
+        backgroundColor: '#1a472a',
+        padding: '32px 40px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+      }}>
+        <div style={{ position: 'absolute', left: '40px', top: '50%', transform: 'translateY(-50%)' }}>
+          <img
+            src="/images/logo-wpt.png"
+            alt="WPT Villelaure"
+            style={{ width: '80px', height: 'auto' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
         </div>
-        <div className="mt-3 text-sm text-gray-600">
-          <p>
-            <strong>Lecture :</strong> Chaque cellule indique combien de fois le joueur de la ligne
-            a elimine le joueur de la colonne.
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 8px 0' }}>
+            {seasonName}
+          </h1>
+          <p style={{ color: '#86efac', margin: '0', fontSize: '18px' }}>
+            Confrontations directes - Qui elimine qui ?
           </p>
         </div>
+        <div style={{ position: 'absolute', right: '40px', top: '50%', transform: 'translateY(-50%)' }}>
+          <img
+            src="/images/logo-wpt.png"
+            alt="WPT Villelaure"
+            style={{ width: '80px', height: 'auto' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-6 text-center text-gray-500 text-xs">
-        Genere par Poker Championship Manager - {new Date().toLocaleDateString('fr-FR')}
+      {/* Contenu principal - Fond slate */}
+      <div style={{ padding: '32px 40px', backgroundColor: '#0f172a' }}>
+        {/* Matrix table */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
+            {/* Header row with victim names */}
+            <thead>
+              <tr style={{ backgroundColor: '#334155' }}>
+                {/* Top-left corner cell */}
+                <th
+                  style={{
+                    padding: '8px 12px',
+                    textAlign: 'center',
+                    borderBottom: '2px solid #475569',
+                    color: '#f8fafc',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    minWidth: `${headerWidth}px`,
+                  }}
+                >
+                  Eliminateur / Victime
+                </th>
+                {/* Victim names (columns) */}
+                {sortedPlayers.map((player) => (
+                  <th
+                    key={player.id}
+                    style={{
+                      padding: '4px',
+                      textAlign: 'center',
+                      borderBottom: '2px solid #475569',
+                      color: '#f8fafc',
+                      fontSize: '10px',
+                      fontWeight: '600',
+                      minWidth: `${cellWidth}px`,
+                      maxWidth: `${cellWidth}px`,
+                      writingMode: 'vertical-rl',
+                      transform: 'rotate(180deg)',
+                      height: '90px',
+                    }}
+                  >
+                    {player.nickname.length > 12 ? player.nickname.slice(0, 12) + '.' : player.nickname}
+                  </th>
+                ))}
+                {/* Total kills column header */}
+                <th
+                  style={{
+                    padding: '4px',
+                    textAlign: 'center',
+                    borderBottom: '2px solid #475569',
+                    backgroundColor: 'rgba(239,68,68,0.25)',
+                    color: '#fca5a5',
+                    fontSize: '10px',
+                    fontWeight: '600',
+                    minWidth: `${cellWidth}px`,
+                    writingMode: 'vertical-rl',
+                    transform: 'rotate(180deg)',
+                    height: '90px',
+                  }}
+                >
+                  TOTAL KO
+                </th>
+              </tr>
+            </thead>
+
+            {/* Body rows */}
+            <tbody>
+              {sortedPlayers.map((eliminator, rowIndex) => {
+                const bgColor = rowIndex % 2 === 0 ? '#1e293b' : '#273449';
+
+                return (
+                  <tr key={eliminator.id} style={{ backgroundColor: bgColor }}>
+                    {/* Eliminator name (row header) */}
+                    <td
+                      style={{
+                        padding: '6px 12px',
+                        fontWeight: '500',
+                        color: '#f8fafc',
+                        fontSize: '13px',
+                        maxWidth: `${headerWidth}px`,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        borderBottom: '1px solid #475569',
+                      }}
+                    >
+                      {eliminator.nickname}
+                    </td>
+
+                    {/* Elimination cells */}
+                    {sortedPlayers.map((victim) => {
+                      const isSelf = eliminator.id === victim.id;
+                      const count = isSelf ? -1 : getCount(eliminator.id, victim.id);
+
+                      if (isSelf) {
+                        // Diagonal - player can't eliminate themselves
+                        return (
+                          <td
+                            key={victim.id}
+                            style={{
+                              padding: '4px',
+                              textAlign: 'center',
+                              backgroundColor: 'rgba(71,85,105,0.4)',
+                              color: '#64748b',
+                              fontSize: '12px',
+                              minWidth: `${cellWidth}px`,
+                              borderBottom: '1px solid #475569',
+                            }}
+                          >
+                            -
+                          </td>
+                        );
+                      }
+
+                      const cellBg = getEliminationColor(count);
+                      const textColor = getTextColor(count);
+
+                      return (
+                        <td
+                          key={victim.id}
+                          style={{
+                            padding: '4px',
+                            textAlign: 'center',
+                            backgroundColor: cellBg,
+                            color: textColor,
+                            fontSize: '13px',
+                            fontWeight: count > 0 ? 'bold' : 'normal',
+                            minWidth: `${cellWidth}px`,
+                            borderBottom: '1px solid #475569',
+                          }}
+                        >
+                          {count > 0 ? count : ''}
+                        </td>
+                      );
+                    })}
+
+                    {/* Total kills for this eliminator */}
+                    <td
+                      style={{
+                        padding: '6px',
+                        textAlign: 'center',
+                        fontWeight: 'bold',
+                        backgroundColor: 'rgba(239,68,68,0.15)',
+                        color: '#fca5a5',
+                        fontSize: '14px',
+                        minWidth: `${cellWidth}px`,
+                        borderBottom: '1px solid #475569',
+                      }}
+                    >
+                      {eliminator.totalKills}
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {/* Total deaths row */}
+              <tr style={{ backgroundColor: 'rgba(59,130,246,0.15)' }}>
+                <td style={{ padding: '8px 12px', fontWeight: 'bold', color: '#93c5fd', fontSize: '13px', borderBottom: '1px solid #475569' }}>TOTAL MORTS</td>
+                {sortedPlayers.map((player) => (
+                  <td
+                    key={player.id}
+                    style={{
+                      padding: '6px',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      backgroundColor: 'rgba(59,130,246,0.1)',
+                      color: '#93c5fd',
+                      fontSize: '14px',
+                      minWidth: `${cellWidth}px`,
+                      borderBottom: '1px solid #475569',
+                    }}
+                  >
+                    {player.totalDeaths}
+                  </td>
+                ))}
+                {/* Empty corner cell */}
+                <td
+                  style={{
+                    padding: '6px',
+                    textAlign: 'center',
+                    backgroundColor: 'rgba(71,85,105,0.3)',
+                    color: '#64748b',
+                    minWidth: `${cellWidth}px`,
+                    borderBottom: '1px solid #475569',
+                  }}
+                >
+                  -
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Légende */}
+        <div style={{
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: '#1e293b',
+          borderRadius: '8px',
+          border: '1px solid #475569',
+        }}>
+          <h3 style={{ fontWeight: '600', color: '#f8fafc', marginBottom: '12px', fontSize: '14px' }}>Legende :</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(71,85,105,0.2)', border: '1px solid #475569' }} />
+              <span style={{ color: '#94a3b8' }}>0 elimination</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(251,191,36,0.4)' }} />
+              <span style={{ color: '#94a3b8' }}>1 elimination</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(249,115,22,0.5)' }} />
+              <span style={{ color: '#94a3b8' }}>2 eliminations</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.6)' }} />
+              <span style={{ color: '#94a3b8' }}>3+ (rivalite !)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(71,85,105,0.4)' }} />
+              <span style={{ color: '#94a3b8' }}>Diagonale (soi-meme)</span>
+            </div>
+          </div>
+          <div style={{ marginTop: '12px', fontSize: '12px', color: '#64748b' }}>
+            <strong>Lecture :</strong> Chaque cellule indique combien de fois le joueur de la ligne a elimine le joueur de la colonne.
+          </div>
+        </div>
+      </div>
+
+      {/* Footer - Fond vert poker */}
+      <div style={{
+        backgroundColor: '#1a472a',
+        padding: '16px 40px',
+        textAlign: 'center',
+      }}>
+        <p style={{ color: '#9ca3af', fontSize: '14px', margin: '0' }}>
+          WPT Villelaure - {seasonName}
+        </p>
       </div>
     </div>
   );

@@ -28,12 +28,13 @@ import { Badge } from '@/components/ui/badge';
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
   { icon: TrendingUp, label: 'En Direct', href: '/dashboard/live', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
-  { icon: Award, label: 'Saisons', href: '/dashboard/seasons', roles: ['ADMIN'] },
+  { icon: Award, label: 'Saisons', href: '/dashboard/seasons', roles: ['ANIMATOR', 'ADMIN'] },
   { icon: Calendar, label: 'Tournois', href: '/dashboard/tournaments', roles: ['TOURNAMENT_DIRECTOR', 'ADMIN'] },
   { icon: Users, label: 'Joueurs', href: '/dashboard/players', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
   { icon: Trophy, label: 'Classement', href: '/dashboard/leaderboard', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
   { icon: BarChart3, label: 'Statistiques', href: '/dashboard/statistics', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
-  { icon: MessageSquare, label: 'Communication', href: '/dashboard/communication', roles: ['ANIMATOR', 'ADMIN'] },
+  // Communication masqué pour tous les profils (fonctionnalité désactivée temporairement)
+  // { icon: MessageSquare, label: 'Communication', href: '/dashboard/communication', roles: ['ANIMATOR', 'ADMIN'] },
   { icon: Calculator, label: 'Assistant Jetons', href: '/dashboard/chip-assistant', roles: ['TOURNAMENT_DIRECTOR', 'ADMIN'] },
   { icon: Settings, label: 'Paramètres', href: '/dashboard/settings', roles: ['ADMIN'] },
 ];

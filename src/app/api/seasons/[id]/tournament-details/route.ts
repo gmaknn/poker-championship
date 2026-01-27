@@ -106,7 +106,7 @@ export async function GET(
       },
     });
 
-    // Récupérer les infos des joueurs
+    // Récupérer les infos des joueurs (avec avatar)
     const playerIds = leaderboard.map((entry) => entry.playerId);
     const players = await prisma.player.findMany({
       where: {
@@ -117,6 +117,7 @@ export async function GET(
         nickname: true,
         firstName: true,
         lastName: true,
+        avatar: true,
       },
     });
 
@@ -135,6 +136,7 @@ export async function GET(
           nickname: player?.nickname || 'Unknown',
           firstName: player?.firstName,
           lastName: player?.lastName,
+          avatar: player?.avatar || null,
         },
         totalPoints: entry._sum.totalPoints || 0,
         tournamentResults: results,

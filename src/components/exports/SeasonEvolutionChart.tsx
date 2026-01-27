@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
 
 interface TournamentResult {
   tournamentId: string;
@@ -12,12 +13,16 @@ interface TournamentResult {
 interface PlayerEvolution {
   rank: number;
   nickname: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string | null;
   totalPoints: number;
   tournamentResults: TournamentResult[];
 }
 
 interface SeasonEvolutionChartProps {
   seasonName: string;
+  seasonYear?: number;
   players: PlayerEvolution[];
   tournamentCount: number;
 }
@@ -28,39 +33,33 @@ interface SeasonEvolutionChartProps {
  */
 function getPointsColor(points: number): string {
   if (points === 0) {
-    return '#f3f4f6'; // gray-100
+    return 'rgba(71,85,105,0.3)'; // slate-600
   }
 
   if (points > 0) {
     // Green gradients for positive points
-    if (points >= 500) return '#166534'; // green-800
-    if (points >= 400) return '#15803d'; // green-700
-    if (points >= 300) return '#16a34a'; // green-600
+    if (points >= 400) return '#166534'; // green-800
     if (points >= 200) return '#22c55e'; // green-500
-    if (points >= 100) return '#4ade80'; // green-400
     return '#86efac'; // green-300
   }
 
   // Red gradients for negative points
-  if (points <= -500) return '#991b1b'; // red-800
-  if (points <= -400) return '#b91c1c'; // red-700
-  if (points <= -300) return '#dc2626'; // red-600
-  if (points <= -200) return '#ef4444'; // red-500
-  if (points <= -100) return '#f87171'; // red-400
-  return '#fca5a5'; // red-300
+  return '#f87171'; // red-400
 }
 
 /**
  * Get text color based on background brightness
  */
 function getTextColor(points: number): string {
-  if (points === 0) return '#6b7280'; // gray-500
-  if (Math.abs(points) >= 300) return '#ffffff';
-  return '#1f2937'; // gray-800
+  if (points === 0) return '#64748b'; // slate-500
+  if (points >= 200) return '#ffffff';
+  if (points > 0 && points < 200) return '#166534';
+  return '#7f1d1d'; // red dark
 }
 
 export default function SeasonEvolutionChart({
   seasonName,
+  seasonYear,
   players,
   tournamentCount,
 }: SeasonEvolutionChartProps) {
@@ -70,45 +69,91 @@ export default function SeasonEvolutionChart({
   return (
     <div
       id="season-evolution-chart"
-      className="relative bg-white p-6"
       style={{
-        minWidth: `${400 + tournamentCount * 80}px`,
-        fontFamily: 'Arial, sans-serif',
+        width: '100%',
+        minWidth: `${500 + tournamentCount * 55}px`,
+        backgroundColor: '#0f172a',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">{seasonName}</h1>
-        <p className="text-lg text-gray-600">Evolution du classement - Points par journee</p>
+      {/* Header - Fond vert poker */}
+      <div style={{
+        backgroundColor: '#1a472a',
+        padding: '32px 40px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+      }}>
+        <div style={{ position: 'absolute', left: '40px', top: '50%', transform: 'translateY(-50%)' }}>
+          <img
+            src="/images/logo-wpt.png"
+            alt="WPT Villelaure"
+            style={{ width: '80px', height: 'auto' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 8px 0' }}>
+            {seasonName}
+          </h1>
+          <p style={{ color: '#86efac', margin: '0', fontSize: '18px' }}>
+            Evolution par points
+          </p>
+        </div>
+        <div style={{ position: 'absolute', right: '40px', top: '50%', transform: 'translateY(-50%)' }}>
+          <img
+            src="/images/logo-wpt.png"
+            alt="WPT Villelaure"
+            style={{ width: '80px', height: 'auto' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
       </div>
 
-      {/* Main table */}
-      <div className="overflow-x-auto">
-        <table className="border-collapse border-2 border-gray-800 w-full">
-          {/* Header */}
+      {/* Contenu principal - Fond slate */}
+      <div style={{ padding: '32px 40px', backgroundColor: '#0f172a' }}>
+        {/* Zone Master Banner */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          padding: '14px',
+          marginBottom: '16px',
+          background: 'linear-gradient(90deg, rgba(251,191,36,0.05) 0%, rgba(251,191,36,0.15) 50%, rgba(251,191,36,0.05) 100%)',
+          borderRadius: '8px',
+          border: '1px solid rgba(251,191,36,0.3)',
+        }}>
+          <span style={{ fontSize: '20px' }}>⭐</span>
+          <span style={{ fontSize: '18px', fontWeight: '600', color: '#fbbf24' }}>Zone Master - Top 10</span>
+          <span style={{ fontSize: '20px' }}>⭐</span>
+        </div>
+
+        {/* Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
           <thead>
-            <tr className="bg-gray-800 text-white">
-              <th className="border-2 border-gray-800 px-3 py-2 text-center font-bold w-16">
-                class
+            <tr style={{ backgroundColor: '#334155' }}>
+              <th style={{ padding: '12px 14px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600', width: '50px' }}>
+                #
               </th>
-              <th className="border-2 border-gray-800 px-4 py-2 text-left font-bold w-40">
-                NOM
+              <th style={{ padding: '12px 14px', textAlign: 'left', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600', minWidth: '160px' }}>
+                Joueur
               </th>
               {tournamentNumbers.map((num) => (
                 <th
                   key={num}
-                  className="border-2 border-gray-800 px-2 py-2 text-center font-bold w-16"
+                  style={{ padding: '8px 4px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '11px', fontWeight: '600', width: '45px' }}
                 >
-                  J{num}
+                  T{num}
                 </th>
               ))}
-              <th className="border-2 border-gray-800 px-3 py-2 text-center font-bold w-20">
+              <th style={{ padding: '12px 14px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fde047', fontSize: '13px', fontWeight: '600', width: '70px' }}>
                 TOTAL
               </th>
             </tr>
           </thead>
 
-          {/* Body */}
           <tbody>
             {players.map((player, index) => {
               // Create a map of tournament results for quick lookup
@@ -116,131 +161,157 @@ export default function SeasonEvolutionChart({
                 player.tournamentResults.map((r) => [r.tournamentNumber, r])
               );
 
-              const bgColor =
-                player.rank === 1
-                  ? 'bg-yellow-100'
-                  : player.rank <= 3
-                  ? 'bg-blue-50'
-                  : index % 2 === 0
-                  ? 'bg-gray-50'
-                  : 'bg-white';
+              const isTop3 = player.rank <= 3;
+              const isTop10 = player.rank <= 10;
+
+              let bgColor: string;
+              let borderLeft: string | undefined;
+
+              if (isTop3) {
+                bgColor = 'rgba(250,204,21,0.12)';
+                borderLeft = '3px solid #fbbf24';
+              } else if (isTop10) {
+                bgColor = 'rgba(34,197,94,0.08)';
+                borderLeft = undefined;
+              } else {
+                bgColor = index % 2 === 0 ? '#1e293b' : '#273449';
+                borderLeft = undefined;
+              }
 
               return (
-                <tr key={player.rank}>
-                  {/* Rank */}
-                  <td
-                    className={`border-2 border-gray-800 px-3 py-2 text-center font-bold text-lg text-gray-900 ${bgColor}`}
-                  >
-                    {player.rank}
-                  </td>
+                <React.Fragment key={player.rank}>
+                  {/* Separator after Top 10 */}
+                  {player.rank === 11 && (
+                    <tr>
+                      <td colSpan={tournamentNumbers.length + 3} style={{ padding: '0', height: '2px', backgroundColor: '#fbbf24' }} />
+                    </tr>
+                  )}
+                  <tr style={{ backgroundColor: bgColor, borderLeft }}>
+                    {/* Rang */}
+                    <td style={{
+                      padding: '10px 14px',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '15px',
+                      color: player.rank === 1 ? '#fbbf24' : player.rank === 2 ? '#9ca3af' : player.rank === 3 ? '#ea580c' : isTop10 ? '#fde68a' : '#f8fafc',
+                      borderBottom: '1px solid #475569',
+                    }}>
+                      {player.rank <= 3 ? '🏆 ' : player.rank <= 10 ? '🎖️ ' : ''}{player.rank}
+                    </td>
 
-                  {/* Name */}
-                  <td
-                    className={`border-2 border-gray-800 px-4 py-2 font-semibold text-gray-800 truncate ${bgColor}`}
-                  >
-                    {player.nickname}
-                  </td>
+                    {/* Joueur */}
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #475569' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {/* Avatar */}
+                        {isValidAvatarUrl(player.avatar) ? (
+                          <img
+                            src={normalizeAvatarSrc(player.avatar)!}
+                            alt=""
+                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', color: '#94a3b8' }}>
+                            {player.firstName?.[0] || player.nickname[0]}{player.lastName?.[0] || ''}
+                          </div>
+                        )}
+                        {/* Nom et pseudo */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '14px', color: '#f8fafc', fontWeight: '500' }}>
+                            {player.firstName && player.lastName ? `${player.firstName} ${player.lastName}` : player.nickname}
+                          </span>
+                          {player.firstName && player.lastName && (
+                            <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                              @{player.nickname}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
 
-                  {/* Tournament results */}
-                  {tournamentNumbers.map((num) => {
-                    const result = resultsMap.get(num);
-                    const points = result?.points ?? null;
+                    {/* Résultats par tournoi */}
+                    {tournamentNumbers.map((num) => {
+                      const result = resultsMap.get(num);
+                      const points = result?.points ?? null;
 
-                    if (points === null) {
-                      // Player didn't participate
+                      if (points === null) {
+                        // Player didn't participate
+                        return (
+                          <td
+                            key={num}
+                            style={{ padding: '6px 4px', textAlign: 'center', backgroundColor: 'rgba(71,85,105,0.3)', color: '#64748b', fontSize: '11px', borderBottom: '1px solid #475569' }}
+                          >
+                            -
+                          </td>
+                        );
+                      }
+
+                      const bgColorCell = getPointsColor(points);
+                      const textColor = getTextColor(points);
+
                       return (
                         <td
                           key={num}
-                          className="border-2 border-gray-800 px-2 py-2 text-center text-gray-400"
-                          style={{ backgroundColor: '#e5e7eb' }}
+                          style={{ padding: '6px 4px', textAlign: 'center', backgroundColor: bgColorCell, color: textColor, fontSize: '11px', fontWeight: '600', borderBottom: '1px solid #475569' }}
                         >
-                          -
+                          {points > 0 ? `+${points}` : points}
                         </td>
                       );
-                    }
+                    })}
 
-                    const bgColorCell = getPointsColor(points);
-                    const textColor = getTextColor(points);
-
-                    return (
-                      <td
-                        key={num}
-                        className="border-2 border-gray-800 px-2 py-2 text-center font-semibold"
-                        style={{
-                          backgroundColor: bgColorCell,
-                          color: textColor,
-                        }}
-                      >
-                        {points > 0 ? `+${points}` : points}
-                      </td>
-                    );
-                  })}
-
-                  {/* Total */}
-                  <td
-                    className={`border-2 border-gray-800 px-3 py-2 text-center font-bold text-lg text-gray-900 ${bgColor}`}
-                  >
-                    {player.totalPoints}
-                  </td>
-                </tr>
+                    {/* Total */}
+                    <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: '#fde047', borderBottom: '1px solid #475569' }}>
+                      {player.totalPoints}
+                    </td>
+                  </tr>
+                </React.Fragment>
               );
             })}
           </tbody>
         </table>
-      </div>
 
-      {/* Legend */}
-      <div className="mt-6 p-4 bg-gray-100 rounded border border-gray-300">
-        <h3 className="font-bold text-gray-800 mb-3">Legende :</h3>
-        <div className="flex flex-wrap gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400"
-              style={{ backgroundColor: '#166534' }}
-            />
-            <span className="text-gray-700">500+ pts</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400"
-              style={{ backgroundColor: '#22c55e' }}
-            />
-            <span className="text-gray-700">200-499 pts</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400"
-              style={{ backgroundColor: '#86efac' }}
-            />
-            <span className="text-gray-700">1-199 pts</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400"
-              style={{ backgroundColor: '#f3f4f6' }}
-            />
-            <span className="text-gray-700">0 pts</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400"
-              style={{ backgroundColor: '#e5e7eb' }}
-            />
-            <span className="text-gray-700">Non participe</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded border border-gray-400"
-              style={{ backgroundColor: '#fca5a5' }}
-            />
-            <span className="text-gray-700">Negatif (penalite)</span>
+        {/* Légende */}
+        <div style={{
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: '#1e293b',
+          borderRadius: '8px',
+          border: '1px solid #475569',
+        }}>
+          <h3 style={{ fontWeight: '600', color: '#f8fafc', marginBottom: '12px', fontSize: '14px' }}>Legende :</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: '#166534' }} />
+              <span style={{ color: '#94a3b8' }}>400+ pts</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: '#22c55e' }} />
+              <span style={{ color: '#94a3b8' }}>200-399 pts</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: '#86efac' }} />
+              <span style={{ color: '#94a3b8' }}>1-199 pts</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(71,85,105,0.3)' }} />
+              <span style={{ color: '#94a3b8' }}>Non participe</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: '#f87171' }} />
+              <span style={{ color: '#94a3b8' }}>Negatif (penalite)</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-6 text-center text-gray-500 text-xs">
-        Genere par Poker Championship Manager - {new Date().toLocaleDateString('fr-FR')}
+      {/* Footer - Fond vert poker */}
+      <div style={{
+        backgroundColor: '#1a472a',
+        padding: '16px 40px',
+        textAlign: 'center',
+      }}>
+        <p style={{ color: '#9ca3af', fontSize: '14px', margin: '0' }}>
+          WPT Villelaure - {seasonName}
+        </p>
       </div>
     </div>
   );

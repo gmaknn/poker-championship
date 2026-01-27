@@ -70,7 +70,7 @@ export default function SeasonLeaderboardChart({
       {/* Graphique en barres */}
       <div className="absolute top-44 left-4 right-4 bottom-6 z-10">
         {/* Zone des barres avec ligne de base commune */}
-        <div className="relative w-full h-[calc(100%-140px)] flex items-end justify-around gap-1">
+        <div className="relative w-full h-[calc(100%-180px)] flex items-end justify-around gap-1">
           {topPlayers.map((player, index) => {
             // Calcul de la hauteur en pixels (proportionnel aux kills)
             const barHeightPx = player.totalEliminations > 0
@@ -125,8 +125,8 @@ export default function SeasonLeaderboardChart({
           })}
         </div>
 
-        {/* Zone fixe pour les noms en bas - PLUS GROS */}
-        <div className="relative w-full h-[140px] flex justify-around gap-1 mt-4">
+        {/* Zone fixe pour les noms en bas - Orientation diagonale 45° */}
+        <div className="relative w-full h-[160px] flex justify-around gap-1 mt-4">
           {topPlayers.map((player, index) => {
             const isTop3 = index < 3;
             return (
@@ -136,19 +136,18 @@ export default function SeasonLeaderboardChart({
                 style={{ width: `${100 / maxPlayers}%` }}
               >
                 <div
-                  className="font-bold text-center overflow-hidden"
+                  className="font-bold whitespace-nowrap"
                   style={{
-                    writingMode: 'vertical-rl',
-                    textOrientation: 'mixed',
-                    transform: 'rotate(180deg)',
-                    maxWidth: '100%',
-                    fontSize: isTop3 ? '20px' : '16px',
+                    transform: 'rotate(-45deg)',
+                    transformOrigin: 'top center',
+                    fontSize: isTop3 ? '22px' : '18px',
                     color: isTop3 ? '#fbbf24' : '#d1d5db',
                     textShadow: isTop3 ? '0 0 10px rgba(251, 191, 36, 0.5)' : 'none',
+                    marginTop: '8px',
                   }}
                 >
-                  {player.nickname.length > 14
-                    ? player.nickname.slice(0, 14) + '.'
+                  {player.nickname.length > 12
+                    ? player.nickname.slice(0, 12) + '.'
                     : player.nickname}
                 </div>
               </div>

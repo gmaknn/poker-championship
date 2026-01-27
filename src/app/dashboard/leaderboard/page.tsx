@@ -195,8 +195,8 @@ export default function LeaderboardPage() {
       await exportToPNG({
         element: exportRef.current,
         filename,
-        backgroundColor: '#1a472a', // Fond vert tapis de poker
-        pixelRatio: 2,
+        backgroundColor: '#0f172a', // Fond slate (design system unifié)
+        pixelRatio: 3,
       });
 
       // Hide it again
@@ -398,17 +398,16 @@ export default function LeaderboardPage() {
 
               <div className="space-y-2">
                 {leaderboard.map((entry) => (
-                  <>
+                  <React.Fragment key={entry.playerId}>
                     {/* Separator after Top 10 */}
                     {entry.rank === 11 && (
-                      <div key="separator" className="flex items-center gap-4 py-2">
+                      <div className="flex items-center gap-4 py-2">
                         <div className="flex-1 h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
                         <span className="text-sm text-muted-foreground">Hors Zone Master</span>
                         <div className="flex-1 h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
                       </div>
                     )}
                     <div
-                      key={entry.playerId}
                       className={`flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer ${
                         entry.rank <= 3
                           ? 'bg-yellow-500/10 border-yellow-500/30'
@@ -488,7 +487,7 @@ export default function LeaderboardPage() {
                       </div>
                     </div>
                     </div>
-                  </>
+                  </React.Fragment>
                 ))}
               </div>
             </CardContent>
