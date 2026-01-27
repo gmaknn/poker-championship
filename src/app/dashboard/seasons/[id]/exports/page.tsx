@@ -444,7 +444,7 @@ export default function SeasonExportsPage() {
   })();
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="w-full px-6 py-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
