@@ -33,7 +33,7 @@ const navItems = [
 const statsItem = { icon: BarChart3, label: 'Statistiques', href: '/player/stats' };
 
 // Seasons item (only for ANIMATOR and ADMIN roles)
-const seasonsItem = { icon: Award, label: 'Saisons', href: '/dashboard/seasons' };
+const seasonsItem = { icon: Award, label: 'Saisons', href: '/player/seasons' };
 
 type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
 
