@@ -3,6 +3,11 @@
  * pour éviter les problèmes CORS lors de la capture PNG avec html-to-image
  */
 export async function preloadImagesAsBase64(container: HTMLElement): Promise<void> {
+  // Vérifier que querySelectorAll existe (peut ne pas exister dans les mocks de tests)
+  if (typeof container.querySelectorAll !== 'function') {
+    return;
+  }
+
   const images = container.querySelectorAll('img');
 
   await Promise.all([...images].map(async (img) => {
