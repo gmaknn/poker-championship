@@ -79,7 +79,7 @@ export default function LeaderboardExportPng({
 
           {/* 1er */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ fontSize: '48px', marginBottom: '8px' }}>&#127942;</div>
+            <div style={{ fontSize: '48px', marginBottom: '8px' }}>🏆</div>
             {isValidAvatarUrl(players[0].avatar) && (
               <img
                 src={normalizeAvatarSrc(players[0].avatar)!}
@@ -124,9 +124,9 @@ export default function LeaderboardExportPng({
         borderRadius: '12px',
         border: '2px solid rgba(234,179,8,0.4)',
       }}>
-        <span style={{ fontSize: '24px' }}>&#11088;</span>
+        <span style={{ fontSize: '24px' }}>⭐</span>
         <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#fde047' }}>Zone Master - Top 10</span>
-        <span style={{ fontSize: '24px' }}>&#11088;</span>
+        <span style={{ fontSize: '24px' }}>⭐</span>
       </div>
 
       {/* Table */}
@@ -163,22 +163,21 @@ export default function LeaderboardExportPng({
                 )}
                 <tr style={{ backgroundColor: bgColor }}>
                   <td style={{ padding: '14px 20px', fontWeight: 'bold', fontSize: '20px', color: entry.rank === 1 ? '#eab308' : entry.rank === 2 ? '#9ca3af' : entry.rank === 3 ? '#ea580c' : isTop10 ? '#fde68a' : '#ffffff' }}>
-                    {entry.rank <= 3 ? '&#127942; ' : entry.rank <= 10 ? '&#127941; ' : ''}{entry.rank}
+                    {entry.rank <= 3 ? '🏆 ' : entry.rank <= 10 ? '🎖️ ' : ''}{entry.rank}
                   </td>
                   <td style={{ padding: '14px 20px', fontSize: '16px' }}>
                     {entry.rankChange === undefined ? (
                       <span style={{ color: '#60a5fa', fontWeight: 'bold', padding: '4px 10px', backgroundColor: 'rgba(96,165,250,0.2)', borderRadius: '6px', border: '1px solid #60a5fa' }}>NEW</span>
                     ) : entry.rankChange > 0 ? (
-                      <span style={{ color: '#4ade80', fontWeight: 'bold' }}>&#9650; +{entry.rankChange}</span>
+                      <span style={{ color: '#4ade80', fontWeight: 'bold' }}>▲ +{entry.rankChange}</span>
                     ) : entry.rankChange < 0 ? (
-                      <span style={{ color: '#f87171', fontWeight: 'bold' }}>&#9660; {entry.rankChange}</span>
+                      <span style={{ color: '#f87171', fontWeight: 'bold' }}>▼ {entry.rankChange}</span>
                     ) : (
                       <span style={{ color: '#9ca3af' }}>-</span>
                     )}
                   </td>
                   <td style={{ padding: '14px 20px', fontSize: '18px', color: '#ffffff', fontWeight: '500' }}>
                     {entry.firstName} {entry.lastName}
-                    <span style={{ color: '#86efac', marginLeft: '10px', fontSize: '16px' }}>@{entry.nickname}</span>
                   </td>
                   <td style={{ padding: '14px 20px', textAlign: 'right', fontWeight: 'bold', fontSize: '22px', color: '#fde047' }}>{entry.totalPoints}</td>
                   <td style={{ padding: '14px 20px', textAlign: 'right', fontSize: '18px', color: '#bbf7d0' }}>{entry.averagePoints}</td>
@@ -193,7 +192,7 @@ export default function LeaderboardExportPng({
       {/* Footer */}
       <div style={{ textAlign: 'center', marginTop: '24px', padding: '16px' }}>
         <p style={{ color: '#86efac', fontSize: '18px', margin: '0' }}>
-          &#11088; Les 10 premiers disputent le Master de fin d'annee &#11088;
+          ⭐ Les 10 premiers disputent le Master de fin d'annee ⭐
         </p>
       </div>
     </div>
