@@ -16,6 +16,7 @@ import {
   Swords,
   Trophy,
   Calendar,
+  DollarSign,
 } from 'lucide-react';
 import {
   Select,
@@ -34,6 +35,7 @@ import SeasonEvolutionChart from '@/components/exports/SeasonEvolutionChart';
 import SeasonConfrontationsMatrix from '@/components/exports/SeasonConfrontationsMatrix';
 import LeaderboardExportPng from '@/components/exports/LeaderboardExportPng';
 import TournamentExportPng from '@/components/exports/TournamentExportPng';
+import PlayerStatsExportPng, { PlayerStatsExportPlayer } from '@/components/exports/PlayerStatsExportPng';
 
 type Season = {
   id: string;
@@ -151,6 +153,7 @@ export default function PlayerSeasonExportsPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [activeTab, setActiveTab] = useState('tournaments');
   const [exportFormat, setExportFormat] = useState<'png' | 'jpg'>('png');
+  const [playerStats, setPlayerStats] = useState<PlayerStatsExportPlayer[]>([]);
 
   const chartRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
@@ -159,6 +162,7 @@ export default function PlayerSeasonExportsPage() {
   const confrontationsRef = useRef<HTMLDivElement>(null);
   const generalLeaderboardRef = useRef<HTMLDivElement>(null);
   const tournamentExportRef = useRef<HTMLDivElement>(null);
+  const playerStatsRef = useRef<HTMLDivElement>(null);
 
   // Check permissions
   useEffect(() => {
@@ -289,6 +293,13 @@ export default function PlayerSeasonExportsPage() {
       if (eliminationsRes.ok) {
         const eliminationsData = await eliminationsRes.json();
         setEliminatorStats(eliminationsData.eliminatorStats || []);
+      }
+
+      // Fetch player stats for Stats tab
+      const playerStatsRes = await fetch(`/api/seasons/${seasonId}/player-stats`);
+      if (playerStatsRes.ok) {
+        const playerStatsData = await playerStatsRes.json();
+        setPlayerStats(playerStatsData.players || []);
       }
 
     } catch (error) {
@@ -511,7 +522,7 @@ export default function PlayerSeasonExportsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 sm:grid-cols-7">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8">
           <TabsTrigger value="tournaments" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Tournois</span>
@@ -519,6 +530,10 @@ export default function PlayerSeasonExportsPage() {
           <TabsTrigger value="general" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <Trophy className="h-4 w-4" />
             <span className="hidden sm:inline">Classement</span>
+          </TabsTrigger>
+          <TabsTrigger value="stats" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+            <DollarSign className="h-4 w-4" />
+            <span className="hidden sm:inline">Stats</span>
           </TabsTrigger>
           <TabsTrigger value="chart" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <BarChart3 className="h-4 w-4" />
@@ -671,6 +686,36 @@ export default function PlayerSeasonExportsPage() {
                       podiums: entry.firstPlaces + entry.secondPlaces + entry.thirdPlaces,
                       rankChange: entry.rankChange,
                     }))}
+                    tournamentsPlayed={tournamentCount}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Player Stats */}
+        <TabsContent value="stats" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Stats Joueurs</CardTitle>
+                <Button
+                  onClick={() => handleExportImage(playerStatsRef, `Saison_${season.year}_stats`, undefined, '#0f172a')}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isExporting ? 'Export...' : 'Telecharger'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
+                <div ref={playerStatsRef}>
+                  <PlayerStatsExportPng
+                    seasonName={season.name}
+                    seasonYear={season.year}
+                    players={playerStats}
                     tournamentsPlayed={tournamentCount}
                   />
                 </div>
