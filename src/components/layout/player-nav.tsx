@@ -15,6 +15,7 @@ import {
   X,
   LogIn,
   BarChart3,
+  Award,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,11 @@ const navItems = [
 // Stats item (only in sidebar, not bottom nav)
 const statsItem = { icon: BarChart3, label: 'Statistiques', href: '/player/stats' };
 
+// Seasons item (only for ANIMATOR and ADMIN roles)
+const seasonsItem = { icon: Award, label: 'Saisons', href: '/dashboard/seasons' };
+
+type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
+
 const getAvatarUrl = (avatar: string | null) => {
   if (!avatar) return null;
   if (avatar.startsWith('/')) return avatar;
@@ -43,6 +49,7 @@ interface CurrentPlayer {
   firstName: string;
   lastName: string;
   avatar: string | null;
+  role: PlayerRole;
 }
 
 // Hook to get current player from session
@@ -68,6 +75,7 @@ export function useCurrentPlayer() {
               firstName: player.firstName,
               lastName: player.lastName,
               avatar: player.avatar,
+              role: player.role,
             });
           } else {
             setCurrentPlayer(null);
@@ -153,6 +161,22 @@ export function PlayerSidebar() {
           >
             <statsItem.icon className="h-5 w-5 flex-shrink-0" />
             {statsItem.label}
+          </Link>
+        )}
+
+        {/* Saisons - only for ANIMATOR and ADMIN */}
+        {currentPlayer && (currentPlayer.role === 'ANIMATOR' || currentPlayer.role === 'ADMIN') && (
+          <Link
+            href={seasonsItem.href}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors min-h-[44px]',
+              pathname.startsWith(seasonsItem.href)
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-accent hover:text-accent-foreground'
+            )}
+          >
+            <seasonsItem.icon className="h-5 w-5 flex-shrink-0" />
+            {seasonsItem.label}
           </Link>
         )}
       </nav>
@@ -360,6 +384,23 @@ export function PlayerMobileDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
             >
               <statsItem.icon className="h-5 w-5 flex-shrink-0" />
               {statsItem.label}
+            </Link>
+          )}
+
+          {/* Saisons - only for ANIMATOR and ADMIN */}
+          {currentPlayer && (currentPlayer.role === 'ANIMATOR' || currentPlayer.role === 'ADMIN') && (
+            <Link
+              href={seasonsItem.href}
+              onClick={onClose}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors min-h-[48px]',
+                pathname.startsWith(seasonsItem.href)
+                  ? 'bg-primary text-primary-foreground'
+                  : 'hover:bg-accent hover:text-accent-foreground'
+              )}
+            >
+              <seasonsItem.icon className="h-5 w-5 flex-shrink-0" />
+              {seasonsItem.label}
             </Link>
           )}
         </nav>
