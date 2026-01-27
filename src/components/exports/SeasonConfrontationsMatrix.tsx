@@ -108,8 +108,9 @@ export default function SeasonConfrontationsMatrix({
                   style={{
                     minWidth: `${cellWidth}px`,
                     maxWidth: `${cellWidth}px`,
-                    writingMode: 'vertical-rl',
+                    writingMode: 'vertical-lr',
                     textOrientation: 'mixed',
+                    transform: 'rotate(180deg)',
                     height: '100px',
                   }}
                 >
@@ -121,8 +122,9 @@ export default function SeasonConfrontationsMatrix({
                 className="border-2 border-gray-800 px-2 py-2 text-center font-bold bg-red-800 text-white text-xs"
                 style={{
                   minWidth: `${cellWidth}px`,
-                  writingMode: 'vertical-rl',
+                  writingMode: 'vertical-lr',
                   textOrientation: 'mixed',
+                  transform: 'rotate(180deg)',
                   height: '100px',
                 }}
               >
