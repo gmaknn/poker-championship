@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/select';
 import { toPng, toJpeg } from 'html-to-image';
 import JSZip from 'jszip';
+import { preloadImagesAsBase64 } from '@/lib/preload-images';
 import SeasonLeaderboardChart from '@/components/exports/SeasonLeaderboardChart';
 import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
 import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeaderboardWithEliminations';
@@ -312,6 +313,9 @@ export default function SeasonExportsPage() {
     const useFormat = format || exportFormat;
     setIsExporting(true);
     try {
+      // Pré-charger les images externes en base64 pour éviter les problèmes CORS
+      await preloadImagesAsBase64(ref.current);
+
       const exportFunction = useFormat === 'png' ? toPng : toJpeg;
       const dataUrl = await exportFunction(ref.current, {
         backgroundColor: bgColor || '#ffffff',
@@ -319,10 +323,6 @@ export default function SeasonExportsPage() {
         quality: useFormat === 'jpg' ? 0.95 : undefined,
         cacheBust: true,
         skipFonts: true,
-        fetchRequestInit: {
-          mode: 'cors' as RequestMode,
-          credentials: 'omit' as RequestCredentials,
-        },
       });
 
       const link = document.createElement('a');
@@ -359,16 +359,12 @@ export default function SeasonExportsPage() {
     const zip = new JSZip();
     const exportFunction = exportFormat === 'png' ? toPng : toJpeg;
 
-    // Options de base avec gestion CORS pour les images externes
+    // Options de base pour html-to-image
     const baseOptions = {
       pixelRatio: 3,
       quality: exportFormat === 'jpg' ? 0.95 : undefined,
       cacheBust: true,
-      skipFonts: true, // Évite les problèmes de fonts externes
-      fetchRequestInit: {
-        mode: 'cors' as RequestMode,
-        credentials: 'omit' as RequestCredentials,
-      },
+      skipFonts: true,
     };
 
     const slateOptions = { ...baseOptions, backgroundColor: '#0f172a' };
@@ -397,6 +393,8 @@ export default function SeasonExportsPage() {
 
       try {
         console.log(`[ZIP Export] Début capture: ${exp.label}`);
+        // Pré-charger les images externes en base64
+        await preloadImagesAsBase64(exp.ref.current);
         const dataUrl = await exportFunction(exp.ref.current, exp.options);
         console.log(`[ZIP Export] Capture réussie: ${exp.label} (${dataUrl.length} chars)`);
 
