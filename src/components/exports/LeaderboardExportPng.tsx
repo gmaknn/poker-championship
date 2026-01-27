@@ -87,6 +87,7 @@ export default function LeaderboardExportPng({
                 <img
                   src={normalizeAvatarSrc(players[1].avatar)!}
                   alt=""
+                  crossOrigin="anonymous"
                   style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #9ca3af', objectFit: 'cover' }}
                 />
               ) : (
@@ -108,6 +109,7 @@ export default function LeaderboardExportPng({
                 <img
                   src={normalizeAvatarSrc(players[0].avatar)!}
                   alt=""
+                  crossOrigin="anonymous"
                   style={{ width: '96px', height: '96px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #fbbf24', objectFit: 'cover' }}
                 />
               ) : (
@@ -128,6 +130,7 @@ export default function LeaderboardExportPng({
                 <img
                   src={normalizeAvatarSrc(players[2].avatar)!}
                   alt=""
+                  crossOrigin="anonymous"
                   style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '12px', border: '4px solid #ea580c', objectFit: 'cover' }}
                 />
               ) : (
@@ -211,6 +214,7 @@ export default function LeaderboardExportPng({
                           <img
                             src={normalizeAvatarSrc(entry.avatar)!}
                             alt=""
+                            crossOrigin="anonymous"
                             style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', objectFit: 'cover' }}
                           />
                         ) : (

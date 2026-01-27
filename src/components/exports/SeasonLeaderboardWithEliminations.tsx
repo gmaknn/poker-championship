@@ -171,6 +171,7 @@ export default function SeasonLeaderboardWithEliminations({
                           <img
                             src={normalizeAvatarSrc(player.avatar)!}
                             alt=""
+                            crossOrigin="anonymous"
                             style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', objectFit: 'cover' }}
                           />
                         ) : (
