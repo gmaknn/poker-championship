@@ -315,15 +315,22 @@ export default function SeasonExportsPage() {
       const exportFunction = useFormat === 'png' ? toPng : toJpeg;
       const dataUrl = await exportFunction(ref.current, {
         backgroundColor: bgColor || '#ffffff',
-        pixelRatio: 3, // Increased for better quality
+        pixelRatio: 3,
         quality: useFormat === 'jpg' ? 0.95 : undefined,
         cacheBust: true,
+        skipFonts: true,
+        fetchRequestInit: {
+          mode: 'cors' as RequestMode,
+          credentials: 'omit' as RequestCredentials,
+        },
       });
 
       const link = document.createElement('a');
       link.download = `${filename}_${new Date().getTime()}.${useFormat}`;
       link.href = dataUrl;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     } catch (error) {
       console.error('Error exporting image:', error);
       alert('Erreur lors de l\'export de l\'image');
@@ -349,56 +356,92 @@ export default function SeasonExportsPage() {
     if (!chartRef.current || !tableRef.current || !eliminationsRef.current || !evolutionRef.current || !confrontationsRef.current || !generalLeaderboardRef.current || !season) return;
 
     setIsExporting(true);
-    try {
-      const zip = new JSZip();
-      const exportFunction = exportFormat === 'png' ? toPng : toJpeg;
-      const baseOptions = {
-        pixelRatio: 3,
-        quality: exportFormat === 'jpg' ? 0.95 : undefined,
-        cacheBust: true,
-      };
+    const zip = new JSZip();
+    const exportFunction = exportFormat === 'png' ? toPng : toJpeg;
 
-      // Options spécifiques par type d'export (design system slate)
-      const slateOptions = { ...baseOptions, backgroundColor: '#0f172a' };
-      const whiteOptions = { ...baseOptions, backgroundColor: '#ffffff' };
+    // Options de base avec gestion CORS pour les images externes
+    const baseOptions = {
+      pixelRatio: 3,
+      quality: exportFormat === 'jpg' ? 0.95 : undefined,
+      cacheBust: true,
+      skipFonts: true, // Évite les problèmes de fonts externes
+      fetchRequestInit: {
+        mode: 'cors' as RequestMode,
+        credentials: 'omit' as RequestCredentials,
+      },
+    };
 
-      // Export chart (Top Sharks - fond blanc)
-      const chartDataUrl = await exportFunction(chartRef.current, whiteOptions);
-      zip.file(`${season.name}_sharks.${exportFormat}`, dataUrlToBlob(chartDataUrl));
+    const slateOptions = { ...baseOptions, backgroundColor: '#0f172a' };
+    const whiteOptions = { ...baseOptions, backgroundColor: '#ffffff' };
 
-      // Export table (fond slate)
-      const tableDataUrl = await exportFunction(tableRef.current, slateOptions);
-      zip.file(`${season.name}_tableau.${exportFormat}`, dataUrlToBlob(tableDataUrl));
+    // Liste des exports à effectuer séquentiellement
+    const exports = [
+      { ref: chartRef, name: `${season.name}_sharks`, options: whiteOptions, label: 'Top Sharks' },
+      { ref: tableRef, name: `${season.name}_tableau`, options: slateOptions, label: 'Tableau détaillé' },
+      { ref: eliminationsRef, name: `${season.name}_eliminations`, options: slateOptions, label: 'Éliminations' },
+      { ref: evolutionRef, name: `${season.name}_evolution`, options: slateOptions, label: 'Évolution' },
+      { ref: confrontationsRef, name: `${season.name}_confrontations`, options: slateOptions, label: 'Confrontations' },
+      { ref: generalLeaderboardRef, name: `Saison_${season.year}_classement_general`, options: slateOptions, label: 'Classement général' },
+    ];
 
-      // Export eliminations (fond slate)
-      const eliminationsDataUrl = await exportFunction(eliminationsRef.current, slateOptions);
-      zip.file(`${season.name}_eliminations.${exportFormat}`, dataUrlToBlob(eliminationsDataUrl));
+    let successCount = 0;
+    const errors: string[] = [];
 
-      // Export evolution (fond slate)
-      const evolutionDataUrl = await exportFunction(evolutionRef.current, slateOptions);
-      zip.file(`${season.name}_evolution.${exportFormat}`, dataUrlToBlob(evolutionDataUrl));
+    // Capture séquentielle avec try/catch individuel
+    for (const exp of exports) {
+      if (!exp.ref.current) {
+        console.warn(`[ZIP Export] Ref manquante pour ${exp.label}`);
+        errors.push(`${exp.label}: référence manquante`);
+        continue;
+      }
 
-      // Export confrontations (fond slate)
-      const confrontationsDataUrl = await exportFunction(confrontationsRef.current, slateOptions);
-      zip.file(`${season.name}_confrontations.${exportFormat}`, dataUrlToBlob(confrontationsDataUrl));
+      try {
+        console.log(`[ZIP Export] Début capture: ${exp.label}`);
+        const dataUrl = await exportFunction(exp.ref.current, exp.options);
+        console.log(`[ZIP Export] Capture réussie: ${exp.label} (${dataUrl.length} chars)`);
 
-      // Export general leaderboard (fond slate)
-      const generalDataUrl = await exportFunction(generalLeaderboardRef.current, slateOptions);
-      zip.file(`Saison_${season.year}_classement_general.${exportFormat}`, dataUrlToBlob(generalDataUrl));
-
-      // Generate and download ZIP
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      const link = document.createElement('a');
-      link.download = `${season.name}_exports_${new Date().getTime()}.zip`;
-      link.href = URL.createObjectURL(zipBlob);
-      link.click();
-      URL.revokeObjectURL(link.href);
-    } catch (error) {
-      console.error('Error exporting all images:', error);
-      alert('Erreur lors de l\'export groupé');
-    } finally {
-      setIsExporting(false);
+        const blob = dataUrlToBlob(dataUrl);
+        zip.file(`${exp.name}.${exportFormat}`, blob);
+        successCount++;
+        console.log(`[ZIP Export] Ajouté au ZIP: ${exp.name}.${exportFormat}`);
+      } catch (error) {
+        console.error(`[ZIP Export] Erreur capture ${exp.label}:`, error);
+        errors.push(`${exp.label}: ${error instanceof Error ? error.message : 'erreur inconnue'}`);
+      }
     }
+
+    // Générer le ZIP même si certaines captures ont échoué
+    if (successCount > 0) {
+      try {
+        console.log(`[ZIP Export] Génération du ZIP avec ${successCount} fichiers...`);
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        console.log(`[ZIP Export] ZIP généré: ${zipBlob.size} bytes`);
+
+        // Téléchargement via création d'un lien
+        const link = document.createElement('a');
+        link.download = `${season.name}_exports_${new Date().getTime()}.zip`;
+        link.href = URL.createObjectURL(zipBlob);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+        console.log(`[ZIP Export] Téléchargement lancé`);
+      } catch (zipError) {
+        console.error('[ZIP Export] Erreur génération ZIP:', zipError);
+        alert('Erreur lors de la création du fichier ZIP');
+      }
+    }
+
+    if (errors.length > 0) {
+      console.warn(`[ZIP Export] ${errors.length} erreur(s):`, errors);
+      if (successCount === 0) {
+        alert(`Échec de l'export. Erreurs:\n${errors.join('\n')}`);
+      } else {
+        alert(`Export partiel (${successCount}/${exports.length} fichiers).\nErreurs:\n${errors.join('\n')}`);
+      }
+    }
+
+    setIsExporting(false);
   };
 
   if (isLoading) {
