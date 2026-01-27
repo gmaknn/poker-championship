@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Trophy, TrendingUp, TrendingDown, Minus, Medal, Download, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -244,18 +244,17 @@ export default function SeasonLeaderboardPage({
                   <Star className="h-5 w-5 text-yellow-500" />
                 </div>
               )}
-              {leaderboard.map((entry, index) => (
-                <>
+              {leaderboard.map((entry) => (
+                <React.Fragment key={entry.playerId}>
                   {/* Separator after Top 10 */}
                   {entry.rank === 11 && (
-                    <div key="separator" className="flex items-center gap-4 py-2">
+                    <div className="flex items-center gap-4 py-2">
                       <div className="flex-1 h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
                       <span className="text-sm text-muted-foreground">Hors Zone Master</span>
                       <div className="flex-1 h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
                     </div>
                   )}
                   <div
-                  key={entry.playerId}
                   onClick={() => setSelectedPlayer(entry)}
                   className={`flex items-center justify-between p-5 rounded-xl border-2 hover:shadow-xl hover:scale-[1.01] cursor-pointer transition-all duration-200 ${
                     entry.rank === 1
@@ -382,7 +381,7 @@ export default function SeasonLeaderboardPage({
                     <span className="text-sm text-muted-foreground">Détails →</span>
                   </div>
                   </div>
-                </>
+                </React.Fragment>
               ))}
             </div>
           )}

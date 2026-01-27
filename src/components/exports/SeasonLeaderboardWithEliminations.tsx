@@ -1,18 +1,7 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
-
-// Helper function to check if avatar URL is valid
-const isValidAvatarUrl = (url: string | null): boolean => {
-  if (!url || url.trim() === '') return false;
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
+import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
 
 interface EliminationVictim {
   nickname: string;
@@ -22,6 +11,8 @@ interface EliminationVictim {
 interface PlayerRanking {
   rank: number;
   nickname: string;
+  firstName?: string;
+  lastName?: string;
   avatar: string | null;
   totalPoints: number;
   pointsChange: number; // Points gagnés lors du dernier tournoi
@@ -30,157 +21,255 @@ interface PlayerRanking {
 
 interface SeasonLeaderboardWithEliminationsProps {
   seasonName: string;
+  seasonYear?: number;
   players: PlayerRanking[];
 }
 
 export default function SeasonLeaderboardWithEliminations({
   seasonName,
+  seasonYear,
   players,
 }: SeasonLeaderboardWithEliminationsProps) {
   return (
     <div
       id="season-leaderboard-eliminations"
-      className="relative bg-white p-6"
       style={{
+        width: '100%',
         minWidth: '1200px',
-        fontFamily: 'Arial, sans-serif',
+        backgroundColor: '#0f172a',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* Header */}
-      <div className="mb-6 text-center">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">{seasonName}</h1>
-        <p className="text-lg text-gray-600">Classement avec Éliminations</p>
+      {/* Header - Fond vert poker */}
+      <div style={{
+        backgroundColor: '#1a472a',
+        padding: '32px 40px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+      }}>
+        <div style={{ position: 'absolute', left: '40px', top: '50%', transform: 'translateY(-50%)' }}>
+          <img
+            src="/images/logo-wpt.png"
+            alt="WPT Villelaure"
+            style={{ width: '80px', height: 'auto' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 8px 0' }}>
+            {seasonName}
+          </h1>
+          <p style={{ color: '#86efac', margin: '0', fontSize: '18px' }}>
+            Classement avec Eliminations
+          </p>
+        </div>
+        <div style={{ position: 'absolute', right: '40px', top: '50%', transform: 'translateY(-50%)' }}>
+          <img
+            src="/images/logo-wpt.png"
+            alt="WPT Villelaure"
+            style={{ width: '80px', height: 'auto' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        </div>
       </div>
 
-      {/* Main table */}
-      <div className="overflow-x-auto">
-        <table className="border-collapse border-2 border-gray-800 w-full">
-          {/* Header */}
+      {/* Contenu principal - Fond slate */}
+      <div style={{ padding: '32px 40px', backgroundColor: '#0f172a' }}>
+        {/* Zone Master Banner */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          padding: '14px',
+          marginBottom: '16px',
+          background: 'linear-gradient(90deg, rgba(251,191,36,0.05) 0%, rgba(251,191,36,0.15) 50%, rgba(251,191,36,0.05) 100%)',
+          borderRadius: '8px',
+          border: '1px solid rgba(251,191,36,0.3)',
+        }}>
+          <span style={{ fontSize: '20px' }}>⭐</span>
+          <span style={{ fontSize: '18px', fontWeight: '600', color: '#fbbf24' }}>Zone Master - Top 10</span>
+          <span style={{ fontSize: '20px' }}>⭐</span>
+        </div>
+
+        {/* Table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
           <thead>
-            <tr className="bg-gray-800 text-white">
-              <th className="border-2 border-gray-800 px-3 py-2 text-center font-bold w-16">
-                TOP
+            <tr style={{ backgroundColor: '#334155' }}>
+              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600', width: '60px' }}>
+                #
               </th>
-              <th className="border-2 border-gray-800 px-4 py-2 text-left font-bold w-40">
-                NOM
+              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600', minWidth: '180px' }}>
+                Joueur
               </th>
-              <th className="border-2 border-gray-800 px-3 py-2 text-center font-bold w-24">
+              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fde047', fontSize: '13px', fontWeight: '600', width: '80px' }}>
                 POINTS
               </th>
-              <th className="border-2 border-gray-800 px-3 py-2 text-center font-bold w-20">
-                dernier<br />tournoi
+              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600', width: '100px' }}>
+                Dernier tournoi
               </th>
-              <th className="border-2 border-gray-800 px-4 py-2 text-left font-bold">
-                Victimes ⚔️
+              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600' }}>
+                Victimes
               </th>
             </tr>
           </thead>
 
-          {/* Body */}
           <tbody>
             {players.map((player, index) => {
-              const bgColor =
-                player.rank === 1
-                  ? 'bg-yellow-100'
-                  : player.rank <= 3
-                  ? 'bg-blue-50'
-                  : index % 2 === 0
-                  ? 'bg-gray-50'
-                  : 'bg-white';
+              const isTop3 = player.rank <= 3;
+              const isTop10 = player.rank <= 10;
+
+              let bgColor: string;
+              let borderLeft: string | undefined;
+
+              if (isTop3) {
+                bgColor = 'rgba(250,204,21,0.12)';
+                borderLeft = '3px solid #fbbf24';
+              } else if (isTop10) {
+                bgColor = 'rgba(34,197,94,0.08)';
+                borderLeft = undefined;
+              } else {
+                bgColor = index % 2 === 0 ? '#1e293b' : '#273449';
+                borderLeft = undefined;
+              }
 
               const pointsChangeColor =
                 player.pointsChange > 0
-                  ? 'text-green-600'
+                  ? '#4ade80'
                   : player.pointsChange < 0
-                  ? 'text-red-600'
-                  : 'text-gray-600';
+                  ? '#f87171'
+                  : '#94a3b8';
 
               return (
-                <tr key={player.rank} className={bgColor}>
-                  {/* Rank */}
-                  <td className="border-2 border-gray-800 px-3 py-2 text-center font-bold text-lg text-gray-900">
-                    {player.rank}
-                  </td>
+                <React.Fragment key={player.rank}>
+                  {/* Separator after Top 10 */}
+                  {player.rank === 11 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '0', height: '2px', backgroundColor: '#fbbf24' }} />
+                    </tr>
+                  )}
+                  <tr style={{ backgroundColor: bgColor, borderLeft }}>
+                    {/* Rang */}
+                    <td style={{
+                      padding: '10px 16px',
+                      textAlign: 'center',
+                      fontWeight: 'bold',
+                      fontSize: '15px',
+                      color: player.rank === 1 ? '#fbbf24' : player.rank === 2 ? '#9ca3af' : player.rank === 3 ? '#ea580c' : isTop10 ? '#fde68a' : '#f8fafc',
+                      borderBottom: '1px solid #475569',
+                    }}>
+                      {player.rank <= 3 ? '🏆 ' : player.rank <= 10 ? '🎖️ ' : ''}{player.rank}
+                    </td>
 
-                  {/* Name with avatar */}
-                  <td className="border-2 border-gray-800 px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      {isValidAvatarUrl(player.avatar) ? (
-                        <Image
-                          src={player.avatar!}
-                          alt={player.nickname}
-                          width={32}
-                          height={32}
-                          className="rounded-full border-2 border-gray-400"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-300 border-2 border-gray-400 flex items-center justify-center text-sm font-bold text-gray-600">
-                          {player.nickname[0]?.toUpperCase()}
-                        </div>
-                      )}
-                      <span className="font-semibold text-gray-800 truncate">
-                        {player.nickname}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Total points */}
-                  <td className="border-2 border-gray-800 px-3 py-2 text-center font-bold text-lg text-gray-900">
-                    {player.totalPoints}
-                  </td>
-
-                  {/* Points from last tournament */}
-                  <td className={`border-2 border-gray-800 px-3 py-2 text-center font-semibold ${pointsChangeColor}`}>
-                    {player.pointsChange > 0 ? '+' : ''}
-                    {player.pointsChange}
-                  </td>
-
-                  {/* Victims */}
-                  <td className="border-2 border-gray-800 px-4 py-2">
-                    {player.victims.length > 0 ? (
-                      <div className="flex flex-wrap gap-2 items-center">
-                        {player.victims.map((victim, vIndex) => (
-                          <div
-                            key={vIndex}
-                            className="px-2 py-1 bg-red-600 text-white rounded text-sm font-semibold whitespace-nowrap"
-                          >
-                            {victim.nickname}
-                            {victim.count > 1 && (
-                              <span className="ml-1 text-yellow-300">x{victim.count}</span>
-                            )}
+                    {/* Joueur avec avatar */}
+                    <td style={{ padding: '10px 16px', borderBottom: '1px solid #475569' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {/* Avatar */}
+                        {isValidAvatarUrl(player.avatar) ? (
+                          <img
+                            src={normalizeAvatarSrc(player.avatar)!}
+                            alt=""
+                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', color: '#94a3b8' }}>
+                            {player.firstName?.[0] || player.nickname[0]}{player.lastName?.[0] || ''}
                           </div>
-                        ))}
+                        )}
+                        {/* Nom et pseudo */}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '14px', color: '#f8fafc', fontWeight: '500' }}>
+                            {player.firstName && player.lastName ? `${player.firstName} ${player.lastName}` : player.nickname}
+                          </span>
+                          {player.firstName && player.lastName && (
+                            <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                              @{player.nickname}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    ) : (
-                      <span className="text-gray-400 text-sm italic">Aucune</span>
-                    )}
-                  </td>
-                </tr>
+                    </td>
+
+                    {/* Points totaux */}
+                    <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#fde047', borderBottom: '1px solid #475569' }}>
+                      {player.totalPoints}
+                    </td>
+
+                    {/* Points du dernier tournoi */}
+                    <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '600', fontSize: '14px', color: pointsChangeColor, borderBottom: '1px solid #475569' }}>
+                      {player.pointsChange > 0 ? '+' : ''}
+                      {player.pointsChange}
+                    </td>
+
+                    {/* Victimes */}
+                    <td style={{ padding: '10px 16px', borderBottom: '1px solid #475569' }}>
+                      {player.victims.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                          {player.victims.map((victim, vIndex) => (
+                            <div
+                              key={vIndex}
+                              style={{
+                                padding: '3px 8px',
+                                backgroundColor: '#dc2626',
+                                color: '#ffffff',
+                                borderRadius: '4px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {victim.nickname}
+                              {victim.count > 1 && (
+                                <span style={{ marginLeft: '4px', color: '#fde047' }}>x{victim.count}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span style={{ color: '#64748b', fontSize: '12px', fontStyle: 'italic' }}>Aucune</span>
+                      )}
+                    </td>
+                  </tr>
+                </React.Fragment>
               );
             })}
           </tbody>
         </table>
+
+        {/* Légende */}
+        <div style={{
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: '#1e293b',
+          borderRadius: '8px',
+          border: '1px solid #475569',
+        }}>
+          <h3 style={{ fontWeight: '600', color: '#f8fafc', marginBottom: '12px', fontSize: '14px' }}>Legende :</h3>
+          <ul style={{ fontSize: '13px', color: '#94a3b8', margin: 0, paddingLeft: '20px', listStyle: 'disc' }}>
+            <li style={{ marginBottom: '4px' }}>
+              <span style={{ fontWeight: '600' }}>Dernier tournoi :</span> Points gagnes lors du dernier tournoi joue
+            </li>
+            <li style={{ marginBottom: '4px' }}>
+              <span style={{ fontWeight: '600' }}>Victimes :</span> Joueurs elimines par ce joueur durant la saison
+            </li>
+            <li>
+              <span style={{ color: '#fde047', fontWeight: '600' }}>xN :</span> Nombre d'eliminations du meme joueur
+            </li>
+          </ul>
+        </div>
       </div>
 
-      {/* Legend */}
-      <div className="mt-6 p-4 bg-gray-100 rounded border border-gray-300">
-        <h3 className="font-bold text-gray-800 mb-2">Légende :</h3>
-        <ul className="text-sm text-gray-700 space-y-1">
-          <li>
-            <span className="font-semibold">dernier tournoi :</span> Points gagnés lors du dernier tournoi joué
-          </li>
-          <li>
-            <span className="font-semibold">Victimes ⚔️ :</span> Joueurs éliminés par ce joueur durant la saison
-          </li>
-          <li>
-            <span className="text-red-400 font-semibold">xN :</span> Nombre d'éliminations du même joueur
-          </li>
-        </ul>
-      </div>
-
-      {/* Footer */}
-      <div className="mt-6 text-center text-gray-500 text-xs">
-        Généré par Poker Championship Manager - {new Date().toLocaleDateString('fr-FR')}
+      {/* Footer - Fond vert poker */}
+      <div style={{
+        backgroundColor: '#1a472a',
+        padding: '16px 40px',
+        textAlign: 'center',
+      }}>
+        <p style={{ color: '#9ca3af', fontSize: '14px', margin: '0' }}>
+          WPT Villelaure - {seasonName}
+        </p>
       </div>
     </div>
   );
