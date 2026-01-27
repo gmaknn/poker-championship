@@ -41,7 +41,8 @@ export default function LeaderboardExportPng({
     <div
       id="leaderboard-export-png"
       style={{
-        width: '1200px',
+        width: '100%',
+        minWidth: '1200px',
         backgroundColor: '#1a472a', // Fond vert tapis de poker
         padding: '40px',
         color: '#ffffff',
