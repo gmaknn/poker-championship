@@ -23,7 +23,7 @@ import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
 import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeaderboardWithEliminations';
 import SeasonEvolutionChart from '@/components/exports/SeasonEvolutionChart';
 import SeasonConfrontationsMatrix from '@/components/exports/SeasonConfrontationsMatrix';
-import SeasonGeneralLeaderboard from '@/components/exports/SeasonGeneralLeaderboard';
+import LeaderboardExportPng from '@/components/exports/LeaderboardExportPng';
 
 type Season = {
   id: string;
@@ -563,7 +563,7 @@ export default function SeasonExportsPage() {
             <CardContent>
               <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
                 <div ref={generalLeaderboardRef}>
-                  <SeasonGeneralLeaderboard
+                  <LeaderboardExportPng
                     seasonName={season.name}
                     seasonYear={season.year}
                     players={sortedLeaderboard.map((entry, index) => ({
