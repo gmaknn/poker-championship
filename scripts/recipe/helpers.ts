@@ -150,7 +150,7 @@ export async function loginAdmin(
   reporter: Reporter
 ): Promise<string> {
   await page.goto(`${CONFIG.BASE_URL}/login`);
-  await page.fill('input[type="email"]', CONFIG.ADMIN_EMAIL);
+  await page.fill('input#email', CONFIG.ADMIN_EMAIL);
   await page.fill('input[type="password"]', CONFIG.ADMIN_PASSWORD);
 
   await Promise.all([
