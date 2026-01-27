@@ -1,5 +1,6 @@
 import { toPng, toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
+import { preloadImagesAsBase64 } from './preload-images';
 
 /**
  * Export options for image generation
@@ -70,6 +71,9 @@ export const exportToPNG = async ({
   pixelRatio = 2,
 }: ExportImageOptions): Promise<void> => {
   try {
+    // Pré-charger les images externes en base64 pour éviter les problèmes CORS
+    await preloadImagesAsBase64(element);
+
     // Get the full scrollable dimensions
     const scrollHeight = element.scrollHeight;
     const scrollWidth = element.scrollWidth;
@@ -116,6 +120,9 @@ export const exportToJPEG = async ({
   pixelRatio = 2,
 }: ExportImageOptions): Promise<void> => {
   try {
+    // Pré-charger les images externes en base64 pour éviter les problèmes CORS
+    await preloadImagesAsBase64(element);
+
     const dataUrl = await toJpeg(element, {
       backgroundColor,
       quality,
@@ -180,6 +187,9 @@ export const exportToPDF = async ({
   format = 'a4',
 }: ExportPDFOptions): Promise<void> => {
   try {
+    // Pré-charger les images externes en base64 pour éviter les problèmes CORS
+    await preloadImagesAsBase64(element);
+
     // First convert to image
     const dataUrl = await toPng(element, {
       backgroundColor: '#ffffff',
