@@ -110,7 +110,7 @@ export default function TournamentExportPng({
 
       {/* Podium Top 3 */}
       {top3.length >= 3 && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '32px', marginBottom: '40px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '80px', marginBottom: '40px' }}>
           {/* 2ème */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {isValidAvatarUrl(top3[1].avatar) && (
@@ -124,9 +124,6 @@ export default function TournamentExportPng({
               <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#9ca3af' }}>🥈 2</div>
               <div style={{ fontWeight: '600', color: '#ffffff', fontSize: '16px' }}>{top3[1].nickname}</div>
               <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#d1d5db' }}>{top3[1].totalPoints} pts</div>
-              {top3[1].prizeAmount !== null && top3[1].prizeAmount > 0 && (
-                <div style={{ fontSize: '14px', color: '#4ade80' }}>{top3[1].prizeAmount}€</div>
-              )}
             </div>
           </div>
 
@@ -144,9 +141,6 @@ export default function TournamentExportPng({
               <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#eab308' }}>🥇 1</div>
               <div style={{ fontWeight: 'bold', fontSize: '20px', color: '#ffffff' }}>{top3[0].nickname}</div>
               <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fde047' }}>{top3[0].totalPoints} pts</div>
-              {top3[0].prizeAmount !== null && top3[0].prizeAmount > 0 && (
-                <div style={{ fontSize: '16px', color: '#4ade80', fontWeight: 'bold' }}>{top3[0].prizeAmount}€</div>
-              )}
             </div>
           </div>
 
@@ -163,9 +157,6 @@ export default function TournamentExportPng({
               <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c' }}>🥉 3</div>
               <div style={{ fontWeight: '600', color: '#ffffff', fontSize: '16px' }}>{top3[2].nickname}</div>
               <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c' }}>{top3[2].totalPoints} pts</div>
-              {top3[2].prizeAmount !== null && top3[2].prizeAmount > 0 && (
-                <div style={{ fontSize: '14px', color: '#4ade80' }}>{top3[2].prizeAmount}€</div>
-              )}
             </div>
           </div>
         </div>
