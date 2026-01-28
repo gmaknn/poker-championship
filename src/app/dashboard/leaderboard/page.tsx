@@ -17,7 +17,7 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
 import { exportToPNG } from '@/lib/exportUtils';
-import LeaderboardExportPng from '@/components/exports/LeaderboardExportPng';
+import LeaderboardExportPngLight from '@/components/exports/LeaderboardExportPngLight';
 
 type Season = {
   id: string;
@@ -505,7 +505,7 @@ export default function LeaderboardPage() {
             top: '0',
           }}
         >
-          <LeaderboardExportPng
+          <LeaderboardExportPngLight
             seasonName={selectedSeason.name}
             seasonYear={selectedSeason.year}
             players={leaderboard.map(entry => ({

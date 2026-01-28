@@ -33,7 +33,6 @@ import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
 import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeaderboardWithEliminations';
 import SeasonEvolutionChart from '@/components/exports/SeasonEvolutionChart';
 import SeasonConfrontationsMatrix from '@/components/exports/SeasonConfrontationsMatrix';
-import LeaderboardExportPng from '@/components/exports/LeaderboardExportPng';
 import LeaderboardExportPngLight from '@/components/exports/LeaderboardExportPngLight';
 import TournamentExportPng from '@/components/exports/TournamentExportPng';
 import PlayerStatsExportPng, { PlayerStatsExportPlayer } from '@/components/exports/PlayerStatsExportPng';
@@ -162,7 +161,6 @@ export default function PlayerSeasonExportsPage() {
   const evolutionRef = useRef<HTMLDivElement>(null);
   const confrontationsRef = useRef<HTMLDivElement>(null);
   const generalLeaderboardRef = useRef<HTMLDivElement>(null);
-  const generalLeaderboardLightRef = useRef<HTMLDivElement>(null);
   const tournamentExportRef = useRef<HTMLDivElement>(null);
   const playerStatsRef = useRef<HTMLDivElement>(null);
 
@@ -524,7 +522,7 @@ export default function PlayerSeasonExportsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7">
           <TabsTrigger value="tournaments" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Tournois</span>
@@ -532,10 +530,6 @@ export default function PlayerSeasonExportsPage() {
           <TabsTrigger value="general" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <Trophy className="h-4 w-4" />
             <span className="hidden sm:inline">Classement</span>
-          </TabsTrigger>
-          <TabsTrigger value="general-light" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-            <Trophy className="h-4 w-4" />
-            <span className="hidden sm:inline">Clair</span>
           </TabsTrigger>
           <TabsTrigger value="stats" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <DollarSign className="h-4 w-4" />
@@ -545,12 +539,6 @@ export default function PlayerSeasonExportsPage() {
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Sharks</span>
           </TabsTrigger>
-          {/* TODO: Onglet masqué car doublon avec Évolution
-          <TabsTrigger value="table" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
-            <Table2 className="h-4 w-4" />
-            <span className="hidden sm:inline">Tableau</span>
-          </TabsTrigger>
-          */}
           <TabsTrigger value="eliminations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Elims</span>
@@ -596,7 +584,7 @@ export default function PlayerSeasonExportsPage() {
                       tournamentExportRef,
                       `Tournoi_${tournaments.find(t => t.id === selectedTournamentId)?.number || 'export'}`,
                       undefined,
-                      '#0f172a'
+                      '#f8fafc'
                     )}
                     disabled={isExporting || isLoadingTournament}
                   >
@@ -659,14 +647,14 @@ export default function PlayerSeasonExportsPage() {
           </Card>
         </TabsContent>
 
-        {/* General Leaderboard */}
+        {/* General Leaderboard (Light theme) */}
         <TabsContent value="general" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Classement General</CardTitle>
                 <Button
-                  onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement`, undefined, '#0f172a')}
+                  onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -677,49 +665,6 @@ export default function PlayerSeasonExportsPage() {
             <CardContent>
               <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
                 <div ref={generalLeaderboardRef}>
-                  <LeaderboardExportPng
-                    seasonName={season.name}
-                    seasonYear={season.year}
-                    players={sortedLeaderboard.map((entry, index) => ({
-                      rank: index + 1,
-                      playerId: entry.playerId,
-                      nickname: entry.player.nickname,
-                      firstName: entry.player.firstName,
-                      lastName: entry.player.lastName,
-                      avatar: entry.player.avatar,
-                      totalPoints: entry.totalPoints,
-                      averagePoints: entry.tournamentsPlayed > 0 ? Math.round(entry.totalPoints / entry.tournamentsPlayed) : 0,
-                      tournamentsCount: entry.tournamentsPlayed,
-                      victories: entry.firstPlaces,
-                      podiums: entry.firstPlaces + entry.secondPlaces + entry.thirdPlaces,
-                      rankChange: entry.rankChange,
-                    }))}
-                    tournamentsPlayed={tournamentCount}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* General Leaderboard Light */}
-        <TabsContent value="general-light" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Classement (Fond Clair)</CardTitle>
-                <Button
-                  onClick={() => handleExportImage(generalLeaderboardLightRef, `Saison_${season.year}_classement_clair`, undefined, '#f8fafc')}
-                  disabled={isExporting}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
-                <div ref={generalLeaderboardLightRef}>
                   <LeaderboardExportPngLight
                     seasonName={season.name}
                     seasonYear={season.year}
@@ -752,7 +697,7 @@ export default function PlayerSeasonExportsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle>Stats Joueurs</CardTitle>
                 <Button
-                  onClick={() => handleExportImage(playerStatsRef, `Saison_${season.year}_stats`, undefined, '#0f172a')}
+                  onClick={() => handleExportImage(playerStatsRef, `Saison_${season.year}_stats`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -812,7 +757,7 @@ export default function PlayerSeasonExportsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle>Tableau Detaille</CardTitle>
                 <Button
-                  onClick={() => handleExportImage(tableRef, `${season.name}_tableau`, undefined, '#0f172a')}
+                  onClick={() => handleExportImage(tableRef, `${season.name}_tableau`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -842,7 +787,7 @@ export default function PlayerSeasonExportsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle>Avec Eliminations</CardTitle>
                 <Button
-                  onClick={() => handleExportImage(eliminationsRef, `${season.name}_eliminations`, undefined, '#0f172a')}
+                  onClick={() => handleExportImage(eliminationsRef, `${season.name}_eliminations`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -870,7 +815,7 @@ export default function PlayerSeasonExportsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle>Evolution</CardTitle>
                 <Button
-                  onClick={() => handleExportImage(evolutionRef, `${season.name}_evolution`, undefined, '#0f172a')}
+                  onClick={() => handleExportImage(evolutionRef, `${season.name}_evolution`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
@@ -899,7 +844,7 @@ export default function PlayerSeasonExportsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle>Confrontations</CardTitle>
                 <Button
-                  onClick={() => handleExportImage(confrontationsRef, `${season.name}_confrontations`, undefined, '#0f172a')}
+                  onClick={() => handleExportImage(confrontationsRef, `${season.name}_confrontations`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />

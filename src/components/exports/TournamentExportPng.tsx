@@ -58,7 +58,7 @@ export default function TournamentExportPng({
       style={{
         width: '100%',
         minWidth: '1200px',
-        backgroundColor: '#0f172a',
+        backgroundColor: '#f8fafc',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
@@ -75,7 +75,7 @@ export default function TournamentExportPng({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
@@ -94,14 +94,14 @@ export default function TournamentExportPng({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
       </div>
 
-      {/* Contenu principal - Fond slate */}
-      <div style={{ padding: '32px 40px', backgroundColor: '#0f172a' }}>
+      {/* Contenu principal - Fond clair */}
+      <div style={{ padding: '32px 40px', backgroundColor: '#f8fafc' }}>
         {/* Prize Pool Info */}
         <div style={{
           display: 'flex',
@@ -109,22 +109,22 @@ export default function TournamentExportPng({
           gap: '40px',
           marginBottom: '32px',
           padding: '16px 32px',
-          background: 'linear-gradient(90deg, rgba(251,191,36,0.05) 0%, rgba(251,191,36,0.12) 50%, rgba(251,191,36,0.05) 100%)',
+          background: 'linear-gradient(90deg, rgba(202,138,4,0.05) 0%, rgba(202,138,4,0.15) 50%, rgba(202,138,4,0.05) 100%)',
           borderRadius: '8px',
-          border: '1px solid rgba(251,191,36,0.25)',
+          border: '1px solid rgba(202,138,4,0.3)',
         }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Buy-in</div>
-            <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#fde047' }}>{buyInAmount}€</div>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Buy-in</div>
+            <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#ca8a04' }}>{buyInAmount}€</div>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recaves</div>
-            <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#fde047' }}>{totalRebuys}</div>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recaves</div>
+            <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#ca8a04' }}>{totalRebuys}</div>
           </div>
           {prizePool !== null && (
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prize Pool</div>
-              <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#fde047' }}>{prizePool}€</div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Prize Pool</div>
+              <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#ca8a04' }}>{prizePool}€</div>
             </div>
           )}
         </div>
@@ -132,87 +132,87 @@ export default function TournamentExportPng({
         {/* Podium Top 3 */}
         {top3.length >= 3 && (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '60px', marginBottom: '40px' }}>
-            {/* 2ème */}
+            {/* 2eme */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               {isValidAvatarUrl(top3[1].avatar) ? (
                 <img
                   src={normalizeAvatarSrc(top3[1].avatar)!}
                   alt=""
                   crossOrigin="anonymous"
-                  style={{ width: '70px', height: '70px', borderRadius: '50%', marginBottom: '8px', border: '3px solid #9ca3af', objectFit: 'cover' }}
+                  style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #64748b', objectFit: 'cover', backgroundColor: '#e2e8f0' }}
                 />
               ) : (
-                <div style={{ width: '70px', height: '70px', borderRadius: '50%', marginBottom: '8px', border: '3px solid #9ca3af', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', color: '#9ca3af' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #64748b', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 'bold', color: '#64748b' }}>
                   {top3[1].firstName[0]}{top3[1].lastName[0]}
                 </div>
               )}
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#9ca3af' }}>🥈 2</div>
-                <div style={{ fontWeight: '600', color: '#f8fafc', fontSize: '16px' }}>{top3[1].firstName} {top3[1].lastName}</div>
-                <div style={{ fontSize: '12px', color: '#94a3b8' }}>@{top3[1].nickname}</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#d1d5db' }}>{top3[1].totalPoints} pts</div>
+                <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#64748b' }}>🥈 2</div>
+                <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '18px' }}>{top3[1].firstName} {top3[1].lastName}</div>
+                <div style={{ fontSize: '13px', color: '#64748b' }}>@{top3[1].nickname}</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#64748b' }}>{top3[1].totalPoints} pts</div>
               </div>
             </div>
 
             {/* 1er */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ fontSize: '40px', marginBottom: '4px' }}>🏆</div>
+              <div style={{ fontSize: '48px', marginBottom: '4px' }}>🏆</div>
               {isValidAvatarUrl(top3[0].avatar) ? (
                 <img
                   src={normalizeAvatarSrc(top3[0].avatar)!}
                   alt=""
                   crossOrigin="anonymous"
-                  style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #fbbf24', objectFit: 'cover' }}
+                  style={{ width: '96px', height: '96px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #ca8a04', objectFit: 'cover', backgroundColor: '#fef3c7' }}
                 />
               ) : (
-                <div style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #fbbf24', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 'bold', color: '#fbbf24' }}>
+                <div style={{ width: '96px', height: '96px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #ca8a04', backgroundColor: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', fontWeight: 'bold', color: '#ca8a04' }}>
                   {top3[0].firstName[0]}{top3[0].lastName[0]}
                 </div>
               )}
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#fbbf24' }}>🥇 1</div>
-                <div style={{ fontWeight: 'bold', fontSize: '20px', color: '#f8fafc' }}>{top3[0].firstName} {top3[0].lastName}</div>
-                <div style={{ fontSize: '13px', color: '#94a3b8' }}>@{top3[0].nickname}</div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#fde047' }}>{top3[0].totalPoints} pts</div>
+                <div style={{ fontSize: '36px', fontWeight: 'bold', color: '#ca8a04' }}>🥇 1</div>
+                <div style={{ fontWeight: 'bold', fontSize: '22px', color: '#1e293b' }}>{top3[0].firstName} {top3[0].lastName}</div>
+                <div style={{ fontSize: '14px', color: '#64748b' }}>@{top3[0].nickname}</div>
+                <div style={{ fontSize: '26px', fontWeight: 'bold', color: '#ca8a04' }}>{top3[0].totalPoints} pts</div>
               </div>
             </div>
 
-            {/* 3ème */}
+            {/* 3eme */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               {isValidAvatarUrl(top3[2].avatar) ? (
                 <img
                   src={normalizeAvatarSrc(top3[2].avatar)!}
                   alt=""
                   crossOrigin="anonymous"
-                  style={{ width: '70px', height: '70px', borderRadius: '50%', marginBottom: '8px', border: '3px solid #ea580c', objectFit: 'cover' }}
+                  style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #c2410c', objectFit: 'cover', backgroundColor: '#fed7aa' }}
                 />
               ) : (
-                <div style={{ width: '70px', height: '70px', borderRadius: '50%', marginBottom: '8px', border: '3px solid #ea580c', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold', color: '#ea580c' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', marginBottom: '8px', border: '4px solid #c2410c', backgroundColor: '#fed7aa', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 'bold', color: '#c2410c' }}>
                   {top3[2].firstName[0]}{top3[2].lastName[0]}
                 </div>
               )}
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#ea580c' }}>🥉 3</div>
-                <div style={{ fontWeight: '600', color: '#f8fafc', fontSize: '16px' }}>{top3[2].firstName} {top3[2].lastName}</div>
-                <div style={{ fontSize: '12px', color: '#94a3b8' }}>@{top3[2].nickname}</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fb923c' }}>{top3[2].totalPoints} pts</div>
+                <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#c2410c' }}>🥉 3</div>
+                <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '18px' }}>{top3[2].firstName} {top3[2].lastName}</div>
+                <div style={{ fontSize: '13px', color: '#64748b' }}>@{top3[2].nickname}</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#ea580c' }}>{top3[2].totalPoints} pts</div>
               </div>
             </div>
           </div>
         )}
 
         {/* Table */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <thead>
-            <tr style={{ backgroundColor: '#334155' }}>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600' }}>#</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600' }}>Joueur</th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#86efac', fontSize: '13px', fontWeight: '600' }}>Classement</th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#60a5fa', fontSize: '13px', fontWeight: '600' }}>Elim.</th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#60a5fa', fontSize: '13px', fontWeight: '600' }}>Bonus</th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '13px', fontWeight: '600' }}>Penalites</th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fde047', fontSize: '13px', fontWeight: '600' }}>Total</th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#4ade80', fontSize: '13px', fontWeight: '600' }}>Gains</th>
+            <tr style={{ backgroundColor: '#e2e8f0' }}>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '15px', fontWeight: '600' }}>#</th>
+              <th style={{ padding: '14px 20px', textAlign: 'left', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '15px', fontWeight: '600' }}>Joueur</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#16a34a', fontSize: '15px', fontWeight: '600' }}>Classement</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#2563eb', fontSize: '15px', fontWeight: '600' }}>Elim.</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#2563eb', fontSize: '15px', fontWeight: '600' }}>Bonus</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#dc2626', fontSize: '15px', fontWeight: '600' }}>Penalites</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#ca8a04', fontSize: '15px', fontWeight: '600' }}>Total</th>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#16a34a', fontSize: '15px', fontWeight: '600' }}>Gains</th>
             </tr>
           </thead>
           <tbody>
@@ -223,62 +223,62 @@ export default function TournamentExportPng({
               let borderLeft: string | undefined;
 
               if (isTop3) {
-                bgColor = 'rgba(250,204,21,0.12)';
-                borderLeft = '3px solid #fbbf24';
+                bgColor = 'rgba(250,204,21,0.15)';
+                borderLeft = '3px solid #ca8a04';
               } else {
-                bgColor = index % 2 === 0 ? '#1e293b' : '#273449';
+                bgColor = index % 2 === 0 ? '#ffffff' : '#f1f5f9';
                 borderLeft = undefined;
               }
 
               return (
                 <tr key={player.playerId} style={{ backgroundColor: bgColor, borderLeft }}>
                   <td style={{
-                    padding: '10px 16px',
+                    padding: '12px 20px',
                     textAlign: 'center',
                     fontWeight: 'bold',
-                    fontSize: '16px',
-                    color: player.rank === 1 ? '#fbbf24' : player.rank === 2 ? '#9ca3af' : player.rank === 3 ? '#ea580c' : '#f8fafc',
-                    borderBottom: '1px solid #475569',
+                    fontSize: '18px',
+                    color: player.rank === 1 ? '#ca8a04' : player.rank === 2 ? '#64748b' : player.rank === 3 ? '#c2410c' : '#1e293b',
+                    borderBottom: '1px solid #cbd5e1',
                   }}>
                     {player.rank <= 3 ? '🏆 ' : ''}{player.rank}
                   </td>
-                  <td style={{ padding: '10px 16px', borderBottom: '1px solid #475569' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <td style={{ padding: '12px 20px', borderBottom: '1px solid #cbd5e1' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       {isValidAvatarUrl(player.avatar) ? (
                         <img
                           src={normalizeAvatarSrc(player.avatar)!}
                           alt=""
                           crossOrigin="anonymous"
-                          style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', objectFit: 'cover' }}
+                          style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #cbd5e1', objectFit: 'cover', backgroundColor: '#e2e8f0' }}
                         />
                       ) : (
-                        <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', color: '#94a3b8' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #cbd5e1', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', color: '#64748b' }}>
                           {player.firstName[0]}{player.lastName[0]}
                         </div>
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '14px', color: '#f8fafc', fontWeight: '500' }}>
+                        <span style={{ fontSize: '18px', color: '#1e293b', fontWeight: '500' }}>
                           {player.firstName} {player.lastName}
                         </span>
-                        <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                        <span style={{ fontSize: '13px', color: '#64748b' }}>
                           @{player.nickname}
                         </span>
                       </div>
                       {player.eliminationsCount > 0 && (
-                        <span style={{ marginLeft: '4px', fontSize: '12px', color: '#f87171' }}>
+                        <span style={{ marginLeft: '4px', fontSize: '14px', color: '#dc2626' }}>
                           🔪 {player.eliminationsCount}
                         </span>
                       )}
                     </div>
                   </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center', fontSize: '14px', color: '#86efac', borderBottom: '1px solid #475569' }}>{player.rankPoints}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center', fontSize: '14px', color: '#60a5fa', borderBottom: '1px solid #475569' }}>{player.eliminationPoints}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center', fontSize: '14px', color: '#60a5fa', borderBottom: '1px solid #475569' }}>{player.bonusPoints}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center', fontSize: '14px', color: player.penaltyPoints < 0 ? '#f87171' : '#94a3b8', borderBottom: '1px solid #475569' }}>
+                  <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '18px', color: '#16a34a', borderBottom: '1px solid #cbd5e1' }}>{player.rankPoints}</td>
+                  <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '18px', color: '#2563eb', borderBottom: '1px solid #cbd5e1' }}>{player.eliminationPoints}</td>
+                  <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '18px', color: '#2563eb', borderBottom: '1px solid #cbd5e1' }}>{player.bonusPoints}</td>
+                  <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '18px', color: player.penaltyPoints < 0 ? '#dc2626' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>
                     {player.penaltyPoints !== 0 ? player.penaltyPoints : '-'}
                   </td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#fde047', borderBottom: '1px solid #475569' }}>{player.totalPoints}</td>
-                  <td style={{ padding: '10px 16px', textAlign: 'center', fontSize: '14px', color: '#4ade80', fontWeight: player.prizeAmount ? 'bold' : 'normal', borderBottom: '1px solid #475569' }}>
+                  <td style={{ padding: '12px 20px', textAlign: 'center', fontWeight: 'bold', fontSize: '20px', color: '#ca8a04', borderBottom: '1px solid #cbd5e1' }}>{player.totalPoints}</td>
+                  <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '18px', color: '#16a34a', fontWeight: player.prizeAmount ? 'bold' : 'normal', borderBottom: '1px solid #cbd5e1' }}>
                     {player.prizeAmount !== null && player.prizeAmount > 0 ? `${player.prizeAmount}€` : '-'}
                   </td>
                 </tr>
