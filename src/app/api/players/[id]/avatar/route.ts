@@ -13,6 +13,18 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 /**
+ * Get the avatars directory path.
+ * In production (Fly.io), use /data/avatars for persistence.
+ * In development, use public/avatars.
+ */
+function getAvatarsDir(): string {
+  if (process.env.NODE_ENV === 'production') {
+    return '/data/avatars';
+  }
+  return join(process.cwd(), 'public', 'avatars');
+}
+
+/**
  * POST /api/players/[id]/avatar
  * Upload and process a custom avatar for a player
  */
@@ -71,7 +83,7 @@ export async function POST(
       .toBuffer();
 
     // Create avatars directory if it doesn't exist
-    const avatarsDir = join(process.cwd(), 'public', 'avatars');
+    const avatarsDir = getAvatarsDir();
     if (!existsSync(avatarsDir)) {
       await mkdir(avatarsDir, { recursive: true });
     }
@@ -84,8 +96,11 @@ export async function POST(
     // Save file
     await writeFile(filepath, processedImage);
 
-    // Return avatar URL
-    const avatarUrl = `/avatars/${filename}`;
+    // Return avatar URL - use API route in production for serving from /data
+    // In development, serve directly from /public/avatars
+    const avatarUrl = process.env.NODE_ENV === 'production'
+      ? `/api/avatars/${filename}`
+      : `/avatars/${filename}`;
 
     return NextResponse.json({
       avatarUrl,

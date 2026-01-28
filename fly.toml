@@ -26,14 +26,10 @@ primary_region = "cdg" # Paris
   cpu_kind = 'shared'
   cpus = 1
 
-# Volume pour la base de données SQLite
+# Volume pour la base de données SQLite et les avatars
+# Note: Fly.io ne supporte qu'un seul volume par machine
+# Les avatars sont stockés dans /data/avatars et servis via une route API
 [[mounts]]
   source = "poker_data"
   destination = "/data"
-  initial_size = "1gb"
-
-# Volume pour les avatars uploadés (persistant entre déploiements)
-[[mounts]]
-  source = "poker_avatars"
-  destination = "/app/public/avatars"
   initial_size = "1gb"
