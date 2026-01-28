@@ -45,6 +45,20 @@ const getAvatarUrl = (avatar: string | null) => {
   return `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(avatar)}`;
 };
 
+// Configuration des badges de rôle
+const getRoleBadgeConfig = (role: PlayerRole | undefined) => {
+  switch (role) {
+    case 'ADMIN':
+      return { label: 'Admin', className: 'bg-red-500 text-white' };
+    case 'TOURNAMENT_DIRECTOR':
+      return { label: 'TD', className: 'bg-blue-500 text-white' };
+    case 'ANIMATOR':
+      return { label: 'Animateur', className: 'bg-violet-500 text-white' };
+    default:
+      return null; // PLAYER = pas de badge
+  }
+};
+
 export default function PlayersPage() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -482,6 +496,11 @@ export default function PlayersPage() {
                       <CardTitle className="text-lg font-semibold">
                         {player.nickname}
                       </CardTitle>
+                      {getRoleBadgeConfig((player as any).role) && (
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadgeConfig((player as any).role)!.className}`}>
+                          {getRoleBadgeConfig((player as any).role)!.label}
+                        </span>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Button
@@ -595,6 +614,11 @@ export default function PlayersPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="font-semibold text-lg">{player.nickname}</h3>
+                        {getRoleBadgeConfig((player as any).role) && (
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadgeConfig((player as any).role)!.className}`}>
+                            {getRoleBadgeConfig((player as any).role)!.label}
+                          </span>
+                        )}
                         <span className="text-sm text-muted-foreground">
                           {player.firstName} {player.lastName}
                         </span>
