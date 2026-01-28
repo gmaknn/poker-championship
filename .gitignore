@@ -48,3 +48,10 @@ next-env.d.ts
 # Prisma duplicated folder (artifact)
 /prisma/prisma/
 test-results/
+
+# Avatars uploadés (ne pas commiter, stockés sur volume Fly.io)
+/public/avatars/*.jpg
+/public/avatars/*.jpeg
+/public/avatars/*.png
+/public/avatars/*.webp
+!/public/avatars/.gitkeep

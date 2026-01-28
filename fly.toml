@@ -31,3 +31,9 @@ primary_region = "cdg" # Paris
   source = "poker_data"
   destination = "/data"
   initial_size = "1gb"
+
+# Volume pour les avatars uploadés (persistant entre déploiements)
+[[mounts]]
+  source = "poker_avatars"
+  destination = "/app/public/avatars"
+  initial_size = "1gb"
