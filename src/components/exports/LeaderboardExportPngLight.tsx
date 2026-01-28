@@ -54,7 +54,7 @@ export default function LeaderboardExportPngLight({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
@@ -70,7 +70,7 @@ export default function LeaderboardExportPngLight({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
@@ -223,20 +223,20 @@ export default function LeaderboardExportPngLight({
                           </div>
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '14px', color: '#1e293b', fontWeight: '500' }}>
+                          <span style={{ fontSize: '18px', color: '#1e293b', fontWeight: '500' }}>
                             {entry.firstName} {entry.lastName}
                           </span>
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>
+                          <span style={{ fontSize: '13px', color: '#64748b' }}>
                             @{entry.nickname}
                           </span>
                         </div>
                       </div>
                     </td>
                     <td style={{ padding: '12px 20px', textAlign: 'right', fontWeight: 'bold', fontSize: '20px', color: '#ca8a04', borderBottom: '1px solid #cbd5e1' }}>{entry.totalPoints}</td>
-                    <td style={{ padding: '12px 20px', textAlign: 'right', fontSize: '14px', color: diffWithAbove === null ? '#ca8a04' : '#dc2626', fontWeight: diffWithAbove === null ? 'bold' : 'normal', borderBottom: '1px solid #cbd5e1' }}>
+                    <td style={{ padding: '12px 20px', textAlign: 'right', fontSize: '18px', color: diffWithAbove === null ? '#ca8a04' : '#dc2626', fontWeight: diffWithAbove === null ? 'bold' : 'normal', borderBottom: '1px solid #cbd5e1' }}>
                       {diffWithAbove === null ? 'Leader' : diffWithAbove}
                     </td>
-                    <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '14px', borderBottom: '1px solid #cbd5e1' }}>
+                    <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: '16px', borderBottom: '1px solid #cbd5e1' }}>
                       {entry.rankChange === undefined ? (
                         <span style={{ color: '#2563eb', fontWeight: 'bold', padding: '4px 10px', backgroundColor: 'rgba(37,99,235,0.1)', borderRadius: '6px', border: '1px solid #2563eb' }}>NEW</span>
                       ) : entry.rankChange > 0 ? (
@@ -247,7 +247,7 @@ export default function LeaderboardExportPngLight({
                         <span style={{ color: '#64748b' }}>-</span>
                       )}
                     </td>
-                    <td style={{ padding: '12px 20px', textAlign: 'right', fontSize: '16px', color: '#16a34a', borderBottom: '1px solid #cbd5e1' }}>{entry.tournamentsCount}</td>
+                    <td style={{ padding: '12px 20px', textAlign: 'right', fontSize: '18px', color: '#16a34a', borderBottom: '1px solid #cbd5e1' }}>{entry.tournamentsCount}</td>
                   </tr>
                 </React.Fragment>
               );
