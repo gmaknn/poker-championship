@@ -215,10 +215,10 @@ export default function LeaderboardExportPngLight({
                             src={normalizeAvatarSrc(entry.avatar)!}
                             alt=""
                             crossOrigin="anonymous"
-                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #cbd5e1', objectFit: 'cover', backgroundColor: '#e2e8f0' }}
+                            style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #cbd5e1', objectFit: 'cover', backgroundColor: '#e2e8f0' }}
                           />
                         ) : (
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #cbd5e1', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', color: '#64748b' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #cbd5e1', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', color: '#64748b' }}>
                             {entry.firstName[0]}{entry.lastName[0]}
                           </div>
                         )}

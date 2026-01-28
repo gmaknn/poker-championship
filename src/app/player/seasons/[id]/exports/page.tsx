@@ -524,7 +524,7 @@ export default function PlayerSeasonExportsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-5 sm:grid-cols-9">
+        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8">
           <TabsTrigger value="tournaments" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Tournois</span>
@@ -545,10 +545,12 @@ export default function PlayerSeasonExportsPage() {
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Sharks</span>
           </TabsTrigger>
+          {/* TODO: Onglet masqué car doublon avec Évolution
           <TabsTrigger value="table" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <Table2 className="h-4 w-4" />
             <span className="hidden sm:inline">Tableau</span>
           </TabsTrigger>
+          */}
           <TabsTrigger value="eliminations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Elims</span>
@@ -802,7 +804,8 @@ export default function PlayerSeasonExportsPage() {
           </Card>
         </TabsContent>
 
-        {/* Detailed Table */}
+        {/* TODO: Onglet masqué car doublon avec Évolution
+        {/* Detailed Table *}
         <TabsContent value="table" className="space-y-4">
           <Card>
             <CardHeader>
@@ -830,6 +833,7 @@ export default function PlayerSeasonExportsPage() {
             </CardContent>
           </Card>
         </TabsContent>
+        */}
 
         {/* Eliminations */}
         <TabsContent value="eliminations" className="space-y-4">

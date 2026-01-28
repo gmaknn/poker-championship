@@ -68,9 +68,9 @@ export default function SeasonConfrontationsMatrix({
     return confrontationMap.get(`${eliminatorId}-${eliminatedId}`) || 0;
   };
 
-  // Calculate width
-  const cellWidth = 36;
-  const headerWidth = 140;
+  // Calculate width - agrandir les cellules
+  const cellWidth = 42;
+  const headerWidth = 150;
 
   return (
     <div
@@ -139,44 +139,62 @@ export default function SeasonConfrontationsMatrix({
                 >
                   Eliminateur / Victime
                 </th>
-                {/* Victim names (columns) */}
+                {/* Victim names (columns) - rotation 45° */}
                 {sortedPlayers.map((player) => (
                   <th
                     key={player.id}
                     style={{
                       padding: '4px',
-                      textAlign: 'center',
+                      textAlign: 'left',
                       borderBottom: '2px solid #475569',
                       color: '#f8fafc',
-                      fontSize: '10px',
+                      fontSize: '12px',
                       fontWeight: '600',
                       minWidth: `${cellWidth}px`,
                       maxWidth: `${cellWidth}px`,
-                      writingMode: 'vertical-rl',
-                      transform: 'rotate(180deg)',
-                      height: '90px',
+                      height: '100px',
+                      verticalAlign: 'bottom',
+                      position: 'relative',
                     }}
                   >
-                    {player.nickname.length > 12 ? player.nickname.slice(0, 12) + '.' : player.nickname}
+                    <div style={{
+                      transform: 'rotate(-45deg)',
+                      transformOrigin: 'left bottom',
+                      whiteSpace: 'nowrap',
+                      position: 'absolute',
+                      bottom: '8px',
+                      left: '50%',
+                    }}>
+                      {player.nickname.length > 10 ? player.nickname.slice(0, 10) + '.' : player.nickname}
+                    </div>
                   </th>
                 ))}
                 {/* Total kills column header */}
                 <th
                   style={{
                     padding: '4px',
-                    textAlign: 'center',
+                    textAlign: 'left',
                     borderBottom: '2px solid #475569',
                     backgroundColor: 'rgba(239,68,68,0.25)',
                     color: '#fca5a5',
-                    fontSize: '10px',
+                    fontSize: '12px',
                     fontWeight: '600',
                     minWidth: `${cellWidth}px`,
-                    writingMode: 'vertical-rl',
-                    transform: 'rotate(180deg)',
-                    height: '90px',
+                    height: '100px',
+                    verticalAlign: 'bottom',
+                    position: 'relative',
                   }}
                 >
-                  TOTAL KO
+                  <div style={{
+                    transform: 'rotate(-45deg)',
+                    transformOrigin: 'left bottom',
+                    whiteSpace: 'nowrap',
+                    position: 'absolute',
+                    bottom: '8px',
+                    left: '50%',
+                  }}>
+                    TOTAL KO
+                  </div>
                 </th>
               </tr>
             </thead>
@@ -191,10 +209,10 @@ export default function SeasonConfrontationsMatrix({
                     {/* Eliminator name (row header) */}
                     <td
                       style={{
-                        padding: '6px 12px',
+                        padding: '8px 14px',
                         fontWeight: '500',
                         color: '#f8fafc',
-                        fontSize: '13px',
+                        fontSize: '15px',
                         maxWidth: `${headerWidth}px`,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -216,11 +234,11 @@ export default function SeasonConfrontationsMatrix({
                           <td
                             key={victim.id}
                             style={{
-                              padding: '4px',
+                              padding: '6px',
                               textAlign: 'center',
                               backgroundColor: 'rgba(71,85,105,0.4)',
                               color: '#64748b',
-                              fontSize: '12px',
+                              fontSize: '14px',
                               minWidth: `${cellWidth}px`,
                               borderBottom: '1px solid #475569',
                             }}
@@ -237,11 +255,11 @@ export default function SeasonConfrontationsMatrix({
                         <td
                           key={victim.id}
                           style={{
-                            padding: '4px',
+                            padding: '6px',
                             textAlign: 'center',
                             backgroundColor: cellBg,
                             color: textColor,
-                            fontSize: '13px',
+                            fontSize: '15px',
                             fontWeight: count > 0 ? 'bold' : 'normal',
                             minWidth: `${cellWidth}px`,
                             borderBottom: '1px solid #475569',
@@ -255,12 +273,12 @@ export default function SeasonConfrontationsMatrix({
                     {/* Total kills for this eliminator */}
                     <td
                       style={{
-                        padding: '6px',
+                        padding: '8px',
                         textAlign: 'center',
                         fontWeight: 'bold',
                         backgroundColor: 'rgba(239,68,68,0.15)',
                         color: '#fca5a5',
-                        fontSize: '14px',
+                        fontSize: '16px',
                         minWidth: `${cellWidth}px`,
                         borderBottom: '1px solid #475569',
                       }}
@@ -273,17 +291,17 @@ export default function SeasonConfrontationsMatrix({
 
               {/* Total deaths row */}
               <tr style={{ backgroundColor: 'rgba(59,130,246,0.15)' }}>
-                <td style={{ padding: '8px 12px', fontWeight: 'bold', color: '#93c5fd', fontSize: '13px', borderBottom: '1px solid #475569' }}>Total Élim.</td>
+                <td style={{ padding: '10px 14px', fontWeight: 'bold', color: '#93c5fd', fontSize: '15px', borderBottom: '1px solid #475569' }}>Total Élim.</td>
                 {sortedPlayers.map((player) => (
                   <td
                     key={player.id}
                     style={{
-                      padding: '6px',
+                      padding: '8px',
                       textAlign: 'center',
                       fontWeight: 'bold',
                       backgroundColor: 'rgba(59,130,246,0.1)',
                       color: '#93c5fd',
-                      fontSize: '14px',
+                      fontSize: '16px',
                       minWidth: `${cellWidth}px`,
                       borderBottom: '1px solid #475569',
                     }}
@@ -294,7 +312,7 @@ export default function SeasonConfrontationsMatrix({
                 {/* Empty corner cell */}
                 <td
                   style={{
-                    padding: '6px',
+                    padding: '8px',
                     textAlign: 'center',
                     backgroundColor: 'rgba(71,85,105,0.3)',
                     color: '#64748b',
