@@ -15,8 +15,8 @@ interface PlayerRanking {
   lastName?: string;
   avatar: string | null;
   totalPoints: number;
-  pointsChange: number; // Points gagnés lors du dernier tournoi
-  victims: EliminationVictim[]; // Joueurs que ce joueur a éliminés
+  pointsChange: number; // Points gagnes lors du dernier tournoi
+  victims: EliminationVictim[]; // Joueurs que ce joueur a elimines
 }
 
 interface SeasonLeaderboardWithEliminationsProps {
@@ -36,7 +36,7 @@ export default function SeasonLeaderboardWithEliminations({
       style={{
         width: '100%',
         minWidth: '1200px',
-        backgroundColor: '#0f172a',
+        backgroundColor: '#f8fafc',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
@@ -53,7 +53,7 @@ export default function SeasonLeaderboardWithEliminations({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
@@ -69,14 +69,14 @@ export default function SeasonLeaderboardWithEliminations({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
       </div>
 
-      {/* Contenu principal - Fond slate */}
-      <div style={{ padding: '32px 40px', backgroundColor: '#0f172a' }}>
+      {/* Contenu principal - Fond clair */}
+      <div style={{ padding: '32px 40px', backgroundColor: '#f8fafc' }}>
         {/* Zone Master Banner */}
         <div style={{
           display: 'flex',
@@ -85,32 +85,32 @@ export default function SeasonLeaderboardWithEliminations({
           gap: '12px',
           padding: '14px',
           marginBottom: '16px',
-          background: 'linear-gradient(90deg, rgba(251,191,36,0.05) 0%, rgba(251,191,36,0.15) 50%, rgba(251,191,36,0.05) 100%)',
+          background: 'linear-gradient(90deg, rgba(202,138,4,0.05) 0%, rgba(202,138,4,0.15) 50%, rgba(202,138,4,0.05) 100%)',
           borderRadius: '8px',
-          border: '1px solid rgba(251,191,36,0.3)',
+          border: '1px solid rgba(202,138,4,0.3)',
         }}>
           <span style={{ fontSize: '20px' }}>⭐</span>
-          <span style={{ fontSize: '18px', fontWeight: '600', color: '#fbbf24' }}>Zone Master - Top 10</span>
+          <span style={{ fontSize: '18px', fontWeight: '600', color: '#a16207' }}>Zone Master - Top 10</span>
           <span style={{ fontSize: '20px' }}>⭐</span>
         </div>
 
         {/* Table */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <thead>
-            <tr style={{ backgroundColor: '#334155' }}>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600', width: '60px' }}>
+            <tr style={{ backgroundColor: '#e2e8f0' }}>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '15px', fontWeight: '600', width: '60px' }}>
                 #
               </th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600', minWidth: '180px' }}>
+              <th style={{ padding: '14px 20px', textAlign: 'left', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '15px', fontWeight: '600', minWidth: '180px' }}>
                 Joueur
               </th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fde047', fontSize: '13px', fontWeight: '600', width: '80px' }}>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#ca8a04', fontSize: '15px', fontWeight: '600', width: '80px' }}>
                 POINTS
               </th>
-              <th style={{ padding: '12px 16px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600', width: '100px' }}>
+              <th style={{ padding: '14px 20px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '15px', fontWeight: '600', width: '100px' }}>
                 Dernier tournoi
               </th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '13px', fontWeight: '600' }}>
+              <th style={{ padding: '14px 20px', textAlign: 'left', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '15px', fontWeight: '600' }}>
                 Victimes
               </th>
             </tr>
@@ -125,67 +125,67 @@ export default function SeasonLeaderboardWithEliminations({
               let borderLeft: string | undefined;
 
               if (isTop3) {
-                bgColor = 'rgba(250,204,21,0.12)';
-                borderLeft = '3px solid #fbbf24';
+                bgColor = 'rgba(250,204,21,0.15)';
+                borderLeft = '3px solid #ca8a04';
               } else if (isTop10) {
-                bgColor = 'rgba(34,197,94,0.08)';
+                bgColor = 'rgba(34,197,94,0.1)';
                 borderLeft = undefined;
               } else {
-                bgColor = index % 2 === 0 ? '#1e293b' : '#273449';
+                bgColor = index % 2 === 0 ? '#ffffff' : '#f1f5f9';
                 borderLeft = undefined;
               }
 
               const pointsChangeColor =
                 player.pointsChange > 0
-                  ? '#4ade80'
+                  ? '#16a34a'
                   : player.pointsChange < 0
-                  ? '#f87171'
-                  : '#94a3b8';
+                  ? '#dc2626'
+                  : '#64748b';
 
               return (
                 <React.Fragment key={player.rank}>
                   {/* Separator after Top 10 */}
                   {player.rank === 11 && (
                     <tr>
-                      <td colSpan={5} style={{ padding: '0', height: '2px', backgroundColor: '#fbbf24' }} />
+                      <td colSpan={5} style={{ padding: '0', height: '2px', backgroundColor: '#ca8a04' }} />
                     </tr>
                   )}
                   <tr style={{ backgroundColor: bgColor, borderLeft }}>
                     {/* Rang */}
                     <td style={{
-                      padding: '10px 16px',
+                      padding: '12px 20px',
                       textAlign: 'center',
                       fontWeight: 'bold',
-                      fontSize: '15px',
-                      color: player.rank === 1 ? '#fbbf24' : player.rank === 2 ? '#9ca3af' : player.rank === 3 ? '#ea580c' : isTop10 ? '#fde68a' : '#f8fafc',
-                      borderBottom: '1px solid #475569',
+                      fontSize: '18px',
+                      color: player.rank === 1 ? '#ca8a04' : player.rank === 2 ? '#64748b' : player.rank === 3 ? '#c2410c' : isTop10 ? '#a16207' : '#1e293b',
+                      borderBottom: '1px solid #cbd5e1',
                     }}>
                       {player.rank <= 3 ? '🏆 ' : player.rank <= 10 ? '🎖️ ' : ''}{player.rank}
                     </td>
 
                     {/* Joueur avec avatar */}
-                    <td style={{ padding: '10px 16px', borderBottom: '1px solid #475569' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <td style={{ padding: '12px 20px', borderBottom: '1px solid #cbd5e1' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         {/* Avatar */}
                         {isValidAvatarUrl(player.avatar) ? (
                           <img
                             src={normalizeAvatarSrc(player.avatar)!}
                             alt=""
                             crossOrigin="anonymous"
-                            style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', objectFit: 'cover' }}
+                            style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #cbd5e1', objectFit: 'cover', backgroundColor: '#e2e8f0' }}
                           />
                         ) : (
-                          <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '2px solid #475569', backgroundColor: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: 'bold', color: '#94a3b8' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '50%', border: '2px solid #cbd5e1', backgroundColor: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 'bold', color: '#64748b' }}>
                             {player.firstName?.[0] || player.nickname[0]}{player.lastName?.[0] || ''}
                           </div>
                         )}
                         {/* Nom et pseudo */}
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '14px', color: '#f8fafc', fontWeight: '500' }}>
+                          <span style={{ fontSize: '18px', color: '#1e293b', fontWeight: '500' }}>
                             {player.firstName && player.lastName ? `${player.firstName} ${player.lastName}` : player.nickname}
                           </span>
                           {player.firstName && player.lastName && (
-                            <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                            <span style={{ fontSize: '13px', color: '#64748b' }}>
                               @{player.nickname}
                             </span>
                           )}
@@ -194,29 +194,29 @@ export default function SeasonLeaderboardWithEliminations({
                     </td>
 
                     {/* Points totaux */}
-                    <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: '#fde047', borderBottom: '1px solid #475569' }}>
+                    <td style={{ padding: '12px 20px', textAlign: 'center', fontWeight: 'bold', fontSize: '20px', color: '#ca8a04', borderBottom: '1px solid #cbd5e1' }}>
                       {player.totalPoints}
                     </td>
 
                     {/* Points du dernier tournoi */}
-                    <td style={{ padding: '10px 16px', textAlign: 'center', fontWeight: '600', fontSize: '14px', color: pointsChangeColor, borderBottom: '1px solid #475569' }}>
+                    <td style={{ padding: '12px 20px', textAlign: 'center', fontWeight: '600', fontSize: '18px', color: pointsChangeColor, borderBottom: '1px solid #cbd5e1' }}>
                       {player.pointsChange > 0 ? '+' : ''}
                       {player.pointsChange}
                     </td>
 
                     {/* Victimes */}
-                    <td style={{ padding: '10px 16px', borderBottom: '1px solid #475569' }}>
+                    <td style={{ padding: '12px 20px', borderBottom: '1px solid #cbd5e1' }}>
                       {player.victims.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
                           {player.victims.map((victim, vIndex) => (
                             <div
                               key={vIndex}
                               style={{
-                                padding: '3px 8px',
+                                padding: '4px 10px',
                                 backgroundColor: '#dc2626',
                                 color: '#ffffff',
                                 borderRadius: '4px',
-                                fontSize: '12px',
+                                fontSize: '13px',
                                 fontWeight: '600',
                                 whiteSpace: 'nowrap',
                               }}
@@ -229,7 +229,7 @@ export default function SeasonLeaderboardWithEliminations({
                           ))}
                         </div>
                       ) : (
-                        <span style={{ color: '#64748b', fontSize: '12px', fontStyle: 'italic' }}>Aucune</span>
+                        <span style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>Aucune</span>
                       )}
                     </td>
                   </tr>
@@ -239,16 +239,16 @@ export default function SeasonLeaderboardWithEliminations({
           </tbody>
         </table>
 
-        {/* Légende */}
+        {/* Legende */}
         <div style={{
           marginTop: '24px',
           padding: '16px',
-          backgroundColor: '#1e293b',
+          backgroundColor: '#ffffff',
           borderRadius: '8px',
-          border: '1px solid #475569',
+          border: '1px solid #cbd5e1',
         }}>
-          <h3 style={{ fontWeight: '600', color: '#f8fafc', marginBottom: '12px', fontSize: '14px' }}>Legende :</h3>
-          <ul style={{ fontSize: '13px', color: '#94a3b8', margin: 0, paddingLeft: '20px', listStyle: 'disc' }}>
+          <h3 style={{ fontWeight: '600', color: '#1e293b', marginBottom: '12px', fontSize: '14px' }}>Legende :</h3>
+          <ul style={{ fontSize: '13px', color: '#64748b', margin: 0, paddingLeft: '20px', listStyle: 'disc' }}>
             <li style={{ marginBottom: '4px' }}>
               <span style={{ fontWeight: '600' }}>Dernier tournoi :</span> Points gagnes lors du dernier tournoi joue
             </li>
@@ -256,9 +256,16 @@ export default function SeasonLeaderboardWithEliminations({
               <span style={{ fontWeight: '600' }}>Victimes :</span> Joueurs elimines par ce joueur durant la saison
             </li>
             <li>
-              <span style={{ color: '#fde047', fontWeight: '600' }}>xN :</span> Nombre d'eliminations du meme joueur
+              <span style={{ color: '#ca8a04', fontWeight: '600' }}>xN :</span> Nombre d'eliminations du meme joueur
             </li>
           </ul>
+        </div>
+
+        {/* Message Zone Master */}
+        <div style={{ textAlign: 'center', marginTop: '20px', padding: '12px' }}>
+          <p style={{ color: '#a16207', fontSize: '16px', margin: '0' }}>
+            ⭐ Les 10 premiers disputent le Master de fin d'annee ⭐
+          </p>
         </div>
       </div>
 

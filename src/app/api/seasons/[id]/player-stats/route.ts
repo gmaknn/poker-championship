@@ -35,6 +35,7 @@ export async function GET(request: NextRequest, { params }: Params) {
                 bonusPoints: true,
                 finalRank: true,
                 prizeAmount: true,
+                eliminationsCount: true, // Final eliminations (after rebuy period)
                 player: {
                   select: {
                     id: true,
@@ -84,8 +85,8 @@ export async function GET(request: NextRequest, { params }: Params) {
       itm: number;
       top3: number;
       victories: number;
-      bustsGiven: number;      // Times this player eliminated someone (bust kills)
-      rebuyBusts: number;      // Times this player eliminated someone who then rebuyed
+      finalEliminations: number; // Eliminations after rebuy period (same as Top Sharks)
+      rebuyBusts: number;        // Times this player eliminated someone who then rebuyed
       totalBonusPoints: number;
       totalLosses: number;
       totalGains: number;
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest, { params }: Params) {
             itm: 0,
             top3: 0,
             victories: 0,
-            bustsGiven: 0,
+            finalEliminations: 0,
             rebuyBusts: 0,
             totalBonusPoints: 0,
             totalLosses: 0,
@@ -183,8 +184,9 @@ export async function GET(request: NextRequest, { params }: Params) {
           if (tp.finalRank === 1) stats.victories++;
         }
 
-        // Busts given (eliminations made by this player)
-        stats.bustsGiven += bustsGivenMap.get(tp.playerId) || 0;
+        // Final eliminations (after rebuy period) - same as Top Sharks data
+        stats.finalEliminations += tp.eliminationsCount || 0;
+        // Rebuy busts (eliminations where victim rebuyed)
         stats.rebuyBusts += rebuyBustsMap.get(tp.playerId) || 0;
 
         // Mises = buy-in + (rebuys in euros)

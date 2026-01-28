@@ -25,23 +25,24 @@ interface SeasonConfrontationsMatrixProps {
 }
 
 /**
- * Get background color based on elimination count
+ * Get background color based on elimination count (light theme)
  */
 function getEliminationColor(count: number): string {
-  if (count === 0) return 'rgba(71,85,105,0.2)'; // slate
-  if (count === 1) return 'rgba(251,191,36,0.4)'; // amber
-  if (count === 2) return 'rgba(249,115,22,0.5)'; // orange
-  if (count >= 3) return 'rgba(239,68,68,0.6)'; // red (rivalry!)
-  return 'rgba(71,85,105,0.2)';
+  if (count === 0) return 'rgba(148,163,184,0.15)'; // slate-400 light
+  if (count === 1) return 'rgba(251,191,36,0.35)'; // amber
+  if (count === 2) return 'rgba(249,115,22,0.45)'; // orange
+  if (count >= 3) return 'rgba(239,68,68,0.55)'; // red (rivalry!)
+  return 'rgba(148,163,184,0.15)';
 }
 
 /**
- * Get text color based on background
+ * Get text color based on background (light theme)
  */
 function getTextColor(count: number): string {
-  if (count >= 2) return '#ffffff';
-  if (count >= 1) return '#fde047';
-  return '#64748b';
+  if (count >= 3) return '#7f1d1d';
+  if (count >= 2) return '#9a3412';
+  if (count >= 1) return '#92400e';
+  return '#94a3b8';
 }
 
 export default function SeasonConfrontationsMatrix({
@@ -68,7 +69,7 @@ export default function SeasonConfrontationsMatrix({
     return confrontationMap.get(`${eliminatorId}-${eliminatedId}`) || 0;
   };
 
-  // Calculate width - agrandir les cellules
+  // Calculate width - larger cells
   const cellWidth = 42;
   const headerWidth = 150;
 
@@ -77,8 +78,7 @@ export default function SeasonConfrontationsMatrix({
       id="season-confrontations-matrix"
       style={{
         width: '100%',
-        minWidth: `${headerWidth + (sortedPlayers.length + 1) * cellWidth + 100}px`,
-        backgroundColor: '#0f172a',
+        backgroundColor: '#f8fafc',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
@@ -95,7 +95,7 @@ export default function SeasonConfrontationsMatrix({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
@@ -111,27 +111,27 @@ export default function SeasonConfrontationsMatrix({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
       </div>
 
-      {/* Contenu principal - Fond slate */}
-      <div style={{ padding: '32px 40px', backgroundColor: '#0f172a' }}>
-        {/* Matrix table */}
+      {/* Contenu principal - Fond clair */}
+      <div style={{ padding: '32px 40px', backgroundColor: '#f8fafc' }}>
+        {/* Matrix table - Full width */}
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
             {/* Header row with victim names */}
             <thead>
-              <tr style={{ backgroundColor: '#334155' }}>
+              <tr style={{ backgroundColor: '#e2e8f0' }}>
                 {/* Top-left corner cell */}
                 <th
                   style={{
                     padding: '8px 12px',
                     textAlign: 'center',
-                    borderBottom: '2px solid #475569',
-                    color: '#f8fafc',
+                    borderBottom: '2px solid #cbd5e1',
+                    color: '#1e293b',
                     fontSize: '11px',
                     fontWeight: '600',
                     minWidth: `${headerWidth}px`,
@@ -146,8 +146,8 @@ export default function SeasonConfrontationsMatrix({
                     style={{
                       padding: '4px',
                       textAlign: 'left',
-                      borderBottom: '2px solid #475569',
-                      color: '#f8fafc',
+                      borderBottom: '2px solid #cbd5e1',
+                      color: '#1e293b',
                       fontSize: '12px',
                       fontWeight: '600',
                       minWidth: `${cellWidth}px`,
@@ -174,9 +174,9 @@ export default function SeasonConfrontationsMatrix({
                   style={{
                     padding: '4px',
                     textAlign: 'left',
-                    borderBottom: '2px solid #475569',
-                    backgroundColor: 'rgba(239,68,68,0.25)',
-                    color: '#fca5a5',
+                    borderBottom: '2px solid #cbd5e1',
+                    backgroundColor: 'rgba(239,68,68,0.15)',
+                    color: '#dc2626',
                     fontSize: '12px',
                     fontWeight: '600',
                     minWidth: `${cellWidth}px`,
@@ -202,7 +202,7 @@ export default function SeasonConfrontationsMatrix({
             {/* Body rows */}
             <tbody>
               {sortedPlayers.map((eliminator, rowIndex) => {
-                const bgColor = rowIndex % 2 === 0 ? '#1e293b' : '#273449';
+                const bgColor = rowIndex % 2 === 0 ? '#ffffff' : '#f1f5f9';
 
                 return (
                   <tr key={eliminator.id} style={{ backgroundColor: bgColor }}>
@@ -211,13 +211,13 @@ export default function SeasonConfrontationsMatrix({
                       style={{
                         padding: '8px 14px',
                         fontWeight: '500',
-                        color: '#f8fafc',
+                        color: '#1e293b',
                         fontSize: '15px',
                         maxWidth: `${headerWidth}px`,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        borderBottom: '1px solid #475569',
+                        borderBottom: '1px solid #cbd5e1',
                       }}
                     >
                       {eliminator.nickname}
@@ -236,11 +236,11 @@ export default function SeasonConfrontationsMatrix({
                             style={{
                               padding: '6px',
                               textAlign: 'center',
-                              backgroundColor: 'rgba(71,85,105,0.4)',
-                              color: '#64748b',
+                              backgroundColor: 'rgba(148,163,184,0.25)',
+                              color: '#94a3b8',
                               fontSize: '14px',
                               minWidth: `${cellWidth}px`,
-                              borderBottom: '1px solid #475569',
+                              borderBottom: '1px solid #cbd5e1',
                             }}
                           >
                             -
@@ -262,7 +262,7 @@ export default function SeasonConfrontationsMatrix({
                             fontSize: '15px',
                             fontWeight: count > 0 ? 'bold' : 'normal',
                             minWidth: `${cellWidth}px`,
-                            borderBottom: '1px solid #475569',
+                            borderBottom: '1px solid #cbd5e1',
                           }}
                         >
                           {count > 0 ? count : ''}
@@ -276,11 +276,11 @@ export default function SeasonConfrontationsMatrix({
                         padding: '8px',
                         textAlign: 'center',
                         fontWeight: 'bold',
-                        backgroundColor: 'rgba(239,68,68,0.15)',
-                        color: '#fca5a5',
+                        backgroundColor: 'rgba(239,68,68,0.1)',
+                        color: '#dc2626',
                         fontSize: '16px',
                         minWidth: `${cellWidth}px`,
-                        borderBottom: '1px solid #475569',
+                        borderBottom: '1px solid #cbd5e1',
                       }}
                     >
                       {eliminator.totalKills}
@@ -290,8 +290,8 @@ export default function SeasonConfrontationsMatrix({
               })}
 
               {/* Total deaths row */}
-              <tr style={{ backgroundColor: 'rgba(59,130,246,0.15)' }}>
-                <td style={{ padding: '10px 14px', fontWeight: 'bold', color: '#93c5fd', fontSize: '15px', borderBottom: '1px solid #475569' }}>Total Élim.</td>
+              <tr style={{ backgroundColor: 'rgba(59,130,246,0.1)' }}>
+                <td style={{ padding: '10px 14px', fontWeight: 'bold', color: '#2563eb', fontSize: '15px', borderBottom: '1px solid #cbd5e1' }}>Total Elim.</td>
                 {sortedPlayers.map((player) => (
                   <td
                     key={player.id}
@@ -299,11 +299,11 @@ export default function SeasonConfrontationsMatrix({
                       padding: '8px',
                       textAlign: 'center',
                       fontWeight: 'bold',
-                      backgroundColor: 'rgba(59,130,246,0.1)',
-                      color: '#93c5fd',
+                      backgroundColor: 'rgba(59,130,246,0.08)',
+                      color: '#2563eb',
                       fontSize: '16px',
                       minWidth: `${cellWidth}px`,
-                      borderBottom: '1px solid #475569',
+                      borderBottom: '1px solid #cbd5e1',
                     }}
                   >
                     {player.totalDeaths}
@@ -314,10 +314,10 @@ export default function SeasonConfrontationsMatrix({
                   style={{
                     padding: '8px',
                     textAlign: 'center',
-                    backgroundColor: 'rgba(71,85,105,0.3)',
-                    color: '#64748b',
+                    backgroundColor: 'rgba(148,163,184,0.2)',
+                    color: '#94a3b8',
                     minWidth: `${cellWidth}px`,
-                    borderBottom: '1px solid #475569',
+                    borderBottom: '1px solid #cbd5e1',
                   }}
                 >
                   -
@@ -327,35 +327,35 @@ export default function SeasonConfrontationsMatrix({
           </table>
         </div>
 
-        {/* Légende */}
+        {/* Legende */}
         <div style={{
           marginTop: '24px',
           padding: '16px',
-          backgroundColor: '#1e293b',
+          backgroundColor: '#ffffff',
           borderRadius: '8px',
-          border: '1px solid #475569',
+          border: '1px solid #cbd5e1',
         }}>
-          <h3 style={{ fontWeight: '600', color: '#f8fafc', marginBottom: '12px', fontSize: '14px' }}>Legende :</h3>
+          <h3 style={{ fontWeight: '600', color: '#1e293b', marginBottom: '12px', fontSize: '14px' }}>Legende :</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(71,85,105,0.2)', border: '1px solid #475569' }} />
-              <span style={{ color: '#94a3b8' }}>0 elimination</span>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(148,163,184,0.15)', border: '1px solid #cbd5e1' }} />
+              <span style={{ color: '#64748b' }}>0 elimination</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(251,191,36,0.4)' }} />
-              <span style={{ color: '#94a3b8' }}>1 elimination</span>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(251,191,36,0.35)' }} />
+              <span style={{ color: '#64748b' }}>1 elimination</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(249,115,22,0.5)' }} />
-              <span style={{ color: '#94a3b8' }}>2 eliminations</span>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(249,115,22,0.45)' }} />
+              <span style={{ color: '#64748b' }}>2 eliminations</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.6)' }} />
-              <span style={{ color: '#94a3b8' }}>3+ (rivalite !)</span>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.55)' }} />
+              <span style={{ color: '#64748b' }}>3+ (rivalite !)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(71,85,105,0.4)' }} />
-              <span style={{ color: '#94a3b8' }}>Diagonale (soi-meme)</span>
+              <div style={{ width: '20px', height: '20px', borderRadius: '4px', backgroundColor: 'rgba(148,163,184,0.25)' }} />
+              <span style={{ color: '#64748b' }}>Diagonale (soi-meme)</span>
             </div>
           </div>
           <div style={{ marginTop: '12px', fontSize: '12px', color: '#64748b' }}>

@@ -18,7 +18,7 @@ export type PlayerStatsExportPlayer = {
   itmPct: number;            // ITM / Tournois * 100
   top3: number;              // Podiums
   victories: number;         // 1st places
-  bustsGiven: number;        // Times this player eliminated someone (bust kills)
+  finalEliminations: number; // Eliminations after rebuy period (same as Top Sharks)
   rebuyBusts: number;        // Times eliminated someone who then rebuyed
   totalBonusPoints: number;  // Bonus points (leader kills, etc.)
   totalLosses: number;       // Buy-in + (Rebuys * rebuy-price)
@@ -67,7 +67,7 @@ export default function PlayerStatsExportPng({
       style={{
         width: '100%',
         minWidth: '1400px',
-        backgroundColor: '#0f172a',
+        backgroundColor: '#f8fafc',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
@@ -84,7 +84,7 @@ export default function PlayerStatsExportPng({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
@@ -100,14 +100,14 @@ export default function PlayerStatsExportPng({
           <img
             src="/images/logo-wpt.png"
             alt="WPT Villelaure"
-            style={{ width: '80px', height: 'auto' }}
+            style={{ width: '120px', height: 'auto' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
       </div>
 
-      {/* Contenu principal - Fond slate */}
-      <div style={{ padding: '24px 20px', backgroundColor: '#0f172a' }}>
+      {/* Contenu principal - Fond clair */}
+      <div style={{ padding: '24px 20px', backgroundColor: '#f8fafc' }}>
         {/* Legend */}
         <div style={{
           display: 'flex',
@@ -115,44 +115,62 @@ export default function PlayerStatsExportPng({
           gap: '16px',
           marginBottom: '16px',
           padding: '12px 16px',
-          backgroundColor: '#1e293b',
+          backgroundColor: '#ffffff',
           borderRadius: '8px',
+          border: '1px solid #cbd5e1',
           fontSize: '11px',
-          color: '#94a3b8',
+          color: '#64748b',
         }}>
           <span><strong>Rec</strong> = Recaves (0.5 = light, 1 = full)</span>
           <span><strong>TF</strong> = Table Finale (Top 9)</span>
           <span><strong>ITM</strong> = In The Money</span>
           <span><strong>Top3</strong> = Podiums</span>
-          <span><strong>Bust</strong> = Eliminations faites</span>
+          <span><strong>Elim.</strong> = Eliminations finales</span>
           <span><strong>@Reb</strong> = Elim. au rebuy</span>
-          <span><strong>Bonus</strong> = Points bonus (leader kills...)</span>
+          <span><strong>Bonus</strong> = Points bonus</span>
           <span><strong>Mises</strong> = Buy-in + Recaves</span>
           <span><strong>Bilan</strong> = Gains - Mises</span>
         </div>
 
+        {/* Zone Master Banner */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          padding: '14px',
+          marginBottom: '16px',
+          background: 'linear-gradient(90deg, rgba(202,138,4,0.05) 0%, rgba(202,138,4,0.15) 50%, rgba(202,138,4,0.05) 100%)',
+          borderRadius: '8px',
+          border: '1px solid rgba(202,138,4,0.3)',
+        }}>
+          <span style={{ fontSize: '20px' }}>⭐</span>
+          <span style={{ fontSize: '18px', fontWeight: '600', color: '#a16207' }}>Zone Master - Top 10</span>
+          <span style={{ fontSize: '20px' }}>⭐</span>
+        </div>
+
         {/* Table */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <thead>
-            <tr style={{ backgroundColor: '#334155' }}>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '11px', fontWeight: '600', minWidth: '35px' }}>#</th>
-              <th style={{ padding: '10px 8px', textAlign: 'left', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '11px', fontWeight: '600', minWidth: '140px' }}>Joueur</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#fde047', fontSize: '11px', fontWeight: '600', minWidth: '55px' }}>Points</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '11px', fontWeight: '600', minWidth: '30px' }}>T</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '11px', fontWeight: '600', minWidth: '30px' }}>Rec</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '45px' }}>Malus</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#60a5fa', fontSize: '11px', fontWeight: '600', minWidth: '30px' }}>TF</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#60a5fa', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>%TF</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#4ade80', fontSize: '11px', fontWeight: '600', minWidth: '30px' }}>ITM</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#4ade80', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>%ITM</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fbbf24', fontSize: '11px', fontWeight: '600', minWidth: '35px' }}>Top3</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fbbf24', fontSize: '11px', fontWeight: '600', minWidth: '25px' }}>V</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>Bust</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#c084fc', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>@Reb</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#a78bfa', fontSize: '11px', fontWeight: '600', minWidth: '45px' }}>Bonus</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '55px' }}>Mises</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#4ade80', fontSize: '11px', fontWeight: '600', minWidth: '55px' }}>Gains</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '11px', fontWeight: '600', minWidth: '60px' }}>Bilan</th>
+            <tr style={{ backgroundColor: '#e2e8f0' }}>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '14px', fontWeight: '600', minWidth: '40px' }}>#</th>
+              <th style={{ padding: '14px 12px', textAlign: 'left', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '14px', fontWeight: '600', minWidth: '160px' }}>Joueur</th>
+              <th style={{ padding: '14px 12px', textAlign: 'right', borderBottom: '2px solid #cbd5e1', color: '#ca8a04', fontSize: '14px', fontWeight: '600', minWidth: '60px' }}>Points</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '14px', fontWeight: '600', minWidth: '35px' }}>T</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '14px', fontWeight: '600', minWidth: '35px' }}>Rec</th>
+              <th style={{ padding: '14px 12px', textAlign: 'right', borderBottom: '2px solid #cbd5e1', color: '#dc2626', fontSize: '14px', fontWeight: '600', minWidth: '50px' }}>Malus</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#2563eb', fontSize: '14px', fontWeight: '600', minWidth: '35px' }}>TF</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#2563eb', fontSize: '14px', fontWeight: '600', minWidth: '45px' }}>%TF</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#16a34a', fontSize: '14px', fontWeight: '600', minWidth: '35px' }}>ITM</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#16a34a', fontSize: '14px', fontWeight: '600', minWidth: '45px' }}>%ITM</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#ca8a04', fontSize: '14px', fontWeight: '600', minWidth: '40px' }}>Top3</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#ca8a04', fontSize: '14px', fontWeight: '600', minWidth: '30px' }}>V</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#dc2626', fontSize: '14px', fontWeight: '600', minWidth: '45px' }}>Elim.</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#9333ea', fontSize: '14px', fontWeight: '600', minWidth: '45px' }}>@Reb</th>
+              <th style={{ padding: '14px 12px', textAlign: 'center', borderBottom: '2px solid #cbd5e1', color: '#7c3aed', fontSize: '14px', fontWeight: '600', minWidth: '50px' }}>Bonus</th>
+              <th style={{ padding: '14px 12px', textAlign: 'right', borderBottom: '2px solid #cbd5e1', color: '#dc2626', fontSize: '14px', fontWeight: '600', minWidth: '60px' }}>Mises</th>
+              <th style={{ padding: '14px 12px', textAlign: 'right', borderBottom: '2px solid #cbd5e1', color: '#16a34a', fontSize: '14px', fontWeight: '600', minWidth: '60px' }}>Gains</th>
+              <th style={{ padding: '14px 12px', textAlign: 'right', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '14px', fontWeight: '600', minWidth: '65px' }}>Bilan</th>
             </tr>
           </thead>
           <tbody>
@@ -164,58 +182,65 @@ export default function PlayerStatsExportPng({
               let borderLeft: string | undefined;
 
               if (isTop3) {
-                bgColor = 'rgba(250,204,21,0.12)';
-                borderLeft = '3px solid #fbbf24';
+                bgColor = 'rgba(250,204,21,0.15)';
+                borderLeft = '3px solid #ca8a04';
               } else if (isTop10) {
-                bgColor = 'rgba(34,197,94,0.08)';
+                bgColor = 'rgba(34,197,94,0.1)';
                 borderLeft = undefined;
               } else {
-                bgColor = index % 2 === 0 ? '#1e293b' : '#273449';
+                bgColor = index % 2 === 0 ? '#ffffff' : '#f1f5f9';
                 borderLeft = undefined;
               }
 
-              const balanceColor = entry.balance > 0 ? '#4ade80' : entry.balance < 0 ? '#f87171' : '#94a3b8';
+              const balanceColor = entry.balance > 0 ? '#16a34a' : entry.balance < 0 ? '#dc2626' : '#64748b';
 
               return (
                 <React.Fragment key={entry.playerId}>
                   {entry.rank === 11 && (
                     <tr>
-                      <td colSpan={18} style={{ padding: '0', height: '2px', backgroundColor: '#fbbf24' }} />
+                      <td colSpan={18} style={{ padding: '0', height: '2px', backgroundColor: '#ca8a04' }} />
                     </tr>
                   )}
                   <tr style={{ backgroundColor: bgColor, borderLeft }}>
-                    <td style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px', color: entry.rank === 1 ? '#fbbf24' : entry.rank === 2 ? '#9ca3af' : entry.rank === 3 ? '#ea580c' : isTop10 ? '#fde68a' : '#f8fafc', borderBottom: '1px solid #475569' }}>
-                      {entry.rank <= 3 ? (entry.rank === 1 ? '1' : entry.rank === 2 ? '2' : '3') : entry.rank}
+                    <td style={{ padding: '12px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: entry.rank === 1 ? '#ca8a04' : entry.rank === 2 ? '#64748b' : entry.rank === 3 ? '#c2410c' : isTop10 ? '#a16207' : '#1e293b', borderBottom: '1px solid #cbd5e1' }}>
+                      {entry.rank <= 3 ? '🏆 ' : entry.rank <= 10 ? '🎖️ ' : ''}{entry.rank}
                     </td>
-                    <td style={{ padding: '8px', borderBottom: '1px solid #475569' }}>
+                    <td style={{ padding: '12px', borderBottom: '1px solid #cbd5e1' }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: '500' }}>
+                        <span style={{ fontSize: '18px', color: '#1e293b', fontWeight: '500' }}>
                           {entry.firstName} {entry.lastName}
                         </span>
                       </div>
                     </td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', fontSize: '13px', color: '#fde047', borderBottom: '1px solid #475569' }}>{entry.totalPoints}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: '#86efac', borderBottom: '1px solid #475569' }}>{entry.tournamentsCount}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.totalRebuys > 0 ? '#fbbf24' : '#64748b', borderBottom: '1px solid #475569' }}>{formatRebuys(entry.totalRebuys)}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontSize: '12px', color: entry.totalPenalty < 0 ? '#f87171' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.totalPenalty < 0 ? entry.totalPenalty : '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.tableFinals > 0 ? '#60a5fa' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.tableFinals || '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', color: entry.tableFinalsPct > 0 ? '#60a5fa' : '#64748b', borderBottom: '1px solid #475569' }}>{formatPct(entry.tableFinalsPct)}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.itm > 0 ? '#4ade80' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.itm || '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', color: entry.itmPct > 0 ? '#4ade80' : '#64748b', borderBottom: '1px solid #475569' }}>{formatPct(entry.itmPct)}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.top3 > 0 ? '#fbbf24' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.top3 || '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.victories > 0 ? '#fbbf24' : '#64748b', fontWeight: entry.victories > 0 ? 'bold' : 'normal', borderBottom: '1px solid #475569' }}>{entry.victories || '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.bustsGiven > 0 ? '#f87171' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.bustsGiven || '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.rebuyBusts > 0 ? '#c084fc' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.rebuyBusts || '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.totalBonusPoints > 0 ? '#a78bfa' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.totalBonusPoints || '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontSize: '11px', color: '#f87171', borderBottom: '1px solid #475569' }}>{entry.totalLosses > 0 ? `-${formatMoney(entry.totalLosses)}` : '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontSize: '11px', color: '#4ade80', borderBottom: '1px solid #475569' }}>{entry.totalGains > 0 ? `+${formatMoney(entry.totalGains)}` : '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: balanceColor, borderBottom: '1px solid #475569' }}>{formatBalance(entry.balance)}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontWeight: 'bold', fontSize: '18px', color: '#ca8a04', borderBottom: '1px solid #cbd5e1' }}>{entry.totalPoints}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: '#16a34a', borderBottom: '1px solid #cbd5e1' }}>{entry.tournamentsCount}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: entry.totalRebuys > 0 ? '#ca8a04' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{formatRebuys(entry.totalRebuys)}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '18px', color: entry.totalPenalty < 0 ? '#dc2626' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{entry.totalPenalty < 0 ? entry.totalPenalty : '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: entry.tableFinals > 0 ? '#2563eb' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{entry.tableFinals || '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '16px', color: entry.tableFinalsPct > 0 ? '#2563eb' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{formatPct(entry.tableFinalsPct)}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: entry.itm > 0 ? '#16a34a' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{entry.itm || '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '16px', color: entry.itmPct > 0 ? '#16a34a' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{formatPct(entry.itmPct)}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: entry.top3 > 0 ? '#ca8a04' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{entry.top3 || '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: entry.victories > 0 ? '#ca8a04' : '#64748b', fontWeight: entry.victories > 0 ? 'bold' : 'normal', borderBottom: '1px solid #cbd5e1' }}>{entry.victories || '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: entry.finalEliminations > 0 ? '#dc2626' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{entry.finalEliminations || '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: entry.rebuyBusts > 0 ? '#9333ea' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{entry.rebuyBusts || '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '18px', color: entry.totalBonusPoints > 0 ? '#7c3aed' : '#64748b', borderBottom: '1px solid #cbd5e1' }}>{entry.totalBonusPoints || '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '18px', color: '#dc2626', borderBottom: '1px solid #cbd5e1' }}>{entry.totalLosses > 0 ? `-${formatMoney(entry.totalLosses)}` : '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '18px', color: '#16a34a', borderBottom: '1px solid #cbd5e1' }}>{entry.totalGains > 0 ? `+${formatMoney(entry.totalGains)}` : '-'}</td>
+                    <td style={{ padding: '12px', textAlign: 'right', fontSize: '18px', fontWeight: 'bold', color: balanceColor, borderBottom: '1px solid #cbd5e1' }}>{formatBalance(entry.balance)}</td>
                   </tr>
                 </React.Fragment>
               );
             })}
           </tbody>
         </table>
+
+        {/* Message Zone Master */}
+        <div style={{ textAlign: 'center', marginTop: '20px', padding: '12px' }}>
+          <p style={{ color: '#a16207', fontSize: '16px', margin: '0' }}>
+            ⭐ Les 10 premiers disputent le Master de fin d'annee ⭐
+          </p>
+        </div>
       </div>
 
       {/* Footer - Fond vert poker */}
