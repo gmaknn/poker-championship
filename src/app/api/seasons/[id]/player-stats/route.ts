@@ -31,6 +31,7 @@ export async function GET(request: NextRequest, { params }: Params) {
                 totalPoints: true,
                 rebuysCount: true,
                 penaltyPoints: true,
+                bonusPoints: true,
                 finalRank: true,
                 prizeAmount: true,
                 player: {
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       top3: number;
       victories: number;
       bustsReceived: number;
+      totalBonusPoints: number;
       totalLosses: number;
       totalGains: number;
     }>();
@@ -125,6 +127,7 @@ export async function GET(request: NextRequest, { params }: Params) {
             top3: 0,
             victories: 0,
             bustsReceived: 0,
+            totalBonusPoints: 0,
             totalLosses: 0,
             totalGains: 0,
           };
@@ -135,6 +138,7 @@ export async function GET(request: NextRequest, { params }: Params) {
         stats.totalPoints += tp.totalPoints;
         stats.totalRebuys += tp.rebuysCount;
         stats.totalPenalty += tp.penaltyPoints;
+        stats.totalBonusPoints += tp.bonusPoints;
 
         // Table Finale = Top 9
         if (tp.finalRank !== null && tp.finalRank <= 9) {
