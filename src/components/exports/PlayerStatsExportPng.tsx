@@ -10,7 +10,7 @@ export type PlayerStatsExportPlayer = {
   lastName: string;
   totalPoints: number;
   tournamentsCount: number;
-  totalRebuys: number;
+  totalRebuys: number;       // Decimal: 0.5 for light rebuy, 1 for full
   totalPenalty: number;
   tableFinals: number;       // Top 9 finishes
   tableFinalsPct: number;    // TF / Tournois * 100
@@ -18,9 +18,10 @@ export type PlayerStatsExportPlayer = {
   itmPct: number;            // ITM / Tournois * 100
   top3: number;              // Podiums
   victories: number;         // 1st places
-  bustsReceived: number;     // Times busted (eliminated)
+  bustsGiven: number;        // Times this player eliminated someone (bust kills)
+  rebuyBusts: number;        // Times eliminated someone who then rebuyed
   totalBonusPoints: number;  // Bonus points (leader kills, etc.)
-  totalLosses: number;       // (Tournois * buy-in) + (Recaves * rebuy-price)
+  totalLosses: number;       // Buy-in + (Rebuys * rebuy-price)
   totalGains: number;        // Sum of prizeAmount
   balance: number;           // Gains - Losses
 };
@@ -119,14 +120,15 @@ export default function PlayerStatsExportPng({
           fontSize: '11px',
           color: '#94a3b8',
         }}>
-          <span><strong>Rec</strong> = Recaves</span>
+          <span><strong>Rec</strong> = Recaves (0.5 = light, 1 = full)</span>
           <span><strong>TF</strong> = Table Finale (Top 9)</span>
           <span><strong>ITM</strong> = In The Money</span>
           <span><strong>Top3</strong> = Podiums</span>
-          <span><strong>Busts</strong> = Eliminations subies</span>
+          <span><strong>Bust</strong> = Eliminations faites</span>
+          <span><strong>@Reb</strong> = Elim. au rebuy</span>
           <span><strong>Bonus</strong> = Points bonus (leader kills...)</span>
-          <span><strong>Pertes</strong> = Buy-ins + Recaves</span>
-          <span><strong>Bilan</strong> = Gains - Pertes</span>
+          <span><strong>Mises</strong> = Buy-in + Recaves</span>
+          <span><strong>Bilan</strong> = Gains - Mises</span>
         </div>
 
         {/* Table */}
@@ -145,9 +147,10 @@ export default function PlayerStatsExportPng({
               <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#4ade80', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>%ITM</th>
               <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fbbf24', fontSize: '11px', fontWeight: '600', minWidth: '35px' }}>Top3</th>
               <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fbbf24', fontSize: '11px', fontWeight: '600', minWidth: '25px' }}>V</th>
-              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>Busts</th>
+              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>Bust</th>
+              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#c084fc', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>@Reb</th>
               <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#a78bfa', fontSize: '11px', fontWeight: '600', minWidth: '45px' }}>Bonus</th>
-              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '55px' }}>Pertes</th>
+              <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '55px' }}>Mises</th>
               <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#4ade80', fontSize: '11px', fontWeight: '600', minWidth: '55px' }}>Gains</th>
               <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '11px', fontWeight: '600', minWidth: '60px' }}>Bilan</th>
             </tr>
@@ -177,7 +180,7 @@ export default function PlayerStatsExportPng({
                 <React.Fragment key={entry.playerId}>
                   {entry.rank === 11 && (
                     <tr>
-                      <td colSpan={17} style={{ padding: '0', height: '2px', backgroundColor: '#fbbf24' }} />
+                      <td colSpan={18} style={{ padding: '0', height: '2px', backgroundColor: '#fbbf24' }} />
                     </tr>
                   )}
                   <tr style={{ backgroundColor: bgColor, borderLeft }}>
@@ -201,7 +204,8 @@ export default function PlayerStatsExportPng({
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', color: entry.itmPct > 0 ? '#4ade80' : '#64748b', borderBottom: '1px solid #475569' }}>{formatPct(entry.itmPct)}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.top3 > 0 ? '#fbbf24' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.top3 || '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.victories > 0 ? '#fbbf24' : '#64748b', fontWeight: entry.victories > 0 ? 'bold' : 'normal', borderBottom: '1px solid #475569' }}>{entry.victories || '-'}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.bustsReceived > 0 ? '#f87171' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.bustsReceived || '-'}</td>
+                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.bustsGiven > 0 ? '#f87171' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.bustsGiven || '-'}</td>
+                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.rebuyBusts > 0 ? '#c084fc' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.rebuyBusts || '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.totalBonusPoints > 0 ? '#a78bfa' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.totalBonusPoints || '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontSize: '11px', color: '#f87171', borderBottom: '1px solid #475569' }}>{entry.totalLosses > 0 ? `-${formatMoney(entry.totalLosses)}` : '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontSize: '11px', color: '#4ade80', borderBottom: '1px solid #475569' }}>{entry.totalGains > 0 ? `+${formatMoney(entry.totalGains)}` : '-'}</td>
