@@ -19,7 +19,8 @@ export type PlayerStatsExportPlayer = {
   top3: number;              // Podiums
   victories: number;         // 1st places
   bustsReceived: number;     // Times busted (eliminated)
-  totalLosses: number;       // (Tournois * buy-in) + (Recaves * rebuy-in)
+  totalBonusPoints: number;  // Bonus points (leader kills, etc.)
+  totalLosses: number;       // (Tournois * buy-in) + (Recaves * rebuy-price)
   totalGains: number;        // Sum of prizeAmount
   balance: number;           // Gains - Losses
 };
@@ -51,6 +52,12 @@ export default function PlayerStatsExportPng({
   const formatPct = (pct: number) => {
     if (pct === 0) return '-';
     return `${pct.toFixed(0)}%`;
+  };
+
+  // Format rebuys: show decimal only if not a whole number
+  const formatRebuys = (rebuys: number) => {
+    if (rebuys === 0) return '-';
+    return Number.isInteger(rebuys) ? rebuys.toString() : rebuys.toFixed(1);
   };
 
   return (
@@ -112,10 +119,13 @@ export default function PlayerStatsExportPng({
           fontSize: '11px',
           color: '#94a3b8',
         }}>
+          <span><strong>Rec</strong> = Recaves</span>
           <span><strong>TF</strong> = Table Finale (Top 9)</span>
           <span><strong>ITM</strong> = In The Money</span>
           <span><strong>Top3</strong> = Podiums</span>
           <span><strong>Busts</strong> = Eliminations subies</span>
+          <span><strong>Bonus</strong> = Points bonus (leader kills...)</span>
+          <span><strong>Pertes</strong> = Buy-ins + Recaves</span>
           <span><strong>Bilan</strong> = Gains - Pertes</span>
         </div>
 
@@ -136,6 +146,7 @@ export default function PlayerStatsExportPng({
               <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fbbf24', fontSize: '11px', fontWeight: '600', minWidth: '35px' }}>Top3</th>
               <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#fbbf24', fontSize: '11px', fontWeight: '600', minWidth: '25px' }}>V</th>
               <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '40px' }}>Busts</th>
+              <th style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '2px solid #475569', color: '#a78bfa', fontSize: '11px', fontWeight: '600', minWidth: '45px' }}>Bonus</th>
               <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#f87171', fontSize: '11px', fontWeight: '600', minWidth: '55px' }}>Pertes</th>
               <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#4ade80', fontSize: '11px', fontWeight: '600', minWidth: '55px' }}>Gains</th>
               <th style={{ padding: '10px 8px', textAlign: 'right', borderBottom: '2px solid #475569', color: '#f8fafc', fontSize: '11px', fontWeight: '600', minWidth: '60px' }}>Bilan</th>
@@ -166,7 +177,7 @@ export default function PlayerStatsExportPng({
                 <React.Fragment key={entry.playerId}>
                   {entry.rank === 11 && (
                     <tr>
-                      <td colSpan={16} style={{ padding: '0', height: '2px', backgroundColor: '#fbbf24' }} />
+                      <td colSpan={17} style={{ padding: '0', height: '2px', backgroundColor: '#fbbf24' }} />
                     </tr>
                   )}
                   <tr style={{ backgroundColor: bgColor, borderLeft }}>
@@ -182,7 +193,7 @@ export default function PlayerStatsExportPng({
                     </td>
                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', fontSize: '13px', color: '#fde047', borderBottom: '1px solid #475569' }}>{entry.totalPoints}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: '#86efac', borderBottom: '1px solid #475569' }}>{entry.tournamentsCount}</td>
-                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.totalRebuys > 0 ? '#fbbf24' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.totalRebuys || '-'}</td>
+                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.totalRebuys > 0 ? '#fbbf24' : '#64748b', borderBottom: '1px solid #475569' }}>{formatRebuys(entry.totalRebuys)}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontSize: '12px', color: entry.totalPenalty < 0 ? '#f87171' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.totalPenalty < 0 ? entry.totalPenalty : '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.tableFinals > 0 ? '#60a5fa' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.tableFinals || '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', color: entry.tableFinalsPct > 0 ? '#60a5fa' : '#64748b', borderBottom: '1px solid #475569' }}>{formatPct(entry.tableFinalsPct)}</td>
@@ -191,6 +202,7 @@ export default function PlayerStatsExportPng({
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.top3 > 0 ? '#fbbf24' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.top3 || '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.victories > 0 ? '#fbbf24' : '#64748b', fontWeight: entry.victories > 0 ? 'bold' : 'normal', borderBottom: '1px solid #475569' }}>{entry.victories || '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.bustsReceived > 0 ? '#f87171' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.bustsReceived || '-'}</td>
+                    <td style={{ padding: '8px', textAlign: 'center', fontSize: '12px', color: entry.totalBonusPoints > 0 ? '#a78bfa' : '#64748b', borderBottom: '1px solid #475569' }}>{entry.totalBonusPoints || '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontSize: '11px', color: '#f87171', borderBottom: '1px solid #475569' }}>{entry.totalLosses > 0 ? `-${formatMoney(entry.totalLosses)}` : '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontSize: '11px', color: '#4ade80', borderBottom: '1px solid #475569' }}>{entry.totalGains > 0 ? `+${formatMoney(entry.totalGains)}` : '-'}</td>
                     <td style={{ padding: '8px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold', color: balanceColor, borderBottom: '1px solid #475569' }}>{formatBalance(entry.balance)}</td>
