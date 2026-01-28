@@ -273,7 +273,7 @@ export default function SeasonConfrontationsMatrix({
 
               {/* Total deaths row */}
               <tr style={{ backgroundColor: 'rgba(59,130,246,0.15)' }}>
-                <td style={{ padding: '8px 12px', fontWeight: 'bold', color: '#93c5fd', fontSize: '13px', borderBottom: '1px solid #475569' }}>TOTAL MORTS</td>
+                <td style={{ padding: '8px 12px', fontWeight: 'bold', color: '#93c5fd', fontSize: '13px', borderBottom: '1px solid #475569' }}>Total Élim.</td>
                 {sortedPlayers.map((player) => (
                   <td
                     key={player.id}
