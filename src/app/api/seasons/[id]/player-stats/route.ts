@@ -30,6 +30,7 @@ export async function GET(request: NextRequest, { params }: Params) {
                 playerId: true,
                 totalPoints: true,
                 rebuysCount: true,
+                lightRebuyUsed: true,
                 penaltyPoints: true,
                 bonusPoints: true,
                 finalRank: true,
@@ -45,10 +46,12 @@ export async function GET(request: NextRequest, { params }: Params) {
                 },
               },
             },
-            // Include bust events to count how many times each player was busted
+            // Include bust events to count eliminations and rebuy busts
             bustEvents: {
               select: {
                 eliminatedId: true,
+                killerId: true,
+                recaveApplied: true,
               },
             },
           },
@@ -75,13 +78,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       avatar: string | null;
       totalPoints: number;
       tournamentsCount: number;
-      totalRebuys: number;
+      totalRebuys: number; // Decimal: 0.5 for light rebuy, 1 for full
       totalPenalty: number;
       tableFinals: number;
       itm: number;
       top3: number;
       victories: number;
-      bustsReceived: number;
+      bustsGiven: number;      // Times this player eliminated someone (bust kills)
+      rebuyBusts: number;      // Times this player eliminated someone who then rebuyed
       totalBonusPoints: number;
       totalLosses: number;
       totalGains: number;
@@ -90,20 +94,32 @@ export async function GET(request: NextRequest, { params }: Params) {
     // Process each tournament
     for (const tournament of season.tournaments) {
       const buyIn = tournament.buyInAmount;
-      const rebuyAmount = tournament.lightRebuyAmount || buyIn;
+      const rebuyPrice = tournament.buyInAmount; // Full rebuy = buy-in price (10€)
+      const lightRebuyPrice = tournament.lightRebuyAmount || buyIn / 2; // Light = 5€
 
-      // Count busts received per player in this tournament
-      // bustEvents.eliminatedId is the TournamentPlayer ID, we need to map it to playerId
-      const bustCountMap = new Map<string, number>();
+      // Map TournamentPlayer ID to playerId
       const tpIdToPlayerIdMap = new Map<string, string>();
       for (const tp of tournament.tournamentPlayers) {
         tpIdToPlayerIdMap.set(tp.id, tp.playerId);
       }
+
+      // Count busts given (eliminations) and rebuy busts per player
+      // bustsGiven = times this player eliminated someone
+      // rebuyBusts = times this player eliminated someone who then rebuyed
+      const bustsGivenMap = new Map<string, number>();
+      const rebuyBustsMap = new Map<string, number>();
+
       for (const bust of tournament.bustEvents) {
-        const playerId = tpIdToPlayerIdMap.get(bust.eliminatedId);
-        if (playerId) {
-          const current = bustCountMap.get(playerId) || 0;
-          bustCountMap.set(playerId, current + 1);
+        if (bust.killerId) {
+          const killerPlayerId = tpIdToPlayerIdMap.get(bust.killerId);
+          if (killerPlayerId) {
+            // Count total busts given
+            bustsGivenMap.set(killerPlayerId, (bustsGivenMap.get(killerPlayerId) || 0) + 1);
+            // Count rebuy busts (eliminations where victim rebuyed)
+            if (bust.recaveApplied) {
+              rebuyBustsMap.set(killerPlayerId, (rebuyBustsMap.get(killerPlayerId) || 0) + 1);
+            }
+          }
         }
       }
 
@@ -126,7 +142,8 @@ export async function GET(request: NextRequest, { params }: Params) {
             itm: 0,
             top3: 0,
             victories: 0,
-            bustsReceived: 0,
+            bustsGiven: 0,
+            rebuyBusts: 0,
             totalBonusPoints: 0,
             totalLosses: 0,
             totalGains: 0,
@@ -136,9 +153,18 @@ export async function GET(request: NextRequest, { params }: Params) {
 
         stats.tournamentsCount++;
         stats.totalPoints += tp.totalPoints;
-        stats.totalRebuys += tp.rebuysCount;
         stats.totalPenalty += tp.penaltyPoints;
         stats.totalBonusPoints += tp.bonusPoints;
+
+        // Calculate rebuys as decimal (0.5 for light, 1 for full)
+        // rebuysCount is the total number of rebuys
+        // lightRebuyUsed indicates if one of them was a light rebuy
+        let rebuysDecimal = tp.rebuysCount;
+        if (tp.lightRebuyUsed && tp.rebuysCount > 0) {
+          // One of the rebuys was light (0.5 instead of 1)
+          rebuysDecimal = tp.rebuysCount - 0.5;
+        }
+        stats.totalRebuys += rebuysDecimal;
 
         // Table Finale = Top 9
         if (tp.finalRank !== null && tp.finalRank <= 9) {
@@ -157,12 +183,14 @@ export async function GET(request: NextRequest, { params }: Params) {
           if (tp.finalRank === 1) stats.victories++;
         }
 
-        // Busts received
-        const bustCount = bustCountMap.get(tp.playerId) || 0;
-        stats.bustsReceived += bustCount;
+        // Busts given (eliminations made by this player)
+        stats.bustsGiven += bustsGivenMap.get(tp.playerId) || 0;
+        stats.rebuyBusts += rebuyBustsMap.get(tp.playerId) || 0;
 
-        // Losses = buy-in + (rebuys * rebuy amount)
-        stats.totalLosses += buyIn + (tp.rebuysCount * rebuyAmount);
+        // Mises = buy-in + (rebuys in euros)
+        // rebuysDecimal already accounts for light (0.5) vs full (1)
+        // Each unit of rebuy = rebuyPrice (10€)
+        stats.totalLosses += buyIn + (rebuysDecimal * rebuyPrice);
       }
     }
 
