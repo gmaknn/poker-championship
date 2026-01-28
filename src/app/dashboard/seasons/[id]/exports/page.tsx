@@ -34,6 +34,7 @@ import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeader
 import SeasonEvolutionChart from '@/components/exports/SeasonEvolutionChart';
 import SeasonConfrontationsMatrix from '@/components/exports/SeasonConfrontationsMatrix';
 import LeaderboardExportPng from '@/components/exports/LeaderboardExportPng';
+import LeaderboardExportPngLight from '@/components/exports/LeaderboardExportPngLight';
 import TournamentExportPng from '@/components/exports/TournamentExportPng';
 import PlayerStatsExportPng, { PlayerStatsExportPlayer } from '@/components/exports/PlayerStatsExportPng';
 
@@ -160,6 +161,7 @@ export default function SeasonExportsPage() {
   const evolutionRef = useRef<HTMLDivElement>(null);
   const confrontationsRef = useRef<HTMLDivElement>(null);
   const generalLeaderboardRef = useRef<HTMLDivElement>(null);
+  const generalLeaderboardLightRef = useRef<HTMLDivElement>(null);
   const tournamentExportRef = useRef<HTMLDivElement>(null);
   const playerStatsRef = useRef<HTMLDivElement>(null);
 
@@ -662,7 +664,7 @@ export default function SeasonExportsPage() {
 
       {/* Tabs for different export types */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="tournaments" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Tournois
@@ -670,6 +672,10 @@ export default function SeasonExportsPage() {
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Trophy className="h-4 w-4" />
             Classement
+          </TabsTrigger>
+          <TabsTrigger value="general-light" className="flex items-center gap-2">
+            <Trophy className="h-4 w-4" />
+            Classement (Clair)
           </TabsTrigger>
           <TabsTrigger value="stats" className="flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
@@ -816,6 +822,51 @@ export default function SeasonExportsPage() {
               <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
                 <div ref={generalLeaderboardRef}>
                   <LeaderboardExportPng
+                    seasonName={season.name}
+                    seasonYear={season.year}
+                    players={sortedLeaderboard.map((entry, index) => ({
+                      rank: index + 1,
+                      playerId: entry.playerId,
+                      nickname: entry.player.nickname,
+                      firstName: entry.player.firstName,
+                      lastName: entry.player.lastName,
+                      avatar: entry.player.avatar,
+                      totalPoints: entry.totalPoints,
+                      averagePoints: entry.tournamentsPlayed > 0 ? Math.round(entry.totalPoints / entry.tournamentsPlayed) : 0,
+                      tournamentsCount: entry.tournamentsPlayed,
+                      victories: entry.firstPlaces,
+                      podiums: entry.firstPlaces + entry.secondPlaces + entry.thirdPlaces,
+                      rankChange: entry.rankChange,
+                    }))}
+                    tournamentsPlayed={tournamentCount}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Export #0b: General Leaderboard Light */}
+        <TabsContent value="general-light" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Classement Général (Fond Clair)</CardTitle>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleExportImage(generalLeaderboardLightRef, `Saison_${season.year}_classement_general_clair`, undefined, '#f8fafc')}
+                    disabled={isExporting}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto bg-gray-100 p-4 rounded-lg">
+                <div ref={generalLeaderboardLightRef}>
+                  <LeaderboardExportPngLight
                     seasonName={season.name}
                     seasonYear={season.year}
                     players={sortedLeaderboard.map((entry, index) => ({
