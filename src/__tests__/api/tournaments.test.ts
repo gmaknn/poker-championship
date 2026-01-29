@@ -124,7 +124,7 @@ describe('/api/tournaments', () => {
         expect(mockPrisma.tournament.findMany).toHaveBeenCalled();
       });
 
-      it('TOURNAMENT_DIRECTOR - ne voit que ses propres tournois', async () => {
+      it('TOURNAMENT_DIRECTOR - voit tous les tournois (lecture publique)', async () => {
         const request = createRequestWithRole(
           'http://localhost:3003/api/tournaments',
           'tournamentDirector'
@@ -134,17 +134,16 @@ describe('/api/tournaments', () => {
         const { status } = await parseJsonResponse(response);
 
         expect(status).toBe(200);
-        // TD n'a pas canViewAllTournaments, donc filtre par createdById
+        // Tous les utilisateurs peuvent voir tous les tournois en lecture
+        // Le filtre createdById n'est appliqué que si explicitement demandé via query param
         expect(mockPrisma.tournament.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: expect.objectContaining({
-              createdById: TEST_PLAYERS.tournamentDirector.id,
-            }),
+            where: {},
           })
         );
       });
 
-      it('PLAYER - ne voit que ses propres tournois (aucun)', async () => {
+      it('PLAYER - voit tous les tournois (lecture publique)', async () => {
         const request = createRequestWithRole(
           'http://localhost:3003/api/tournaments',
           'player'
@@ -154,12 +153,11 @@ describe('/api/tournaments', () => {
         const { status } = await parseJsonResponse(response);
 
         expect(status).toBe(200);
-        // Player n'a pas canViewAllTournaments
+        // Tous les utilisateurs peuvent voir tous les tournois en lecture
+        // La restriction createdById ne s'applique qu'aux actions d'édition/suppression
         expect(mockPrisma.tournament.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: expect.objectContaining({
-              createdById: TEST_PLAYERS.player.id,
-            }),
+            where: {},
           })
         );
       });
