@@ -626,18 +626,18 @@ export default function PlayerDashboardPage({
                 </span>
                 <span className="font-bold text-primary">{funStats.itmRate}%</span>
               </div>
-              {/* Section Gains et Pertes */}
+              {/* Section Gains et Mises */}
               <div className="p-3 rounded-lg border bg-card/50 space-y-2">
                 <div className="flex items-center gap-2 mb-2">
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-medium">Gains et pertes</span>
+                  <span className="font-medium">Gains et mises</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-muted-foreground">Gains</span>
                   <span className="font-bold text-green-600">{funStats.totalWinnings?.toFixed(0) || 0} €</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Pertes</span>
+                  <span className="text-muted-foreground">Mises</span>
                   <span className="font-bold text-red-500">{funStats.totalLosses?.toFixed(0) || 0} €</span>
                 </div>
                 <div className="flex justify-between items-center text-sm border-t pt-2">
