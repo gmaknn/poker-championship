@@ -13,6 +13,7 @@ const customJestConfig = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^jose$': '<rootDir>/src/__mocks__/jose.ts',
   },
   testMatch: [
     '**/__tests__/**/*.{js,jsx,ts,tsx}',
@@ -22,6 +23,10 @@ const customJestConfig = {
   testPathIgnorePatterns: [
     '/node_modules/',
     '/scripts/recipe/'
+  ],
+  // Transform ESM modules that Jest can't handle natively
+  transformIgnorePatterns: [
+    '/node_modules/(?!(jose)/)',
   ],
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
