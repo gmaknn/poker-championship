@@ -59,9 +59,10 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json(responseData);
 
     // Si pas de cookie player-id, le définir (unification avec dev-login)
+    // SECURITY: httpOnly=true prevents XSS attacks from reading the cookie
     if (!hasPlayerIdCookie) {
       response.cookies.set('player-id', player.id, {
-        httpOnly: false, // Accessible côté client pour le dashboard
+        httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',

@@ -2,11 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trophy, ArrowLeft, Phone, Lock } from 'lucide-react';
+import { Trophy, Phone, Lock } from 'lucide-react';
 
 export default function PlayerLoginPage() {
   const router = useRouter();
@@ -115,31 +114,6 @@ export default function PlayerLoginPage() {
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </Button>
           </form>
-
-          <div className="mt-6 space-y-4">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Link href="/player/leaderboard">
-                <Button variant="outline" className="w-full">
-                  Voir le classement
-                </Button>
-              </Link>
-              <Link href="/player">
-                <Button variant="ghost" className="w-full">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Retour à l'accueil joueurs
-                </Button>
-              </Link>
-            </div>
-          </div>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Pas encore de compte ? Contactez un administrateur pour recevoir une invitation.

@@ -53,6 +53,7 @@ interface CurrentPlayer {
 }
 
 // Hook to get current player from session
+// Uses /api/me endpoint which can read httpOnly cookies server-side
 export function useCurrentPlayer() {
   const [currentPlayer, setCurrentPlayer] = useState<CurrentPlayer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,14 +62,15 @@ export function useCurrentPlayer() {
   useEffect(() => {
     const checkSession = async () => {
       try {
-        const cookies = document.cookie;
-        const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+        // Use /api/me which reads the httpOnly player-session cookie server-side
+        const res = await fetch('/api/me', { credentials: 'include' });
 
-        if (playerIdMatch) {
-          const playerId = playerIdMatch[1];
-          const res = await fetch(`/api/players/${playerId}`);
-          if (res.ok) {
-            const player = await res.json();
+        if (res.ok) {
+          const data = await res.json();
+          // Fetch full player details for avatar
+          const playerRes = await fetch(`/api/players/${data.id}`);
+          if (playerRes.ok) {
+            const player = await playerRes.json();
             setCurrentPlayer({
               id: player.id,
               nickname: player.nickname,
@@ -78,7 +80,15 @@ export function useCurrentPlayer() {
               role: player.role,
             });
           } else {
-            setCurrentPlayer(null);
+            // Fallback with basic info from /api/me
+            setCurrentPlayer({
+              id: data.id,
+              nickname: data.displayName,
+              firstName: '',
+              lastName: '',
+              avatar: null,
+              role: data.role,
+            });
           }
         } else {
           setCurrentPlayer(null);
@@ -101,7 +111,7 @@ export function useCurrentPlayer() {
 export function PlayerSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentPlayer } = useCurrentPlayer();
+  const { currentPlayer, isLoading } = useCurrentPlayer();
 
   const handleLogout = () => {
     document.cookie = 'player-id=; path=/; max-age=0';
@@ -183,7 +193,18 @@ export function PlayerSidebar() {
 
       {/* Footer */}
       <div className="border-t p-4 space-y-3">
-        {currentPlayer ? (
+        {isLoading ? (
+          /* Skeleton pendant le chargement pour éviter le flash */
+          <div className="animate-pulse">
+            <div className="flex items-center gap-3 p-2">
+              <div className="w-10 h-10 rounded-full bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-muted rounded w-24" />
+                <div className="h-3 bg-muted rounded w-32" />
+              </div>
+            </div>
+          </div>
+        ) : currentPlayer ? (
           <>
             {/* User info */}
             <Link
@@ -233,7 +254,7 @@ export function PlayerSidebar() {
 
 // Mobile Header with burger menu
 export function PlayerMobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
-  const { currentPlayer } = useCurrentPlayer();
+  const { currentPlayer, isLoading } = useCurrentPlayer();
 
   return (
     <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-card border-b sticky top-0 z-30">
@@ -251,7 +272,10 @@ export function PlayerMobileHeader({ onMenuClick }: { onMenuClick: () => void })
         </div>
       </div>
 
-      {currentPlayer ? (
+      {isLoading ? (
+        /* Skeleton pendant le chargement */
+        <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+      ) : currentPlayer ? (
         <Link href="/player/profile" className="p-1">
           {currentPlayer.avatar && getAvatarUrl(currentPlayer.avatar) ? (
             <img
@@ -280,7 +304,7 @@ export function PlayerMobileHeader({ onMenuClick }: { onMenuClick: () => void })
 export function PlayerMobileDrawer({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { currentPlayer } = useCurrentPlayer();
+  const { currentPlayer, isLoading } = useCurrentPlayer();
 
   const handleLogout = () => {
     document.cookie = 'player-id=; path=/; max-age=0';
@@ -407,7 +431,18 @@ export function PlayerMobileDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
 
         {/* Footer */}
         <div className="border-t p-4 space-y-3">
-          {currentPlayer ? (
+          {isLoading ? (
+            /* Skeleton pendant le chargement */
+            <div className="animate-pulse">
+              <div className="flex items-center gap-3 p-2">
+                <div className="w-10 h-10 rounded-full bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted rounded w-24" />
+                  <div className="h-3 bg-muted rounded w-32" />
+                </div>
+              </div>
+            </div>
+          ) : currentPlayer ? (
             <>
               <Link
                 href="/player/profile"

@@ -529,7 +529,7 @@ export default function PlayerDashboardPage({
                     variant="outline"
                     className="w-full"
                     onClick={() =>
-                      router.push(`/dashboard/seasons/${activeSeason.id}/leaderboard`)
+                      router.push(`/player/leaderboard`)
                     }
                   >
                     Voir le classement complet

@@ -4,10 +4,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || 'fallback-secret-for-dev'
-);
+import { getJwtSecret } from '@/lib/jwt-secret';
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Mot de passe actuel requis'),
@@ -35,7 +32,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     let payload;
     try {
-      const verified = await jwtVerify(sessionToken, JWT_SECRET);
+      const verified = await jwtVerify(sessionToken, getJwtSecret());
       payload = verified.payload as { playerId: string };
     } catch {
       return NextResponse.json(
@@ -88,8 +85,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(validatedData.newPassword, 10);
+    // Hash new password (cost factor 12 for consistency across the app)
+    const hashedPassword = await bcrypt.hash(validatedData.newPassword, 12);
 
     // Update password
     await prisma.player.update({

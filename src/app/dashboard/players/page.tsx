@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye, Mail, Check, UserCheck, Key, Shuffle, Copy, Phone } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users, Grid3x3, List, Search, Upload, Loader2, Shield, Eye, Mail, Check, UserCheck, Key, Shuffle, Copy, Phone, KeyRound } from 'lucide-react';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Input } from '@/components/ui/input';
 import {
@@ -93,6 +93,16 @@ export default function PlayersPage() {
   const [isActivating, setIsActivating] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+
+  // Réinitialisation mot de passe
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
+  const [resetPasswordPlayer, setResetPasswordPlayer] = useState<PlayerWithStats | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState('');
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetCopySuccess, setResetCopySuccess] = useState(false);
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlayers();
@@ -291,6 +301,11 @@ export default function PlayersPage() {
     return hasContact && !(player as any).isActivated;
   };
 
+  // Check if player can have their password reset (already activated)
+  const canResetPassword = (player: PlayerWithStats) => {
+    return (player as any).isActivated;
+  };
+
   const handleOpenActivateDialog = (player: PlayerWithStats) => {
     setActivatingPlayer(player);
     setActivatePassword('');
@@ -380,6 +395,92 @@ export default function PlayersPage() {
       setActivateError('Erreur lors de l\'activation');
     } finally {
       setIsActivating(false);
+    }
+  };
+
+  // Reset password functions
+  const handleOpenResetPasswordDialog = (player: PlayerWithStats) => {
+    setResetPasswordPlayer(player);
+    setResetPassword('');
+    setResetPasswordError('');
+    setShowResetPassword(false);
+    setResetCopySuccess(false);
+    setResetSuccessMessage(null);
+    setIsResetPasswordDialogOpen(true);
+  };
+
+  const generateResetPassword = () => {
+    // Mots simples liés au poker (4-5 lettres)
+    const words = [
+      'poker', 'cards', 'chips', 'river', 'flush', 'royal',
+      'bluff', 'check', 'raise', 'table', 'dealer', 'lucky',
+      'ace', 'king', 'queen', 'jack', 'spade', 'heart',
+      'club', 'diamond', 'flop', 'turn', 'blind', 'stack'
+    ];
+    // Chiffres faciles (évite 0, 1 qui ressemblent à O, l)
+    const digits = '23456789';
+
+    // Choisir un mot aléatoire
+    const word = words[Math.floor(Math.random() * words.length)];
+    // Générer 4 chiffres aléatoires
+    let numbers = '';
+    for (let i = 0; i < 4; i++) {
+      numbers += digits[Math.floor(Math.random() * digits.length)];
+    }
+
+    // Capitaliser la première lettre du mot
+    const password = word.charAt(0).toUpperCase() + word.slice(1) + numbers;
+
+    setResetPassword(password);
+    setShowResetPassword(true);
+    setResetCopySuccess(false);
+  };
+
+  const copyResetPassword = async () => {
+    if (!resetPassword) return;
+
+    try {
+      await navigator.clipboard.writeText(resetPassword);
+      setResetCopySuccess(true);
+      setTimeout(() => setResetCopySuccess(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy password:', err);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordPlayer) return;
+
+    // Validation
+    if (resetPassword.length < 8) {
+      setResetPasswordError('Le mot de passe doit contenir au moins 8 caractères');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setResetPasswordError('');
+
+    try {
+      const response = await fetch(`/api/players/${resetPasswordPlayer.id}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword: resetPassword }),
+      });
+
+      if (response.ok) {
+        const playerName = `${resetPasswordPlayer.firstName} ${resetPasswordPlayer.lastName.toUpperCase()}`;
+        setResetSuccessMessage(`Mot de passe réinitialisé pour ${playerName}`);
+        // Keep dialog open to show success and allow copying password
+      } else {
+        const data = await response.json();
+        setResetPasswordError(data.error || 'Erreur lors de la réinitialisation');
+      }
+    } catch (err) {
+      console.error('Error resetting password:', err);
+      setResetPasswordError('Erreur lors de la réinitialisation');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -524,6 +625,17 @@ export default function PlayersPage() {
                               <UserCheck className="h-4 w-4" />
                             </Button>
                           )}
+                          {canResetPassword(player) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenResetPasswordDialog(player)}
+                              title="Réinitialiser le mot de passe"
+                              className="text-amber-500 hover:text-amber-600"
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                          )}
                           {canInvite(player) && (
                             <Button
                               variant="ghost"
@@ -662,6 +774,17 @@ export default function PlayersPage() {
                             className="text-emerald-500 hover:text-emerald-600"
                           >
                             <UserCheck className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canResetPassword(player) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenResetPasswordDialog(player)}
+                            title="Réinitialiser le mot de passe"
+                            className="text-amber-500 hover:text-amber-600"
+                          >
+                            <KeyRound className="h-4 w-4" />
                           </Button>
                         )}
                         {canInvite(player) && (
@@ -1082,6 +1205,183 @@ export default function PlayersPage() {
                   </>
                 )}
               </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale de réinitialisation du mot de passe */}
+      <Dialog open={isResetPasswordDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsResetPasswordDialogOpen(false);
+          setResetSuccessMessage(null);
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-amber-500" />
+              Réinitialiser le mot de passe
+            </DialogTitle>
+            <DialogDescription>
+              Définissez un nouveau mot de passe pour ce joueur.
+              Vous devrez ensuite lui communiquer ce mot de passe.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleResetPassword}>
+            <div className="space-y-4 py-4">
+              {/* Info joueur */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  {resetPasswordPlayer?.avatar && getAvatarUrl(resetPasswordPlayer.avatar) ? (
+                    <img
+                      src={getAvatarUrl(resetPasswordPlayer.avatar)!}
+                      alt={resetPasswordPlayer?.nickname}
+                      className="w-12 h-12 rounded-full"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <Users className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold">
+                      {resetPasswordPlayer?.firstName} {resetPasswordPlayer?.lastName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      @{resetPasswordPlayer?.nickname}
+                    </p>
+                  </div>
+                </div>
+                {resetPasswordPlayer?.email && (
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Email: </span>
+                    <span className="font-mono">{resetPasswordPlayer.email}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Message de succès */}
+              {resetSuccessMessage && (
+                <div className="text-sm text-emerald-600 bg-emerald-500/10 p-3 rounded flex items-center gap-2">
+                  <Check className="h-4 w-4" />
+                  {resetSuccessMessage}
+                </div>
+              )}
+
+              {/* Nouveau mot de passe */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label htmlFor="reset-password" className="text-sm font-medium flex items-center gap-2">
+                    <Key className="h-4 w-4" />
+                    Nouveau mot de passe
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateResetPassword}
+                    disabled={isResettingPassword}
+                    className="h-7 text-xs"
+                  >
+                    <Shuffle className="mr-1 h-3 w-3" />
+                    Générer
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    id="reset-password"
+                    type={showResetPassword ? 'text' : 'password'}
+                    value={resetPassword}
+                    onChange={(e) => {
+                      setResetPassword(e.target.value);
+                      setShowResetPassword(false);
+                    }}
+                    placeholder="Minimum 8 caractères"
+                    required
+                    minLength={8}
+                    disabled={isResettingPassword || !!resetSuccessMessage}
+                    className={showResetPassword ? 'font-mono text-lg tracking-wider' : ''}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setShowResetPassword(!showResetPassword)}
+                    disabled={!resetPassword}
+                    title={showResetPassword ? 'Masquer' : 'Afficher'}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  {resetPassword && (
+                    <Button
+                      type="button"
+                      variant={resetCopySuccess ? 'default' : 'outline'}
+                      size="icon"
+                      onClick={copyResetPassword}
+                      className={resetCopySuccess ? 'bg-green-600 hover:bg-green-700' : ''}
+                      title="Copier le mot de passe"
+                    >
+                      {resetCopySuccess ? (
+                        <Check className="h-4 w-4" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  )}
+                </div>
+                {resetCopySuccess && (
+                  <p className="text-xs text-green-600 font-medium">
+                    Mot de passe copié !
+                  </p>
+                )}
+              </div>
+
+              {resetPasswordError && (
+                <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
+                  {resetPasswordError}
+                </div>
+              )}
+
+              {!resetSuccessMessage && (
+                <div className="text-xs text-muted-foreground bg-amber-500/10 text-amber-600 p-3 rounded">
+                  <strong>Important:</strong> Après réinitialisation, communiquez le nouveau mot de passe au joueur
+                  par un moyen sécurisé (SMS, WhatsApp, en personne...).
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsResetPasswordDialogOpen(false);
+                  setResetSuccessMessage(null);
+                }}
+                disabled={isResettingPassword}
+              >
+                {resetSuccessMessage ? 'Fermer' : 'Annuler'}
+              </Button>
+              {!resetSuccessMessage && (
+                <Button
+                  type="submit"
+                  disabled={isResettingPassword || !resetPassword}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {isResettingPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Réinitialisation...
+                    </>
+                  ) : (
+                    <>
+                      <KeyRound className="mr-2 h-4 w-4" />
+                      Confirmer
+                    </>
+                  )}
+                </Button>
+              )}
             </DialogFooter>
           </form>
         </DialogContent>
