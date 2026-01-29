@@ -110,32 +110,18 @@ export default function TournamentsPage() {
   const loadCurrentUser = async () => {
     try {
       // 1. Vérifier la session NextAuth (production)
-      if (session?.user?.role) {
-        console.log('🔐 Session NextAuth role:', session.user.role);
+      if (session?.user?.role && session?.user?.id) {
         setCurrentUserRole(session.user.role as PlayerRole);
+        setCurrentUserId(session.user.id);
         return;
       }
 
-      // 2. Fallback: cookie player-id (dev mode)
-      const cookies = document.cookie;
-      console.log('🍪 Cookies:', cookies);
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-      console.log('🔍 Player ID Match:', playerIdMatch);
-
-      if (playerIdMatch) {
-        const playerId = playerIdMatch[1];
-        console.log('👤 Player ID:', playerId);
-        const response = await fetch(`/api/players/${playerId}`);
-        if (response.ok) {
-          const player = await response.json();
-          console.log('✅ Player loaded:', player);
-          console.log('🎭 Player role:', player.role);
-          setCurrentUserRole(player.role);
-        } else {
-          console.error('❌ Failed to fetch player:', response.status);
-        }
-      } else {
-        console.warn('⚠️ No player-id cookie found');
+      // 2. Fallback: use /api/me which reads httpOnly cookies server-side
+      const res = await fetch('/api/me', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUserRole(data.role);
+        setCurrentUserId(data.id);
       }
     } catch (error) {
       console.error('Error loading current user:', error);
@@ -175,10 +161,11 @@ export default function TournamentsPage() {
     return false;
   };
 
+  // Store current user ID from /api/me response
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
   const getCurrentUserId = () => {
-    const cookies = document.cookie;
-    const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-    return playerIdMatch ? playerIdMatch[1] : null;
+    return currentUserId;
   };
 
   // Vérifier si on vient de l'assistant jetons

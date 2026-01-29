@@ -529,7 +529,7 @@ export default function PlayerDashboardPage({
                     variant="outline"
                     className="w-full"
                     onClick={() =>
-                      router.push(`/dashboard/seasons/${activeSeason.id}/leaderboard`)
+                      router.push(`/player/leaderboard`)
                     }
                   >
                     Voir le classement complet
@@ -670,6 +670,10 @@ export default function PlayerDashboardPage({
               <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
                 <span className="text-muted-foreground">Total Recaves</span>
                 <span className="font-bold">{funStats.totalRebuys}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
+                <span className="text-muted-foreground">Total Rebuy</span>
+                <span className="font-bold">{funStats.totalRebuyAmount || 0} €</span>
               </div>
               <div className="flex justify-between items-center p-2 rounded hover:bg-accent">
                 <span className="text-muted-foreground">Leader Kills</span>

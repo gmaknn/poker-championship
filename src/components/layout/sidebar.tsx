@@ -68,22 +68,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [currentPlayer, setCurrentPlayer] = useState<CurrentPlayer | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Lire le cookie player-id - se re-exécute à chaque changement de page
-    const cookies = document.cookie;
-    const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-
-    if (playerIdMatch) {
-      const playerId = playerIdMatch[1];
-
-      // Ne refetch que si le joueur a changé
-      if (currentPlayer?.id !== playerId) {
-        // Récupérer les infos du joueur
-        fetch(`/api/players/${playerId}`)
-          .then(res => res.ok ? res.json() : null)
-          .then(player => {
-            if (player) {
+    // Use /api/me which reads httpOnly cookies server-side
+    const fetchCurrentPlayer = async () => {
+      try {
+        const res = await fetch('/api/me', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          // Ne refetch player details que si le joueur a changé
+          if (currentPlayer?.id !== data.id) {
+            const playerRes = await fetch(`/api/players/${data.id}`);
+            if (playerRes.ok) {
+              const player = await playerRes.json();
               setCurrentPlayer({
                 id: player.id,
                 nickname: player.nickname,
@@ -91,20 +89,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 role: player.role,
               });
             }
-          })
-          .catch(err => console.error('Error loading current player:', err));
+          }
+        } else {
+          setCurrentPlayer(null);
+        }
+      } catch (err) {
+        console.error('Error loading current player:', err);
+        setCurrentPlayer(null);
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      // Pas de cookie, réinitialiser le joueur
-      setCurrentPlayer(null);
-    }
+    };
+
+    fetchCurrentPlayer();
   }, [pathname, currentPlayer?.id]);
 
   const handleLogout = () => {
-    // Supprimer le cookie
+    // Clear cookies (this works for clearing even httpOnly cookies from client)
     document.cookie = 'player-id=; path=/; max-age=0';
+    document.cookie = 'player-session=; path=/; max-age=0';
     // Rediriger vers la page de login joueur
     router.push('/player/login');
+    router.refresh();
   };
 
   const handleNavClick = () => {
@@ -164,7 +170,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <div className="border-t p-4 space-y-3">
         {/* Utilisateur connecté */}
-        {currentPlayer && (
+        {isLoading ? (
+          /* Skeleton pendant le chargement */
+          <div className="animate-pulse">
+            <div className="flex items-center gap-3 p-2">
+              <div className="w-10 h-10 rounded-full bg-muted" />
+              <div className="flex-1 space-y-2">
+                <div className="h-4 bg-muted rounded w-24" />
+                <div className="h-3 bg-muted rounded w-16" />
+              </div>
+            </div>
+          </div>
+        ) : currentPlayer && (
           <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
             {currentPlayer.avatar && getAvatarUrl(currentPlayer.avatar) ? (
               <img
@@ -215,20 +232,19 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const pathname = usePathname();
   const router = useRouter();
   const [currentPlayer, setCurrentPlayer] = useState<CurrentPlayer | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const cookies = document.cookie;
-    const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-
-    if (playerIdMatch) {
-      const playerId = playerIdMatch[1];
-
-      // Ne refetch que si le joueur a changé
-      if (currentPlayer?.id !== playerId) {
-        fetch(`/api/players/${playerId}`)
-          .then(res => res.ok ? res.json() : null)
-          .then(player => {
-            if (player) {
+    // Use /api/me which reads httpOnly cookies server-side
+    const fetchCurrentPlayer = async () => {
+      try {
+        const res = await fetch('/api/me', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          if (currentPlayer?.id !== data.id) {
+            const playerRes = await fetch(`/api/players/${data.id}`);
+            if (playerRes.ok) {
+              const player = await playerRes.json();
               setCurrentPlayer({
                 id: player.id,
                 nickname: player.nickname,
@@ -236,18 +252,26 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 role: player.role,
               });
             }
-          })
-          .catch(err => console.error('Error loading current player:', err));
+          }
+        } else {
+          setCurrentPlayer(null);
+        }
+      } catch (err) {
+        console.error('Error loading current player:', err);
+        setCurrentPlayer(null);
+      } finally {
+        setIsLoading(false);
       }
-    } else {
-      // Pas de cookie, réinitialiser le joueur
-      setCurrentPlayer(null);
-    }
+    };
+
+    fetchCurrentPlayer();
   }, [pathname, currentPlayer?.id]);
 
   const handleLogout = () => {
     document.cookie = 'player-id=; path=/; max-age=0';
+    document.cookie = 'player-session=; path=/; max-age=0';
     router.push('/player/login');
+    router.refresh();
   };
 
   const handleNavClick = () => {
@@ -334,7 +358,18 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
         </nav>
 
         <div className="border-t p-4 space-y-3">
-          {currentPlayer && (
+          {isLoading ? (
+            /* Skeleton pendant le chargement */
+            <div className="animate-pulse">
+              <div className="flex items-center gap-3 p-2">
+                <div className="w-10 h-10 rounded-full bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted rounded w-24" />
+                  <div className="h-3 bg-muted rounded w-16" />
+                </div>
+              </div>
+            </div>
+          ) : currentPlayer && (
             <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
               {currentPlayer.avatar && getAvatarUrl(currentPlayer.avatar) ? (
                 <img

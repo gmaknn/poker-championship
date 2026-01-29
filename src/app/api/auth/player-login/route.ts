@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { SignJWT } from 'jose';
+import { getJwtSecret } from '@/lib/jwt-secret';
 
 // Helper to normalize phone number (remove spaces, dashes, dots)
 function normalizePhone(phone: string): string {
@@ -21,10 +22,6 @@ const loginSchema = z.object({
   identifier: z.string().min(1, 'Téléphone ou email requis'),
   password: z.string().min(1, 'Mot de passe requis'),
 });
-
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || 'fallback-secret-for-dev'
-);
 
 /**
  * POST /api/auth/player-login
@@ -138,7 +135,7 @@ export async function POST(request: NextRequest) {
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('7d')
-      .sign(JWT_SECRET);
+      .sign(getJwtSecret());
 
     // Set cookie
     const cookieStore = await cookies();
@@ -151,8 +148,9 @@ export async function POST(request: NextRequest) {
     });
 
     // Also set a simple player-id cookie for backwards compatibility
+    // SECURITY: httpOnly prevents XSS attacks from reading the cookie
     cookieStore.set('player-id', player.id, {
-      httpOnly: false, // Readable by client
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7,

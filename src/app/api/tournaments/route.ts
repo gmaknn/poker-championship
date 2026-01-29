@@ -31,12 +31,9 @@ export async function GET(request: NextRequest) {
     if (seasonId) where.seasonId = seasonId;
     if (createdById) where.createdById = createdById;
 
-    // Appliquer le filtrage selon les permissions seulement si authentifié
-    if (currentPlayer && !canViewAllTournaments(currentPlayer.role)) {
-      // Si l'utilisateur ne peut pas voir tous les tournois,
-      // filtrer pour ne montrer que ses propres tournois
-      where.createdById = currentPlayer.id;
-    }
+    // Le filtrage par createdById n'est appliqué que si explicitement demandé via query param
+    // Tous les utilisateurs (authentifiés ou non) peuvent voir tous les tournois en lecture
+    // La restriction "own tournaments only" s'applique uniquement pour les actions d'édition/suppression
 
     const tournaments = await prisma.tournament.findMany({
       where,

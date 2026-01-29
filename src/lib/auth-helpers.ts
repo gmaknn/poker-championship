@@ -1,6 +1,6 @@
 /**
  * Helpers d'authentification et d'autorisation
- * Supporte NextAuth (prod) et cookie player-id (dev)
+ * Supporte NextAuth (prod) et cookie player-id/player-session (dev)
  * Supporte multi-rôles et TD par tournoi
  */
 
@@ -9,6 +9,39 @@ import { prisma } from '@/lib/prisma';
 import { PlayerRole } from '@prisma/client';
 import { auth } from '@/lib/auth';
 import { hasPermission, isAdminMultiRole } from '@/lib/permissions';
+import { jwtVerify } from 'jose';
+import { getJwtSecret } from '@/lib/jwt-secret';
+
+/**
+ * Extract player ID from cookies (player-session JWT or player-id)
+ */
+async function extractPlayerIdFromCookies(request: NextRequest): Promise<string | null> {
+  const cookies = request.headers.get('cookie');
+  if (!cookies) return null;
+
+  // 1. Try player-session JWT first (more secure)
+  const sessionMatch = cookies.match(/player-session=([^;]+)/);
+  if (sessionMatch) {
+    try {
+      const token = sessionMatch[1];
+      const { payload } = await jwtVerify(token, getJwtSecret());
+      if (payload.playerId && typeof payload.playerId === 'string') {
+        return payload.playerId;
+      }
+    } catch (e) {
+      // JWT invalid or expired, fall through to player-id
+      console.warn('[Auth] Invalid player-session JWT:', e instanceof Error ? e.message : 'Unknown error');
+    }
+  }
+
+  // 2. Fallback to player-id cookie
+  const playerIdMatch = cookies.match(/player-id=([^;]+)/);
+  if (playerIdMatch) {
+    return playerIdMatch[1];
+  }
+
+  return null;
+}
 
 /**
  * Récupère le joueur/user actuel
@@ -51,17 +84,11 @@ export async function getCurrentPlayer(request: NextRequest) {
     // NextAuth non disponible, continuer avec fallback
   }
 
-  // 2. Fallback: header X-Player-Id ou cookie player-id (dev mode)
+  // 2. Fallback: header X-Player-Id ou cookie player-session/player-id
   let playerId = request.headers.get('x-player-id');
 
   if (!playerId) {
-    const cookies = request.headers.get('cookie');
-    if (cookies) {
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-      if (playerIdMatch) {
-        playerId = playerIdMatch[1];
-      }
-    }
+    playerId = await extractPlayerIdFromCookies(request);
   }
 
   if (!playerId) {
@@ -218,17 +245,11 @@ export async function getCurrentActor(
     console.error('[Auth] NextAuth error:', e);
   }
 
-  // 2. Fallback: cookie player-id (dev mode) - pas de User dans ce cas
+  // 2. Fallback: cookie player-session/player-id - pas de User dans ce cas
   let playerId = request.headers.get('x-player-id');
 
   if (!playerId) {
-    const cookies = request.headers.get('cookie');
-    if (cookies) {
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-      if (playerIdMatch) {
-        playerId = playerIdMatch[1];
-      }
-    }
+    playerId = await extractPlayerIdFromCookies(request);
   }
 
   if (!playerId) {
