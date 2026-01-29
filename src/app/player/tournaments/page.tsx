@@ -89,7 +89,7 @@ export default function PlayerTournamentsPage() {
   const fetchTournaments = async (seasonId: string) => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/tournaments');
+      const response = await fetch('/api/tournaments', { credentials: 'include' });
       if (response.ok) {
         const allTournaments = await response.json();
         // Filter by season

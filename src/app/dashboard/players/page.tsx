@@ -117,17 +117,11 @@ export default function PlayersPage() {
         return;
       }
 
-      // 2. Fallback: cookie player-id (dev mode)
-      const cookies = document.cookie;
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-
-      if (playerIdMatch) {
-        const playerId = playerIdMatch[1];
-        const response = await fetch(`/api/players/${playerId}`);
-        if (response.ok) {
-          const player = await response.json();
-          setCurrentUserRole(player.role);
-        }
+      // 2. Fallback: use /api/me which reads httpOnly cookies server-side
+      const res = await fetch('/api/me', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUserRole(data.role);
       }
     } catch (error) {
       console.error('Error loading current user:', error);

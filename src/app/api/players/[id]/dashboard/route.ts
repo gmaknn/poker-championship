@@ -270,8 +270,9 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
     const totalWinnings = totalWinningsSum._sum.prizeAmount || 0;
 
-    // Calculate total losses (buy-ins + rebuys + light rebuys)
+    // Calculate total losses (buy-ins + rebuys + light rebuys) and total rebuy amount
     let totalLosses = 0;
+    let totalRebuyAmount = 0;
     for (const tp of allTournamentParticipations) {
       const buyIn = tp.tournament.buyInAmount || 0;
       const lightRebuyAmount = tp.tournament.lightRebuyAmount || 0;
@@ -280,11 +281,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       totalLosses += buyIn;
 
       // Full rebuys (each rebuy costs buyIn amount)
-      totalLosses += tp.rebuysCount * buyIn;
+      const fullRebuysCost = tp.rebuysCount * buyIn;
+      totalLosses += fullRebuysCost;
+      totalRebuyAmount += fullRebuysCost;
 
       // Light rebuy (half stack, costs lightRebuyAmount)
       if (tp.lightRebuyUsed) {
         totalLosses += lightRebuyAmount;
+        totalRebuyAmount += lightRebuyAmount;
       }
     }
 
@@ -464,6 +468,7 @@ export async function GET(request: NextRequest, { params }: Params) {
         ironManTournaments,
         totalWinnings,
         totalLosses,
+        totalRebuyAmount,
         netProfit,
         winRate,
         itmRate,
