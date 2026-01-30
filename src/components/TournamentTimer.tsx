@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { SectionCard } from '@/components/ui/section-card';
-import { Play, Pause, RotateCcw, Clock, ArrowUp } from 'lucide-react';
+import { Play, Pause, RotateCcw, Clock, ArrowUp, Timer, X } from 'lucide-react';
 import { playCountdown, announceLevelChange } from '@/lib/audioManager';
+import { useTournamentEvent } from '@/contexts/SocketContext';
 
 type BlindLevel = {
   id: string;
@@ -42,6 +43,23 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
   const [error, setError] = useState('');
   const [localTime, setLocalTime] = useState(0);
   const [isFlashing, setIsFlashing] = useState(false);
+
+  // Time (temps de réflexion) state
+  const [isTimeActive, setIsTimeActive] = useState(false);
+  const [isTimeLoading, setIsTimeLoading] = useState(false);
+
+  // Listen for Time events via Socket.IO
+  useTournamentEvent(tournamentId, 'tournament:time-called', useCallback(() => {
+    setIsTimeActive(true);
+  }, []));
+
+  useTournamentEvent(tournamentId, 'tournament:time-ended', useCallback(() => {
+    setIsTimeActive(false);
+  }, []));
+
+  useTournamentEvent(tournamentId, 'tournament:time-cancelled', useCallback(() => {
+    setIsTimeActive(false);
+  }, []));
 
   // Refs to track if sounds were already played for this level
   const countdownPlayedRef = useRef(false);
@@ -240,6 +258,57 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
     }
   };
 
+  // Time (temps de réflexion) handlers
+  const handleTimeCall = async () => {
+    setIsTimeLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' }),
+      });
+
+      if (response.ok) {
+        setIsTimeActive(true);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de l\'appel du Time');
+      }
+    } catch (error) {
+      console.error('Error calling time:', error);
+      setError('Erreur lors de l\'appel du Time');
+    } finally {
+      setIsTimeLoading(false);
+    }
+  };
+
+  const handleTimeCancel = async () => {
+    setIsTimeLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/time`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel' }),
+      });
+
+      if (response.ok) {
+        setIsTimeActive(false);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de l\'annulation du Time');
+      }
+    } catch (error) {
+      console.error('Error cancelling time:', error);
+      setError('Erreur lors de l\'annulation du Time');
+    } finally {
+      setIsTimeLoading(false);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -422,6 +491,32 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
                 Reset
               </Button>
             </div>
+
+            {/* Bouton Time - Temps de réflexion */}
+            {(timerState.isRunning || timerState.isPaused) && (
+              <div className="flex justify-center pt-2 border-t">
+                {!isTimeActive ? (
+                  <Button
+                    onClick={handleTimeCall}
+                    disabled={isTimeLoading}
+                    className="min-h-[56px] text-lg font-semibold px-8 bg-amber-500 hover:bg-amber-600 text-white"
+                  >
+                    <Timer className="mr-2 h-6 w-6" />
+                    {isTimeLoading ? 'Appel...' : 'Time'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleTimeCancel}
+                    disabled={isTimeLoading}
+                    variant="destructive"
+                    className="min-h-[56px] text-lg font-semibold px-8"
+                  >
+                    <X className="mr-2 h-6 w-6" />
+                    {isTimeLoading ? 'Annulation...' : 'Annuler Time'}
+                  </Button>
+                )}
+              </div>
+            )}
 
             {/* Statut */}
             <div className="text-center space-y-2 pt-2">

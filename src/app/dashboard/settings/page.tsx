@@ -20,6 +20,7 @@ interface SettingsData {
   defaultStartingChips: number;
   defaultLevelDuration: number;
   defaultTargetDuration: number;
+  defaultTimeDuration: number;
   enableEmailNotifications: boolean;
   enableSmsNotifications: boolean;
   theme: string;
@@ -249,6 +250,20 @@ export default function SettingsPage() {
                 value={settings.defaultTargetDuration}
                 onChange={(e) => updateField('defaultTargetDuration', parseInt(e.target.value) || 0)}
               />
+            </div>
+            <div>
+              <Label htmlFor="time-duration">Durée du "Time" (sec)</Label>
+              <Input
+                id="time-duration"
+                type="number"
+                min="10"
+                max="120"
+                value={settings.defaultTimeDuration}
+                onChange={(e) => updateField('defaultTimeDuration', parseInt(e.target.value) || 30)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Temps de réflexion accordé quand un joueur demande du temps (10-120 sec)
+              </p>
             </div>
           </CardContent>
         </Card>
