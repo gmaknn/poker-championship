@@ -141,11 +141,8 @@ export default function PlayerTournamentDetailPage({
     );
   }
 
-  // Sort players by rank (ranked players first, then by points)
+  // Sort players by total points (descending)
   const sortedPlayers = [...tournament.tournamentPlayers].sort((a, b) => {
-    if (a.finalRank && b.finalRank) return a.finalRank - b.finalRank;
-    if (a.finalRank) return -1;
-    if (b.finalRank) return 1;
     return b.totalPoints - a.totalPoints;
   });
 
@@ -364,17 +361,18 @@ function PlayerResultRow({ tp, isFinished }: { tp: TournamentPlayer; isFinished:
           </p>
         </div>
 
-        {/* Points & Prize */}
-        <div className="text-right flex-shrink-0">
-          <p className="font-bold text-lg text-primary">{tp.totalPoints}</p>
-          <p className="text-xs text-muted-foreground">pts</p>
-        </div>
-
+        {/* Prize (if any) */}
         {tp.prizeAmount && tp.prizeAmount > 0 && (
-          <div className="text-right flex-shrink-0 ml-2">
+          <div className="text-right flex-shrink-0">
             <p className="font-bold text-green-600">{tp.prizeAmount}€</p>
           </div>
         )}
+
+        {/* Points */}
+        <div className="text-right flex-shrink-0 ml-2">
+          <p className="font-bold text-lg text-primary">{tp.totalPoints}</p>
+          <p className="text-xs text-muted-foreground">pts</p>
+        </div>
 
         {/* Expand icon */}
         {isFinished && (

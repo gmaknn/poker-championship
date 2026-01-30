@@ -295,7 +295,7 @@ export default function PlayerDashboardPage({
         </div>
         {activeSeason && (
           <Badge variant="outline" className="text-base sm:text-lg">
-            {activeSeason.name} {activeSeason.year}
+            {activeSeason.name}
           </Badge>
         )}
       </div>

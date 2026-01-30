@@ -123,6 +123,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Update login stats (non-blocking - don't fail login if this fails)
+    try {
+      await prisma.player.update({
+        where: { id: player.id },
+        data: {
+          lastLoginAt: new Date(),
+          loginCount: { increment: 1 },
+        },
+      });
+    } catch (statsError) {
+      // Log but don't fail login if stats update fails (e.g., missing columns)
+      console.warn('Failed to update login stats:', statsError);
+    }
+
     // Create JWT token for player session
     const token = await new SignJWT({
       playerId: player.id,
