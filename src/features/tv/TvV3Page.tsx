@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
-import { Trophy, Users, DollarSign, Clock, LayoutGrid, Coins, Play, Pause } from 'lucide-react';
+import { Trophy, Users, DollarSign, Clock, LayoutGrid, Coins, Play, Pause, Timer, Skull, RefreshCw } from 'lucide-react';
 import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, announceRebalanceTables, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed, getBlindCommentaryEnabled, setBlindCommentaryEnabled } from '@/lib/audioManager';
+import { useTournamentEvent } from '@/contexts/SocketContext';
 import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
 import { CircularTimer } from '@/components/CircularTimer';
@@ -208,6 +209,24 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   // Championship Leaderboard
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
 
+  // Time (temps de réflexion) state
+  const [timeState, setTimeState] = useState<{
+    isActive: boolean;
+    remainingSeconds: number;
+    totalSeconds: number;
+  } | null>(null);
+  const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Elimination notification state
+  const [eliminationNotification, setEliminationNotification] = useState<{
+    type: 'elimination' | 'bust';
+    eliminatedName: string;
+    eliminatorName: string;
+    rank?: number;
+    isLeaderKill?: boolean;
+  } | null>(null);
+  const eliminationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Mobile detection
   const [isMobilePortrait, setIsMobilePortrait] = useState(false);
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
@@ -241,6 +260,154 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     // Load saved theme
     const savedTheme = getSavedTheme();
     setCurrentTheme(savedTheme);
+  }, []);
+
+  // Time (temps de réflexion) handlers
+  const handleTimeStarted = useCallback((data: { tournamentId: string; duration: number; startedAt: Date }) => {
+    console.log('[Time] Time called:', data);
+    setTimeState({
+      isActive: true,
+      remainingSeconds: data.duration,
+      totalSeconds: data.duration,
+    });
+  }, []);
+
+  const handleTimeEnded = useCallback(() => {
+    console.log('[Time] Time ended');
+    // Keep display for 2 seconds before hiding
+    setTimeout(() => {
+      setTimeState(null);
+    }, 2000);
+  }, []);
+
+  const handleTimeCancelled = useCallback(() => {
+    console.log('[Time] Time cancelled');
+    setTimeState(null);
+  }, []);
+
+  // Listen for Time events via Socket.IO
+  useTournamentEvent(tournamentId, 'tournament:time-called', handleTimeStarted);
+  useTournamentEvent(tournamentId, 'tournament:time-ended', handleTimeEnded);
+  useTournamentEvent(tournamentId, 'tournament:time-cancelled', handleTimeCancelled);
+
+  // Time countdown effect
+  useEffect(() => {
+    if (timeState?.isActive && timeState.remainingSeconds > 0) {
+      timeIntervalRef.current = setInterval(() => {
+        setTimeState((prev) => {
+          if (!prev || prev.remainingSeconds <= 1) {
+            // Time finished - play sound and mark as inactive
+            if (prev?.remainingSeconds === 1) {
+              playAlertSound('warning');
+            }
+            return prev ? { ...prev, remainingSeconds: 0, isActive: false } : null;
+          }
+          // Play beep in last 5 seconds
+          if (prev.remainingSeconds <= 6 && prev.remainingSeconds > 1) {
+            playCountdown();
+          }
+          return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
+        });
+      }, 1000);
+
+      return () => {
+        if (timeIntervalRef.current) {
+          clearInterval(timeIntervalRef.current);
+        }
+      };
+    }
+  }, [timeState?.isActive]);
+
+  // Auto-hide Time display after it ends
+  useEffect(() => {
+    if (timeState && !timeState.isActive && timeState.remainingSeconds === 0) {
+      const hideTimeout = setTimeout(() => {
+        setTimeState(null);
+      }, 2000);
+      return () => clearTimeout(hideTimeout);
+    }
+  }, [timeState?.isActive, timeState?.remainingSeconds]);
+
+  // Elimination notification handlers
+  const handleEliminationEvent = useCallback((data: {
+    tournamentId: string;
+    eliminatedId: string;
+    eliminatedName: string;
+    eliminatorId: string;
+    eliminatorName: string;
+    rank: number;
+    level: number;
+    isLeaderKill: boolean;
+  }) => {
+    console.log('[Elimination] Player eliminated:', data);
+
+    // Clear any existing timeout
+    if (eliminationTimeoutRef.current) {
+      clearTimeout(eliminationTimeoutRef.current);
+    }
+
+    // Show notification
+    setEliminationNotification({
+      type: 'elimination',
+      eliminatedName: data.eliminatedName,
+      eliminatorName: data.eliminatorName,
+      rank: data.rank,
+      isLeaderKill: data.isLeaderKill,
+    });
+
+    // Play alert sound
+    playAlertSound('warning');
+
+    // Auto-hide after 7 seconds
+    eliminationTimeoutRef.current = setTimeout(() => {
+      setEliminationNotification(null);
+    }, 7000);
+  }, []);
+
+  const handleBustEvent = useCallback((data: {
+    tournamentId: string;
+    eliminatedId: string;
+    eliminatedName: string;
+    killerId: string | null;
+    killerName: string | null;
+    level: number;
+  }) => {
+    console.log('[Bust] Player busted:', data);
+
+    // Clear any existing timeout
+    if (eliminationTimeoutRef.current) {
+      clearTimeout(eliminationTimeoutRef.current);
+    }
+
+    // Show notification (only if killer is known)
+    if (data.killerName) {
+      setEliminationNotification({
+        type: 'bust',
+        eliminatedName: data.eliminatedName,
+        eliminatorName: data.killerName,
+      });
+
+      // Play alert sound (lighter for bust)
+      playAlertSound('warning');
+
+      // Auto-hide after 6 seconds
+      eliminationTimeoutRef.current = setTimeout(() => {
+        setEliminationNotification(null);
+      }, 6000);
+    }
+  }, []);
+
+  // Listen for elimination events via Socket.IO
+  useTournamentEvent(tournamentId, 'elimination:player_out', handleEliminationEvent);
+  useTournamentEvent(tournamentId, 'bust:player_busted', handleBustEvent);
+
+  // Cleanup elimination timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (eliminationTimeoutRef.current) {
+        clearTimeout(eliminationTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Apply theme when it changes
@@ -1769,6 +1936,157 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Time (temps de réflexion) Overlay */}
+      {timeState && (
+        <div className="fixed top-4 right-4 md:top-8 md:right-8 z-[9999]">
+          <div
+            className={`
+              flex flex-col items-center justify-center
+              px-6 py-4 md:px-10 md:py-6
+              rounded-2xl md:rounded-3xl
+              shadow-2xl
+              border-4
+              ${timeState.remainingSeconds <= 5 && timeState.remainingSeconds > 0 ? 'animate-pulse' : ''}
+            `}
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              borderColor: timeState.remainingSeconds <= 5 ? '#ef4444' : '#f59e0b',
+            }}
+          >
+            {/* Header */}
+            <div className="flex items-center gap-2 md:gap-3 mb-2 md:mb-3">
+              <Timer
+                className={`h-6 w-6 md:h-10 md:w-10 ${
+                  timeState.remainingSeconds <= 5 ? 'text-red-500' : 'text-amber-500'
+                }`}
+              />
+              <span
+                className={`text-xl md:text-3xl font-black uppercase tracking-wider ${
+                  timeState.remainingSeconds <= 5 ? 'text-red-500' : 'text-amber-500'
+                }`}
+              >
+                TIME
+              </span>
+            </div>
+
+            {/* Countdown */}
+            <div
+              className={`
+                text-5xl md:text-8xl font-black leading-none
+                ${timeState.remainingSeconds <= 5 && timeState.remainingSeconds > 0 ? 'text-red-500 scale-110' : 'text-white'}
+                ${timeState.remainingSeconds === 0 ? 'text-red-500' : ''}
+                transition-all duration-200
+              `}
+            >
+              {timeState.remainingSeconds === 0 ? (
+                <span className="text-3xl md:text-5xl">TERMINÉ</span>
+              ) : (
+                `0:${timeState.remainingSeconds.toString().padStart(2, '0')}`
+              )}
+            </div>
+
+            {/* Progress bar */}
+            {timeState.remainingSeconds > 0 && (
+              <div className="w-full mt-3 md:mt-4 h-2 md:h-3 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-1000 rounded-full ${
+                    timeState.remainingSeconds <= 5 ? 'bg-red-500' : 'bg-amber-500'
+                  }`}
+                  style={{
+                    width: `${(timeState.remainingSeconds / timeState.totalSeconds) * 100}%`,
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Elimination Notification Overlay */}
+      {eliminationNotification && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center pointer-events-none">
+          <div
+            className={`
+              flex flex-col items-center justify-center
+              px-8 py-6 md:px-16 md:py-10
+              rounded-3xl
+              shadow-2xl
+              border-4
+              animate-in zoom-in-95 fade-in duration-300
+              max-w-[90vw] md:max-w-[70vw]
+            `}
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.92)',
+              borderColor: eliminationNotification.type === 'elimination' ? '#ef4444' : '#f59e0b',
+            }}
+          >
+            {/* Header Icon */}
+            <div className="mb-4 md:mb-6">
+              {eliminationNotification.type === 'elimination' ? (
+                <Skull className="h-16 w-16 md:h-24 md:w-24 text-red-500 animate-pulse" />
+              ) : (
+                <RefreshCw className="h-16 w-16 md:h-24 md:w-24 text-amber-500" />
+              )}
+            </div>
+
+            {/* Title */}
+            <div className={`text-2xl md:text-4xl font-black uppercase tracking-wider mb-4 md:mb-6 ${
+              eliminationNotification.type === 'elimination' ? 'text-red-500' : 'text-amber-500'
+            }`}>
+              {eliminationNotification.type === 'elimination' ? 'ÉLIMINATION' : 'PERTE DE TAPIS'}
+            </div>
+
+            {/* Eliminated Player */}
+            <div className="text-center mb-4 md:mb-6">
+              <div className="text-white/60 text-lg md:text-xl mb-2">
+                {eliminationNotification.type === 'elimination' ? 'Éliminé' : 'Bust'}
+              </div>
+              <div className="text-4xl md:text-6xl font-black text-white drop-shadow-lg">
+                {eliminationNotification.eliminatedName}
+              </div>
+              {eliminationNotification.rank && (
+                <div className="text-xl md:text-2xl text-white/80 mt-2">
+                  #{eliminationNotification.rank}
+                  {eliminationNotification.rank <= 3 && (
+                    <span className="ml-2">
+                      {eliminationNotification.rank === 1 ? '🥇' : eliminationNotification.rank === 2 ? '🥈' : '🥉'}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Eliminator */}
+            <div className="text-center">
+              <div className="text-white/60 text-lg md:text-xl mb-2">par</div>
+              <div className="text-3xl md:text-5xl font-black text-red-400 drop-shadow-lg flex items-center justify-center gap-3">
+                <span>🦈</span>
+                {eliminationNotification.eliminatorName}
+                <span>🦈</span>
+              </div>
+            </div>
+
+            {/* Leader Kill Badge */}
+            {eliminationNotification.isLeaderKill && (
+              <div className="mt-4 md:mt-6 px-6 py-2 bg-yellow-500/20 border-2 border-yellow-500 rounded-xl">
+                <div className="text-yellow-400 text-xl md:text-2xl font-bold flex items-center gap-2">
+                  <Trophy className="h-6 w-6 md:h-8 md:w-8" />
+                  LEADER KILL
+                  <Trophy className="h-6 w-6 md:h-8 md:w-8" />
+                </div>
+              </div>
+            )}
+
+            {/* Rebuy Indication for Bust */}
+            {eliminationNotification.type === 'bust' && (
+              <div className="mt-4 md:mt-6 text-amber-400 text-lg md:text-xl font-medium">
+                Recave possible
+              </div>
+            )}
           </div>
         </div>
       )}

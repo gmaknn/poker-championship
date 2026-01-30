@@ -420,6 +420,7 @@ model Settings {
   defaultStartingChips  Int         @default(5000)
   defaultLevelDuration  Int         @default(12)
   defaultTargetDuration Int         @default(180)
+  defaultTimeDuration   Int         @default(30)  // Durée du "Time" en secondes
 
   // Notifications
   enableEmailNotifications Boolean  @default(false)

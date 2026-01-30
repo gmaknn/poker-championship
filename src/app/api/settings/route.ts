@@ -12,6 +12,7 @@ const settingsSchema = z.object({
   defaultStartingChips: z.number().int().positive('Les jetons de départ doivent être positifs'),
   defaultLevelDuration: z.number().int().positive('La durée des niveaux doit être positive'),
   defaultTargetDuration: z.number().int().positive('La durée cible doit être positive'),
+  defaultTimeDuration: z.number().int().min(10).max(120).optional().default(30),
   enableEmailNotifications: z.boolean(),
   enableSmsNotifications: z.boolean(),
   theme: z.enum(['light', 'dark']),

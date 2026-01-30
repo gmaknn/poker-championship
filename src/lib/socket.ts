@@ -130,6 +130,19 @@ export interface TournamentEvents {
     rebuysCount: number;
     fromBustId: string;
   };
+
+  // Time (temps de réflexion) events
+  'tournament:time-called': {
+    tournamentId: string;
+    duration: number; // durée en secondes
+    startedAt: Date;
+  };
+  'tournament:time-ended': {
+    tournamentId: string;
+  };
+  'tournament:time-cancelled': {
+    tournamentId: string;
+  };
 }
 
 /**
