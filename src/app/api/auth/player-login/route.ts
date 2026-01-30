@@ -123,6 +123,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Update login stats
+    await prisma.player.update({
+      where: { id: player.id },
+      data: {
+        lastLoginAt: new Date(),
+        loginCount: { increment: 1 },
+      },
+    });
+
     // Create JWT token for player session
     const token = await new SignJWT({
       playerId: player.id,
