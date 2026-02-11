@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { Trophy, Users, DollarSign, Clock, LayoutGrid, Coins, Play, Pause, Timer, Skull, RefreshCw } from 'lucide-react';
-import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, announceRebalanceTables, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed, getBlindCommentaryEnabled, setBlindCommentaryEnabled } from '@/lib/audioManager';
+import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, announceRebalanceTables, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed, getBlindCommentaryEnabled, setBlindCommentaryEnabled, playSlotMachineSound } from '@/lib/audioManager';
 import { useTournamentEvent } from '@/contexts/SocketContext';
 import { useSearchParams } from 'next/navigation';
 import confetti from 'canvas-confetti';
@@ -217,6 +217,10 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   } | null>(null);
   const timeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Auto-resume countdown state
+  const [autoResumeCountdown, setAutoResumeCountdown] = useState<number | null>(null);
+  const autoResumeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Elimination notification state
   const [eliminationNotification, setEliminationNotification] = useState<{
     type: 'elimination' | 'bust';
@@ -401,11 +405,87 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   useTournamentEvent(tournamentId, 'elimination:player_out', handleEliminationEvent);
   useTournamentEvent(tournamentId, 'bust:player_busted', handleBustEvent);
 
-  // Cleanup elimination timeout on unmount
+  // Listen for timer pause/resume events via Socket.IO for instant UI update
+  const handleTimerPaused = useCallback((data: {
+    tournamentId: string;
+    pausedAt: Date;
+    elapsedSeconds: number;
+  }) => {
+    console.log('[Timer] Timer paused via socket:', data);
+    setServerTimerData(prev => prev ? {
+      ...prev,
+      timerPausedAt: new Date(data.pausedAt).toISOString(),
+      fetchedAt: Date.now(),
+    } : null);
+  }, []);
+
+  const handleTimerResumed = useCallback((data: {
+    tournamentId: string;
+    resumedAt: Date;
+  }) => {
+    console.log('[Timer] Timer resumed via socket:', data);
+    setServerTimerData(prev => prev ? {
+      ...prev,
+      timerPausedAt: null,
+      timerStartedAt: new Date(data.resumedAt).toISOString(),
+      fetchedAt: Date.now(),
+    } : null);
+
+    // Cancel auto-resume countdown if timer was resumed (manually or automatically)
+    setAutoResumeCountdown(null);
+    if (autoResumeIntervalRef.current) {
+      clearInterval(autoResumeIntervalRef.current);
+      autoResumeIntervalRef.current = null;
+    }
+  }, []);
+
+  useTournamentEvent(tournamentId, 'timer:paused', handleTimerPaused);
+  useTournamentEvent(tournamentId, 'timer:resumed', handleTimerResumed);
+
+  // Listen for auto-resume countdown after recave
+  const handleAutoResume = useCallback((data: { tournamentId: string; delaySeconds: number }) => {
+    console.log('[Timer] Auto-resume scheduled in', data.delaySeconds, 'seconds');
+    setAutoResumeCountdown(data.delaySeconds);
+
+    // Clear any existing interval
+    if (autoResumeIntervalRef.current) {
+      clearInterval(autoResumeIntervalRef.current);
+    }
+
+    let remaining = data.delaySeconds;
+    autoResumeIntervalRef.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        setAutoResumeCountdown(null);
+        if (autoResumeIntervalRef.current) {
+          clearInterval(autoResumeIntervalRef.current);
+          autoResumeIntervalRef.current = null;
+        }
+      } else {
+        setAutoResumeCountdown(remaining);
+      }
+    }, 1000);
+  }, []);
+
+  useTournamentEvent(tournamentId, 'tournament:timer-auto-resume', handleAutoResume);
+
+  // Listen for rebuy events to play slot machine sound
+  const handleRebuyEvent = useCallback(() => {
+    console.log('[Rebuy] Playing slot machine sound');
+    playSlotMachineSound();
+  }, []);
+
+  useTournamentEvent(tournamentId, 'rebuy:applied', handleRebuyEvent);
+  useTournamentEvent(tournamentId, 'rebuy:recorded', handleRebuyEvent);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (eliminationTimeoutRef.current) {
         clearTimeout(eliminationTimeoutRef.current);
+      }
+      if (autoResumeIntervalRef.current) {
+        clearInterval(autoResumeIntervalRef.current);
       }
     };
   }, []);
@@ -1122,7 +1202,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             {/* Pause indicator (display only) */}
             {serverTimerData?.timerPausedAt && (
               <div className="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold text-lg animate-pulse mb-2">
-                ⏸ PAUSE
+                {autoResumeCountdown ? `Reprise dans ${autoResumeCountdown}s...` : '⏸ PAUSE'}
               </div>
             )}
 
@@ -1254,7 +1334,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                 {/* Pause indicator (display only) */}
                 {serverTimerData?.timerPausedAt && (
                   <div className="bg-yellow-500 text-black px-3 py-1 rounded font-bold text-sm animate-pulse mt-1">
-                    ⏸ PAUSE
+                    {autoResumeCountdown ? `Reprise dans ${autoResumeCountdown}s...` : '⏸ PAUSE'}
                   </div>
                 )}
               </div>
@@ -1496,7 +1576,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
               {/* Pause indicator */}
               {serverTimerData?.timerPausedAt && (
                 <div className="bg-yellow-500 text-black px-6 py-3 rounded-lg font-bold text-2xl animate-pulse shadow-lg">
-                  ⏸ PAUSE (Espace pour reprendre)
+                  {autoResumeCountdown ? `Reprise dans ${autoResumeCountdown}s...` : '⏸ PAUSE (Espace pour reprendre)'}
                 </div>
               )}
             </div>

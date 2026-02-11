@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { emitToTournament } from '@/lib/socket';
+import { scheduleAutoResume } from '@/lib/timer-actions';
 import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
 import { calculateEffectiveLevel, areRecavesOpen } from '@/lib/tournament-utils';
 
@@ -169,6 +170,9 @@ export async function POST(
       rebuysCount: result.newRebuysCount,
       fromBustId: bustId,
     });
+
+    // Auto-resume du timer après 5 secondes (le joueur a recavé)
+    scheduleAutoResume(tournamentId, 5);
 
     return NextResponse.json({
       success: true,

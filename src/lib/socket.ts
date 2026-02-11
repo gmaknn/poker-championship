@@ -143,6 +143,12 @@ export interface TournamentEvents {
   'tournament:time-cancelled': {
     tournamentId: string;
   };
+
+  // Timer auto-resume event (after recave, timer resumes automatically)
+  'tournament:timer-auto-resume': {
+    tournamentId: string;
+    delaySeconds: number;
+  };
 }
 
 /**

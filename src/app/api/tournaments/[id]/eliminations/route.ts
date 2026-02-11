@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
+import { pauseTimerForTournament } from '@/lib/timer-actions';
 
 // Type for detailed points configuration
 interface DetailedPointsConfig {
@@ -407,6 +408,9 @@ export async function POST(
       tournamentId,
       timestamp: new Date(),
     });
+
+    // Auto-pause du timer lors d'une élimination
+    await pauseTimerForTournament(tournamentId);
 
     // Vérifier s'il ne reste qu'un joueur actif (fin du tournoi)
     const activePlayersCount = await prisma.tournamentPlayer.count({

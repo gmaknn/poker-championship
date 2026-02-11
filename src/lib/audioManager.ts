@@ -588,6 +588,21 @@ export const announceRebalanceTables = (): void => {
 };
 
 /**
+ * Play jackpot sound (for rebuys/recaves)
+ */
+export const playSlotMachineSound = (): void => {
+  try {
+    const audio = new Audio('/sounds/jackpot.mp3');
+    audio.volume = 0.7;
+    audio.play().catch(err => {
+      console.warn('Impossible de jouer le son jackpot:', err);
+    });
+  } catch (error) {
+    console.warn('Erreur lors de la lecture du son jackpot:', error);
+  }
+};
+
+/**
  * Set TTS volume
  */
 export const setTTSVolume = (volume: number): void => {

@@ -4,6 +4,8 @@ import { z } from 'zod';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
 import { calculateEffectiveLevel, isBreakAfterRebuyEnd } from '@/lib/tournament-utils';
+import { emitToTournament } from '@/lib/socket';
+import { scheduleAutoResume } from '@/lib/timer-actions';
 
 const rebuySchema = z.object({
   playerId: z.string().cuid(),
@@ -296,6 +298,19 @@ export async function POST(
 
       return { updatedPlayer, penaltyPoints, effectiveType };
     });
+
+    // Émettre l'événement rebuy via WebSocket
+    if (result.updatedPlayer?.player?.nickname) {
+      emitToTournament(tournamentId, 'rebuy:recorded', {
+        tournamentId,
+        playerId: validatedData.playerId,
+        playerName: result.updatedPlayer.player.nickname,
+        rebuyType: result.effectiveType === 'LIGHT' ? 'light' : 'standard',
+      });
+
+      // Auto-resume du timer après 5 secondes (le joueur a recavé)
+      scheduleAutoResume(tournamentId, 5);
+    }
 
     return NextResponse.json({
       success: true,
