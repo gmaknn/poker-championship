@@ -300,7 +300,7 @@ export async function POST(
     });
 
     // Émettre l'événement rebuy via WebSocket
-    if (result.updatedPlayer) {
+    if (result.updatedPlayer?.player?.nickname) {
       emitToTournament(tournamentId, 'rebuy:recorded', {
         tournamentId,
         playerId: validatedData.playerId,
