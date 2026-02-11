@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
+import { pauseTimerForTournament } from '@/lib/timer-actions';
 
 const bustSchema = z.object({
   eliminatedId: z.string().cuid(), // playerId du joueur qui a perdu son tapis
@@ -228,6 +229,9 @@ export async function POST(
       killerName: result.killer?.player.nickname || null,
       level: effectiveLevel,
     });
+
+    // Auto-pause du timer lors d'un bust
+    await pauseTimerForTournament(tournamentId);
 
     return NextResponse.json({
       success: true,

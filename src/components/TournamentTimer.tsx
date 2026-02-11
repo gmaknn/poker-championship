@@ -44,6 +44,10 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
   const [localTime, setLocalTime] = useState(0);
   const [isFlashing, setIsFlashing] = useState(false);
 
+  // Auto-resume countdown state
+  const [autoResumeCountdown, setAutoResumeCountdown] = useState<number | null>(null);
+  const autoResumeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   // Time (temps de réflexion) state
   const [isTimeActive, setIsTimeActive] = useState(false);
   const [isTimeLoading, setIsTimeLoading] = useState(false);
@@ -83,11 +87,52 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
     }
   }, [tournamentId]);
 
+  // Listen for timer pause/resume events for instant UI update (e.g. auto-pause on bust/elimination)
+  useTournamentEvent(tournamentId, 'timer:paused', useCallback(() => {
+    fetchTimerState();
+  }, [fetchTimerState]));
+
+  useTournamentEvent(tournamentId, 'timer:resumed', useCallback(() => {
+    fetchTimerState();
+    // Cancel auto-resume countdown when timer is resumed
+    setAutoResumeCountdown(null);
+    if (autoResumeIntervalRef.current) {
+      clearInterval(autoResumeIntervalRef.current);
+      autoResumeIntervalRef.current = null;
+    }
+  }, [fetchTimerState]));
+
+  // Listen for auto-resume countdown after recave
+  useTournamentEvent(tournamentId, 'tournament:timer-auto-resume', useCallback((data: { delaySeconds: number }) => {
+    setAutoResumeCountdown(data.delaySeconds);
+    if (autoResumeIntervalRef.current) {
+      clearInterval(autoResumeIntervalRef.current);
+    }
+    let remaining = data.delaySeconds;
+    autoResumeIntervalRef.current = setInterval(() => {
+      remaining -= 1;
+      if (remaining <= 0) {
+        setAutoResumeCountdown(null);
+        if (autoResumeIntervalRef.current) {
+          clearInterval(autoResumeIntervalRef.current);
+          autoResumeIntervalRef.current = null;
+        }
+      } else {
+        setAutoResumeCountdown(remaining);
+      }
+    }, 1000);
+  }, []));
+
   useEffect(() => {
     fetchTimerState();
     // Rafraîchir l'état toutes les 5 secondes
     const interval = setInterval(fetchTimerState, 5000);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (autoResumeIntervalRef.current) {
+        clearInterval(autoResumeIntervalRef.current);
+      }
+    };
   }, [fetchTimerState]);
 
   // Timer local pour l'affichage fluide
@@ -475,10 +520,17 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
               )}
 
               {timerState.isPaused && (
-                <Button onClick={handleResume} className="min-h-[56px] text-lg font-semibold flex-1 sm:flex-none sm:min-w-[160px] bg-green-600 hover:bg-green-700">
-                  <Play className="mr-2 h-6 w-6" />
-                  Reprendre
-                </Button>
+                <div className="flex flex-col items-center gap-1">
+                  <Button onClick={handleResume} className="min-h-[56px] text-lg font-semibold flex-1 sm:flex-none sm:min-w-[160px] bg-green-600 hover:bg-green-700">
+                    <Play className="mr-2 h-6 w-6" />
+                    Reprendre
+                  </Button>
+                  {autoResumeCountdown !== null && (
+                    <span className="text-sm text-yellow-400 font-medium animate-pulse">
+                      Reprise auto dans {autoResumeCountdown}s...
+                    </span>
+                  )}
+                </div>
               )}
 
               <Button

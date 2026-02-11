@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
+import { pauseTimerForTournament } from '@/lib/timer-actions';
 
 // POST - Mettre en pause le timer du tournoi
 export async function POST(
@@ -37,26 +37,12 @@ export async function POST(
       );
     }
 
-    // Calculer le temps écoulé depuis le démarrage
-    const now = new Date();
-    const startTime = new Date(tournament.timerStartedAt);
-    const additionalSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
-    const totalElapsed = tournament.timerElapsedSeconds + additionalSeconds;
+    // Mettre en pause via l'utilitaire partagé (DB + WebSocket)
+    await pauseTimerForTournament(id);
 
-    // Mettre à jour le tournoi avec la pause
-    const updatedTournament = await prisma.tournament.update({
+    // Récupérer le tournoi mis à jour pour la réponse
+    const updatedTournament = await prisma.tournament.findUnique({
       where: { id },
-      data: {
-        timerPausedAt: now,
-        timerElapsedSeconds: totalElapsed,
-      },
-    });
-
-    // Émettre l'événement WebSocket
-    emitToTournament(id, 'timer:paused', {
-      tournamentId: id,
-      pausedAt: now,
-      elapsedSeconds: totalElapsed,
     });
 
     return NextResponse.json({
