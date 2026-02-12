@@ -95,6 +95,7 @@ export default function PlayerDashboardPage({
           lastName: data.player.lastName,
           nickname: data.player.nickname,
           email: data.player.email || '',
+          phone: data.player.phone || '',
           avatar: seed,
         }),
       });
@@ -147,6 +148,7 @@ export default function PlayerDashboardPage({
           lastName: data.player.lastName,
           nickname: data.player.nickname,
           email: data.player.email || '',
+          phone: data.player.phone || '',
           avatar: avatarUrl,
         }),
       });
