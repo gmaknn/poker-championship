@@ -77,18 +77,19 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = playerSchema.parse(body);
 
-    // Normalize phone if provided
-    const phone = validatedData.phone ? normalizePhone(validatedData.phone) : null;
-
     // Préparer les données de mise à jour
     const updateData: any = {
       firstName: validatedData.firstName,
       lastName: validatedData.lastName,
       nickname: validatedData.nickname,
       email: validatedData.email || null,
-      phone: phone || null,
       avatar: validatedData.avatar,
     };
+
+    // Ne mettre à jour phone que s'il est explicitement fourni dans la requête
+    if (body.phone !== undefined) {
+      updateData.phone = validatedData.phone ? normalizePhone(validatedData.phone) : null;
+    }
 
     // Seuls les utilisateurs avec MANAGE_PLAYER_ROLES peuvent modifier les rôles vers TD ou Admin
     if (validatedData.role !== undefined) {
