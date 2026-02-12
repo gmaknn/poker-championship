@@ -45,15 +45,52 @@ async function extractPlayerIdFromCookies(request: NextRequest): Promise<string 
 
 /**
  * Récupère le joueur/user actuel
- * 1. Essaie NextAuth (production)
- * 2. Fallback sur cookie player-id (dev mode)
+ *
+ * PRIORITÉ D'AUTHENTIFICATION :
+ * 1. Cookie player-session/player-id — session joueur via /player/login
+ * 2. NextAuth session — session admin/TD via /login
+ *
+ * Un cookie player-session valide a TOUJOURS priorité sur NextAuth
+ * pour éviter qu'un admin connecté via NextAuth "pollue" l'espace joueur.
  */
 export async function getCurrentPlayer(request: NextRequest) {
-  // 1. Essayer NextAuth d'abord (production)
+  // 1. PRIORITÉ : cookie player-session/player-id
+  let playerId = request.headers.get('x-player-id');
+
+  if (!playerId) {
+    playerId = await extractPlayerIdFromCookies(request);
+  }
+
+  if (playerId) {
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        email: true,
+        avatar: true,
+        role: true,
+        status: true,
+        roles: {
+          select: { role: true },
+        },
+      },
+    });
+
+    if (player) {
+      return {
+        ...player,
+        additionalRoles: player.roles?.map(r => r.role) ?? [],
+      };
+    }
+  }
+
+  // 2. FALLBACK : NextAuth (pour les admins/TD connectés via /login)
   try {
     const session = await auth();
     if (session?.user?.id) {
-      // NextAuth user - chercher dans la table User
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: {
@@ -65,8 +102,6 @@ export async function getCurrentPlayer(request: NextRequest) {
       });
 
       if (user) {
-        // Retourner un objet compatible avec le format Player
-        // Note: les users NextAuth n'ont pas de rôles additionnels (multi-rôle via Player uniquement)
         return {
           id: user.id,
           firstName: user.name || '',
@@ -81,46 +116,10 @@ export async function getCurrentPlayer(request: NextRequest) {
       }
     }
   } catch {
-    // NextAuth non disponible, continuer avec fallback
+    // NextAuth non disponible
   }
 
-  // 2. Fallback: header X-Player-Id ou cookie player-session/player-id
-  let playerId = request.headers.get('x-player-id');
-
-  if (!playerId) {
-    playerId = await extractPlayerIdFromCookies(request);
-  }
-
-  if (!playerId) {
-    return null;
-  }
-
-  const player = await prisma.player.findUnique({
-    where: { id: playerId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      nickname: true,
-      email: true,
-      avatar: true,
-      role: true,
-      status: true,
-      roles: {
-        select: { role: true },
-      },
-    },
-  });
-
-  if (!player) {
-    return null;
-  }
-
-  // Ajouter les rôles additionnels au retour
-  return {
-    ...player,
-    additionalRoles: player.roles?.map(r => r.role) ?? [],
-  };
+  return null;
 }
 
 /**
@@ -158,11 +157,47 @@ export async function getCurrentActor(
   request: NextRequest,
   autoCreatePlayer: boolean = false
 ): Promise<CurrentActor | null> {
-  // 1. Essayer NextAuth d'abord (production)
+  // 1. PRIORITÉ : Vérifier le cookie player-session/player-id EN PREMIER
+  //    Un joueur connecté via /player/login a TOUJOURS priorité sur NextAuth.
+  //    Cela évite qu'une session NextAuth admin "pollue" l'espace joueur.
+  let playerId = request.headers.get('x-player-id');
+
+  if (!playerId) {
+    playerId = await extractPlayerIdFromCookies(request);
+  }
+
+  if (playerId) {
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        email: true,
+        avatar: true,
+        role: true,
+        status: true,
+      },
+    });
+
+    if (player) {
+      return {
+        user: {
+          id: player.id,
+          email: player.email || '',
+          name: `${player.firstName} ${player.lastName}`.trim(),
+          role: player.role,
+        },
+        player,
+      };
+    }
+  }
+
+  // 2. FALLBACK : Essayer NextAuth (pour les admins/TD connectés via /login)
   try {
     const session = await auth();
     if (session?.user?.id && session?.user?.email) {
-      // Récupérer le User complet
       const user = await prisma.user.findUnique({
         where: { id: session.user.id },
         select: {
@@ -177,7 +212,6 @@ export async function getCurrentActor(
         return null;
       }
 
-      // Chercher un Player avec le même email
       let player = await prisma.player.findFirst({
         where: { email: user.email },
         select: {
@@ -192,20 +226,16 @@ export async function getCurrentActor(
         },
       });
 
-      // Si pas de Player trouvé et autoCreatePlayer est activé
       if (!player && autoCreatePlayer) {
-        // Générer un nickname unique basé sur l'email
         const baseNickname = user.email.split('@')[0];
         let nickname = baseNickname;
         let suffix = 1;
 
-        // Vérifier l'unicité du nickname
         while (await prisma.player.findUnique({ where: { nickname } })) {
           nickname = `${baseNickname}${suffix}`;
           suffix++;
         }
 
-        // Créer le Player automatiquement
         const nameParts = (user.name || '').split(' ');
         player = await prisma.player.create({
           data: {
@@ -241,49 +271,10 @@ export async function getCurrentActor(
       };
     }
   } catch (e) {
-    // NextAuth non disponible, continuer avec fallback
     console.error('[Auth] NextAuth error:', e);
   }
 
-  // 2. Fallback: cookie player-session/player-id - pas de User dans ce cas
-  let playerId = request.headers.get('x-player-id');
-
-  if (!playerId) {
-    playerId = await extractPlayerIdFromCookies(request);
-  }
-
-  if (!playerId) {
-    return null;
-  }
-
-  const player = await prisma.player.findUnique({
-    where: { id: playerId },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      nickname: true,
-      email: true,
-      avatar: true,
-      role: true,
-      status: true,
-    },
-  });
-
-  if (!player) {
-    return null;
-  }
-
-  // En mode dev, créer un "fake" user basé sur le player
-  return {
-    user: {
-      id: player.id,
-      email: player.email || '',
-      name: `${player.firstName} ${player.lastName}`.trim(),
-      role: player.role,
-    },
-    player,
-  };
+  return null;
 }
 
 /**
