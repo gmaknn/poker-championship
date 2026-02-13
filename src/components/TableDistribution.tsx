@@ -262,7 +262,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
 
   // Afficher les tables
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Bandeau lecture seule */}
       {readOnly && (
         <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
@@ -278,7 +278,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       )}
 
       {/* Header avec stats et actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Grid3x3 className="h-5 w-5 text-muted-foreground" />
@@ -290,18 +290,18 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
             <span className="text-xl font-bold">{tablesData.activePlayers}</span>
-            <span className="text-muted-foreground">joueurs actifs</span>
+            <span className="text-muted-foreground text-sm sm:text-base">actifs</span>
           </div>
         </div>
         {!readOnly && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsQRDialogOpen(true)}
             >
-              <QrCode className="mr-2 h-4 w-4" />
-              QR Codes
+              <QrCode className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">QR Codes</span>
             </Button>
             <Button
               variant="outline"
@@ -309,16 +309,16 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
               onClick={() => setIsRebalanceDialogOpen(true)}
               disabled={isRebalancing}
             >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Rééquilibrer
+              <RefreshCw className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Rééquilibrer</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsGenerateDialogOpen(true)}
             >
-              <Shuffle className="mr-2 h-4 w-4" />
-              Régénérer
+              <Shuffle className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Régénérer</span>
             </Button>
             <Button
               variant="ghost"
@@ -332,10 +332,10 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       </div>
 
       {/* Grille des tables */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
         {tablesData.tables.map((table) => (
-          <Card key={table.tableNumber}>
-            <CardHeader>
+          <Card key={table.tableNumber} className="overflow-hidden">
+            <CardHeader className="px-4 sm:px-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Table {table.tableNumber}</CardTitle>
                 <Badge variant={table.activePlayers > 0 ? 'default' : 'secondary'}>
@@ -343,7 +343,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               <div className="space-y-2">
                 {table.players.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
@@ -353,22 +353,22 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                   table.players.map((assignment) => (
                     <div
                       key={assignment.id}
-                      className={`flex items-center justify-between p-2 rounded-md border ${
+                      className={`flex items-center justify-between gap-2 p-2 rounded-md border min-w-0 ${
                         assignment.isEliminated
                           ? 'bg-muted text-muted-foreground line-through'
                           : ''
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge variant="outline" className="text-xs flex-shrink-0">
                           #{assignment.seatNumber || '-'}
                         </Badge>
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-medium truncate">
                           {assignment.player?.nickname || 'Joueur inconnu'}
                         </span>
                       </div>
                       {assignment.isEliminated && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs flex-shrink-0">
                           Éliminé
                         </Badge>
                       )}
