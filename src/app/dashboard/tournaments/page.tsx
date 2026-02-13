@@ -429,7 +429,7 @@ export default function TournamentsPage() {
         description="Gérez les tournois de poker"
         icon={<Trophy className="h-10 w-10 text-primary" />}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end flex-wrap">
             <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
               <ToggleGroupItem value="grid" aria-label="Vue grille">
                 <Grid3x3 className="h-4 w-4" />
@@ -441,7 +441,7 @@ export default function TournamentsPage() {
             {canCreateTournament() && (
               <Button onClick={() => setIsDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
-                Nouveau tournoi
+                <span className="hidden sm:inline">Nouveau tournoi</span>
               </Button>
             )}
           </div>

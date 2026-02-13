@@ -504,7 +504,7 @@ export default function PlayersPage() {
         description={isAdmin() ? 'Gérez les joueurs du championnat' : 'Consultez la liste des joueurs'}
         icon={<Users className="h-10 w-10 text-primary" />}
         actions={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end flex-wrap">
             <ToggleGroup type="single" value={viewMode} onValueChange={(value) => value && setViewMode(value as 'grid' | 'list')}>
               <ToggleGroupItem value="grid" aria-label="Vue grille">
                 <Grid3x3 className="h-4 w-4" />
@@ -516,7 +516,7 @@ export default function PlayersPage() {
             {isAdmin() && (
               <Button onClick={() => handleOpenDialog()} size="lg">
                 <Plus className="mr-2 h-5 w-5" />
-                Ajouter un joueur
+                <span className="hidden sm:inline">Ajouter un joueur</span>
               </Button>
             )}
           </div>

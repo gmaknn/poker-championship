@@ -13,7 +13,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Grid3x3, Shuffle, RefreshCw, Trash2, Users } from 'lucide-react';
+import { Grid3x3, Shuffle, RefreshCw, Trash2, Users, QrCode, Printer } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 type Player = {
   id: string;
@@ -61,6 +62,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRebalancing, setIsRebalancing] = useState(false);
   const [isRebalanceDialogOpen, setIsRebalanceDialogOpen] = useState(false);
+  const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -260,7 +262,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
 
   // Afficher les tables
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Bandeau lecture seule */}
       {readOnly && (
         <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
@@ -276,7 +278,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       )}
 
       {/* Header avec stats et actions */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <Grid3x3 className="h-5 w-5 text-muted-foreground" />
@@ -288,27 +290,35 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
             <span className="text-xl font-bold">{tablesData.activePlayers}</span>
-            <span className="text-muted-foreground">joueurs actifs</span>
+            <span className="text-muted-foreground text-sm sm:text-base">actifs</span>
           </div>
         </div>
         {!readOnly && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsQRDialogOpen(true)}
+            >
+              <QrCode className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">QR Codes</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsRebalanceDialogOpen(true)}
               disabled={isRebalancing}
             >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Rééquilibrer
+              <RefreshCw className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Rééquilibrer</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setIsGenerateDialogOpen(true)}
             >
-              <Shuffle className="mr-2 h-4 w-4" />
-              Régénérer
+              <Shuffle className="sm:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Régénérer</span>
             </Button>
             <Button
               variant="ghost"
@@ -322,10 +332,10 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       </div>
 
       {/* Grille des tables */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
         {tablesData.tables.map((table) => (
-          <Card key={table.tableNumber}>
-            <CardHeader>
+          <Card key={table.tableNumber} className="overflow-hidden">
+            <CardHeader className="px-4 sm:px-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Table {table.tableNumber}</CardTitle>
                 <Badge variant={table.activePlayers > 0 ? 'default' : 'secondary'}>
@@ -333,7 +343,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               <div className="space-y-2">
                 {table.players.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
@@ -343,22 +353,22 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                   table.players.map((assignment) => (
                     <div
                       key={assignment.id}
-                      className={`flex items-center justify-between p-2 rounded-md border ${
+                      className={`flex items-center justify-between gap-2 p-2 rounded-md border min-w-0 ${
                         assignment.isEliminated
                           ? 'bg-muted text-muted-foreground line-through'
                           : ''
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Badge variant="outline" className="text-xs flex-shrink-0">
                           #{assignment.seatNumber || '-'}
                         </Badge>
-                        <span className="text-sm font-medium">
+                        <span className="text-sm font-medium truncate">
                           {assignment.player?.nickname || 'Joueur inconnu'}
                         </span>
                       </div>
                       {assignment.isEliminated && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs flex-shrink-0">
                           Éliminé
                         </Badge>
                       )}
@@ -403,6 +413,87 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
             </Button>
             <Button onClick={handleGenerateTables} disabled={isGenerating}>
               {isGenerating ? 'Génération...' : 'Régénérer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Codes dialog */}
+      <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>QR Codes des tables</DialogTitle>
+            <DialogDescription>
+              Chaque QR code renvoie vers la vue DT de la table correspondante
+            </DialogDescription>
+          </DialogHeader>
+
+          <div id="qr-codes-grid" className="grid grid-cols-2 md:grid-cols-3 gap-6 py-4">
+            {tablesData.tables.map((table) => {
+              const qrUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/director/${tournamentId}/table/${table.tableNumber}`;
+              return (
+                <div key={table.tableNumber} className="flex flex-col items-center gap-2 p-4 border rounded-lg">
+                  <QRCodeSVG
+                    value={qrUrl}
+                    size={160}
+                    level="M"
+                    includeMargin
+                  />
+                  <p className="text-sm font-bold">Table {table.tableNumber}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {table.activePlayers} joueur{table.activePlayers > 1 ? 's' : ''}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsQRDialogOpen(false)}
+            >
+              Fermer
+            </Button>
+            <Button
+              onClick={() => {
+                const printWindow = window.open('', '_blank');
+                if (!printWindow) return;
+
+                const qrHtml = tablesData.tables.map((table) => {
+                  const qrUrl = `${window.location.origin}/director/${tournamentId}/table/${table.tableNumber}`;
+                  return `
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border:1px solid #ddd;border-radius:8px;break-inside:avoid;">
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}" width="200" height="200" />
+                      <strong style="font-size:18px;">Table ${table.tableNumber}</strong>
+                      <span style="font-size:12px;color:#666;">${table.activePlayers} joueur${table.activePlayers > 1 ? 's' : ''}</span>
+                    </div>
+                  `;
+                }).join('');
+
+                printWindow.document.write(`
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <title>QR Codes Tables</title>
+                    <style>
+                      body { font-family: sans-serif; padding: 20px; }
+                      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+                      @media print { body { padding: 10px; } }
+                    </style>
+                  </head>
+                  <body>
+                    <h1 style="text-align:center;margin-bottom:20px;">QR Codes - Tables</h1>
+                    <div class="grid">${qrHtml}</div>
+                    <script>window.onload = function() { window.print(); }</script>
+                  </body>
+                  </html>
+                `);
+                printWindow.document.close();
+              }}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimer
             </Button>
           </DialogFooter>
         </DialogContent>

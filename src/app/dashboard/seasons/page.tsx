@@ -275,9 +275,9 @@ export default function SeasonsPage() {
         icon={<Trophy className="h-10 w-10" />}
         actions={
           canEdit ? (
-            <Button onClick={() => handleOpenDialog()} size="lg">
+            <Button onClick={() => handleOpenDialog()} size="lg" className="w-full sm:w-auto">
               <Plus className="mr-2 h-5 w-5" />
-              Nouvelle saison
+              <span className="hidden sm:inline">Nouvelle saison</span>
             </Button>
           ) : undefined
         }

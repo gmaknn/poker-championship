@@ -87,8 +87,11 @@ export default auth(async (req) => {
     return NextResponse.next();
   }
 
+  // Rôles autorisés pour /director/*
+  const DIRECTOR_ALLOWED_ROLES = ['ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'];
+
   // Routes dashboard et director - protection obligatoire avec vérification de rôle
-  if (pathname.startsWith('/dashboard') || pathname === '/director') {
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/director')) {
 
     // 1. Vérifier si un joueur est connecté via player-session (cookie JWT)
     const playerSessionCookie = req.cookies.get('player-session')?.value;
@@ -100,9 +103,12 @@ export default auth(async (req) => {
         // Un joueur est connecté via le système Player
         // Vérifier si son rôle permet l'accès au dashboard
 
-        // Pages d'export spéciales : ANIMATOR peut y accéder
+        // Déterminer les rôles autorisés selon la route
+        const isDirectorPage = pathname.startsWith('/director');
         const isExportPage = pathname.includes('/exports') || pathname.includes('/leaderboard');
-        const allowedRoles = isExportPage ? DASHBOARD_EXPORT_ALLOWED_ROLES : DASHBOARD_ALLOWED_ROLES;
+        const allowedRoles = isDirectorPage
+          ? DIRECTOR_ALLOWED_ROLES
+          : isExportPage ? DASHBOARD_EXPORT_ALLOWED_ROLES : DASHBOARD_ALLOWED_ROLES;
 
         if (!allowedRoles.includes(playerSession.role)) {
           // Rôle insuffisant - rediriger vers l'espace joueur
@@ -121,9 +127,12 @@ export default auth(async (req) => {
       // User connecté via NextAuth
       const userRole = req.auth.user?.role as string;
 
-      // Pages d'export spéciales
+      // Déterminer les rôles autorisés selon la route
+      const isDirectorPage = pathname.startsWith('/director');
       const isExportPage = pathname.includes('/exports') || pathname.includes('/leaderboard');
-      const allowedRoles = isExportPage ? DASHBOARD_EXPORT_ALLOWED_ROLES : DASHBOARD_ALLOWED_ROLES;
+      const allowedRoles = isDirectorPage
+        ? DIRECTOR_ALLOWED_ROLES
+        : isExportPage ? DASHBOARD_EXPORT_ALLOWED_ROLES : DASHBOARD_ALLOWED_ROLES;
 
       if (!allowedRoles.includes(userRole)) {
         // Rôle insuffisant
