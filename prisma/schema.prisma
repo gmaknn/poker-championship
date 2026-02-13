@@ -247,17 +247,18 @@ model BlindLevel {
 }
 
 model TableAssignment {
-  id            String      @id @default(cuid())
-  tournamentId  String
-  tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  id               String      @id @default(cuid())
+  tournamentId     String
+  tournament       Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
-  playerId      String
-  tableNumber   Int
-  seatNumber    Int?
-  isActive      Boolean     @default(true)
+  playerId         String
+  tableNumber      Int
+  seatNumber       Int?
+  isActive         Boolean     @default(true)
+  isTableDirector  Boolean     @default(false)
 
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   @@index([tournamentId])
   @@index([tournamentId, tableNumber])

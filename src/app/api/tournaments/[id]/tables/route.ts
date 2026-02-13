@@ -60,6 +60,7 @@ export async function GET(
         ...assignment,
         player: tournamentPlayer?.player,
         isEliminated: tournamentPlayer?.finalRank !== null,
+        isTableDirector: assignment.isTableDirector,
       };
     });
 

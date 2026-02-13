@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Search, Trophy, Zap, Calendar, LogIn } from 'lucide-react';
+import { Users, Search, Trophy, Zap, Calendar, LogIn, Shield } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useCurrentPlayer } from '@/components/layout/player-nav';
+import Link from 'next/link';
 
 type Player = {
   id: string;
@@ -15,6 +16,14 @@ type Player = {
   nickname: string;
   avatar: string | null;
   status: string;
+};
+
+type TableDirectorAssignment = {
+  tournamentId: string;
+  tournamentName: string;
+  tableNumber: number;
+  activePlayersCount: number;
+  tournamentStatus: string;
 };
 
 const getAvatarUrl = (avatar: string | null) => {
@@ -30,10 +39,17 @@ export default function PlayerHomePage() {
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [tableDirectorAssignments, setTableDirectorAssignments] = useState<TableDirectorAssignment[]>([]);
 
   useEffect(() => {
     fetchPlayers();
   }, []);
+
+  useEffect(() => {
+    if (currentPlayer) {
+      fetchTableDirectorAssignments(currentPlayer.id);
+    }
+  }, [currentPlayer]);
 
   useEffect(() => {
     if (searchQuery.trim() === '') {
@@ -49,6 +65,18 @@ export default function PlayerHomePage() {
       setFilteredPlayers(filtered);
     }
   }, [searchQuery, players]);
+
+  const fetchTableDirectorAssignments = async (playerId: string) => {
+    try {
+      const response = await fetch(`/api/players/${playerId}/table-director`);
+      if (response.ok) {
+        const data = await response.json();
+        setTableDirectorAssignments(data.tableDirectorAssignments || []);
+      }
+    } catch (error) {
+      console.error('Error fetching table director assignments:', error);
+    }
+  };
 
   const fetchPlayers = async () => {
     try {
@@ -101,6 +129,39 @@ export default function PlayerHomePage() {
           </Button>
         )}
       </div>
+
+      {/* Table Director Block */}
+      {tableDirectorAssignments.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/50 rounded-xl p-4 sm:p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Shield className="h-6 w-6 text-amber-500" />
+            <h2 className="text-lg sm:text-xl font-bold text-amber-500">Gérer ma table</h2>
+          </div>
+          <div className="space-y-3">
+            {tableDirectorAssignments.map((assignment) => (
+              <div
+                key={`${assignment.tournamentId}-${assignment.tableNumber}`}
+                className="flex items-center justify-between gap-4"
+              >
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">
+                    Table {assignment.tableNumber} - {assignment.tournamentName}
+                  </p>
+                  <p className="text-sm text-slate-400">
+                    {assignment.activePlayersCount} joueurs actifs
+                  </p>
+                </div>
+                <Link
+                  href={`/director/${assignment.tournamentId}/table/${assignment.tableNumber}`}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold text-base sm:text-lg whitespace-nowrap flex-shrink-0 transition-colors"
+                >
+                  Accéder
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Quick Access Cards */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
