@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, use } from 'react';
+import { useState, useEffect, useCallback, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Flame, Skull, Users, Loader2 } from 'lucide-react';
+import { ArrowLeft, Flame, Skull, Users, Loader2, RotateCcw } from 'lucide-react';
 import { normalizeAvatarSrc } from '@/lib/utils';
 
 type Player = {
@@ -46,6 +46,21 @@ type Tournament = {
   status: string;
 };
 
+type TimerState = {
+  recavesOpen: boolean;
+  isVoluntaryRebuyPeriod: boolean;
+};
+
+type BustEvent = {
+  id: string;
+  eliminatedId: string;
+  killerId: string;
+  eliminated: {
+    playerId: string;
+    player: { nickname: string };
+  };
+};
+
 export default function DirectorTablePage({
   params,
 }: {
@@ -62,6 +77,13 @@ export default function DirectorTablePage({
   const [error, setError] = useState('');
   const [authChecked, setAuthChecked] = useState(false);
 
+  // Timer state
+  const [timerState, setTimerState] = useState<TimerState>({
+    recavesOpen: true,
+    isVoluntaryRebuyPeriod: false,
+  });
+  const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState<'bust' | 'elim'>('bust');
@@ -69,6 +91,12 @@ export default function DirectorTablePage({
   const [selectedKillerId, setSelectedKillerId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+
+  // Recave dialog state (shown after bust)
+  const [recaveDialogOpen, setRecaveDialogOpen] = useState(false);
+  const [lastBustEvent, setLastBustEvent] = useState<BustEvent | null>(null);
+  const [recaveSubmitting, setRecaveSubmitting] = useState(false);
+  const [recaveError, setRecaveError] = useState('');
 
   // Check auth
   useEffect(() => {
@@ -97,6 +125,38 @@ export default function DirectorTablePage({
       })
       .catch(() => router.push('/login'));
   }, [router]);
+
+  // Poll timer state
+  const fetchTimerState = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/timer`);
+      if (res.ok) {
+        const data = await res.json();
+        setTimerState({
+          recavesOpen: data.recavesOpen ?? true,
+          isVoluntaryRebuyPeriod: data.isVoluntaryRebuyPeriod ?? false,
+        });
+      }
+    } catch {
+      // Silently ignore timer polling errors
+    }
+  }, [tournamentId]);
+
+  useEffect(() => {
+    if (!authChecked || !tournament || tournament.status !== 'IN_PROGRESS') return;
+
+    // Fetch immediately
+    fetchTimerState();
+
+    // Poll every 10 seconds
+    timerIntervalRef.current = setInterval(fetchTimerState, 10000);
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+      }
+    };
+  }, [authChecked, tournament, fetchTimerState]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -216,7 +276,16 @@ export default function DirectorTablePage({
         return;
       }
 
+      const data = await res.json();
       setDialogOpen(false);
+
+      // After a bust, show recave dialog if recaves are still open
+      if (dialogType === 'bust' && data.bustEvent && timerState.recavesOpen) {
+        setLastBustEvent(data.bustEvent);
+        setRecaveError('');
+        setRecaveDialogOpen(true);
+      }
+
       // Refresh table data
       setLoading(true);
       await fetchData();
@@ -226,6 +295,97 @@ export default function DirectorTablePage({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleRecave = async (type: 'STANDARD' | 'LIGHT') => {
+    if (!lastBustEvent) return;
+
+    setRecaveSubmitting(true);
+    setRecaveError('');
+
+    try {
+      let res: Response;
+
+      if (type === 'STANDARD') {
+        // Standard recave via bust recave endpoint
+        res = await fetch(
+          `/api/tournaments/${tournamentId}/busts/${lastBustEvent.id}/recave`,
+          { method: 'POST' }
+        );
+      } else {
+        // Light rebuy via rebuys endpoint
+        res = await fetch(
+          `/api/tournaments/${tournamentId}/rebuys`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              playerId: lastBustEvent.eliminated.playerId,
+              type: 'LIGHT',
+            }),
+          }
+        );
+      }
+
+      if (!res.ok) {
+        const data = await res.json();
+        setRecaveError(data.error || 'Erreur lors de la recave');
+        return;
+      }
+
+      setRecaveDialogOpen(false);
+      setLastBustEvent(null);
+
+      // Refresh table data
+      setLoading(true);
+      await fetchData();
+    } catch (err) {
+      console.error('Error recave:', err);
+      setRecaveError('Erreur réseau');
+    } finally {
+      setRecaveSubmitting(false);
+    }
+  };
+
+  const handleRecaveFromList = async (playerId: string) => {
+    // Find the most recent bust for this player to apply recave
+    // We use the rebuys endpoint directly with STANDARD type
+    setRecaveSubmitting(true);
+    setRecaveError('');
+
+    try {
+      const res = await fetch(
+        `/api/tournaments/${tournamentId}/rebuys`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            playerId,
+            type: 'STANDARD',
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        setRecaveError(data.error || 'Erreur lors de la recave');
+        return;
+      }
+
+      // Refresh table data
+      setLoading(true);
+      await fetchData();
+    } catch (err) {
+      console.error('Error recave from list:', err);
+      setRecaveError('Erreur réseau');
+    } finally {
+      setRecaveSubmitting(false);
+    }
+  };
+
+  const handleSkipRecave = () => {
+    setRecaveDialogOpen(false);
+    setLastBustEvent(null);
   };
 
   if (loading) {
@@ -254,6 +414,8 @@ export default function DirectorTablePage({
     );
   }
 
+  const isInProgress = tournament?.status === 'IN_PROGRESS';
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -270,14 +432,24 @@ export default function DirectorTablePage({
             <h1 className="text-lg font-bold truncate">
               Table {tableNumber} - {tournament?.name}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <Badge variant="default" className="text-xs">
                 <Users className="mr-1 h-3 w-3" />
                 {activePlayers.length} actif{activePlayers.length > 1 ? 's' : ''}
               </Badge>
-              {tournament?.status === 'IN_PROGRESS' && (
+              {isInProgress && (
                 <Badge variant="outline" className="text-xs text-green-600 border-green-600">
                   En cours
+                </Badge>
+              )}
+              {isInProgress && timerState.recavesOpen && (
+                <Badge variant="outline" className="text-xs text-orange-600 border-orange-600">
+                  Recaves ouvertes
+                </Badge>
+              )}
+              {isInProgress && !timerState.recavesOpen && (
+                <Badge variant="outline" className="text-xs text-red-600 border-red-600">
+                  Recaves fermées
                 </Badge>
               )}
             </div>
@@ -320,22 +492,25 @@ export default function DirectorTablePage({
                   </p>
                 </div>
               </div>
-              {tournament?.status === 'IN_PROGRESS' && (
+              {isInProgress && (
                 <div className="flex gap-2">
-                  <Button
-                    className="flex-1 h-14 text-lg bg-orange-600 hover:bg-orange-700 text-white"
-                    onClick={() => openDialog(assignment, 'bust')}
-                  >
-                    <Flame className="mr-2 h-5 w-5" />
-                    BUST
-                  </Button>
-                  <Button
-                    className="flex-1 h-14 text-lg bg-red-600 hover:bg-red-700 text-white"
-                    onClick={() => openDialog(assignment, 'elim')}
-                  >
-                    <Skull className="mr-2 h-5 w-5" />
-                    ELIM
-                  </Button>
+                  {timerState.recavesOpen ? (
+                    <Button
+                      className="flex-1 h-14 text-lg bg-orange-600 hover:bg-orange-700 text-white"
+                      onClick={() => openDialog(assignment, 'bust')}
+                    >
+                      <Flame className="mr-2 h-5 w-5" />
+                      BUST
+                    </Button>
+                  ) : (
+                    <Button
+                      className="flex-1 h-14 text-lg bg-red-600 hover:bg-red-700 text-white"
+                      onClick={() => openDialog(assignment, 'elim')}
+                    >
+                      <Skull className="mr-2 h-5 w-5" />
+                      ÉLIM
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -348,12 +523,15 @@ export default function DirectorTablePage({
           </div>
         )}
 
-        {/* Eliminated players */}
+        {/* Busted/Eliminated players */}
         {eliminatedPlayers.length > 0 && (
           <>
             <div className="pt-4 pb-2">
               <p className="text-sm font-medium text-muted-foreground">
-                Joueurs eliminés ({eliminatedPlayers.length})
+                {timerState.recavesOpen
+                  ? `Joueurs bustés (${eliminatedPlayers.length})`
+                  : `Joueurs éliminés (${eliminatedPlayers.length})`
+                }
               </p>
             </div>
             {eliminatedPlayers.map((assignment) => {
@@ -363,7 +541,7 @@ export default function DirectorTablePage({
               return (
                 <div
                   key={assignment.id}
-                  className="border rounded-xl p-4 bg-muted/30 opacity-60"
+                  className="border rounded-xl p-4 bg-muted/30 opacity-80"
                 >
                   <div className="flex items-center gap-3">
                     {avatarSrc ? (
@@ -384,14 +562,37 @@ export default function DirectorTablePage({
                         {player?.nickname || 'Joueur inconnu'}
                       </p>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      Eliminé
-                    </Badge>
+                    {timerState.recavesOpen ? (
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white shrink-0"
+                        onClick={() => handleRecaveFromList(assignment.playerId)}
+                        disabled={recaveSubmitting}
+                      >
+                        {recaveSubmitting ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <RotateCcw className="mr-1 h-3 w-3" />
+                        )}
+                        Recave
+                      </Button>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs">
+                        Éliminé
+                      </Badge>
+                    )}
                   </div>
                 </div>
               );
             })}
           </>
+        )}
+
+        {/* Recave error toast */}
+        {recaveError && !recaveDialogOpen && (
+          <div className="text-sm text-destructive bg-destructive/10 p-3 rounded">
+            {recaveError}
+          </div>
         )}
       </div>
 
@@ -400,7 +601,7 @@ export default function DirectorTablePage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {dialogType === 'bust' ? 'Perte de tapis (Bust)' : 'Elimination définitive'}
+              {dialogType === 'bust' ? 'Perte de tapis (Bust)' : 'Élimination définitive'}
             </DialogTitle>
             <DialogDescription>
               Qui a éliminé {selectedPlayer && getPlayerFullInfo(selectedPlayer)?.nickname} ?
@@ -410,7 +611,7 @@ export default function DirectorTablePage({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">
-                {dialogType === 'bust' ? 'Killer' : 'Eliminateur'}
+                {dialogType === 'bust' ? 'Killer' : 'Éliminateur'}
               </label>
               <select
                 value={selectedKillerId}
@@ -458,6 +659,64 @@ export default function DirectorTablePage({
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : null}
               Confirmer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Recave Dialog (shown after bust) */}
+      <Dialog open={recaveDialogOpen} onOpenChange={(open) => {
+        if (!open) handleSkipRecave();
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recave</DialogTitle>
+            <DialogDescription>
+              {lastBustEvent?.eliminated.player.nickname} a perdu son tapis. Souhaite-t-il recaver ?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-4">
+            <Button
+              className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => handleRecave('STANDARD')}
+              disabled={recaveSubmitting}
+            >
+              {recaveSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-5 w-5" />
+              )}
+              Recave complète (10€)
+            </Button>
+            <Button
+              className="w-full h-14 text-lg bg-yellow-600 hover:bg-yellow-700 text-white"
+              onClick={() => handleRecave('LIGHT')}
+              disabled={recaveSubmitting}
+            >
+              {recaveSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RotateCcw className="mr-2 h-5 w-5" />
+              )}
+              Recave light (5€)
+            </Button>
+
+            {recaveError && (
+              <div className="text-sm text-destructive bg-destructive/10 p-3 rounded">
+                {recaveError}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleSkipRecave}
+              disabled={recaveSubmitting}
+            >
+              Non, pas de recave
             </Button>
           </DialogFooter>
         </DialogContent>
