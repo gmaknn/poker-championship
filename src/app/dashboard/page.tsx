@@ -179,10 +179,10 @@ export default function DashboardPage() {
             <Button
               size="lg"
               onClick={() => router.push('/dashboard/tournaments')}
-              className="gap-2"
+              className="gap-2 w-full sm:w-auto"
             >
               <Plus className="h-5 w-5" />
-              Nouveau tournoi
+              <span className="hidden sm:inline">Nouveau tournoi</span>
             </Button>
           ) : undefined
         }

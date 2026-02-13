@@ -23,19 +23,19 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        'flex items-center justify-between',
-        isStyled && 'bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-border rounded-lg p-6 mb-6',
+        'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4',
+        isStyled && 'bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-border rounded-lg p-4 sm:p-6 mb-6',
         !isStyled && 'mb-6',
         className
       )}
     >
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <div className="flex items-center gap-3">
           {icon && <div className="flex-shrink-0">{icon}</div>}
-          <div>
+          <div className="min-w-0">
             <h1 className={cn(
               'font-bold',
-              isStyled ? 'text-4xl' : 'text-3xl'
+              isStyled ? 'text-2xl sm:text-4xl' : 'text-xl sm:text-3xl'
             )}>
               {title}
             </h1>
@@ -50,7 +50,7 @@ export function PageHeader({
           </div>
         </div>
       </div>
-      {actions && <div className="flex-shrink-0 ml-4">{actions}</div>}
+      {actions && <div className="w-full sm:w-auto">{actions}</div>}
     </div>
   );
 }
