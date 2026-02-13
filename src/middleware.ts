@@ -105,12 +105,19 @@ export default auth(async (req) => {
 
         // Déterminer les rôles autorisés selon la route
         const isDirectorPage = pathname.startsWith('/director');
+        const isDirectorTablePage = /^\/director\/[^/]+\/table\/\d+$/.test(pathname);
         const isExportPage = pathname.includes('/exports') || pathname.includes('/leaderboard');
         const allowedRoles = isDirectorPage
           ? DIRECTOR_ALLOWED_ROLES
           : isExportPage ? DASHBOARD_EXPORT_ALLOWED_ROLES : DASHBOARD_ALLOWED_ROLES;
 
         if (!allowedRoles.includes(playerSession.role)) {
+          // Exception : les PLAYER peuvent accéder aux pages /director/*/table/*
+          // s'ils sont désignés DT de table (vérification fine dans la page)
+          if (isDirectorTablePage && playerSession.role === 'PLAYER') {
+            console.log(`[MIDDLEWARE] Allowing PLAYER to /director table page (fine check in page)`);
+            return NextResponse.next();
+          }
           // Rôle insuffisant - rediriger vers l'espace joueur
           console.log(`[MIDDLEWARE] Access denied to ${pathname} for player role ${playerSession.role}`);
           return NextResponse.redirect(new URL('/player', req.url));
@@ -129,12 +136,18 @@ export default auth(async (req) => {
 
       // Déterminer les rôles autorisés selon la route
       const isDirectorPage = pathname.startsWith('/director');
+      const isDirectorTablePage = /^\/director\/[^/]+\/table\/\d+$/.test(pathname);
       const isExportPage = pathname.includes('/exports') || pathname.includes('/leaderboard');
       const allowedRoles = isDirectorPage
         ? DIRECTOR_ALLOWED_ROLES
         : isExportPage ? DASHBOARD_EXPORT_ALLOWED_ROLES : DASHBOARD_ALLOWED_ROLES;
 
       if (!allowedRoles.includes(userRole)) {
+        // Exception pour PLAYER DT de table
+        if (isDirectorTablePage && userRole === 'PLAYER') {
+          console.log(`[MIDDLEWARE] Allowing PLAYER to /director table page (fine check in page)`);
+          return NextResponse.next();
+        }
         // Rôle insuffisant
         console.log(`[MIDDLEWARE] Access denied to ${pathname} for user role ${userRole}`);
         return NextResponse.redirect(new URL('/player', req.url));

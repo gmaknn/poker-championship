@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Flame, Skull, Users, Loader2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Flame, Skull, Users, Loader2, RotateCcw, Shield } from 'lucide-react';
 import { normalizeAvatarSrc } from '@/lib/utils';
 
 type Player = {
@@ -29,6 +29,7 @@ type TableAssignment = {
   tableNumber: number;
   seatNumber: number | null;
   isActive: boolean;
+  isTableDirector?: boolean;
   player?: Player;
   isEliminated?: boolean;
 };
@@ -76,6 +77,8 @@ export default function DirectorTablePage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [authChecked, setAuthChecked] = useState(false);
+  const [isPlayerTableDirector, setIsPlayerTableDirector] = useState(false);
+  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
 
   // Timer state
   const [timerState, setTimerState] = useState<TimerState>({
@@ -98,33 +101,66 @@ export default function DirectorTablePage({
   const [recaveSubmitting, setRecaveSubmitting] = useState(false);
   const [recaveError, setRecaveError] = useState('');
 
-  // Check auth
+  // Check auth - supports Admin/TD/Animator + Player DT de table
   useEffect(() => {
-    fetch('/api/me')
-      .then(res => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/me');
         if (!res.ok) {
           router.push('/login');
-          return null;
+          return;
         }
-        return res.json();
-      })
-      .then(data => {
-        if (data) {
-          const role = data.role;
-          const additionalRoles = data.additionalRoles || [];
-          const allRoles = [role, ...additionalRoles];
-          const allowed = allRoles.some((r: string) =>
-            ['ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'].includes(r)
-          );
-          if (!allowed) {
-            router.push('/player');
-            return;
-          }
+        const data = await res.json();
+        if (!data) {
+          router.push('/login');
+          return;
+        }
+
+        setCurrentPlayerId(data.id);
+        const role = data.role;
+        const additionalRoles = data.additionalRoles || [];
+        const allRoles = [role, ...additionalRoles];
+        const isPrivileged = allRoles.some((r: string) =>
+          ['ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'].includes(r)
+        );
+
+        if (isPrivileged) {
           setAuthChecked(true);
+          return;
         }
-      })
-      .catch(() => router.push('/login'));
-  }, [router]);
+
+        // Pour un PLAYER : vérifier s'il est DT de cette table
+        const tablesRes = await fetch(`/api/tournaments/${tournamentId}/tables`);
+        if (!tablesRes.ok) {
+          router.push('/player');
+          return;
+        }
+        const tablesData = await tablesRes.json();
+        const foundTable = tablesData.tables?.find(
+          (t: TableData) => t.tableNumber === tableNumber
+        );
+
+        if (!foundTable) {
+          router.push('/player');
+          return;
+        }
+
+        const isDT = foundTable.players.some(
+          (p: TableAssignment) => p.playerId === data.id && p.isTableDirector
+        );
+
+        if (isDT) {
+          setIsPlayerTableDirector(true);
+          setAuthChecked(true);
+        } else {
+          router.push('/player');
+        }
+      } catch {
+        router.push('/login');
+      }
+    };
+    checkAuth();
+  }, [router, tournamentId, tableNumber]);
 
   // Poll timer state
   const fetchTimerState = useCallback(async () => {
@@ -416,6 +452,14 @@ export default function DirectorTablePage({
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Bandeau DT de table */}
+      {isPlayerTableDirector && (
+        <div className="bg-amber-100 dark:bg-amber-900/40 border-b border-amber-300 dark:border-amber-700 px-4 py-2 flex items-center gap-2 text-amber-800 dark:text-amber-200 text-sm">
+          <Shield className="h-4 w-4" />
+          Vous êtes Directeur de la Table {tableNumber}
+        </div>
+      )}
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b p-4">
         <div className="flex items-center gap-3">

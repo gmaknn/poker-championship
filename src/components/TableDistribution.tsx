@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Grid3x3, Shuffle, RefreshCw, Trash2, Users, QrCode, Printer } from 'lucide-react';
+import { Grid3x3, Shuffle, RefreshCw, Trash2, Users, QrCode, Printer, Shield } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
 type Player = {
@@ -29,6 +29,7 @@ type TableAssignment = {
   tableNumber: number;
   seatNumber: number | null;
   isActive: boolean;
+  isTableDirector?: boolean;
   player?: Player;
   isEliminated?: boolean;
 };
@@ -64,6 +65,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   const [isRebalanceDialogOpen, setIsRebalanceDialogOpen] = useState(false);
   const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
   const [error, setError] = useState('');
+  const [togglingDirector, setTogglingDirector] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTables();
@@ -166,6 +168,32 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
     } catch (error) {
       console.error('Error deleting tables:', error);
       alert('Erreur lors de la suppression');
+    }
+  };
+
+  const handleToggleDirector = async (tableNumber: number, playerId: string, currentValue: boolean) => {
+    setTogglingDirector(playerId);
+    try {
+      const response = await fetch(
+        `/api/tournaments/${tournamentId}/tables/${tableNumber}/director`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerId, isTableDirector: !currentValue }),
+        }
+      );
+
+      if (response.ok) {
+        await fetchTables();
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de la désignation du DT');
+      }
+    } catch (err) {
+      console.error('Error toggling table director:', err);
+      setError('Erreur réseau');
+    } finally {
+      setTogglingDirector(null);
     }
   };
 
@@ -356,22 +384,46 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                       className={`flex items-center justify-between gap-2 p-2 rounded-md border min-w-0 ${
                         assignment.isEliminated
                           ? 'bg-muted text-muted-foreground line-through'
-                          : ''
+                          : assignment.isTableDirector
+                            ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700'
+                            : ''
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
                         <Badge variant="outline" className="text-xs flex-shrink-0">
                           #{assignment.seatNumber || '-'}
                         </Badge>
+                        {assignment.isTableDirector && (
+                          <Shield className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                        )}
                         <span className="text-sm font-medium truncate">
                           {assignment.player?.nickname || 'Joueur inconnu'}
                         </span>
                       </div>
-                      {assignment.isEliminated && (
-                        <Badge variant="secondary" className="text-xs flex-shrink-0">
-                          Éliminé
-                        </Badge>
-                      )}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {assignment.isEliminated ? (
+                          <Badge variant="secondary" className="text-xs">
+                            Éliminé
+                          </Badge>
+                        ) : !readOnly && (
+                          <button
+                            onClick={() => handleToggleDirector(
+                              assignment.tableNumber,
+                              assignment.playerId,
+                              !!assignment.isTableDirector
+                            )}
+                            disabled={togglingDirector === assignment.playerId}
+                            className={`p-1 rounded-md transition-colors ${
+                              assignment.isTableDirector
+                                ? 'text-amber-600 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-900'
+                                : 'text-muted-foreground hover:text-amber-600 hover:bg-muted'
+                            }`}
+                            title={assignment.isTableDirector ? 'Retirer DT' : 'Désigner DT'}
+                          >
+                            <Shield className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}
