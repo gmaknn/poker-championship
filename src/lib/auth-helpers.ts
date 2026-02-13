@@ -393,6 +393,13 @@ export async function requireTournamentPermission(
 
   // Pour les actions de gestion (registrations, timer, eliminations, rebuys, finalize)
   if (action === 'manage') {
+    // ANIMATOR peut enregistrer les busts/élims depuis la vue DT table
+    const isAnimator = player.role === PlayerRole.ANIMATOR
+      || player.additionalRoles?.includes(PlayerRole.ANIMATOR);
+    if (isAnimator) {
+      return { success: true, player };
+    }
+
     // Vérifier si le joueur est TD assigné à ce tournoi
     let isAssignedDirector = false;
     if (tournamentId) {

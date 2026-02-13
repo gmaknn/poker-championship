@@ -13,7 +13,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Grid3x3, Shuffle, RefreshCw, Trash2, Users } from 'lucide-react';
+import { Grid3x3, Shuffle, RefreshCw, Trash2, Users, QrCode, Printer } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 type Player = {
   id: string;
@@ -61,6 +62,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRebalancing, setIsRebalancing] = useState(false);
   const [isRebalanceDialogOpen, setIsRebalanceDialogOpen] = useState(false);
+  const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -296,6 +298,14 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
             <Button
               variant="outline"
               size="sm"
+              onClick={() => setIsQRDialogOpen(true)}
+            >
+              <QrCode className="mr-2 h-4 w-4" />
+              QR Codes
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setIsRebalanceDialogOpen(true)}
               disabled={isRebalancing}
             >
@@ -403,6 +413,87 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
             </Button>
             <Button onClick={handleGenerateTables} disabled={isGenerating}>
               {isGenerating ? 'Génération...' : 'Régénérer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Codes dialog */}
+      <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>QR Codes des tables</DialogTitle>
+            <DialogDescription>
+              Chaque QR code renvoie vers la vue DT de la table correspondante
+            </DialogDescription>
+          </DialogHeader>
+
+          <div id="qr-codes-grid" className="grid grid-cols-2 md:grid-cols-3 gap-6 py-4">
+            {tablesData.tables.map((table) => {
+              const qrUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/director/${tournamentId}/table/${table.tableNumber}`;
+              return (
+                <div key={table.tableNumber} className="flex flex-col items-center gap-2 p-4 border rounded-lg">
+                  <QRCodeSVG
+                    value={qrUrl}
+                    size={160}
+                    level="M"
+                    includeMargin
+                  />
+                  <p className="text-sm font-bold">Table {table.tableNumber}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {table.activePlayers} joueur{table.activePlayers > 1 ? 's' : ''}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsQRDialogOpen(false)}
+            >
+              Fermer
+            </Button>
+            <Button
+              onClick={() => {
+                const printWindow = window.open('', '_blank');
+                if (!printWindow) return;
+
+                const qrHtml = tablesData.tables.map((table) => {
+                  const qrUrl = `${window.location.origin}/director/${tournamentId}/table/${table.tableNumber}`;
+                  return `
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px;border:1px solid #ddd;border-radius:8px;break-inside:avoid;">
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}" width="200" height="200" />
+                      <strong style="font-size:18px;">Table ${table.tableNumber}</strong>
+                      <span style="font-size:12px;color:#666;">${table.activePlayers} joueur${table.activePlayers > 1 ? 's' : ''}</span>
+                    </div>
+                  `;
+                }).join('');
+
+                printWindow.document.write(`
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <title>QR Codes Tables</title>
+                    <style>
+                      body { font-family: sans-serif; padding: 20px; }
+                      .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+                      @media print { body { padding: 10px; } }
+                    </style>
+                  </head>
+                  <body>
+                    <h1 style="text-align:center;margin-bottom:20px;">QR Codes - Tables</h1>
+                    <div class="grid">${qrHtml}</div>
+                    <script>window.onload = function() { window.print(); }</script>
+                  </body>
+                  </html>
+                `);
+                printWindow.document.close();
+              }}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimer
             </Button>
           </DialogFooter>
         </DialogContent>
