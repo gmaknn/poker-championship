@@ -385,7 +385,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                         assignment.isEliminated
                           ? 'bg-muted text-muted-foreground line-through'
                           : assignment.isTableDirector
-                            ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700'
+                            ? 'bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-600 text-amber-900 dark:text-amber-100'
                             : ''
                       }`}
                     >
