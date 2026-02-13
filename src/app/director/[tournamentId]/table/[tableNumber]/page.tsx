@@ -279,8 +279,8 @@ export default function DirectorTablePage({
       const data = await res.json();
       setDialogOpen(false);
 
-      // After a bust, show recave dialog if recaves are still open
-      if (dialogType === 'bust' && data.bustEvent && timerState.recavesOpen) {
+      // After a bust, show recave dialog if recaves are open or during voluntary rebuy period
+      if (dialogType === 'bust' && data.bustEvent && (timerState.recavesOpen || timerState.isVoluntaryRebuyPeriod)) {
         setLastBustEvent(data.bustEvent);
         setRecaveError('');
         setRecaveDialogOpen(true);
@@ -347,9 +347,7 @@ export default function DirectorTablePage({
     }
   };
 
-  const handleRecaveFromList = async (playerId: string) => {
-    // Find the most recent bust for this player to apply recave
-    // We use the rebuys endpoint directly with STANDARD type
+  const handleRecaveFromList = async (playerId: string, type: 'STANDARD' | 'LIGHT' = 'STANDARD') => {
     setRecaveSubmitting(true);
     setRecaveError('');
 
@@ -361,7 +359,7 @@ export default function DirectorTablePage({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             playerId,
-            type: 'STANDARD',
+            type,
           }),
         }
       );
@@ -442,12 +440,17 @@ export default function DirectorTablePage({
                   En cours
                 </Badge>
               )}
-              {isInProgress && timerState.recavesOpen && (
+              {isInProgress && timerState.recavesOpen && !timerState.isVoluntaryRebuyPeriod && (
                 <Badge variant="outline" className="text-xs text-orange-600 border-orange-600">
                   Recaves ouvertes
                 </Badge>
               )}
-              {isInProgress && !timerState.recavesOpen && (
+              {isInProgress && timerState.isVoluntaryRebuyPeriod && (
+                <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-600">
+                  Pause fin de recaves
+                </Badge>
+              )}
+              {isInProgress && !timerState.recavesOpen && !timerState.isVoluntaryRebuyPeriod && (
                 <Badge variant="outline" className="text-xs text-red-600 border-red-600">
                   Recaves fermées
                 </Badge>
@@ -494,7 +497,7 @@ export default function DirectorTablePage({
               </div>
               {isInProgress && (
                 <div className="flex gap-2">
-                  {timerState.recavesOpen ? (
+                  {(timerState.recavesOpen || timerState.isVoluntaryRebuyPeriod) ? (
                     <Button
                       className="flex-1 h-14 text-lg bg-orange-600 hover:bg-orange-700 text-white"
                       onClick={() => openDialog(assignment, 'bust')}
@@ -528,7 +531,7 @@ export default function DirectorTablePage({
           <>
             <div className="pt-4 pb-2">
               <p className="text-sm font-medium text-muted-foreground">
-                {timerState.recavesOpen
+                {(timerState.recavesOpen || timerState.isVoluntaryRebuyPeriod)
                   ? `Joueurs bustés (${eliminatedPlayers.length})`
                   : `Joueurs éliminés (${eliminatedPlayers.length})`
                 }
@@ -562,7 +565,7 @@ export default function DirectorTablePage({
                         {player?.nickname || 'Joueur inconnu'}
                       </p>
                     </div>
-                    {timerState.recavesOpen ? (
+                    {timerState.recavesOpen && !timerState.isVoluntaryRebuyPeriod ? (
                       <Button
                         size="sm"
                         className="bg-green-600 hover:bg-green-700 text-white shrink-0"
@@ -576,6 +579,31 @@ export default function DirectorTablePage({
                         )}
                         Recave
                       </Button>
+                    ) : timerState.isVoluntaryRebuyPeriod ? (
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleRecaveFromList(assignment.playerId, 'STANDARD')}
+                          disabled={recaveSubmitting}
+                        >
+                          {recaveSubmitting ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : null}
+                          Full
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                          onClick={() => handleRecaveFromList(assignment.playerId, 'LIGHT')}
+                          disabled={recaveSubmitting}
+                        >
+                          {recaveSubmitting ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : null}
+                          Light
+                        </Button>
+                      </div>
                     ) : (
                       <Badge variant="secondary" className="text-xs">
                         Éliminé
@@ -677,30 +705,49 @@ export default function DirectorTablePage({
           </DialogHeader>
 
           <div className="space-y-3 py-4">
-            <Button
-              className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => handleRecave('STANDARD')}
-              disabled={recaveSubmitting}
-            >
-              {recaveSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCcw className="mr-2 h-5 w-5" />
-              )}
-              Recave complète (10€)
-            </Button>
-            <Button
-              className="w-full h-14 text-lg bg-yellow-600 hover:bg-yellow-700 text-white"
-              onClick={() => handleRecave('LIGHT')}
-              disabled={recaveSubmitting}
-            >
-              {recaveSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <RotateCcw className="mr-2 h-5 w-5" />
-              )}
-              Recave light (5€)
-            </Button>
+            {timerState.isVoluntaryRebuyPeriod ? (
+              <>
+                {/* Pause fin de recaves : choix Full / Light */}
+                <Button
+                  className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => handleRecave('STANDARD')}
+                  disabled={recaveSubmitting}
+                >
+                  {recaveSubmitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-2 h-5 w-5" />
+                  )}
+                  Recave complète (10€)
+                </Button>
+                <Button
+                  className="w-full h-14 text-lg bg-yellow-600 hover:bg-yellow-700 text-white"
+                  onClick={() => handleRecave('LIGHT')}
+                  disabled={recaveSubmitting}
+                >
+                  {recaveSubmitting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RotateCcw className="mr-2 h-5 w-5" />
+                  )}
+                  Recave light (5€)
+                </Button>
+              </>
+            ) : (
+              /* Période normale : recave standard uniquement */
+              <Button
+                className="w-full h-14 text-lg bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => handleRecave('STANDARD')}
+                disabled={recaveSubmitting}
+              >
+                {recaveSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RotateCcw className="mr-2 h-5 w-5" />
+                )}
+                Recave (10€)
+              </Button>
+            )}
 
             {recaveError && (
               <div className="text-sm text-destructive bg-destructive/10 p-3 rounded">
