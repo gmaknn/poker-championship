@@ -383,9 +383,9 @@ describe('POST /api/tournaments/[id]/rebuys - Business Rules', () => {
       expect(data.error).toContain('Période de recaves terminée');
     });
 
-    it('should reject STANDARD rebuy during break after rebuyEndLevel (non-regression)', async () => {
+    it('should allow STANDARD rebuy during break after rebuyEndLevel (pause fin de recave)', async () => {
       // rebuyEndLevel = 1, effectiveLevel = 2 (break)
-      // STANDARD rebuy should still be rejected during break
+      // STANDARD rebuy should be allowed during break (recave après bust)
       (mockPrisma.tournament.findUnique as jest.Mock).mockResolvedValue({
         ...mockTournament,
         currentLevel: 2,
@@ -417,9 +417,7 @@ describe('POST /api/tournaments/[id]/rebuys - Business Rules', () => {
 
       const response = await POST(request, { params: Promise.resolve({ id: tournamentId }) });
 
-      expect(response.status).toBe(400);
-      const data = await response.json();
-      expect(data.error).toContain('Période de recaves terminée');
+      expect(response.status).toBe(200);
     });
   });
 
