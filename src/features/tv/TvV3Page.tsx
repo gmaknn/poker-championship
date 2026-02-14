@@ -12,12 +12,14 @@ import { CircularTimer } from '@/components/CircularTimer';
 import { Volume2, Gauge, Camera, Share2, Download, Palette, MessageSquare } from 'lucide-react';
 import { capturePodiumPhoto, sharePodiumPhoto } from '@/lib/podiumPhotoGenerator';
 import { TV_THEMES, getSavedTheme, saveTheme, applyThemeToElement, type TVTheme } from '@/lib/tvThemes';
+import { normalizeAvatarSrc } from '@/lib/utils';
 
 type Player = {
   id: string;
   firstName: string;
   lastName: string;
   nickname: string;
+  avatar?: string | null;
 };
 
 type TournamentPlayer = {
@@ -145,6 +147,14 @@ type TablesPlanResponse = {
   totalPlayers: number;
 };
 
+type RecentRebuy = {
+  playerId: string;
+  playerName: string;
+  avatar?: string | null;
+  type: 'standard' | 'light';
+  time: Date;
+};
+
 interface TvV3PageProps {
   tournamentId: string;
 }
@@ -220,6 +230,9 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   // Auto-resume countdown state
   const [autoResumeCountdown, setAutoResumeCountdown] = useState<number | null>(null);
   const autoResumeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Recent rebuyers (last 3)
+  const [recentRebuys, setRecentRebuys] = useState<RecentRebuy[]>([]);
 
   // Elimination notification state
   const [eliminationNotification, setEliminationNotification] = useState<{
@@ -469,14 +482,26 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
   useTournamentEvent(tournamentId, 'tournament:timer-auto-resume', handleAutoResume);
 
-  // Listen for rebuy events to play slot machine sound
-  const handleRebuyEvent = useCallback(() => {
-    console.log('[Rebuy] Playing slot machine sound');
+  // Listen for rebuy events to play slot machine sound + track recent rebuyers
+  const addRecentRebuy = useCallback((playerId: string, playerName: string, type: 'standard' | 'light') => {
     playSlotMachineSound();
-  }, []);
+    const avatar = resultsData?.results.find(p => p.playerId === playerId)?.player.avatar;
+    setRecentRebuys(prev => [
+      { playerId, playerName, avatar, type, time: new Date() },
+      ...prev.filter(r => r.playerId !== playerId),
+    ].slice(0, 3));
+  }, [resultsData]);
 
-  useTournamentEvent(tournamentId, 'rebuy:applied', handleRebuyEvent);
-  useTournamentEvent(tournamentId, 'rebuy:recorded', handleRebuyEvent);
+  const handleRebuyApplied = useCallback((data: { playerId: string; playerName: string }) => {
+    addRecentRebuy(data.playerId, data.playerName, 'standard');
+  }, [addRecentRebuy]);
+
+  const handleRebuyRecorded = useCallback((data: { playerId: string; playerName: string; rebuyType: 'standard' | 'light' }) => {
+    addRecentRebuy(data.playerId, data.playerName, data.rebuyType);
+  }, [addRecentRebuy]);
+
+  useTournamentEvent(tournamentId, 'rebuy:applied', handleRebuyApplied);
+  useTournamentEvent(tournamentId, 'rebuy:recorded', handleRebuyRecorded);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -1698,6 +1723,48 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                       </span>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Dernières Recaves */}
+            {recentRebuys.length > 0 && (
+              <div className="border-2 border-cyan-500 rounded-2xl p-4">
+                <div className="flex items-center gap-3 mb-4 justify-center">
+                  <span className="text-3xl">🔄</span>
+                  <h3 className="text-xl font-bold text-cyan-400 uppercase tracking-wide">Dernières Recaves</h3>
+                </div>
+                <div className="space-y-3">
+                  {recentRebuys.map((rebuy, index) => {
+                    const avatarSrc = normalizeAvatarSrc(rebuy.avatar);
+                    return (
+                      <div key={`${rebuy.playerId}-${index}`} className="flex items-center gap-3">
+                        {avatarSrc ? (
+                          <img
+                            src={avatarSrc}
+                            alt={rebuy.playerName}
+                            className="w-8 h-8 rounded-full border border-white/30 flex-shrink-0"
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                            <Users className="h-4 w-4 text-white/50" />
+                          </div>
+                        )}
+                        <span className="text-white font-bold text-lg flex-1 truncate">
+                          {rebuy.playerName}
+                        </span>
+                        <div className="flex flex-col items-end flex-shrink-0">
+                          <span className={`text-sm font-bold ${rebuy.type === 'light' ? 'text-yellow-400' : 'text-cyan-400'}`}>
+                            {rebuy.type === 'light' ? 'Light' : 'Full'}
+                          </span>
+                          <span className="text-xs text-white/50">
+                            {format(rebuy.time, 'HH:mm')}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
