@@ -83,16 +83,11 @@ export async function POST(
     );
 
     // Guard: période de recaves terminée
-    // - STANDARD: bloqué si effectiveLevel > rebuyEndLevel, SAUF pour rebuy volontaire pendant pause
-    // - LIGHT: autorisé pendant la pause juste après rebuyEndLevel
+    // Pendant la pause juste après rebuyEndLevel (isVoluntaryRebuyPeriod):
+    // - STANDARD ET LIGHT sont autorisés (recave après bust ou rebuy volontaire)
+    // Après la pause: tout est bloqué
     if (tournament.rebuyEndLevel && effectiveLevel > tournament.rebuyEndLevel) {
-      // Autorisé pendant la pause après rebuyEndLevel pour:
-      // - Les LIGHT (half rebuy post-fin recaves)
-      // - Les rebuy volontaires (STANDARD ou LIGHT selon le stack)
-      const isAllowedDuringBreak = inBreakAfterRebuy && (
-        validatedData.type === 'LIGHT' || validatedData.isVoluntary
-      );
-      if (!isAllowedDuringBreak) {
+      if (!inBreakAfterRebuy) {
         return NextResponse.json(
           { error: 'Période de recaves terminée' },
           { status: 400 }
