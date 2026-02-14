@@ -473,15 +473,19 @@ export async function checkIsTableDirector(
   playerId: string,
   tournamentId: string
 ): Promise<boolean> {
-  const assignment = await prisma.tableAssignment.findFirst({
-    where: {
-      tournamentId,
-      playerId,
-      isTableDirector: true,
-      isActive: true,
-    },
-  });
-  return assignment !== null;
+  try {
+    const assignment = await prisma.tableAssignment.findFirst({
+      where: {
+        tournamentId,
+        playerId,
+        isTableDirector: true,
+        isActive: true,
+      },
+    });
+    return assignment !== null;
+  } catch {
+    return false;
+  }
 }
 
 /**
