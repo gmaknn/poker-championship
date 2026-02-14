@@ -89,7 +89,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
     }
   };
 
-  const handleGenerateTables = async () => {
+  const handleGenerateTables = async (force = false) => {
     setIsGenerating(true);
     setError('');
 
@@ -97,7 +97,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       const response = await fetch(`/api/tournaments/${tournamentId}/tables`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seatsPerTable }),
+        body: JSON.stringify({ seatsPerTable, force }),
       });
 
       if (response.ok) {
@@ -278,7 +278,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
               >
                 Annuler
               </Button>
-              <Button onClick={handleGenerateTables} disabled={isGenerating}>
+              <Button onClick={() => handleGenerateTables()} disabled={isGenerating}>
                 {isGenerating ? 'Génération...' : 'Générer'}
               </Button>
             </DialogFooter>
@@ -444,6 +444,10 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+              Les assignations actuelles ({tablesData.totalTables} table{tablesData.totalTables > 1 ? 's' : ''}, {tablesData.activePlayers} joueur{tablesData.activePlayers > 1 ? 's' : ''} actif{tablesData.activePlayers > 1 ? 's' : ''}) seront supprimées et remplacées par une nouvelle distribution aléatoire.
+              Les désignations de Directeurs de Table seront perdues.
+            </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Nombre de places par table</label>
               <Input
@@ -463,8 +467,8 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
             >
               Annuler
             </Button>
-            <Button onClick={handleGenerateTables} disabled={isGenerating}>
-              {isGenerating ? 'Génération...' : 'Régénérer'}
+            <Button variant="destructive" onClick={() => handleGenerateTables(true)} disabled={isGenerating}>
+              {isGenerating ? 'Régénération...' : 'Confirmer la régénération'}
             </Button>
           </DialogFooter>
         </DialogContent>
