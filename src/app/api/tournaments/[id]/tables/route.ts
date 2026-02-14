@@ -5,6 +5,7 @@ import { requireTournamentPermission } from '@/lib/auth-helpers';
 
 const generateTablesSchema = z.object({
   seatsPerTable: z.number().int().min(2).max(10),
+  force: z.boolean().optional(),
 });
 
 // GET - Récupérer la distribution actuelle des tables
@@ -163,13 +164,14 @@ export async function POST(
       },
     });
 
-    if (existingAssignments > 0) {
+    if (existingAssignments > 0 && !validatedData.force) {
       return NextResponse.json(
         {
           error:
             'Table assignments already exist. Delete existing assignments first or use rebalance endpoint.',
+          code: 'ASSIGNMENTS_EXIST',
         },
-        { status: 400 }
+        { status: 409 }
       );
     }
 
