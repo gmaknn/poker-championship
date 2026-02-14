@@ -400,6 +400,14 @@ export async function requireTournamentPermission(
       return { success: true, player };
     }
 
+    // PLAYER Directeur de Table : peut gérer busts/recaves sur son tournoi
+    if (tournamentId && player.role === PlayerRole.PLAYER) {
+      const isTableDir = await checkIsTableDirector(player.id, tournamentId);
+      if (isTableDir) {
+        return { success: true, player };
+      }
+    }
+
     // Vérifier si le joueur est TD assigné à ce tournoi
     let isAssignedDirector = false;
     if (tournamentId) {
@@ -453,6 +461,24 @@ export async function checkIsTournamentDirector(
         tournamentId,
         playerId,
       },
+    },
+  });
+  return assignment !== null;
+}
+
+/**
+ * Vérifie si un joueur est Directeur de Table (isTableDirector) sur un tournoi
+ */
+export async function checkIsTableDirector(
+  playerId: string,
+  tournamentId: string
+): Promise<boolean> {
+  const assignment = await prisma.tableAssignment.findFirst({
+    where: {
+      tournamentId,
+      playerId,
+      isTableDirector: true,
+      isActive: true,
     },
   });
   return assignment !== null;
