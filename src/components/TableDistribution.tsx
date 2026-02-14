@@ -13,7 +13,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Grid3x3, Shuffle, RefreshCw, Trash2, Users, QrCode, Printer, Shield } from 'lucide-react';
+import { Grid3x3, Shuffle, RefreshCw, Trash2, Users, QrCode, Printer, Shield, Crosshair } from 'lucide-react';
+import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 
 type Player = {
@@ -366,9 +367,21 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
             <CardHeader className="px-4 sm:px-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">Table {table.tableNumber}</CardTitle>
-                <Badge variant={table.activePlayers > 0 ? 'default' : 'secondary'}>
-                  {table.activePlayers} joueur{table.activePlayers > 1 ? 's' : ''}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={table.activePlayers > 0 ? 'default' : 'secondary'}>
+                    {table.activePlayers} joueur{table.activePlayers > 1 ? 's' : ''}
+                  </Badge>
+                  {!readOnly && (
+                    <Link
+                      href={`/director/${tournamentId}/table/${table.tableNumber}`}
+                      title="Gérer les éliminations de cette table"
+                    >
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Crosshair className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="px-4 sm:px-6">
