@@ -83,10 +83,29 @@ export async function POST(
     const validatedData = blindStructureSchema.parse(body);
     console.log('[Blinds API] Validation successful, levels count:', validatedData.levels.length);
 
+    // Validation: isRebuyEnd uniquement sur les pauses
+    const invalidRebuyEnd = validatedData.levels.filter(l => l.isRebuyEnd && !l.isBreak);
+    if (invalidRebuyEnd.length > 0) {
+      return NextResponse.json(
+        { error: 'Le flag "Fin de Recave" ne peut être défini que sur une pause' },
+        { status: 400 }
+      );
+    }
+
+    // Max 1 pause fin de recave
+    const rebuyEndBreaks = validatedData.levels.filter(l => l.isRebuyEnd && l.isBreak);
+    if (rebuyEndBreaks.length > 1) {
+      return NextResponse.json(
+        { error: 'Une seule pause peut être marquée "Fin de Recave"' },
+        { status: 400 }
+      );
+    }
+
     console.log('[Blinds API] Tournament found, starting transaction');
 
-    // Trouver le niveau qui marque la fin des recaves (isRebuyEnd: true)
-    const rebuyEndLevel = validatedData.levels.find((level) => level.isRebuyEnd)?.level ?? null;
+    // Calcul: rebuyEndLevel = niveau AVANT la pause fin de recave
+    const rebuyEndBreak = rebuyEndBreaks[0];
+    const rebuyEndLevel = rebuyEndBreak ? rebuyEndBreak.level - 1 : null;
     console.log('[Blinds API] rebuyEndLevel calculated:', rebuyEndLevel);
 
     // Supprimer les niveaux existants et créer les nouveaux
