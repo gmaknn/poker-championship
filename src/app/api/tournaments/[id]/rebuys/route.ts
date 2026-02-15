@@ -124,6 +124,7 @@ export async function POST(
     // Si isVoluntary=true, le type de rebuy est déterminé par le stack actuel:
     // - stack >= 3500 -> LIGHT (half rebuy, 5€)
     // - stack < 3500 -> STANDARD (full rebuy, 10€)
+    // LIMITE: 1 seul rebuy volontaire par joueur pendant la pause (Light OU Full)
     let effectiveType = validatedData.type;
     let voluntaryStackUpdate: number | null = null;
 
@@ -132,6 +133,16 @@ export async function POST(
       if (validatedData.currentStack === undefined) {
         return NextResponse.json(
           { error: 'Le stack actuel est requis pour un rebuy volontaire' },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier la limite : 1 seul rebuy volontaire par joueur
+      // Un joueur a déjà fait un rebuy volontaire s'il a lightRebuyUsed OU voluntaryFullRebuyUsed
+      const hasVoluntaryRebuy = tournamentPlayer.lightRebuyUsed || tournamentPlayer.voluntaryFullRebuyUsed;
+      if (hasVoluntaryRebuy) {
+        return NextResponse.json(
+          { error: 'Ce joueur a déjà utilisé son rebuy volontaire' },
           { status: 400 }
         );
       }
@@ -193,6 +204,13 @@ export async function POST(
       // Re-vérifier joueur non éliminé (race-safe)
       if (currentPlayer.finalRank !== null) {
         throw new Error('PLAYER_ELIMINATED');
+      }
+
+      // Re-vérifier limite rebuy volontaire (race-safe) : 1 seul par joueur
+      if (validatedData.isVoluntary) {
+        if (currentPlayer.lightRebuyUsed || currentPlayer.voluntaryFullRebuyUsed) {
+          throw new Error('VOLUNTARY_REBUY_ALREADY_USED');
+        }
       }
 
       // Re-vérifier max rebuys (race-safe)
@@ -339,6 +357,12 @@ export async function POST(
       if (error.message === 'MAX_REBUYS_REACHED') {
         return NextResponse.json(
           { error: 'Maximum rebuys reached' },
+          { status: 400 }
+        );
+      }
+      if (error.message === 'VOLUNTARY_REBUY_ALREADY_USED') {
+        return NextResponse.json(
+          { error: 'Ce joueur a déjà utilisé son rebuy volontaire' },
           { status: 400 }
         );
       }
