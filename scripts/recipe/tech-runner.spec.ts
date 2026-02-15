@@ -460,8 +460,9 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
       { level: 1, smallBlind: 25, bigBlind: 50, ante: 0, duration: 12, isBreak: false, rebalanceTables: false, isRebuyEnd: false },
       { level: 2, smallBlind: 50, bigBlind: 100, ante: 0, duration: 12, isBreak: false, rebalanceTables: false, isRebuyEnd: false },
       { level: 3, smallBlind: 75, bigBlind: 150, ante: 25, duration: 12, isBreak: false, rebalanceTables: true, isRebuyEnd: false },
-      { level: 4, smallBlind: 100, bigBlind: 200, ante: 25, duration: 12, isBreak: false, rebalanceTables: false, isRebuyEnd: true },
-      { level: 5, smallBlind: 150, bigBlind: 300, ante: 50, duration: 12, isBreak: false, rebalanceTables: false, isRebuyEnd: false },
+      { level: 4, smallBlind: 0, bigBlind: 0, ante: 0, duration: 10, isBreak: true, rebalanceTables: false, isRebuyEnd: true },
+      { level: 5, smallBlind: 100, bigBlind: 200, ante: 25, duration: 12, isBreak: false, rebalanceTables: false, isRebuyEnd: false },
+      { level: 6, smallBlind: 150, bigBlind: 300, ante: 50, duration: 12, isBreak: false, rebalanceTables: false, isRebuyEnd: false },
     ];
 
     const response = await apiContext.post(`${BASE_URL}/api/tournaments/${tournamentId}/blinds`, {
@@ -500,7 +501,7 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
       const levels = (result.data as { levels?: unknown[] }).levels || result.data;
       if (Array.isArray(levels)) {
         const level3 = levels.find((l: { level?: number }) => l.level === 3) as { rebalanceTables?: boolean } | undefined;
-        const level4 = levels.find((l: { level?: number }) => l.level === 4) as { isRebuyEnd?: boolean } | undefined;
+        const level4 = levels.find((l: { level?: number }) => l.level === 4) as { isBreak?: boolean; isRebuyEnd?: boolean } | undefined;
 
         if (level3?.rebalanceTables === true) {
           logResult({ step: '07.2 - Flag rebalanceTables persistant sur niveau 3', status: 'OK' });
@@ -512,13 +513,13 @@ test.describe.serial('RECETTE TECHNIQUE - Poker Championship (PROD-SAFE)', () =>
           });
         }
 
-        if (level4?.isRebuyEnd === true) {
-          logResult({ step: '07.3 - Flag isRebuyEnd persistant sur niveau 4', status: 'OK' });
+        if (level4?.isBreak === true && level4?.isRebuyEnd === true) {
+          logResult({ step: '07.3 - Pause Fin de Recave persistante sur niveau 4 (isBreak + isRebuyEnd)', status: 'OK' });
         } else {
           logResult({
-            step: '07.3 - Flag isRebuyEnd persistant sur niveau 4',
+            step: '07.3 - Pause Fin de Recave persistante sur niveau 4',
             status: 'KO',
-            details: `isRebuyEnd: ${level4?.isRebuyEnd}`,
+            details: `isBreak: ${level4?.isBreak}, isRebuyEnd: ${level4?.isRebuyEnd}`,
           });
         }
       }

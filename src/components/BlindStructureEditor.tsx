@@ -346,6 +346,27 @@ export default function BlindStructureEditor({
     setHasUnsavedChanges(true); // Mark as unsaved
   };
 
+  const handleAddRebuyEndBreak = () => {
+    // Max 1 pause fin de recave
+    if (levels.some(l => l.isBreak && l.isRebuyEnd)) {
+      return;
+    }
+    const newBreak: BlindLevel = {
+      level: levels.length + 1,
+      smallBlind: 0,
+      bigBlind: 0,
+      ante: 0,
+      duration: 10,
+      isBreak: true,
+      rebalanceTables: false,
+      isRebuyEnd: true,
+    };
+    const newLevels = [...levels, newBreak];
+    setLevels(newLevels);
+    calculateStats(newLevels);
+    setHasUnsavedChanges(true);
+  };
+
   const handleRemoveLevel = (levelIndex: number) => {
     const newLevels = levels
       .filter((_, index) => index !== levelIndex)
@@ -606,7 +627,16 @@ export default function BlindStructureEditor({
               </Button>
               <Button variant="outline" onClick={handleAddBreak} className="flex-1">
                 <Coffee className="mr-2 h-4 w-4" />
-                Ajouter une pause
+                Pause
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleAddRebuyEndBreak}
+                className="flex-1"
+                disabled={levels.some(l => l.isBreak && l.isRebuyEnd)}
+              >
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Pause Fin Recave
               </Button>
             </div>
           )}
@@ -615,7 +645,7 @@ export default function BlindStructureEditor({
           <div className="max-h-[600px] overflow-auto rounded-lg border">
             <div className="min-w-[700px]">
               {/* Sticky header - ink style */}
-              <div className="grid grid-cols-[32px_44px_1fr_1fr_1fr_70px_80px_90px_50px] md:grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-3 font-medium text-sm bg-ink text-ink-foreground sticky top-0 z-10 border-b border-border">
+              <div className="grid grid-cols-[32px_44px_1fr_1fr_1fr_70px_80px_50px] md:grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_70px] gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-3 font-medium text-sm bg-ink text-ink-foreground sticky top-0 z-10 border-b border-border">
                 <div></div>
                 <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Niv.</div>
                 <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">SB</div>
@@ -623,7 +653,6 @@ export default function BlindStructureEditor({
                 <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Ante</div>
                 <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Durée</div>
                 <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70 hidden sm:block">Réassign.</div>
-                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70 hidden sm:block">Fin recaves</div>
                 <div></div>
               </div>
 
@@ -658,7 +687,7 @@ export default function BlindStructureEditor({
                 <Card
                   key={index}
                   className={`
-                    ${level.isBreak ? 'bg-amber-500/10 border-amber-500/30 shadow-sm' : ''}
+                    ${level.isBreak && level.isRebuyEnd ? 'bg-orange-500/10 border-orange-500/30 shadow-sm' : level.isBreak ? 'bg-amber-500/10 border-amber-500/30 shadow-sm' : ''}
                     ${draggedIndex === index ? 'opacity-50' : ''}
                     ${dragOverIndex === index ? 'border-primary border-2' : ''}
                     cursor-move transition-all
@@ -676,13 +705,13 @@ export default function BlindStructureEditor({
                         <div className="flex justify-center cursor-grab active:cursor-grabbing">
                           <GripVertical className="h-5 w-5 text-muted-foreground" />
                         </div>
-                        <Badge variant="outline" className="justify-center bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300">
+                        <Badge variant="outline" className={`justify-center ${level.isRebuyEnd ? 'bg-orange-500/20 border-orange-500/40 text-orange-700 dark:text-orange-300' : 'bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300'}`}>
                           <Coffee className="h-3 w-3 mr-1" />
                           {level.level}
                         </Badge>
-                        <div className="col-span-1 flex items-center gap-2 text-amber-700 dark:text-amber-300 font-semibold text-lg">
+                        <div className={`col-span-1 flex items-center gap-2 font-semibold text-lg ${level.isRebuyEnd ? 'text-orange-700 dark:text-orange-300' : 'text-amber-700 dark:text-amber-300'}`}>
                           <Coffee className="h-5 w-5" />
-                          PAUSE
+                          {level.isRebuyEnd ? 'PAUSE FIN DE RECAVE' : 'PAUSE'}
                         </div>
                         <div className="flex items-center gap-2">
                           <Input
@@ -695,7 +724,7 @@ export default function BlindStructureEditor({
                                 parseInt(e.target.value) || 0
                               )
                             }
-                            className="border-amber-500/30"
+                            className={level.isRebuyEnd ? 'border-orange-500/30' : 'border-amber-500/30'}
                           />
                           <span className="text-sm text-muted-foreground font-medium">min</span>
                         </div>
@@ -711,7 +740,7 @@ export default function BlindStructureEditor({
                         </Button>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-[32px_44px_1fr_1fr_1fr_70px_80px_90px_50px] md:grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_110px_70px] gap-2 md:gap-3 items-center">
+                      <div className="grid grid-cols-[32px_44px_1fr_1fr_1fr_70px_80px_50px] md:grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_70px] gap-2 md:gap-3 items-center">
                         <div className="flex justify-center cursor-grab active:cursor-grabbing">
                           <GripVertical className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
                         </div>
@@ -786,22 +815,6 @@ export default function BlindStructureEditor({
                             <span className="hidden lg:inline">Tables</span>
                           </label>
                         </div>
-                        <div className="hidden sm:flex items-center gap-1">
-                          <Checkbox
-                            id={`rebuy-end-${index}`}
-                            checked={level.isRebuyEnd || false}
-                            onCheckedChange={(checked) =>
-                              handleLevelChange(index, 'isRebuyEnd', checked === true)
-                            }
-                          />
-                          <label
-                            htmlFor={`rebuy-end-${index}`}
-                            className="text-[10px] md:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer"
-                          >
-                            <AlertCircle className="h-3 w-3" />
-                            <span className="hidden lg:inline">Fin</span>
-                          </label>
-                        </div>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -834,7 +847,16 @@ export default function BlindStructureEditor({
               </Button>
               <Button variant="outline" onClick={handleAddBreak} className="flex-1">
                 <Coffee className="mr-2 h-4 w-4" />
-                Ajouter une pause
+                Pause
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleAddRebuyEndBreak}
+                className="flex-1"
+                disabled={levels.some(l => l.isBreak && l.isRebuyEnd)}
+              >
+                <AlertCircle className="mr-2 h-4 w-4" />
+                Pause Fin Recave
               </Button>
             </div>
           )}
