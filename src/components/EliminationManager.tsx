@@ -511,8 +511,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
       {/* Indicateur état des recaves - sticky en mobile */}
       {tournament && (
-        <Card className={`${recavesOpen ? 'border-amber-500 bg-amber-500/5' : 'border-red-500 bg-red-500/5'} sticky top-[53px] md:top-0 z-20`}>
-          <CardContent className="flex items-center gap-3 py-3 px-4">
+        <Card className={`${recavesOpen ? 'border-amber-500 bg-amber-500/5' : 'border-red-500 bg-red-500/5'} sticky top-[53px] md:top-0 z-20 shadow-md bg-background`}>
+          <CardContent className="flex items-center gap-3 py-3 px-4 !pb-3">
             {recavesOpen ? (
               <>
                 <RefreshCw className="h-5 w-5 md:h-6 md:w-6 text-amber-500 flex-shrink-0" />
@@ -812,8 +812,12 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             <div className="space-y-2">
               {activePlayers.map((p) => {
                 const rebuyType = getVoluntaryRebuyType(p.playerId);
-                // Un joueur ne peut faire qu'UN SEUL rebuy volontaire (Light OU Full)
-                const hasUsedVoluntaryRebuy = p.lightRebuyUsed || p.voluntaryFullRebuyUsed;
+                // Un joueur ne peut faire qu'UN SEUL rebuy/recave pendant la pause
+                // Vérifier aussi s'il a recavé après un bust
+                const hasBustRecave = busts.some(
+                  (b) => b.eliminated.playerId === p.playerId && b.recaveApplied
+                );
+                const hasUsedVoluntaryRebuy = p.lightRebuyUsed || p.voluntaryFullRebuyUsed || hasBustRecave;
 
                 return (
                   <div key={p.playerId} className="flex flex-col gap-2 p-3 rounded-lg border">
@@ -836,7 +840,9 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
                     {hasUsedVoluntaryRebuy ? (
                       <p className="text-sm text-muted-foreground italic">
-                        Rebuy volontaire déjà utilisé
+                        {hasBustRecave
+                          ? 'Recave après bust déjà effectuée'
+                          : 'Rebuy volontaire déjà utilisé'}
                       </p>
                     ) : (
                       <>
