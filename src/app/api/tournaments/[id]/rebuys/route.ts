@@ -143,18 +143,22 @@ export async function POST(
       // - OU une recave après bust (bustEvent avec recaveApplied = true)
       const hasVoluntaryRebuy = tournamentPlayer.lightRebuyUsed || tournamentPlayer.voluntaryFullRebuyUsed;
 
-      // Vérifier aussi si le joueur a recavé après un bust pendant la pause
-      const bustWithRecave = await prisma.bustEvent.findFirst({
-        where: {
-          tournamentId,
-          eliminatedId: tournamentPlayer.id,
-          recaveApplied: true,
-        },
-      });
+      // Vérifier aussi si le joueur a recavé après un bust PENDANT la pause
+      // (seuls les busts au niveau >= rebuyEndLevel comptent)
+      const bustWithRecaveDuringPause = tournament.rebuyEndLevel
+        ? await prisma.bustEvent.findFirst({
+            where: {
+              tournamentId,
+              eliminatedId: tournamentPlayer.id,
+              recaveApplied: true,
+              level: { gte: tournament.rebuyEndLevel },
+            },
+          })
+        : null;
 
-      if (hasVoluntaryRebuy || bustWithRecave) {
+      if (hasVoluntaryRebuy || bustWithRecaveDuringPause) {
         return NextResponse.json(
-          { error: bustWithRecave
+          { error: bustWithRecaveDuringPause
             ? 'Ce joueur a déjà recavé après un bust pendant la pause'
             : 'Ce joueur a déjà utilisé son rebuy volontaire' },
           { status: 400 }
@@ -225,16 +229,19 @@ export async function POST(
         if (currentPlayer.lightRebuyUsed || currentPlayer.voluntaryFullRebuyUsed) {
           throw new Error('VOLUNTARY_REBUY_ALREADY_USED');
         }
-        // Vérifier aussi les recaves après bust (race-safe)
-        const bustRecaveDuringPause = await tx.bustEvent.findFirst({
-          where: {
-            tournamentId,
-            eliminatedId: currentPlayer.id,
-            recaveApplied: true,
-          },
-        });
-        if (bustRecaveDuringPause) {
-          throw new Error('BUST_RECAVE_ALREADY_USED');
+        // Vérifier aussi les recaves après bust PENDANT la pause (race-safe)
+        if (tournament.rebuyEndLevel) {
+          const bustRecaveDuringPause = await tx.bustEvent.findFirst({
+            where: {
+              tournamentId,
+              eliminatedId: currentPlayer.id,
+              recaveApplied: true,
+              level: { gte: tournament.rebuyEndLevel },
+            },
+          });
+          if (bustRecaveDuringPause) {
+            throw new Error('BUST_RECAVE_ALREADY_USED');
+          }
         }
       }
 

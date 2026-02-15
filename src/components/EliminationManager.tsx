@@ -812,12 +812,15 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             <div className="space-y-2">
               {activePlayers.map((p) => {
                 const rebuyType = getVoluntaryRebuyType(p.playerId);
-                // Un joueur ne peut faire qu'UN SEUL rebuy/recave pendant la pause
-                // Vérifier aussi s'il a recavé après un bust
-                const hasBustRecave = busts.some(
-                  (b) => b.eliminated.playerId === p.playerId && b.recaveApplied
+                // Un joueur ne peut faire qu'UN SEUL rebuy/recave PENDANT la pause
+                // Seuls les busts au niveau >= rebuyEndLevel comptent (pas ceux d'avant la pause)
+                const hasBustRecaveDuringPause = busts.some(
+                  (b) => b.eliminated.playerId === p.playerId
+                    && b.recaveApplied
+                    && tournament.rebuyEndLevel !== null
+                    && b.level >= tournament.rebuyEndLevel
                 );
-                const hasUsedVoluntaryRebuy = p.lightRebuyUsed || p.voluntaryFullRebuyUsed || hasBustRecave;
+                const hasUsedVoluntaryRebuy = p.lightRebuyUsed || p.voluntaryFullRebuyUsed || hasBustRecaveDuringPause;
 
                 return (
                   <div key={p.playerId} className="flex flex-col gap-2 p-3 rounded-lg border">
@@ -840,7 +843,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
                     {hasUsedVoluntaryRebuy ? (
                       <p className="text-sm text-muted-foreground italic">
-                        {hasBustRecave
+                        {hasBustRecaveDuringPause
                           ? 'Recave après bust déjà effectuée'
                           : 'Rebuy volontaire déjà utilisé'}
                       </p>
