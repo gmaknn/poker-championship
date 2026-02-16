@@ -144,14 +144,14 @@ export async function POST(
       const hasVoluntaryRebuy = tournamentPlayer.lightRebuyUsed || tournamentPlayer.voluntaryFullRebuyUsed;
 
       // Vérifier aussi si le joueur a recavé après un bust PENDANT la pause
-      // (seuls les busts au niveau >= rebuyEndLevel comptent)
+      // (seuls les busts au niveau > rebuyEndLevel comptent, car rebuyEndLevel est le dernier niveau AVANT la pause)
       const bustWithRecaveDuringPause = tournament.rebuyEndLevel
         ? await prisma.bustEvent.findFirst({
             where: {
               tournamentId,
               eliminatedId: tournamentPlayer.id,
               recaveApplied: true,
-              level: { gte: tournament.rebuyEndLevel },
+              level: { gt: tournament.rebuyEndLevel },
             },
           })
         : null;
@@ -236,7 +236,7 @@ export async function POST(
               tournamentId,
               eliminatedId: currentPlayer.id,
               recaveApplied: true,
-              level: { gte: tournament.rebuyEndLevel },
+              level: { gt: tournament.rebuyEndLevel },
             },
           });
           if (bustRecaveDuringPause) {

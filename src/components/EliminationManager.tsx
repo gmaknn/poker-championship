@@ -813,12 +813,12 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               {activePlayers.map((p) => {
                 const rebuyType = getVoluntaryRebuyType(p.playerId);
                 // Un joueur ne peut faire qu'UN SEUL rebuy/recave PENDANT la pause
-                // Seuls les busts au niveau >= rebuyEndLevel comptent (pas ceux d'avant la pause)
+                // Seuls les busts au niveau > rebuyEndLevel comptent (rebuyEndLevel est le dernier niveau AVANT la pause)
                 const hasBustRecaveDuringPause = busts.some(
                   (b) => b.eliminated.playerId === p.playerId
                     && b.recaveApplied
                     && tournament.rebuyEndLevel !== null
-                    && b.level >= tournament.rebuyEndLevel
+                    && b.level > tournament.rebuyEndLevel
                 );
                 const hasUsedVoluntaryRebuy = p.lightRebuyUsed || p.voluntaryFullRebuyUsed || hasBustRecaveDuringPause;
 
