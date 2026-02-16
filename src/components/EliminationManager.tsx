@@ -25,6 +25,7 @@ type TournamentPlayer = {
   leaderKills: number;
   rebuysCount: number;
   lightRebuyUsed: boolean;
+  voluntaryFullRebuyUsed: boolean;
   currentStack: number | null;
   player: Player;
 };
@@ -510,8 +511,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
       {/* Indicateur état des recaves - sticky en mobile */}
       {tournament && (
-        <Card className={`${recavesOpen ? 'border-amber-500 bg-amber-500/5' : 'border-red-500 bg-red-500/5'} sticky top-0 z-10`}>
-          <CardContent className="flex items-center gap-3 py-3 px-4">
+        <Card className={`${recavesOpen ? 'border-amber-500 bg-amber-500/5' : 'border-red-500 bg-red-500/5'} sticky top-[53px] md:top-0 z-20 shadow-md bg-background`}>
+          <CardContent className="flex items-center gap-3 py-3 px-4 !pb-3">
             {recavesOpen ? (
               <>
                 <RefreshCw className="h-5 w-5 md:h-6 md:w-6 text-amber-500 flex-shrink-0" />
@@ -811,8 +812,15 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             <div className="space-y-2">
               {activePlayers.map((p) => {
                 const rebuyType = getVoluntaryRebuyType(p.playerId);
-                const canRebuy = tournament?.maxRebuysPerPlayer === null || p.rebuysCount < (tournament?.maxRebuysPerPlayer || 0);
-                const canLightRebuy = !p.lightRebuyUsed;
+                // Un joueur ne peut faire qu'UN SEUL rebuy/recave PENDANT la pause
+                // Seuls les busts au niveau > rebuyEndLevel comptent (rebuyEndLevel est le dernier niveau AVANT la pause)
+                const hasBustRecaveDuringPause = busts.some(
+                  (b) => b.eliminated.playerId === p.playerId
+                    && b.recaveApplied
+                    && tournament.rebuyEndLevel !== null
+                    && b.level > tournament.rebuyEndLevel
+                );
+                const hasUsedVoluntaryRebuy = p.lightRebuyUsed || p.voluntaryFullRebuyUsed || hasBustRecaveDuringPause;
 
                 return (
                   <div key={p.playerId} className="flex flex-col gap-2 p-3 rounded-lg border">
@@ -826,62 +834,68 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                           Light utilisé
                         </Badge>
                       )}
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                      <div className="flex-1">
-                        <Input
-                          type="number"
-                          placeholder="Stack actuel"
-                          min={0}
-                          value={voluntaryRebuyStack[p.playerId] ?? ''}
-                          onChange={(e) => {
-                            const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
-                            setVoluntaryRebuyStack(prev => ({
-                              ...prev,
-                              [p.playerId]: value as number,
-                            }));
-                          }}
-                          className="h-10"
-                        />
-                      </div>
-
-                      {rebuyType && (
-                        <Badge
-                          variant="outline"
-                          className={rebuyType === 'HALF' ? 'border-green-500 text-green-600' : 'border-amber-500 text-amber-600'}
-                        >
-                          {rebuyType === 'HALF' ? 'Half (5€)' : 'Full (10€)'}
+                      {p.voluntaryFullRebuyUsed && (
+                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 text-xs">
+                          Full utilisé
                         </Badge>
                       )}
-
-                      <Button
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white min-h-[44px] min-w-[100px]"
-                        onClick={() => handleVoluntaryRebuy(p.playerId)}
-                        disabled={
-                          voluntaryRebuySubmitting === p.playerId ||
-                          voluntaryRebuyStack[p.playerId] === undefined ||
-                          (rebuyType === 'FULL' && !canRebuy) ||
-                          (rebuyType === 'HALF' && !canLightRebuy)
-                        }
-                      >
-                        {voluntaryRebuySubmitting === p.playerId ? (
-                          <RefreshCw className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Plus className="h-4 w-4 mr-1" />
-                            Rebuy
-                          </>
-                        )}
-                      </Button>
                     </div>
 
-                    {rebuyType === 'FULL' && !canRebuy && (
-                      <p className="text-xs text-destructive">Maximum de rebuys atteint</p>
-                    )}
-                    {rebuyType === 'HALF' && !canLightRebuy && (
-                      <p className="text-xs text-destructive">Light rebuy déjà utilisé</p>
+                    {hasUsedVoluntaryRebuy ? (
+                      <p className="text-sm text-muted-foreground italic">
+                        {hasBustRecaveDuringPause
+                          ? 'Recave après bust déjà effectuée'
+                          : 'Rebuy volontaire déjà utilisé'}
+                      </p>
+                    ) : (
+                      <>
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                          <div className="flex-1">
+                            <Input
+                              type="number"
+                              placeholder="Stack actuel"
+                              min={0}
+                              value={voluntaryRebuyStack[p.playerId] ?? ''}
+                              onChange={(e) => {
+                                const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                                setVoluntaryRebuyStack(prev => ({
+                                  ...prev,
+                                  [p.playerId]: value as number,
+                                }));
+                              }}
+                              className="h-10"
+                            />
+                          </div>
+
+                          {rebuyType && (
+                            <Badge
+                              variant="outline"
+                              className={rebuyType === 'HALF' ? 'border-green-500 text-green-600' : 'border-amber-500 text-amber-600'}
+                            >
+                              {rebuyType === 'HALF' ? 'Half (5€)' : 'Full (10€)'}
+                            </Badge>
+                          )}
+
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white min-h-[44px] min-w-[100px]"
+                            onClick={() => handleVoluntaryRebuy(p.playerId)}
+                            disabled={
+                              voluntaryRebuySubmitting === p.playerId ||
+                              voluntaryRebuyStack[p.playerId] === undefined
+                            }
+                          >
+                            {voluntaryRebuySubmitting === p.playerId ? (
+                              <RefreshCw className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Rebuy
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </>
                     )}
                   </div>
                 );

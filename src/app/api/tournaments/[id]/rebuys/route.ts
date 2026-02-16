@@ -124,6 +124,7 @@ export async function POST(
     // Si isVoluntary=true, le type de rebuy est déterminé par le stack actuel:
     // - stack >= 3500 -> LIGHT (half rebuy, 5€)
     // - stack < 3500 -> STANDARD (full rebuy, 10€)
+    // LIMITE: 1 seul rebuy volontaire par joueur pendant la pause (Light OU Full)
     let effectiveType = validatedData.type;
     let voluntaryStackUpdate: number | null = null;
 
@@ -132,6 +133,34 @@ export async function POST(
       if (validatedData.currentStack === undefined) {
         return NextResponse.json(
           { error: 'Le stack actuel est requis pour un rebuy volontaire' },
+          { status: 400 }
+        );
+      }
+
+      // Vérifier la limite : 1 seul rebuy/recave par joueur pendant la pause
+      // Un joueur a déjà utilisé son droit s'il a :
+      // - lightRebuyUsed OU voluntaryFullRebuyUsed (rebuy volontaire)
+      // - OU une recave après bust (bustEvent avec recaveApplied = true)
+      const hasVoluntaryRebuy = tournamentPlayer.lightRebuyUsed || tournamentPlayer.voluntaryFullRebuyUsed;
+
+      // Vérifier aussi si le joueur a recavé après un bust PENDANT la pause
+      // (seuls les busts au niveau > rebuyEndLevel comptent, car rebuyEndLevel est le dernier niveau AVANT la pause)
+      const bustWithRecaveDuringPause = tournament.rebuyEndLevel
+        ? await prisma.bustEvent.findFirst({
+            where: {
+              tournamentId,
+              eliminatedId: tournamentPlayer.id,
+              recaveApplied: true,
+              level: { gt: tournament.rebuyEndLevel },
+            },
+          })
+        : null;
+
+      if (hasVoluntaryRebuy || bustWithRecaveDuringPause) {
+        return NextResponse.json(
+          { error: bustWithRecaveDuringPause
+            ? 'Ce joueur a déjà recavé après un bust pendant la pause'
+            : 'Ce joueur a déjà utilisé son rebuy volontaire' },
           { status: 400 }
         );
       }
@@ -193,6 +222,27 @@ export async function POST(
       // Re-vérifier joueur non éliminé (race-safe)
       if (currentPlayer.finalRank !== null) {
         throw new Error('PLAYER_ELIMINATED');
+      }
+
+      // Re-vérifier limite rebuy volontaire (race-safe) : 1 seul par joueur pendant la pause
+      if (validatedData.isVoluntary) {
+        if (currentPlayer.lightRebuyUsed || currentPlayer.voluntaryFullRebuyUsed) {
+          throw new Error('VOLUNTARY_REBUY_ALREADY_USED');
+        }
+        // Vérifier aussi les recaves après bust PENDANT la pause (race-safe)
+        if (tournament.rebuyEndLevel) {
+          const bustRecaveDuringPause = await tx.bustEvent.findFirst({
+            where: {
+              tournamentId,
+              eliminatedId: currentPlayer.id,
+              recaveApplied: true,
+              level: { gt: tournament.rebuyEndLevel },
+            },
+          });
+          if (bustRecaveDuringPause) {
+            throw new Error('BUST_RECAVE_ALREADY_USED');
+          }
+        }
       }
 
       // Re-vérifier max rebuys (race-safe)
@@ -339,6 +389,18 @@ export async function POST(
       if (error.message === 'MAX_REBUYS_REACHED') {
         return NextResponse.json(
           { error: 'Maximum rebuys reached' },
+          { status: 400 }
+        );
+      }
+      if (error.message === 'VOLUNTARY_REBUY_ALREADY_USED') {
+        return NextResponse.json(
+          { error: 'Ce joueur a déjà utilisé son rebuy volontaire' },
+          { status: 400 }
+        );
+      }
+      if (error.message === 'BUST_RECAVE_ALREADY_USED') {
+        return NextResponse.json(
+          { error: 'Ce joueur a déjà recavé après un bust pendant la pause' },
           { status: 400 }
         );
       }
