@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { SectionCard } from '@/components/ui/section-card';
-import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp, LayoutGrid } from 'lucide-react';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -68,6 +69,12 @@ type Tournament = {
   seasonLeaderAtStartId: string | null;
 };
 
+type TableInfo = {
+  tableNumber: number;
+  activePlayers: number;
+  totalPlayers: number;
+};
+
 type Props = {
   tournamentId: string;
   onUpdate?: () => void;
@@ -98,6 +105,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [isLightRebuySubmitting, setIsLightRebuySubmitting] = useState<string | null>(null);
   // Bust recave state
   const [bustRecaveSubmitting, setBustRecaveSubmitting] = useState<string | null>(null);
+  // Tables info for director view links
+  const [tables, setTables] = useState<TableInfo[]>([]);
   // Voluntary rebuy state
   const [voluntaryRebuyStack, setVoluntaryRebuyStack] = useState<Record<string, number>>({});
   const [voluntaryRebuySubmitting, setVoluntaryRebuySubmitting] = useState<string | null>(null);
@@ -194,6 +203,13 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (bustsResponse.ok) {
         const bustsData = await bustsResponse.json();
         setBusts(bustsData);
+      }
+
+      // Récupérer les tables pour les liens vers la vue DT
+      const tablesResponse = await fetch(`/api/tournaments/${tournamentId}/tables`);
+      if (tablesResponse.ok) {
+        const tablesData = await tablesResponse.json();
+        setTables(tablesData.tables || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -534,6 +550,35 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 </div>
               </>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Accès rapide vue Directeur de Table */}
+      {tables.length > 0 && tournament?.status === 'IN_PROGRESS' && (
+        <Card className="border-blue-500/30 bg-blue-500/5">
+          <CardContent className="py-3 px-4 !pb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <LayoutGrid className="h-4 w-4 text-blue-500" />
+              <span className="font-semibold text-sm">Vue Directeur de Table</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">— optimisée mobile</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {tables.map(table => (
+                <Link
+                  key={table.tableNumber}
+                  href={`/director/${tournamentId}/table/${table.tableNumber}`}
+                  target="_blank"
+                >
+                  <Button variant="outline" size="sm" className="border-blue-500/30 hover:bg-blue-500/10">
+                    Table {table.tableNumber}
+                    <Badge variant="secondary" className="ml-1.5 text-xs px-1.5">
+                      {table.activePlayers}
+                    </Badge>
+                  </Button>
+                </Link>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
