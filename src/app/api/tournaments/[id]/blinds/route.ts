@@ -83,13 +83,12 @@ export async function POST(
     const validatedData = blindStructureSchema.parse(body);
     console.log('[Blinds API] Validation successful, levels count:', validatedData.levels.length);
 
-    // Validation: isRebuyEnd uniquement sur les pauses
-    const invalidRebuyEnd = validatedData.levels.filter(l => l.isRebuyEnd && !l.isBreak);
-    if (invalidRebuyEnd.length > 0) {
-      return NextResponse.json(
-        { error: 'Le flag "Fin de Recave" ne peut être défini que sur une pause' },
-        { status: 400 }
-      );
+    // Auto-nettoyage: isRebuyEnd ne peut être que sur une pause
+    // (plutôt que bloquer, on corrige silencieusement les données incohérentes)
+    for (const level of validatedData.levels) {
+      if (level.isRebuyEnd && !level.isBreak) {
+        level.isRebuyEnd = false;
+      }
     }
 
     // Max 1 pause fin de recave
