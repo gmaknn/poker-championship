@@ -6,6 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle } from 'lucide-react';
+
+// Dev login is only visible when NEXT_PUBLIC_DEV_LOGIN=1
+const IS_DEV_LOGIN_ENABLED = process.env.NEXT_PUBLIC_DEV_LOGIN === '1';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +17,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDevLoading, setIsDevLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +41,53 @@ export default function LoginPage() {
       setError('Une erreur est survenue');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /**
+   * Dev-only admin login
+   * 1. Calls /api/dev/login to setup admin user
+   * 2. Uses returned credentials with standard signIn
+   */
+  const handleDevLogin = async () => {
+    setError('');
+    setIsDevLoading(true);
+
+    try {
+      // Step 1: Setup dev admin user
+      const setupResponse = await fetch('/api/dev/login', {
+        method: 'POST',
+      });
+
+      if (setupResponse.status === 404) {
+        setError('Dev login non disponible');
+        return;
+      }
+
+      if (!setupResponse.ok) {
+        setError('Erreur lors de la configuration admin');
+        return;
+      }
+
+      const { credentials } = await setupResponse.json();
+
+      // Step 2: Sign in with the credentials
+      const result = await signIn('credentials', {
+        email: credentials.email,
+        password: credentials.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Erreur de connexion admin');
+      } else {
+        router.push('/dashboard');
+        router.refresh();
+      }
+    } catch (error) {
+      setError('Une erreur est survenue');
+    } finally {
+      setIsDevLoading(false);
     }
   };
 
@@ -87,6 +139,28 @@ export default function LoginPage() {
               {isLoading ? 'Connexion...' : 'Se connecter'}
             </Button>
           </form>
+
+          {/* Dev-only admin login button */}
+          {IS_DEV_LOGIN_ENABLED && (
+            <div className="mt-6 pt-6 border-t border-border">
+              <div className="flex items-center gap-2 mb-3 text-amber-600">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-xs font-medium">Mode Développement</span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                onClick={handleDevLogin}
+                disabled={isDevLoading || isLoading}
+              >
+                {isDevLoading ? 'Connexion...' : 'Connexion Admin (local)'}
+              </Button>
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Crée un compte admin@local.test pour les tests E2E
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
