@@ -181,6 +181,15 @@ body {
   }
 }
 
+/* Hide scrollbar for horizontal scroll tabs on mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Safe area padding for mobile devices with notch/home indicator */
 .safe-area-pb {
   padding-bottom: env(safe-area-inset-bottom, 0);

@@ -371,18 +371,20 @@ export default function TournamentDetailPage({
 
       {/* Tabs - Navigation avec fond ink */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-        <div className="bg-ink rounded-lg p-1 border border-border shadow-md">
-          <TabsList className="bg-transparent flex flex-wrap w-full md:flex-nowrap justify-start">
-            <TabsTrigger value="structure" className="flex-1 min-w-fit text-sm">Structure</TabsTrigger>
-            <TabsTrigger value="config" className="flex-1 min-w-fit text-sm">Jetons</TabsTrigger>
-            <TabsTrigger value="players" data-admin-tab="players" className="flex-1 min-w-fit text-sm">Joueurs</TabsTrigger>
-            <TabsTrigger value="tables" data-admin-tab="tables" className="flex-1 min-w-fit text-sm">Tables</TabsTrigger>
-            <TabsTrigger value="timer" className="flex-1 min-w-fit text-sm">Timer</TabsTrigger>
-            <TabsTrigger value="eliminations" className="flex-1 min-w-fit text-sm">Élims</TabsTrigger>
-            <TabsTrigger value="prizepool" className="flex-1 min-w-fit text-sm">Prizes</TabsTrigger>
-            <TabsTrigger value="results" data-admin-tab="results" className="flex-1 min-w-fit text-sm">Résultats</TabsTrigger>
-            {isAdmin && <TabsTrigger value="directors" className="flex-1 min-w-fit text-sm">TD</TabsTrigger>}
+        <div className="relative bg-ink rounded-lg p-1 border border-border shadow-md">
+          <TabsList className="bg-transparent flex w-full overflow-x-auto md:overflow-visible justify-start scrollbar-hide">
+            <TabsTrigger value="structure" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Structure</TabsTrigger>
+            <TabsTrigger value="config" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Jetons</TabsTrigger>
+            <TabsTrigger value="players" data-admin-tab="players" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Joueurs</TabsTrigger>
+            <TabsTrigger value="tables" data-admin-tab="tables" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Tables</TabsTrigger>
+            <TabsTrigger value="timer" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Timer</TabsTrigger>
+            <TabsTrigger value="eliminations" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Élims</TabsTrigger>
+            <TabsTrigger value="prizepool" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Prizes</TabsTrigger>
+            <TabsTrigger value="results" data-admin-tab="results" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Résultats</TabsTrigger>
+            {isAdmin && <TabsTrigger value="directors" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">TD</TabsTrigger>}
           </TabsList>
+          {/* Fade indicator for more tabs on mobile */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-ink to-transparent rounded-r-lg pointer-events-none md:hidden" />
         </div>
 
         <TabsContent value="structure" className="mt-6">

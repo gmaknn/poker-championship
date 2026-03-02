@@ -620,19 +620,19 @@ export default function BlindStructureEditor({
         <div className="space-y-4">
           {/* Boutons en haut - masqués en lecture seule */}
           {!readOnly && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleAddLevel} className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={handleAddLevel} className="w-full sm:flex-1">
                 <Plus className="mr-2 h-4 w-4" />
                 Ajouter un niveau
               </Button>
-              <Button variant="outline" onClick={handleAddBreak} className="flex-1">
+              <Button variant="outline" onClick={handleAddBreak} className="w-full sm:flex-1">
                 <Coffee className="mr-2 h-4 w-4" />
                 Pause
               </Button>
               <Button
                 variant="outline"
                 onClick={handleAddRebuyEndBreak}
-                className="flex-1"
+                className="w-full sm:flex-1"
                 disabled={levels.some(l => l.isBreak && l.isRebuyEnd)}
               >
                 <AlertCircle className="mr-2 h-4 w-4" />
@@ -641,32 +641,184 @@ export default function BlindStructureEditor({
             </div>
           )}
 
-          {/* Scrollable container with sticky header - Mobile optimized */}
-          <div className="max-h-[600px] overflow-auto rounded-lg border">
+          {/* Mobile card layout */}
+          <div className="sm:hidden space-y-3">
+            {(() => {
+              let levelCount = 0;
+              const elements: React.ReactNode[] = [];
+
+              levels.forEach((level, index) => {
+                if (!level.isBreak) {
+                  levelCount++;
+                  if ((levelCount - 1) % 5 === 0) {
+                    const sectionNumber = Math.floor((levelCount - 1) / 5) + 1;
+                    const startLevel = (sectionNumber - 1) * 5 + 1;
+                    const endLevel = Math.min(startLevel + 4, levels.filter(l => !l.isBreak).length);
+                    elements.push(
+                      <div key={`m-separator-${sectionNumber}`} className="flex items-center gap-3 py-1">
+                        <div className="flex-1 border-t border-muted-foreground/20" />
+                        <span className="text-xs text-muted-foreground font-medium px-2">
+                          Palier {sectionNumber} (niv. {startLevel}-{endLevel})
+                        </span>
+                        <div className="flex-1 border-t border-muted-foreground/20" />
+                      </div>
+                    );
+                  }
+                }
+
+                if (level.isBreak) {
+                  elements.push(
+                    <Card
+                      key={`m-${index}`}
+                      className={level.isRebuyEnd ? 'bg-orange-500/10 border-orange-500/30' : 'bg-amber-500/10 border-amber-500/30'}
+                    >
+                      <CardContent className="py-3 px-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={`${level.isRebuyEnd ? 'bg-orange-500/20 border-orange-500/40 text-orange-700 dark:text-orange-300' : 'bg-amber-500/20 border-amber-500/40 text-amber-700 dark:text-amber-300'}`}>
+                              <Coffee className="h-3 w-3 mr-1" />
+                              {level.level}
+                            </Badge>
+                            <span className={`font-semibold ${level.isRebuyEnd ? 'text-orange-700 dark:text-orange-300' : 'text-amber-700 dark:text-amber-300'}`}>
+                              {level.isRebuyEnd ? 'PAUSE RECAVE' : 'PAUSE'}
+                            </span>
+                          </div>
+                          {!readOnly && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLevel(index);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Durée</span>
+                          <Input
+                            type="number"
+                            value={level.duration}
+                            onChange={(e) =>
+                              handleLevelChange(index, 'duration', parseInt(e.target.value) || 0)
+                            }
+                            className={`h-11 text-base w-20 ${level.isRebuyEnd ? 'border-orange-500/30' : 'border-amber-500/30'}`}
+                            readOnly={readOnly}
+                          />
+                          <span className="text-sm text-muted-foreground">min</span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                } else {
+                  elements.push(
+                    <Card key={`m-${index}`}>
+                      <CardContent className="py-3 px-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <Badge variant="outline" className="text-sm">
+                            Niv. {level.level}
+                          </Badge>
+                          {!readOnly && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveLevel(index);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">SB</label>
+                            <Input
+                              type="number"
+                              value={level.smallBlind}
+                              className="h-11 text-base"
+                              onChange={(e) =>
+                                handleLevelChange(index, 'smallBlind', parseInt(e.target.value) || 0)
+                              }
+                              readOnly={readOnly}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">BB</label>
+                            <Input
+                              type="number"
+                              value={level.bigBlind}
+                              className="h-11 text-base"
+                              onChange={(e) =>
+                                handleLevelChange(index, 'bigBlind', parseInt(e.target.value) || 0)
+                              }
+                              readOnly={readOnly}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">Ante</label>
+                            <Input
+                              type="number"
+                              value={level.ante}
+                              className="h-11 text-base"
+                              onChange={(e) =>
+                                handleLevelChange(index, 'ante', parseInt(e.target.value) || 0)
+                              }
+                              readOnly={readOnly}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground mb-1 block">Durée (min)</label>
+                            <Input
+                              type="number"
+                              value={level.duration}
+                              className="h-11 text-base"
+                              onChange={(e) =>
+                                handleLevelChange(index, 'duration', parseInt(e.target.value) || 0)
+                              }
+                              readOnly={readOnly}
+                            />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+              });
+
+              return elements;
+            })()}
+          </div>
+
+          {/* Desktop table layout */}
+          <div className="hidden sm:block max-h-[600px] overflow-auto rounded-lg border">
             <div className="min-w-[700px]">
               {/* Sticky header - ink style */}
-              <div className="grid grid-cols-[32px_44px_1fr_1fr_1fr_70px_80px_50px] md:grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_70px] gap-2 md:gap-3 px-2 md:px-4 py-2 md:py-3 font-medium text-sm bg-ink text-ink-foreground sticky top-0 z-10 border-b border-border">
+              <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_70px] gap-3 px-4 py-3 font-medium text-sm bg-ink text-ink-foreground sticky top-0 z-10 border-b border-border">
                 <div></div>
-                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Niv.</div>
-                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">SB</div>
-                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">BB</div>
-                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Ante</div>
-                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70">Durée</div>
-                <div className="text-[10px] md:text-xs uppercase tracking-wider text-ink-foreground/70 hidden sm:block">Réassign.</div>
+                <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Niv.</div>
+                <div className="text-xs uppercase tracking-wider text-ink-foreground/70">SB</div>
+                <div className="text-xs uppercase tracking-wider text-ink-foreground/70">BB</div>
+                <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Ante</div>
+                <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Durée</div>
+                <div className="text-xs uppercase tracking-wider text-ink-foreground/70">Réassign.</div>
                 <div></div>
               </div>
 
             {/* Levels list with section separators */}
             <div className="space-y-2 p-2">
           {(() => {
-            let levelCount = 0; // Counter for non-break levels only
+            let levelCount = 0;
             const elements: React.ReactNode[] = [];
 
             levels.forEach((level, index) => {
-              // Count only non-break levels for section separators
               if (!level.isBreak) {
                 levelCount++;
-                // Add section separator before levels 1, 6, 11, 16... (every 5 levels)
                 if ((levelCount - 1) % 5 === 0) {
                   const sectionNumber = Math.floor((levelCount - 1) / 5) + 1;
                   const startLevel = (sectionNumber - 1) * 5 + 1;
@@ -711,7 +863,12 @@ export default function BlindStructureEditor({
                         </Badge>
                         <div className={`col-span-1 flex items-center gap-2 font-semibold text-lg ${level.isRebuyEnd ? 'text-orange-700 dark:text-orange-300' : 'text-amber-700 dark:text-amber-300'}`}>
                           <Coffee className="h-5 w-5" />
-                          {level.isRebuyEnd ? 'PAUSE FIN DE RECAVE' : 'PAUSE'}
+                          {level.isRebuyEnd ? (
+                            <>
+                              <span className="hidden md:inline">PAUSE FIN DE RECAVE</span>
+                              <span className="md:hidden">PAUSE RECAVE</span>
+                            </>
+                          ) : 'PAUSE'}
                         </div>
                         <div className="flex items-center gap-2">
                           <Input
@@ -740,17 +897,17 @@ export default function BlindStructureEditor({
                         </Button>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-[32px_44px_1fr_1fr_1fr_70px_80px_50px] md:grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_70px] gap-2 md:gap-3 items-center">
+                      <div className="grid grid-cols-[40px_50px_0.9fr_0.9fr_0.9fr_0.9fr_100px_70px] gap-3 items-center">
                         <div className="flex justify-center cursor-grab active:cursor-grabbing">
-                          <GripVertical className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />
+                          <GripVertical className="h-5 w-5 text-muted-foreground" />
                         </div>
-                        <Badge variant="outline" className="justify-center text-xs md:text-sm">
+                        <Badge variant="outline" className="justify-center text-sm">
                           {level.level}
                         </Badge>
                         <Input
                           type="number"
                           value={level.smallBlind}
-                          className="h-9 md:h-10 text-sm px-2"
+                          className="h-10 text-sm px-2"
                           onChange={(e) =>
                             handleLevelChange(
                               index,
@@ -762,7 +919,7 @@ export default function BlindStructureEditor({
                         <Input
                           type="number"
                           value={level.bigBlind}
-                          className="h-9 md:h-10 text-sm px-2"
+                          className="h-10 text-sm px-2"
                           onChange={(e) =>
                             handleLevelChange(
                               index,
@@ -774,7 +931,7 @@ export default function BlindStructureEditor({
                         <Input
                           type="number"
                           value={level.ante}
-                          className="h-9 md:h-10 text-sm px-2"
+                          className="h-10 text-sm px-2"
                           onChange={(e) =>
                             handleLevelChange(
                               index,
@@ -787,7 +944,7 @@ export default function BlindStructureEditor({
                           <Input
                             type="number"
                             value={level.duration}
-                            className="h-9 md:h-10 text-sm px-2"
+                            className="h-10 text-sm px-2"
                             onChange={(e) =>
                               handleLevelChange(
                                 index,
@@ -796,9 +953,9 @@ export default function BlindStructureEditor({
                               )
                             }
                           />
-                          <span className="text-xs text-muted-foreground hidden md:inline">min</span>
+                          <span className="text-xs text-muted-foreground">min</span>
                         </div>
-                        <div className="hidden sm:flex items-center gap-1" title="Rappel affiché sur TV et annonce audio à la fin de ce niveau.">
+                        <div className="flex items-center gap-1" title="Rappel affiché sur TV et annonce audio à la fin de ce niveau.">
                           <Checkbox
                             id={`rebalance-${index}`}
                             checked={level.rebalanceTables || false}
@@ -808,7 +965,7 @@ export default function BlindStructureEditor({
                           />
                           <label
                             htmlFor={`rebalance-${index}`}
-                            className="text-[10px] md:text-xs text-muted-foreground flex items-center gap-1 cursor-pointer"
+                            className="text-xs text-muted-foreground flex items-center gap-1 cursor-pointer"
                             title="Rappel affiché sur TV et annonce audio à la fin de ce niveau."
                           >
                             <Shuffle className="h-3 w-3" />
@@ -818,7 +975,7 @@ export default function BlindStructureEditor({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 md:h-9 md:w-9"
+                          className="h-9 w-9"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleRemoveLevel(index);
@@ -840,19 +997,19 @@ export default function BlindStructureEditor({
           </div>
 
           {!readOnly && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleAddLevel} className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={handleAddLevel} className="w-full sm:flex-1">
                 <Plus className="mr-2 h-4 w-4" />
                 Ajouter un niveau
               </Button>
-              <Button variant="outline" onClick={handleAddBreak} className="flex-1">
+              <Button variant="outline" onClick={handleAddBreak} className="w-full sm:flex-1">
                 <Coffee className="mr-2 h-4 w-4" />
                 Pause
               </Button>
               <Button
                 variant="outline"
                 onClick={handleAddRebuyEndBreak}
-                className="flex-1"
+                className="w-full sm:flex-1"
                 disabled={levels.some(l => l.isBreak && l.isRebuyEnd)}
               >
                 <AlertCircle className="mr-2 h-4 w-4" />
