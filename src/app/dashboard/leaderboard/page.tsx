@@ -256,10 +256,10 @@ export default function LeaderboardPage() {
               value={selectedSeason?.id}
               onValueChange={handleSeasonChange}
             >
-              <SelectTrigger className="w-[400px]">
+              <SelectTrigger className="w-full sm:w-[400px]">
                 <SelectValue placeholder="Sélectionner une saison" />
               </SelectTrigger>
-              <SelectContent className="w-[400px]">
+              <SelectContent className="w-full sm:w-[400px]">
                 {seasons.map((season) => (
                   <SelectItem key={season.id} value={season.id}>
                     <div className="flex items-center justify-between w-full gap-3">

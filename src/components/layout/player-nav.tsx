@@ -519,7 +519,7 @@ export function PlayerBottomNav() {
               )}
             >
               <Icon className={cn('h-5 w-5 mb-1', isActive && 'scale-110')} />
-              <span className="text-[10px] sm:text-xs font-medium truncate max-w-full">
+              <span className="text-xs font-medium truncate max-w-full">
                 {item.mobileLabel}
               </span>
             </Link>

@@ -629,7 +629,7 @@ export default function PlayersPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-10 w-10"
                             onClick={() => router.push(`/dashboard/players/${player.id}`)}
                             title="Voir la fiche"
                           >
@@ -641,7 +641,7 @@ export default function PlayersPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-emerald-500 hover:text-emerald-600"
+                                  className="h-10 w-10 text-emerald-500 hover:text-emerald-600"
                                   onClick={() => handleOpenActivateDialog(player)}
                                   title="Activer manuellement"
                                 >
@@ -652,7 +652,7 @@ export default function PlayersPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8 text-amber-500 hover:text-amber-600"
+                                  className="h-10 w-10 text-amber-500 hover:text-amber-600"
                                   onClick={() => handleOpenResetPasswordDialog(player)}
                                   title="Réinitialiser le mot de passe"
                                 >
@@ -663,7 +663,7 @@ export default function PlayersPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={`h-8 w-8 ${inviteSuccess === player.id ? 'text-green-500' : ''}`}
+                                  className={`h-10 w-10 ${inviteSuccess === player.id ? 'text-green-500' : ''}`}
                                   onClick={() => handleSendInvitation(player)}
                                   disabled={invitingPlayerId === player.id}
                                   title="Envoyer invitation par email"
@@ -680,7 +680,7 @@ export default function PlayersPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8"
+                                className="h-10 w-10"
                                 onClick={() => handleOpenDialog(player)}
                                 title="Modifier"
                               >
@@ -752,7 +752,7 @@ export default function PlayersPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8"
+                        className="h-10 w-10"
                         onClick={() => router.push(`/dashboard/players/${player.id}`)}
                         title="Voir la fiche"
                       >
@@ -764,7 +764,7 @@ export default function PlayersPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-emerald-500 hover:text-emerald-600"
+                              className="h-10 w-10 text-emerald-500 hover:text-emerald-600"
                               onClick={() => handleOpenActivateDialog(player)}
                               title="Activer manuellement"
                             >
@@ -775,7 +775,7 @@ export default function PlayersPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 hidden sm:flex text-amber-500 hover:text-amber-600"
+                              className="h-10 w-10 hidden sm:flex text-amber-500 hover:text-amber-600"
                               onClick={() => handleOpenResetPasswordDialog(player)}
                               title="Réinitialiser le mot de passe"
                             >
@@ -786,7 +786,7 @@ export default function PlayersPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className={`h-8 w-8 hidden sm:flex ${inviteSuccess === player.id ? 'text-green-500' : ''}`}
+                              className={`h-10 w-10 hidden sm:flex ${inviteSuccess === player.id ? 'text-green-500' : ''}`}
                               onClick={() => handleSendInvitation(player)}
                               disabled={invitingPlayerId === player.id}
                               title="Envoyer invitation par email"
@@ -803,7 +803,7 @@ export default function PlayersPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8"
+                            className="h-10 w-10"
                             onClick={() => handleOpenDialog(player)}
                             title="Modifier"
                           >

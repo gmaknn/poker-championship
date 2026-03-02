@@ -136,7 +136,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {onClose && (
           <button
             onClick={onClose}
-            className="md:hidden p-2 rounded-lg hover:bg-accent"
+            className="md:hidden p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-accent"
             aria-label="Fermer le menu"
           >
             <X className="h-5 w-5" />
@@ -157,7 +157,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 href={item.href}
                 onClick={handleNavClick}
                 className={cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  'flex items-center gap-3 rounded-lg px-3 py-2 min-h-[44px] text-sm font-medium transition-colors',
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-accent hover:text-accent-foreground'
@@ -326,7 +326,7 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-accent"
+            className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-accent"
             aria-label="Fermer le menu"
           >
             <X className="h-5 w-5" />
@@ -346,7 +346,7 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
                   href={item.href}
                   onClick={handleNavClick}
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                    'flex items-center gap-3 rounded-lg px-3 py-2 min-h-[44px] text-sm font-medium transition-colors',
                     isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'hover:bg-accent hover:text-accent-foreground'
@@ -413,7 +413,7 @@ export function MobileHeader({ onMenuClick }: { onMenuClick: () => void }) {
     <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-card border-b sticky top-0 z-30">
       <button
         onClick={onMenuClick}
-        className="p-2 rounded-lg hover:bg-accent"
+        className="p-2 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-accent"
         aria-label="Ouvrir le menu"
       >
         <Menu className="h-6 w-6" />
