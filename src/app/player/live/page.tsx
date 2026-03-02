@@ -140,7 +140,7 @@ export default function PlayerLivePage() {
                 <p className="text-muted-foreground">{authError.message}</p>
                 <div className="flex flex-col gap-2 pt-4">
                   {authError.type === 'unauthenticated' && (
-                    <Button onClick={() => router.push('/login')}>
+                    <Button onClick={() => router.push('/player/login')}>
                       <LogIn className="h-4 w-4 mr-2" />
                       Se connecter
                     </Button>
@@ -225,7 +225,7 @@ export default function PlayerLivePage() {
                       {/* Player Info */}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{entry.player.nickname}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                           {entry.eliminationsCount} elimination{entry.eliminationsCount !== 1 ? 's' : ''}
                         </p>
                       </div>
@@ -233,7 +233,7 @@ export default function PlayerLivePage() {
                       {/* Points */}
                       <div className="text-right">
                         <p className="font-bold text-lg">{entry.currentPoints}</p>
-                        <p className="text-xs text-muted-foreground">pts</p>
+                        <p className="text-sm text-muted-foreground">pts</p>
                       </div>
                     </div>
                   ))}
@@ -284,10 +284,13 @@ export default function PlayerLivePage() {
               return (
                 <Card
                   key={tournament.id}
-                  className={`cursor-pointer hover:shadow-md transition-all ${
+                  className={`cursor-pointer hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                     isInProgress ? 'border-orange-500/50' : ''
                   }`}
                   onClick={() => fetchLiveLeaderboard(tournament)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchLiveLeaderboard(tournament)}
+                  role="button"
+                  tabIndex={0}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">

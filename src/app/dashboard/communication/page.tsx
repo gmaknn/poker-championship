@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -230,7 +231,7 @@ export default function CommunicationPage() {
 
     } catch (error) {
       console.error('Error preparing for WhatsApp:', error);
-      alert('❌ Erreur lors de la préparation. Vérifiez que votre navigateur autorise la copie dans le presse-papiers.');
+      toast.error('Impossible de copier dans le presse-papiers. Vérifiez les autorisations de votre navigateur.');
     } finally {
       setIsPreparing(false);
     }
@@ -263,9 +264,10 @@ export default function CommunicationPage() {
 
       const data = await response.json();
       setMessage(data.message);
+      toast.success('Message généré par l\'IA');
     } catch (error) {
       console.error('Error generating AI message:', error);
-      alert('❌ Erreur lors de la génération du message. Veuillez réessayer.');
+      toast.error('Erreur lors de la génération du message. Veuillez réessayer.');
     } finally {
       setIsGeneratingAI(false);
     }
@@ -357,10 +359,13 @@ export default function CommunicationPage() {
               return (
                 <Card
                   key={template.id}
-                  className={`cursor-pointer transition-all hover:border-primary ${
+                  className={`cursor-pointer transition-all hover:border-primary focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                     isSelected ? 'border-primary bg-primary/5' : ''
                   }`}
                   onClick={() => handleTemplateSelect(template)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleTemplateSelect(template)}
+                  role="button"
+                  tabIndex={0}
                 >
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -402,12 +407,15 @@ export default function CommunicationPage() {
                   return (
                     <Card
                       key={visual.id}
-                      className={`cursor-pointer transition-all ${
+                      className={`cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                         visual.available
                           ? `hover:border-primary ${isSelected ? 'border-primary bg-primary/5' : ''}`
                           : 'opacity-50 cursor-not-allowed'
                       }`}
                       onClick={() => visual.available && toggleVisual(visual.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && visual.available && toggleVisual(visual.id)}
+                      role="button"
+                      tabIndex={visual.available ? 0 : -1}
                     >
                       <CardContent className="pt-6">
                         <div className="flex items-start gap-4">

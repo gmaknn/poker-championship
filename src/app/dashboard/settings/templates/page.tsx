@@ -12,8 +12,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import { Plus, Trash2, Eye, Clock, Users, Coins, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type TournamentTemplate = {
   id: string;
@@ -33,6 +44,7 @@ export default function TemplatesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<TournamentTemplate | null>(null);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [deleteTemplate, setDeleteTemplate] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     fetchTemplates();
@@ -52,9 +64,7 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleDeleteTemplate = async (id: string, name: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer le template "${name}" ?`)) return;
-
+  const handleDeleteTemplate = async (id: string) => {
     try {
       const response = await fetch(`/api/tournament-templates/${id}`, {
         method: 'DELETE',
@@ -62,6 +72,7 @@ export default function TemplatesPage() {
 
       if (response.ok) {
         await fetchTemplates();
+        toast.success('Template supprimé');
       }
     } catch (error) {
       console.error('Error deleting template:', error);
@@ -186,7 +197,7 @@ export default function TemplatesPage() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleDeleteTemplate(template.id, template.name)}
+                    onClick={() => setDeleteTemplate({ id: template.id, name: template.name })}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -278,6 +289,30 @@ export default function TemplatesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog suppression template */}
+      <AlertDialog open={!!deleteTemplate} onOpenChange={(open) => !open && setDeleteTemplate(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce template ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer le template « {deleteTemplate?.name} » ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteTemplate) handleDeleteTemplate(deleteTemplate.id);
+                setDeleteTemplate(null);
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Grid3x3, Shuffle, RefreshCw, Trash2, Users, QrCode, Printer, Shield, Crosshair } from 'lucide-react';
 import Link from 'next/link';
@@ -67,6 +78,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const [togglingDirector, setTogglingDirector] = useState<string | null>(null);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   useEffect(() => {
     fetchTables();
@@ -106,6 +118,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
         setTablesData(data);
         setIsGenerateDialogOpen(false);
         onUpdate?.();
+        toast.success(`${data.totalTables} table${data.totalTables > 1 ? 's' : ''} générée${data.totalTables > 1 ? 's' : ''}`);
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de la génération des tables');
@@ -134,9 +147,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
         setTablesData(data);
         setIsRebalanceDialogOpen(false);
         onUpdate?.();
-        alert(
-          `Rééquilibrage effectué:\n- ${data.totalTables} table(s)\n- ${data.movedPlayers} joueur(s) déplacé(s)\n- ${data.brokenTables} table(s) cassée(s)`
-        );
+        toast.info(`Rééquilibrage effectué : ${data.totalTables} table(s), ${data.movedPlayers} joueur(s) déplacé(s), ${data.brokenTables} table(s) cassée(s)`);
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors du rééquilibrage');
@@ -150,10 +161,6 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   };
 
   const handleDeleteTables = async () => {
-    if (!confirm('Voulez-vous vraiment supprimer toutes les assignations de tables ?')) {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/tournaments/${tournamentId}/tables`, {
         method: 'DELETE',
@@ -162,13 +169,14 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       if (response.ok) {
         setTablesData(null);
         onUpdate?.();
+        toast.success('Tables supprimées');
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de la suppression');
+        toast.error(data.error || 'Erreur lors de la suppression des assignations');
       }
     } catch (error) {
       console.error('Error deleting tables:', error);
-      alert('Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression des assignations');
     }
   };
 
@@ -186,6 +194,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
 
       if (response.ok) {
         await fetchTables();
+        toast.success(!currentValue ? 'Directeur de table désigné' : 'Directeur de table retiré');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de la désignation du DT');
@@ -259,7 +268,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                   value={seatsPerTable}
                   onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Généralement 8-10 places pour le poker
                 </p>
                 {tablesData && tablesData.activePlayers > 0 && seatsPerTable > 0 && (
@@ -352,7 +361,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleDeleteTables}
+              onClick={() => setConfirmClear(true)}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -403,7 +412,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className="text-xs flex-shrink-0">
+                        <Badge variant="outline" className="text-sm flex-shrink-0">
                           #{assignment.seatNumber || '-'}
                         </Badge>
                         {assignment.isTableDirector && (
@@ -415,7 +424,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {assignment.isEliminated ? (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-sm">
                             Éliminé
                           </Badge>
                         ) : !readOnly && (
@@ -509,7 +518,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                     includeMargin
                   />
                   <p className="text-sm font-bold">Table {table.tableNumber}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {table.activePlayers} joueur{table.activePlayers > 1 ? 's' : ''}
                   </p>
                 </div>
@@ -588,7 +597,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                 value={seatsPerTable}
                 onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Nombre de joueurs maximum par table
               </p>
             </div>
@@ -602,7 +611,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                 value={minPlayersToBreakTable}
                 onChange={(e) => setMinPlayersToBreakTable(parseInt(e.target.value) || 3)}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Nombre minimum de joueurs en dessous duquel une table est cassée et les joueurs sont redistribués
               </p>
             </div>
@@ -629,6 +638,30 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm clear all dialog */}
+      <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer toutes les assignations ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tous les joueurs seront retirés de leurs tables.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                handleDeleteTables();
+                setConfirmClear(false);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer tout
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

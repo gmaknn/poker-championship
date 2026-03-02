@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -101,7 +102,7 @@ export default function ChipSetSelector({
 
   const handleSave = async () => {
     if (selectedChipSets.length === 0) {
-      alert('Veuillez sélectionner au moins une mallette');
+      toast.warning('Sélectionnez au moins une mallette');
       return;
     }
 
@@ -123,13 +124,13 @@ export default function ChipSetSelector({
       if (response.ok) {
         await fetchCurrentConfig();
         onUpdate?.();
-        alert('Mallettes sauvegardées avec succès ! La distribution sera calculée après avoir défini la structure des blinds.');
+        toast.success('Mallettes sauvegardées avec succès');
       } else {
-        alert('Erreur lors de la sauvegarde');
+        toast.error('Erreur lors de la sauvegarde');
       }
     } catch (error) {
       console.error('Error saving config:', error);
-      alert('Erreur lors de la sauvegarde');
+      toast.error('Erreur lors de la sauvegarde');
     } finally {
       setIsSaving(false);
     }

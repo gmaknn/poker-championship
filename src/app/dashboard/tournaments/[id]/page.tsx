@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check, Smartphone } from 'lucide-react';
 import type { PlayerRole } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -100,6 +101,7 @@ export default function TournamentDetailPage({
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
+  const [tables, setTables] = useState<{ tableNumber: number; activePlayers: number }[]>([]);
 
   const isAdmin = currentUserRole === 'ADMIN';
 
@@ -176,18 +178,18 @@ export default function TournamentDetailPage({
       if (response.ok) {
         await fetchTournament();
         setIsEditDialogOpen(false);
+        toast.success('Tournoi modifié');
       } else {
         try {
           const error = await safeJsonParse(response);
-          alert(error.error || 'Erreur lors de la modification');
+          toast.error(error.error || 'Erreur lors de la modification');
         } catch {
-          // If parsing fails, show generic error
-          alert(`Erreur lors de la modification (${response.status})`);
+          toast.error(`Erreur lors de la modification (${response.status})`);
         }
       }
     } catch (error) {
       console.error('Error updating tournament:', error);
-      alert('Erreur lors de la modification');
+      toast.error('Erreur lors de la modification');
     } finally {
       setIsSaving(false);
     }
@@ -206,7 +208,7 @@ export default function TournamentDetailPage({
       }, 2000);
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
-      alert('Impossible de copier l\'URL');
+      toast.error('Impossible de copier l\'URL');
     }
   };
 
@@ -234,10 +236,23 @@ export default function TournamentDetailPage({
     setPendingTab(null);
   };
 
+  const fetchTables = async () => {
+    try {
+      const response = await fetch(`/api/tournaments/${id}/tables`);
+      if (response.ok) {
+        const data = await response.json();
+        setTables(data.tables || []);
+      }
+    } catch (error) {
+      console.error('Error fetching tables:', error);
+    }
+  };
+
   // Effect to load initial data
   useEffect(() => {
     fetchTournament();
     loadCurrentUser();
+    fetchTables();
   }, [id, session]);
 
   if (isLoading) {
@@ -281,7 +296,7 @@ export default function TournamentDetailPage({
             <Button
               variant="outline"
               size="sm"
-              className="md:size-default"
+              className="min-h-[44px] px-3 md:h-10 md:px-4"
               onClick={() => window.open(`/tv-v3/${tournament.id}`, '_blank')}
             >
               <Tv className="mr-1 md:mr-2 h-4 w-4" />
@@ -290,7 +305,7 @@ export default function TournamentDetailPage({
             <Button
               variant="outline"
               size="sm"
-              className="md:size-default"
+              className="min-h-[44px] px-3 md:h-10 md:px-4"
               onClick={handleCopyTvUrl}
               title="Copier l'URL du mode TV"
             >
@@ -304,7 +319,7 @@ export default function TournamentDetailPage({
             <Button
               variant="outline"
               size="sm"
-              className="md:size-default"
+              className="min-h-[44px] px-3 md:h-10 md:px-4"
               onClick={handleEditClick}
               disabled={tournament.status === 'FINISHED'}
               title={tournament.status === 'FINISHED' ? 'Impossible de modifier un tournoi terminé' : ''}
@@ -318,7 +333,7 @@ export default function TournamentDetailPage({
 
       {/* Info cards - KPIs avec variant ink */}
       <div className="grid gap-3 grid-cols-2 md:gap-4 md:grid-cols-4">
-        <SectionCard variant="ink" noPadding className="p-4">
+        <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Date</span>
             <Calendar className="h-4 w-4 text-ink-foreground/50" />
@@ -326,12 +341,12 @@ export default function TournamentDetailPage({
           <div className="text-lg font-bold">
             {format(new Date(tournament.date), 'd MMM yyyy', { locale: fr })}
           </div>
-          <p className="text-xs text-ink-foreground/60">
+          <p className="text-sm text-ink-foreground/70">
             {format(new Date(tournament.date), "HH'h'mm", { locale: fr })}
           </p>
         </SectionCard>
 
-        <SectionCard variant="ink" noPadding className="p-4">
+        <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Joueurs</span>
             <Users className="h-4 w-4 text-ink-foreground/50" />
@@ -340,21 +355,21 @@ export default function TournamentDetailPage({
             {tournament._count.tournamentPlayers}
             {tournament.totalPlayers && ` / ${tournament.totalPlayers}`}
           </div>
-          <p className="text-xs text-ink-foreground/60">inscrits</p>
+          <p className="text-sm text-ink-foreground/70">inscrits</p>
         </SectionCard>
 
-        <SectionCard variant="ink" noPadding className="p-4">
+        <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Buy-in</span>
             <Trophy className="h-4 w-4 text-ink-foreground/50" />
           </div>
           <div className="text-lg font-bold">{tournament.buyInAmount}€</div>
-          <p className="text-xs text-ink-foreground/60">
+          <p className="text-sm text-ink-foreground/70">
             {tournament.startingChips.toLocaleString()} jetons
           </p>
         </SectionCard>
 
-        <SectionCard variant="ink" noPadding className="p-4">
+        <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Structure</span>
             <Trophy className="h-4 w-4 text-ink-foreground/50" />
@@ -362,27 +377,72 @@ export default function TournamentDetailPage({
           <div className="text-lg font-bold">
             {tournament._count.blindLevels} niveaux
           </div>
-          <p className="text-xs text-ink-foreground/60">
+          <p className="text-sm text-ink-foreground/70">
             {Math.floor(tournament.targetDuration / 60)}h
             {tournament.targetDuration % 60}min
           </p>
         </SectionCard>
       </div>
 
+      {/* Bandeau Mode Mobile — accès rapide Director Table */}
+      {tournament.status === 'IN_PROGRESS' && tables.length > 0 && (
+        <div className="sm:hidden sticky top-0 z-50 bg-primary text-primary-foreground rounded-lg border border-primary/20 shadow-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Smartphone className="h-4 w-4" />
+            <span className="font-semibold text-sm">Mode Mobile — Vue Directeur</span>
+          </div>
+          {tables.length <= 3 ? (
+            <div className="flex gap-2">
+              {tables
+                .sort((a, b) => a.tableNumber - b.tableNumber)
+                .map((table) => (
+                  <Button
+                    key={table.tableNumber}
+                    size="sm"
+                    variant="secondary"
+                    className="flex-1 min-h-[44px] font-medium"
+                    onClick={() => window.open(`/director/${tournament.id}/table/${table.tableNumber}`, '_self')}
+                  >
+                    Table {table.tableNumber}
+                    <Badge variant="outline" className="ml-1.5 text-xs px-1.5">{table.activePlayers}</Badge>
+                  </Button>
+                ))}
+            </div>
+          ) : (
+            <Select onValueChange={(val) => window.location.href = `/director/${tournament.id}/table/${val}`}>
+              <SelectTrigger className="min-h-[44px] bg-secondary text-secondary-foreground">
+                <SelectValue placeholder="Choisir une table..." />
+              </SelectTrigger>
+              <SelectContent>
+                {tables
+                  .sort((a, b) => a.tableNumber - b.tableNumber)
+                  .map((table) => (
+                    <SelectItem key={table.tableNumber} value={String(table.tableNumber)}>
+                      Table {table.tableNumber} — {table.activePlayers} joueurs actifs
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
+
       {/* Tabs - Navigation avec fond ink */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-        <div className="bg-ink rounded-lg p-1 border border-border shadow-md overflow-x-auto">
-          <TabsList className="bg-transparent w-max md:w-full justify-start flex-nowrap">
-            <TabsTrigger value="structure" className="whitespace-nowrap text-xs md:text-sm">Structure</TabsTrigger>
-            <TabsTrigger value="config" className="whitespace-nowrap text-xs md:text-sm">Jetons</TabsTrigger>
-            <TabsTrigger value="players" data-admin-tab="players" className="whitespace-nowrap text-xs md:text-sm">Joueurs</TabsTrigger>
-            <TabsTrigger value="tables" data-admin-tab="tables" className="whitespace-nowrap text-xs md:text-sm">Tables</TabsTrigger>
-            <TabsTrigger value="timer" className="whitespace-nowrap text-xs md:text-sm">Timer</TabsTrigger>
-            <TabsTrigger value="eliminations" className="whitespace-nowrap text-xs md:text-sm">Élims</TabsTrigger>
-            <TabsTrigger value="prizepool" className="whitespace-nowrap text-xs md:text-sm">Prizes</TabsTrigger>
-            <TabsTrigger value="results" data-admin-tab="results" className="whitespace-nowrap text-xs md:text-sm">Résultats</TabsTrigger>
-            {isAdmin && <TabsTrigger value="directors" className="whitespace-nowrap text-xs md:text-sm">TD</TabsTrigger>}
+        <div className="relative bg-ink rounded-lg p-1 border border-border shadow-md">
+          <TabsList className="bg-transparent flex w-full overflow-x-auto md:overflow-visible justify-start scrollbar-hide">
+            <TabsTrigger value="structure" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Structure</TabsTrigger>
+            <TabsTrigger value="config" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Jetons</TabsTrigger>
+            <TabsTrigger value="players" data-admin-tab="players" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Joueurs</TabsTrigger>
+            <TabsTrigger value="tables" data-admin-tab="tables" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Tables</TabsTrigger>
+            <TabsTrigger value="timer" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Timer</TabsTrigger>
+            <TabsTrigger value="eliminations" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Élims</TabsTrigger>
+            <TabsTrigger value="prizepool" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Prizes</TabsTrigger>
+            <TabsTrigger value="results" data-admin-tab="results" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Résultats</TabsTrigger>
+            {isAdmin && <TabsTrigger value="directors" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">TD</TabsTrigger>}
           </TabsList>
+          {/* Fade indicator for more tabs on mobile */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-ink to-transparent rounded-r-lg pointer-events-none md:hidden" />
         </div>
 
         <TabsContent value="structure" className="mt-6">
@@ -483,7 +543,7 @@ export default function TournamentDetailPage({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-date">Date et heure *</Label>
                   <Input
@@ -517,7 +577,7 @@ export default function TournamentDetailPage({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-buyin">Buy-in (€)</Label>
                   <Input
@@ -545,7 +605,7 @@ export default function TournamentDetailPage({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-duration">Durée cible (minutes)</Label>
                   <Input

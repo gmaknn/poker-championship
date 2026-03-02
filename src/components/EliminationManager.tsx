@@ -1,12 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { SectionCard } from '@/components/ui/section-card';
-import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp, LayoutGrid } from 'lucide-react';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -68,6 +80,12 @@ type Tournament = {
   seasonLeaderAtStartId: string | null;
 };
 
+type TableInfo = {
+  tableNumber: number;
+  activePlayers: number;
+  totalPlayers: number;
+};
+
 type Props = {
   tournamentId: string;
   onUpdate?: () => void;
@@ -98,6 +116,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [isLightRebuySubmitting, setIsLightRebuySubmitting] = useState<string | null>(null);
   // Bust recave state
   const [bustRecaveSubmitting, setBustRecaveSubmitting] = useState<string | null>(null);
+  // Tables info for director view links
+  const [tables, setTables] = useState<TableInfo[]>([]);
   // Voluntary rebuy state
   const [voluntaryRebuyStack, setVoluntaryRebuyStack] = useState<Record<string, number>>({});
   const [voluntaryRebuySubmitting, setVoluntaryRebuySubmitting] = useState<string | null>(null);
@@ -106,6 +126,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [eliminationFormOpen, setEliminationFormOpen] = useState(true);
   const [bustHistoryOpen, setBustHistoryOpen] = useState(false);
   const [eliminationHistoryOpen, setEliminationHistoryOpen] = useState(false);
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'elimination' | 'bust' | 'recave';
+    bustId?: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -195,6 +220,13 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         const bustsData = await bustsResponse.json();
         setBusts(bustsData);
       }
+
+      // Récupérer les tables pour les liens vers la vue DT
+      const tablesResponse = await fetch(`/api/tournaments/${tournamentId}/tables`);
+      if (tablesResponse.ok) {
+        const tablesData = await tablesResponse.json();
+        setTables(tablesData.tables || []);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Erreur lors du chargement des données');
@@ -235,6 +267,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         setSelectedEliminator('');
         await fetchData();
         onUpdate?.();
+        toast.success('Bust enregistré');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'enregistrement');
@@ -279,6 +312,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         setSelectedEliminator('');
         await fetchData();
         onUpdate?.();
+        toast.success('Élimination enregistrée');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'enregistrement');
@@ -292,12 +326,6 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   };
 
   const handleCancelLastElimination = async () => {
-    if (eliminations.length === 0) return;
-
-    if (!confirm('Voulez-vous vraiment annuler la dernière élimination ?')) {
-      return;
-    }
-
     try {
       const lastElimination = eliminations[0];
       const response = await fetch(
@@ -308,23 +336,18 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Élimination annulée');
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de l\'annulation');
+        toast.error(data.error || 'Erreur lors de l\'annulation');
       }
     } catch (error) {
       console.error('Error canceling elimination:', error);
-      alert('Erreur lors de l\'annulation');
+      toast.error('Erreur lors de l\'annulation');
     }
   };
 
   const handleCancelLastBust = async () => {
-    if (busts.length === 0) return;
-
-    if (!confirm('Voulez-vous vraiment annuler le dernier bust ?')) {
-      return;
-    }
-
     try {
       const response = await fetch(
         `/api/tournaments/${tournamentId}/busts/last`,
@@ -334,13 +357,14 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Bust annulé');
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de l\'annulation');
+        toast.error(data.error || 'Erreur lors de l\'annulation');
       }
     } catch (error) {
       console.error('Error canceling bust:', error);
-      alert('Erreur lors de l\'annulation');
+      toast.error('Erreur lors de l\'annulation');
     }
   };
 
@@ -358,6 +382,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Recave appliquée');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'application de la recave');
@@ -372,10 +397,6 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
   // Gérer l'annulation d'une recave depuis un bust
   const handleCancelBustRecave = async (bustId: string) => {
-    if (!confirm('Voulez-vous vraiment annuler cette recave ?')) {
-      return;
-    }
-
     setBustRecaveSubmitting(bustId);
     setError('');
 
@@ -387,6 +408,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Recave annulée');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'annulation de la recave');
@@ -419,6 +441,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Light rebuy appliqué');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'application du light rebuy');
@@ -466,6 +489,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         });
         await fetchData();
         onUpdate?.();
+        toast.success('Full rebuy appliqué');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors du rebuy volontaire');
@@ -534,6 +558,35 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 </div>
               </>
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Accès rapide vue Directeur de Table */}
+      {tables.length > 0 && tournament?.status === 'IN_PROGRESS' && (
+        <Card className="border-blue-500/30 bg-blue-500/5">
+          <CardContent className="py-3 px-4 !pb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <LayoutGrid className="h-4 w-4 text-blue-500" />
+              <span className="font-semibold text-sm">Vue Directeur de Table</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline">— optimisée mobile</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {tables.map(table => (
+                <Link
+                  key={table.tableNumber}
+                  href={`/director/${tournamentId}/table/${table.tableNumber}`}
+                  target="_blank"
+                >
+                  <Button variant="outline" size="sm" className="border-blue-500/30 hover:bg-blue-500/10">
+                    Table {table.tableNumber}
+                    <Badge variant="secondary" className="ml-1.5 text-sm px-1.5">
+                      {table.activePlayers}
+                    </Badge>
+                  </Button>
+                </Link>
+              ))}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -672,8 +725,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {busts.length > 0 && (
         <Card>
           <CardHeader
-            className="flex flex-row items-center justify-between gap-2 pb-3 cursor-pointer select-none"
+            className="flex flex-row items-center justify-between gap-2 pb-3 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
             onClick={() => setBustHistoryOpen(!bustHistoryOpen)}
+            onKeyDown={(e) => e.key === 'Enter' && setBustHistoryOpen(!bustHistoryOpen)}
+            role="button"
+            tabIndex={0}
           >
             <CardTitle className="flex items-center gap-2 text-lg font-semibold">
               <RefreshCw className="h-5 w-5 text-amber-500" />
@@ -688,8 +744,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) => { e.stopPropagation(); handleCancelLastBust(); }}
-                className="min-h-[40px]"
+                onClick={(e) => { e.stopPropagation(); setConfirmDialog({ type: 'bust' }); }}
+                className="min-h-[44px]"
               >
                 <Undo2 className="mr-1 h-4 w-4" />
                 Annuler dernier
@@ -708,11 +764,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 >
                   {/* Ligne 1: Badges + Nom */}
                   <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-xs">
+                    <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-sm">
                       Bust
                     </Badge>
                     {bust.recaveApplied && (
-                      <Badge variant="default" className="bg-green-600 text-xs">
+                      <Badge variant="default" className="bg-green-600 text-sm">
                         <Check className="h-3 w-3 mr-1" />
                         Recave
                       </Badge>
@@ -720,7 +776,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                     <span className="font-semibold text-base">
                       {bust.eliminated.player.nickname}
                     </span>
-                    <span className="text-xs text-muted-foreground ml-auto">
+                    <span className="text-sm text-muted-foreground ml-auto">
                       {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
                     </span>
                   </div>
@@ -745,7 +801,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                           size="sm"
                           variant="outline"
                           className="border-red-500 text-red-600 hover:bg-red-500/10 min-h-[44px] w-full"
-                          onClick={() => handleCancelBustRecave(bust.id)}
+                          onClick={() => setConfirmDialog({ type: 'recave', bustId: bust.id })}
                           disabled={bustRecaveSubmitting === bust.id}
                         >
                           {bustRecaveSubmitting === bust.id ? (
@@ -789,8 +845,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {isVoluntaryRebuyPeriod && tournament?.status === 'IN_PROGRESS' && (
         <Card className="border-blue-500/50">
           <CardHeader
-            className="cursor-pointer select-none"
+            className="cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
             onClick={() => setVoluntaryRebuyOpen(!voluntaryRebuyOpen)}
+            onKeyDown={(e) => e.key === 'Enter' && setVoluntaryRebuyOpen(!voluntaryRebuyOpen)}
+            role="button"
+            tabIndex={0}
           >
             <CardTitle className="flex items-center gap-2 text-lg font-semibold">
               <Hand className="h-5 w-5 text-blue-500" />
@@ -826,16 +885,16 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                   <div key={p.playerId} className="flex flex-col gap-2 p-3 rounded-lg border">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">{p.player.nickname}</span>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-sm">
                         {p.rebuysCount} rebuy{p.rebuysCount !== 1 ? 's' : ''}
                       </Badge>
                       {p.lightRebuyUsed && (
-                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 text-xs">
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 text-sm">
                           Light utilisé
                         </Badge>
                       )}
                       {p.voluntaryFullRebuyUsed && (
-                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 text-xs">
+                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 text-sm">
                           Full utilisé
                         </Badge>
                       )}
@@ -863,7 +922,6 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                                   [p.playerId]: value as number,
                                 }));
                               }}
-                              className="h-10"
                             />
                           </div>
 
@@ -910,8 +968,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {!recavesOpen && tournament?.status === 'IN_PROGRESS' && (
         <Card className="border-red-500/50">
           <CardHeader
-            className="cursor-pointer select-none"
+            className="cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
             onClick={() => setEliminationFormOpen(!eliminationFormOpen)}
+            onKeyDown={(e) => e.key === 'Enter' && setEliminationFormOpen(!eliminationFormOpen)}
+            role="button"
+            tabIndex={0}
           >
             <CardTitle className="flex items-center gap-2 text-lg font-semibold">
               <Skull className="h-5 w-5 text-red-500" />
@@ -985,8 +1046,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {/* 5. Historique des éliminations - Accordéon */}
       <Card>
         <CardHeader
-          className="flex flex-row items-center justify-between cursor-pointer select-none"
+          className="flex flex-row items-center justify-between cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
           onClick={() => setEliminationHistoryOpen(!eliminationHistoryOpen)}
+          onKeyDown={(e) => e.key === 'Enter' && setEliminationHistoryOpen(!eliminationHistoryOpen)}
+          role="button"
+          tabIndex={0}
         >
           <CardTitle className="flex items-center gap-2 text-lg font-semibold">
             <Skull className="h-5 w-5 text-red-500" />
@@ -1001,7 +1065,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             <Button
               variant="outline"
               size="sm"
-              onClick={(e) => { e.stopPropagation(); handleCancelLastElimination(); }}
+              onClick={(e) => { e.stopPropagation(); setConfirmDialog({ type: 'elimination' }); }}
             >
               <Undo2 className="mr-2 h-4 w-4" />
               Annuler la dernière
@@ -1046,7 +1110,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                       )}
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-sm text-muted-foreground">
                     {format(new Date(elim.createdAt), 'HH:mm', { locale: fr })}
                   </div>
                 </div>
@@ -1056,6 +1120,34 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </CardContent>
         )}
       </Card>
+
+      {/* Confirm cancel dialog */}
+      <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer l&apos;annulation</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog?.type === 'elimination' && 'Voulez-vous vraiment annuler la dernière élimination ?'}
+              {confirmDialog?.type === 'bust' && 'Voulez-vous vraiment annuler le dernier bust ?'}
+              {confirmDialog?.type === 'recave' && 'Voulez-vous vraiment annuler cette recave ?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Non</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmDialog?.type === 'elimination') handleCancelLastElimination();
+                else if (confirmDialog?.type === 'bust') handleCancelLastBust();
+                else if (confirmDialog?.type === 'recave' && confirmDialog.bustId) handleCancelBustRecave(confirmDialog.bustId);
+                setConfirmDialog(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Oui, annuler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -94,10 +94,6 @@ export default function PlayerHomePage() {
     }
   };
 
-  const handlePlayerSelect = (playerId: string) => {
-    router.push(`/player/${playerId}`);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -165,50 +161,47 @@ export default function PlayerHomePage() {
 
       {/* Quick Access Cards */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        <Card
-          className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/20"
-          onClick={() => router.push('/player/leaderboard')}
-        >
-          <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
-            <Trophy className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <CardTitle className="text-base sm:text-lg">Classement</CardTitle>
-              <CardDescription className="text-sm truncate">
-                Saison en cours
-              </CardDescription>
-            </div>
-          </CardHeader>
-        </Card>
+        <Link href="/player/leaderboard" className="block">
+          <Card className="hover:bg-accent/50 transition-colors border-primary/20 h-full">
+            <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
+              <Trophy className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <CardTitle className="text-base sm:text-lg">Classement</CardTitle>
+                <CardDescription className="text-sm truncate">
+                  Saison en cours
+                </CardDescription>
+              </div>
+            </CardHeader>
+          </Card>
+        </Link>
 
-        <Card
-          className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/20"
-          onClick={() => router.push('/player/tournaments')}
-        >
-          <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
-            <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <CardTitle className="text-base sm:text-lg">Tournois</CardTitle>
-              <CardDescription className="text-sm truncate">
-                Historique et résultats
-              </CardDescription>
-            </div>
-          </CardHeader>
-        </Card>
+        <Link href="/player/tournaments" className="block">
+          <Card className="hover:bg-accent/50 transition-colors border-primary/20 h-full">
+            <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
+              <Calendar className="h-8 w-8 sm:h-10 sm:w-10 text-blue-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <CardTitle className="text-base sm:text-lg">Tournois</CardTitle>
+                <CardDescription className="text-sm truncate">
+                  Historique et résultats
+                </CardDescription>
+              </div>
+            </CardHeader>
+          </Card>
+        </Link>
 
-        <Card
-          className="cursor-pointer hover:bg-accent/50 transition-colors border-primary/20 sm:col-span-2 lg:col-span-1"
-          onClick={() => router.push('/player/live')}
-        >
-          <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
-            <Zap className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500 flex-shrink-0" />
-            <div className="min-w-0">
-              <CardTitle className="text-base sm:text-lg">Live</CardTitle>
-              <CardDescription className="text-sm truncate">
-                Points en direct
-              </CardDescription>
-            </div>
-          </CardHeader>
-        </Card>
+        <Link href="/player/live" className="block sm:col-span-2 lg:col-span-1">
+          <Card className="hover:bg-accent/50 transition-colors border-primary/20 h-full">
+            <CardHeader className="flex flex-row items-center gap-3 sm:gap-4 p-4 sm:p-6">
+              <Zap className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500 flex-shrink-0" />
+              <div className="min-w-0">
+                <CardTitle className="text-base sm:text-lg">Live</CardTitle>
+                <CardDescription className="text-sm truncate">
+                  Points en direct
+                </CardDescription>
+              </div>
+            </CardHeader>
+          </Card>
+        </Link>
       </div>
 
       {/* Search */}
@@ -238,34 +231,32 @@ export default function PlayerHomePage() {
       ) : (
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {filteredPlayers.map((player) => (
-            <Card
-              key={player.id}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => handlePlayerSelect(player.id)}
-            >
-              <CardContent className="flex items-center gap-3 p-4">
-                {/* Avatar */}
-                {player.avatar && getAvatarUrl(player.avatar) ? (
-                  <img
-                    src={getAvatarUrl(player.avatar)!}
-                    alt={player.nickname}
-                    className="w-10 h-10 rounded-full border border-border flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
-                    <Users className="h-5 w-5 text-muted-foreground" />
+            <Link key={player.id} href={`/player/${player.id}`} className="block">
+              <Card className="hover:bg-accent/50 transition-colors h-full">
+                <CardContent className="flex items-center gap-3 p-4">
+                  {/* Avatar */}
+                  {player.avatar && getAvatarUrl(player.avatar) ? (
+                    <img
+                      src={getAvatarUrl(player.avatar)!}
+                      alt={player.nickname}
+                      className="w-10 h-10 rounded-full border border-border flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium truncate">
+                      {player.firstName} {player.lastName}
+                    </h3>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {player.nickname}
+                    </p>
                   </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-medium truncate">
-                    {player.firstName} {player.lastName}
-                  </h3>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {player.nickname}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

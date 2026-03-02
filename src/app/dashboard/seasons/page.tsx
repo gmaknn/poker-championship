@@ -21,6 +21,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Season } from '@prisma/client';
 import RecavePenaltyTiersEditor from '@/components/RecavePenaltyTiersEditor';
 import { RecavePenaltyTier } from '@/lib/scoring';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
 
@@ -83,6 +94,7 @@ export default function SeasonsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSeason, setEditingSeason] = useState<SeasonWithCount | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<PlayerRole | null>(null);
+  const [archiveSeasonConfirm, setArchiveSeasonConfirm] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     year: new Date().getFullYear(),
@@ -231,6 +243,7 @@ export default function SeasonsPage() {
       if (response.ok) {
         setIsDialogOpen(false);
         fetchSeasons();
+        toast.success(editingSeason ? 'Saison modifiée' : 'Saison créée');
       } else {
         const data = await response.json();
         setError(data.error || 'Une erreur est survenue');
@@ -241,8 +254,6 @@ export default function SeasonsPage() {
   };
 
   const handleArchive = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir archiver cette saison ?')) return;
-
     try {
       const response = await fetch(`/api/seasons/${id}`, {
         method: 'DELETE',
@@ -250,6 +261,7 @@ export default function SeasonsPage() {
 
       if (response.ok) {
         fetchSeasons();
+        toast.success('Saison archivée');
       }
     } catch (error) {
       console.error('Error archiving season:', error);
@@ -378,7 +390,7 @@ export default function SeasonsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleArchive(season.id)}
+                              onClick={() => setArchiveSeasonConfirm(season.id)}
                             >
                               <Archive className="h-4 w-4" />
                             </Button>
@@ -743,6 +755,30 @@ export default function SeasonsPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog pour confirmer l'archivage d'une saison */}
+      <AlertDialog open={!!archiveSeasonConfirm} onOpenChange={(open) => !open && setArchiveSeasonConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archiver cette saison ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir archiver cette saison ? Cette action est réversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (archiveSeasonConfirm) handleArchive(archiveSeasonConfirm);
+                setArchiveSeasonConfirm(null);
+              }}
+            >
+              Archiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

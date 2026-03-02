@@ -81,6 +81,7 @@ export default function LiveLeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+  const [fetchError, setFetchError] = useState(false);
 
   const fetchLeaderboard = async () => {
     try {
@@ -89,9 +90,11 @@ export default function LiveLeaderboardPage() {
         const jsonData = await res.json();
         setData(jsonData);
         setLastUpdate(new Date());
+        setFetchError(false);
       }
     } catch (error) {
       console.error('Error fetching live leaderboard:', error);
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -137,41 +140,47 @@ export default function LiveLeaderboardPage() {
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => router.back()}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-3">
-                <Trophy className="h-8 w-8 text-yellow-500" />
-                Classement en Direct
-              </h1>
-              <p className="text-muted-foreground mt-1">
-                {data.tournament.name} • {data.season.name}
-              </p>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-xl sm:text-3xl font-bold flex items-center gap-2 sm:gap-3">
+              <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500" />
+              Classement en Direct
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">
+              {data.tournament.name} • {data.season.name}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-sm text-muted-foreground">
+        <div className="flex items-center gap-2 sm:gap-3 ml-12 sm:ml-0">
+          <div className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
             Mise à jour : {lastUpdate.toLocaleTimeString('fr-FR')}
           </div>
           <Button
             variant={autoRefresh ? "default" : "outline"}
             size="sm"
+            className="min-h-[44px]"
             onClick={() => setAutoRefresh(!autoRefresh)}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
             {autoRefresh ? 'Auto' : 'Manuel'}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => fetchLeaderboard()}>
+          <Button variant="outline" size="sm" className="min-h-[44px]" onClick={() => fetchLeaderboard()}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Actualiser
           </Button>
         </div>
       </div>
+
+      {/* Fetch error banner */}
+      {fetchError && (
+        <div className="bg-destructive/10 text-destructive text-sm px-4 py-2 rounded">
+          Erreur de connexion — données possiblement obsolètes
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -182,7 +191,7 @@ export default function LiveLeaderboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.remainingPlayers}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               sur {data.stats.totalPlayers} joueurs
             </p>
           </CardContent>
@@ -195,7 +204,7 @@ export default function LiveLeaderboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.totalEliminations}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {data.stats.eliminatedPlayers} joueurs éliminés
             </p>
           </CardContent>
@@ -208,7 +217,7 @@ export default function LiveLeaderboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.leaderKillsTotal}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               +{data.season.leaderKillerBonus} points chacun
             </p>
           </CardContent>
@@ -221,7 +230,7 @@ export default function LiveLeaderboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.totalRebuys}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Recaves effectuées
             </p>
           </CardContent>
@@ -249,7 +258,7 @@ export default function LiveLeaderboardPage() {
               return (
                 <div
                   key={entry.player.id}
-                  className={`flex items-center gap-4 p-4 rounded-lg border transition-all ${
+                  className={`flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 sm:p-4 rounded-lg border transition-all ${
                     entry.isEliminated
                       ? 'bg-muted/50 opacity-60'
                       : isPodium
@@ -257,91 +266,104 @@ export default function LiveLeaderboardPage() {
                       : 'hover:bg-accent'
                   }`}
                 >
-                  {/* Rank */}
-                  <div className="flex-shrink-0 w-12 text-center">
-                    {isPodium && !entry.isEliminated ? (
-                      <Trophy className={`h-8 w-8 mx-auto ${
-                        isLeader ? 'text-yellow-500' : entry.currentRank === 2 ? 'text-gray-400' : 'text-amber-600'
-                      }`} />
-                    ) : (
-                      <div className={`text-2xl font-bold ${entry.isEliminated ? 'text-muted-foreground' : ''}`}>
-                        #{entry.currentRank}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt={entry.player.nickname}
-                        className="w-12 h-12 rounded-full border-2 border-border"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border-2 border-border">
-                        <Users className="h-6 w-6 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Player Info */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="font-semibold text-lg">{entry.player.nickname}</div>
-                      {entry.isEliminated && (
-                        <Badge variant="destructive" className="text-xs">
-                          Éliminé (#{entry.finalRank})
-                        </Badge>
-                      )}
-                      {isLeader && !entry.isEliminated && (
-                        <Badge variant="default" className="bg-yellow-500 text-xs">
-                          Leader
-                        </Badge>
+                  {/* Identity row: Rank + Avatar + Player Info */}
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                    {/* Rank */}
+                    <div className="flex-shrink-0 w-8 sm:w-12 text-center">
+                      {isPodium && !entry.isEliminated ? (
+                        <Trophy className={`h-6 w-6 sm:h-8 sm:w-8 mx-auto ${
+                          isLeader ? 'text-yellow-500' : entry.currentRank === 2 ? 'text-gray-400' : 'text-amber-600'
+                        }`} />
+                      ) : (
+                        <div className={`text-lg sm:text-2xl font-bold ${entry.isEliminated ? 'text-muted-foreground' : ''}`}>
+                          #{entry.currentRank}
+                        </div>
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {entry.player.firstName} {entry.player.lastName}
+
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      {avatarUrl ? (
+                        <img
+                          src={avatarUrl}
+                          alt={entry.player.nickname}
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-border"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center border-2 border-border">
+                          <Users className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Player Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="font-semibold text-base sm:text-lg truncate">{entry.player.nickname}</div>
+                        {entry.isEliminated && (
+                          <Badge variant="destructive" className="text-sm">
+                            Éliminé (#{entry.finalRank})
+                          </Badge>
+                        )}
+                        {isLeader && !entry.isEliminated && (
+                          <Badge variant="default" className="bg-yellow-500 text-sm">
+                            Leader
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground hidden sm:block">
+                        {entry.player.firstName} {entry.player.lastName}
+                      </div>
+                    </div>
+
+                    {/* Points - visible on mobile, right-aligned */}
+                    <div className="flex flex-col items-end gap-0.5 sm:hidden flex-shrink-0">
+                      <div className="text-lg font-bold">
+                        {entry.currentPoints >= 0 ? '+' : ''}{entry.currentPoints} pts
+                      </div>
                     </div>
                   </div>
 
-                  {/* Stats */}
-                  <div className="flex items-center gap-4 text-sm">
-                    {entry.eliminationsCount > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Target className="h-4 w-4 text-red-500" />
-                        <span>{entry.eliminationsCount} élim.</span>
-                      </div>
-                    )}
-                    {entry.leaderKills > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Award className="h-4 w-4 text-purple-500" />
-                        <span>{entry.leaderKills} LK</span>
-                      </div>
-                    )}
-                    {entry.rebuysCount > 0 && (
-                      <div className="flex items-center gap-1">
-                        <RefreshCw className="h-4 w-4 text-orange-500" />
-                        <span>{entry.rebuysCount} recaves</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Points Breakdown */}
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="text-2xl font-bold">
-                      {entry.currentPoints >= 0 ? '+' : ''}{entry.currentPoints} pts
+                  {/* Stats + Points row */}
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4 ml-11 sm:ml-0">
+                    {/* Stats */}
+                    <div className="flex items-center gap-3 sm:gap-4 text-sm">
+                      {entry.eliminationsCount > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Target className="h-4 w-4 text-red-500" />
+                          <span>{entry.eliminationsCount} élim.</span>
+                        </div>
+                      )}
+                      {entry.leaderKills > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Award className="h-4 w-4 text-purple-500" />
+                          <span>{entry.leaderKills} LK</span>
+                        </div>
+                      )}
+                      {entry.rebuysCount > 0 && (
+                        <div className="flex items-center gap-1">
+                          <RefreshCw className="h-4 w-4 text-orange-500" />
+                          <span>{entry.rebuysCount} recaves</span>
+                        </div>
+                      )}
                     </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                      {entry.eliminationPoints > 0 && (
-                        <span className="text-green-600">+{entry.eliminationPoints} élim.</span>
-                      )}
-                      {entry.bonusPoints > 0 && (
-                        <span className="text-purple-600">+{entry.bonusPoints} bonus</span>
-                      )}
-                      {entry.penaltyPoints < 0 && (
-                        <span className="text-red-600">{entry.penaltyPoints} malus</span>
-                      )}
+
+                    {/* Points Breakdown - desktop */}
+                    <div className="hidden sm:flex flex-col items-end gap-1">
+                      <div className="text-2xl font-bold">
+                        {entry.currentPoints >= 0 ? '+' : ''}{entry.currentPoints} pts
+                      </div>
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
+                        {entry.eliminationPoints > 0 && (
+                          <span className="text-green-600">+{entry.eliminationPoints} élim.</span>
+                        )}
+                        {entry.bonusPoints > 0 && (
+                          <span className="text-purple-600">+{entry.bonusPoints} bonus</span>
+                        )}
+                        {entry.penaltyPoints < 0 && (
+                          <span className="text-red-600">{entry.penaltyPoints} malus</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

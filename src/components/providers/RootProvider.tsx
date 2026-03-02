@@ -1,6 +1,7 @@
 'use client';
 
 import { SessionProvider } from 'next-auth/react';
+import { Toaster } from 'sonner';
 import { OfflineIndicator } from '../OfflineIndicator';
 import { useSyncManager } from '@/hooks/useSyncManager';
 import { ThemeProvider } from './ThemeProvider';
@@ -27,6 +28,7 @@ export function RootProvider({ children }: { children: React.ReactNode }) {
         </div>
       )}
         {children}
+        <Toaster theme="dark" position="bottom-center" richColors closeButton />
         </SocketProvider>
       </ThemeProvider>
     </SessionProvider>

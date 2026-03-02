@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Trophy, Medal, Users, Star } from 'lucide-react';
 import {
@@ -42,7 +42,7 @@ const getAvatarUrl = (avatar: string | null) => {
 };
 
 export default function PlayerLeaderboardPage() {
-  const router = useRouter();
+
   const { currentPlayer } = useCurrentPlayer();
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('');
@@ -103,9 +103,6 @@ export default function PlayerLeaderboardPage() {
     fetchLeaderboard(seasonId);
   };
 
-  const handlePlayerClick = (playerId: string) => {
-    router.push(`/player/${playerId}`);
-  };
 
   const getRankDisplay = (rank: number) => {
     if (rank === 1)
@@ -225,16 +222,16 @@ export default function PlayerLeaderboardPage() {
                     {entry.rank === 11 && (
                       <div key="separator" className="flex items-center gap-3 py-2 px-4 bg-muted/30">
                         <div className="flex-1 h-px bg-yellow-500/50" />
-                        <span className="text-xs text-muted-foreground">Hors Zone Master</span>
+                        <span className="text-sm text-muted-foreground">Hors Zone Master</span>
                         <div className="flex-1 h-px bg-yellow-500/50" />
                       </div>
                     )}
-                    <div
+                    <Link
                       key={entry.playerId}
-                      className={`flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/50 transition-colors cursor-pointer ${
+                      href={`/player/${entry.playerId}`}
+                      className={`flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/50 transition-colors ${
                         isCurrentPlayer ? 'bg-primary/5 border-l-4 border-l-primary' : ''
                       } ${isTop10 && !isCurrentPlayer ? 'bg-yellow-500/5' : ''}`}
-                      onClick={() => handlePlayerClick(entry.playerId)}
                     >
                     {/* Rank */}
                     <div className="flex-shrink-0">{getRankDisplay(entry.rank)}</div>
@@ -257,10 +254,10 @@ export default function PlayerLeaderboardPage() {
                       <p className="font-medium truncate">
                         {entry.player.nickname}
                         {isCurrentPlayer && (
-                          <span className="text-xs text-primary ml-2">(vous)</span>
+                          <span className="text-sm text-primary ml-2">(vous)</span>
                         )}
                       </p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {entry.tournamentsCount} tournoi
                         {entry.tournamentsCount > 1 ? 's' : ''}
                         {entry.victories > 0 && (
@@ -278,9 +275,9 @@ export default function PlayerLeaderboardPage() {
                       <p className="font-bold text-lg sm:text-xl text-primary">
                         {entry.totalPoints}
                       </p>
-                      <p className="text-xs text-muted-foreground">pts</p>
+                      <p className="text-sm text-muted-foreground">pts</p>
                     </div>
-                    </div>
+                    </Link>
                   </>
                 );
               })}

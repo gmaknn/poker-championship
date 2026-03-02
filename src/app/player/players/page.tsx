@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Users, Search, Trophy, Target } from 'lucide-react';
+import Link from 'next/link';
 
 type Player = {
   id: string;
@@ -26,7 +26,6 @@ const getAvatarUrl = (avatar: string | null) => {
 };
 
 export default function PlayerPlayersPage() {
-  const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,10 +69,6 @@ export default function PlayerPlayersPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handlePlayerClick = (playerId: string) => {
-    router.push(`/player/${playerId}`);
   };
 
   if (isLoading) {
@@ -125,48 +120,46 @@ export default function PlayerPlayersPage() {
       ) : (
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {filteredPlayers.map((player) => (
-            <Card
-              key={player.id}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => handlePlayerClick(player.id)}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center gap-4">
-                  {/* Avatar */}
-                  {player.avatar && getAvatarUrl(player.avatar) ? (
-                    <img
-                      src={getAvatarUrl(player.avatar)!}
-                      alt={player.nickname}
-                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border border-border flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
-                      <Users className="h-6 w-6 text-muted-foreground" />
-                    </div>
-                  )}
+            <Link key={player.id} href={`/player/${player.id}`} className="block">
+              <Card className="hover:bg-accent/50 transition-colors h-full">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    {player.avatar && getAvatarUrl(player.avatar) ? (
+                      <img
+                        src={getAvatarUrl(player.avatar)!}
+                        alt={player.nickname}
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border border-border flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-muted flex items-center justify-center border border-border flex-shrink-0">
+                        <Users className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold truncate">
-                      {player.firstName} {player.lastName}
-                    </h3>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {player.nickname}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Trophy className="h-3 w-3" />
-                        {player._count.tournamentPlayers} tournois
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Target className="h-3 w-3" />
-                        {player._count.eliminations} élim.
-                      </span>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold truncate">
+                        {player.firstName} {player.lastName}
+                      </h3>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {player.nickname}
+                      </p>
+                      <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Trophy className="h-3 w-3" />
+                          {player._count.tournamentPlayers} tournois
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Target className="h-3 w-3" />
+                          {player._count.eliminations} élim.
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       )}

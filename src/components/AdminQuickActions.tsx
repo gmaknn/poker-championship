@@ -1,9 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Play, Square, Pause, RotateCcw, Flag, Users, Table, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import type { AdminDashboardResponse } from '@/types/admin-dashboard';
 
 interface AdminQuickActionsProps {
@@ -21,6 +32,7 @@ export default function AdminQuickActions({
 }: AdminQuickActionsProps) {
   const [loadingAction, setLoadingAction] = useState<ActionType | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ type: 'reset' | 'finish'; message: string } | null>(null);
 
   const { tournament, level } = data;
 
@@ -34,19 +46,19 @@ export default function AdminQuickActions({
   const executeAction = async (action: ActionType) => {
     // Confirmation for destructive actions
     if (action === 'reset') {
-      const confirmed = window.confirm(
-        'Etes-vous sur de vouloir reinitialiser le timer ? Cette action remettra le niveau a zero.'
-      );
-      if (!confirmed) return;
+      setConfirmAction({ type: 'reset', message: 'Êtes-vous sûr de vouloir réinitialiser le timer ? Cette action remettra le niveau à zéro.' });
+      return;
     }
 
     if (action === 'finish') {
-      const confirmed = window.confirm(
-        'Etes-vous sur de vouloir terminer le tournoi ? Cette action est irreversible.'
-      );
-      if (!confirmed) return;
+      setConfirmAction({ type: 'finish', message: 'Êtes-vous sûr de vouloir terminer le tournoi ? Cette action est irréversible.' });
+      return;
     }
 
+    doExecuteAction(action);
+  };
+
+  const doExecuteAction = async (action: ActionType) => {
     setLoadingAction(action);
     setError(null);
 
@@ -91,6 +103,14 @@ export default function AdminQuickActions({
       }
 
       // Success - trigger refetch
+      const messages: Record<ActionType, string> = {
+        start: 'Tournoi démarré',
+        pause: 'Timer en pause',
+        resume: 'Timer repris',
+        reset: 'Timer réinitialisé',
+        finish: 'Tournoi terminé',
+      };
+      toast.success(messages[action]);
       onActionComplete();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -100,6 +120,7 @@ export default function AdminQuickActions({
   };
 
   return (
+    <>
     <Card className="border-2 border-primary/20">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold">Actions rapides</CardTitle>
@@ -215,5 +236,32 @@ export default function AdminQuickActions({
         </div>
       </CardContent>
     </Card>
+
+    {/* AlertDialog confirmation actions destructives */}
+    <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {confirmAction?.type === 'finish' ? 'Terminer le tournoi ?' : 'Réinitialiser le timer ?'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {confirmAction?.message}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction
+            className={confirmAction?.type === 'finish' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+            onClick={() => {
+              if (confirmAction) doExecuteAction(confirmAction.type);
+              setConfirmAction(null);
+            }}
+          >
+            {confirmAction?.type === 'finish' ? 'Terminer' : 'Réinitialiser'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

@@ -330,26 +330,37 @@ export function PlayerMobileDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = '';
+      // Delay to let the slide-out animation finish
+      const timer = setTimeout(() => {
+        document.body.style.overflow = '';
+      }, 300);
+      return () => clearTimeout(timer);
     }
     return () => {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+        className={cn(
+          "fixed inset-0 z-40 bg-black/50 lg:hidden transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col bg-card border-r shadow-xl lg:hidden">
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] flex flex-col bg-card border-r shadow-xl lg:hidden transform transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        aria-hidden={!isOpen}
+      >
         {/* Header */}
         <div className="flex items-center justify-between gap-2 border-b px-4 py-4">
           <div className="flex items-center gap-2">
@@ -519,7 +530,7 @@ export function PlayerBottomNav() {
               )}
             >
               <Icon className={cn('h-5 w-5 mb-1', isActive && 'scale-110')} />
-              <span className="text-[10px] sm:text-xs font-medium truncate max-w-full">
+              <span className="text-xs font-medium truncate max-w-full">
                 {item.mobileLabel}
               </span>
             </Link>

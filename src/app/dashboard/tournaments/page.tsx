@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy } from 'lucide-react';
@@ -9,6 +10,16 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -100,6 +111,7 @@ export default function TournamentsPage() {
   const [pendingBlindStructure, setPendingBlindStructure] = useState<any[] | null>(null);
   const [pendingChipConfig, setPendingChipConfig] = useState<any | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<PlayerRole | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTournaments();
@@ -297,13 +309,14 @@ export default function TournamentsPage() {
         await fetchTournaments();
         setIsDialogOpen(false);
         resetForm();
+        toast.success(editingTournament ? 'Tournoi modifié' : 'Tournoi créé');
       } else {
         const error = await response.json();
-        alert(error.error || 'Erreur lors de la sauvegarde');
+        toast.error(error.error || 'Erreur lors de la sauvegarde');
       }
     } catch (error) {
       console.error('Error saving tournament:', error);
-      alert('Erreur lors de la sauvegarde');
+      toast.error('Erreur lors de la sauvegarde');
     } finally {
       setLoading(false);
     }
@@ -382,15 +395,13 @@ export default function TournamentsPage() {
 
     } catch (error) {
       console.error('Error cloning tournament:', error);
-      alert('Erreur lors du clonage du tournoi');
+      toast.error('Erreur lors du clonage du tournoi');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce tournoi ?')) return;
-
     try {
       const response = await fetch(`/api/tournaments/${id}`, {
         method: 'DELETE',
@@ -398,13 +409,14 @@ export default function TournamentsPage() {
 
       if (response.ok) {
         await fetchTournaments();
+        toast.success('Tournoi supprimé');
       } else {
         const error = await response.json();
-        alert(error.error || 'Erreur lors de la suppression');
+        toast.error(error.error || 'Erreur lors de la suppression');
       }
     } catch (error) {
       console.error('Error deleting tournament:', error);
-      alert('Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 
@@ -812,7 +824,7 @@ export default function TournamentsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(tournament.id)}
+                      onClick={() => setDeleteConfirm(tournament.id)}
                       disabled={tournament.status === 'FINISHED' || tournament._count.tournamentPlayers > 0}
                     >
                       <Trash2 className="h-3 w-3" />
@@ -1003,7 +1015,7 @@ export default function TournamentsPage() {
                         variant="outline"
                         size="icon"
                         className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
-                        onClick={() => handleDelete(tournament.id)}
+                        onClick={() => setDeleteConfirm(tournament.id)}
                         disabled={tournament.status === 'FINISHED' || tournament._count.tournamentPlayers > 0}
                       >
                         <Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />
@@ -1027,6 +1039,30 @@ export default function TournamentsPage() {
           </div>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer ce tournoi ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteConfirm) handleDelete(deleteConfirm);
+                setDeleteConfirm(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

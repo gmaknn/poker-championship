@@ -27,6 +27,17 @@ import { PlayerWithStats } from '@/types';
 import { ROLES, getRoleLabel, getRoleDescription } from '@/lib/permissions';
 import { PlayerRole } from '@prisma/client';
 import { PageHeader } from '@/components/PageHeader';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const AVATAR_SEEDS = [
   'Felix', 'Aneka', 'Whiskers', 'Salem', 'Misty', 'Shadow',
@@ -83,6 +94,7 @@ export default function PlayersPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [archiveConfirm, setArchiveConfirm] = useState<string | null>(null);
 
   // Activation manuelle
   const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
@@ -192,6 +204,7 @@ export default function PlayersPage() {
       if (response.ok) {
         setIsDialogOpen(false);
         fetchPlayers();
+        toast.success(editingPlayer ? 'Joueur modifié' : 'Joueur créé');
       } else {
         const data = await response.json();
         setError(data.error || 'Une erreur est survenue');
@@ -202,8 +215,6 @@ export default function PlayersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir archiver ce joueur ?')) return;
-
     try {
       const response = await fetch(`/api/players/${id}`, {
         method: 'DELETE',
@@ -211,6 +222,7 @@ export default function PlayersPage() {
 
       if (response.ok) {
         fetchPlayers();
+        toast.success('Joueur archivé');
       }
     } catch (error) {
       console.error('Error deleting player:', error);
@@ -274,11 +286,11 @@ export default function PlayersPage() {
         setTimeout(() => setInviteSuccess(null), 3000);
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de l\'envoi de l\'invitation');
+        toast.error(data.error || 'Erreur lors de l\'envoi de l\'invitation');
       }
     } catch (err) {
       console.error('Error sending invitation:', err);
-      alert('Erreur lors de l\'envoi de l\'invitation');
+      toast.error('Erreur lors de l\'envoi de l\'invitation');
     } finally {
       setInvitingPlayerId(null);
     }
@@ -379,7 +391,7 @@ export default function PlayersPage() {
       if (response.ok) {
         setIsActivateDialogOpen(false);
         fetchPlayers();
-        alert(`Compte activé avec succès pour ${activatingPlayer.firstName} ${activatingPlayer.lastName}.\n\nVous pouvez maintenant lui communiquer le mot de passe.`);
+        toast.success(`Compte activé pour ${activatingPlayer.firstName} ${activatingPlayer.lastName}. Vous pouvez maintenant lui communiquer le mot de passe.`);
       } else {
         const data = await response.json();
         setActivateError(data.error || 'Erreur lors de l\'activation');
@@ -514,8 +526,8 @@ export default function PlayersPage() {
               </ToggleGroupItem>
             </ToggleGroup>
             {isAdmin() && (
-              <Button onClick={() => handleOpenDialog()} size="lg">
-                <Plus className="mr-2 h-5 w-5" />
+              <Button onClick={() => handleOpenDialog()} size="default" className="sm:size-lg">
+                <Plus className="h-5 w-5 sm:mr-2" />
                 <span className="hidden sm:inline">Ajouter un joueur</span>
               </Button>
             )}
@@ -564,130 +576,130 @@ export default function PlayersPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="bg-muted/20 rounded-lg p-6 border-2 border-border">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <Users className="h-6 w-6 text-primary" />
+        <div className="bg-muted/20 rounded-lg p-3 sm:p-6 border-2 border-border">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 flex items-center gap-2">
+            <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             Liste des Joueurs ({filteredPlayers.length}{searchQuery && ` sur ${players.length}`})
           </h2>
 
           {/* Vue Grille */}
           {viewMode === 'grid' && (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {filteredPlayers.map((player) => (
                 <Card key={player.id}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardHeader className="pb-2">
                     <div className="flex items-center gap-3">
                       {player.avatar && getAvatarUrl(player.avatar) ? (
                         <img
                           src={getAvatarUrl(player.avatar)!}
                           alt={player.nickname}
-                          className="w-12 h-12 rounded-full"
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0"
                         />
                       ) : (
-                        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                          <Users className="h-6 w-6 text-muted-foreground" />
+                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                          <Users className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
                         </div>
                       )}
-                      <CardTitle className="text-lg font-semibold">
-                        {player.nickname}
-                      </CardTitle>
-                      {getRoleBadgeConfig((player as any).role) && (
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadgeConfig((player as any).role)!.className}`}>
-                          {getRoleBadgeConfig((player as any).role)!.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => router.push(`/dashboard/players/${player.id}`)}
-                        title="Voir la fiche"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      {isAdmin() && (
-                        <>
-                          {canActivate(player) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenActivateDialog(player)}
-                              title="Activer manuellement"
-                              className="text-emerald-500 hover:text-emerald-600"
-                            >
-                              <UserCheck className="h-4 w-4" />
-                            </Button>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <CardTitle className="text-base sm:text-lg font-semibold truncate">
+                            {player.nickname}
+                          </CardTitle>
+                          {getRoleBadgeConfig((player as any).role) && (
+                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full flex-shrink-0 ${getRoleBadgeConfig((player as any).role)!.className}`}>
+                              {getRoleBadgeConfig((player as any).role)!.label}
+                            </span>
                           )}
-                          {canResetPassword(player) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenResetPasswordDialog(player)}
-                              title="Réinitialiser le mot de passe"
-                              className="text-amber-500 hover:text-amber-600"
-                            >
-                              <KeyRound className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {canInvite(player) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleSendInvitation(player)}
-                              disabled={invitingPlayerId === player.id}
-                              title="Envoyer invitation par email"
-                              className={inviteSuccess === player.id ? 'text-green-500' : ''}
-                            >
-                              {invitingPlayerId === player.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : inviteSuccess === player.id ? (
-                                <Check className="h-4 w-4" />
-                              ) : (
-                                <Mail className="h-4 w-4" />
-                              )}
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenDialog(player)}
-                            title="Modifier"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(player.id)}
-                            title="Supprimer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {player.firstName} {player.lastName}
+                        </p>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium">
-                        {player.firstName} {player.lastName}
-                      </p>
+                    <div className="space-y-2">
                       {player.email && (
-                        <p className="text-sm text-muted-foreground">{player.email}</p>
+                        <p className="text-sm text-muted-foreground truncate">{player.email}</p>
                       )}
-                      <div className="flex gap-4 pt-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Tournois: </span>
-                          <span className="font-medium">
-                            {player._count?.tournamentPlayers || 0}
-                          </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Tournois: </span>
+                            <span className="font-medium">
+                              {player._count?.tournamentPlayers || 0}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Élims: </span>
+                            <span className="font-medium">
+                              {player._count?.eliminations || 0}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="text-muted-foreground">Élims: </span>
-                          <span className="font-medium">
-                            {player._count?.eliminations || 0}
-                          </span>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10"
+                            onClick={() => router.push(`/dashboard/players/${player.id}`)}
+                            title="Voir la fiche"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {isAdmin() && (
+                            <>
+                              {canActivate(player) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-10 w-10 text-emerald-500 hover:text-emerald-600"
+                                  onClick={() => handleOpenActivateDialog(player)}
+                                  title="Activer manuellement"
+                                >
+                                  <UserCheck className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canResetPassword(player) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-10 w-10 text-amber-500 hover:text-amber-600"
+                                  onClick={() => handleOpenResetPasswordDialog(player)}
+                                  title="Réinitialiser le mot de passe"
+                                >
+                                  <KeyRound className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {canInvite(player) && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={`h-10 w-10 ${inviteSuccess === player.id ? 'text-green-500' : ''}`}
+                                  onClick={() => handleSendInvitation(player)}
+                                  disabled={invitingPlayerId === player.id}
+                                  title="Envoyer invitation par email"
+                                >
+                                  {invitingPlayerId === player.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : inviteSuccess === player.id ? (
+                                    <Check className="h-4 w-4" />
+                                  ) : (
+                                    <Mail className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-10 w-10"
+                                onClick={() => handleOpenDialog(player)}
+                                title="Modifier"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -703,37 +715,38 @@ export default function PlayersPage() {
               {filteredPlayers.map((player) => (
                 <div
                   key={player.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                  className="p-3 sm:p-4 border rounded-lg hover:bg-accent transition-colors"
                 >
-                  <div className="flex items-center gap-4 flex-1">
+                  <div className="flex items-center gap-3">
                     {player.avatar && getAvatarUrl(player.avatar) ? (
                       <img
                         src={getAvatarUrl(player.avatar)!}
                         alt={player.nickname}
-                        className="w-12 h-12 rounded-full"
+                        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full flex-shrink-0"
                       />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
-                        <Users className="h-6 w-6 text-muted-foreground" />
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                        <Users className="h-5 w-5 sm:h-6 sm:w-6 text-muted-foreground" />
                       </div>
                     )}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <h3 className="font-semibold text-lg">{player.nickname}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-base sm:text-lg truncate">{player.nickname}</h3>
                         {getRoleBadgeConfig((player as any).role) && (
-                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${getRoleBadgeConfig((player as any).role)!.className}`}>
+                          <span className={`px-2 py-0.5 text-xs font-medium rounded-full flex-shrink-0 ${getRoleBadgeConfig((player as any).role)!.className}`}>
                             {getRoleBadgeConfig((player as any).role)!.label}
                           </span>
                         )}
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-sm text-muted-foreground truncate hidden sm:inline">
                           {player.firstName} {player.lastName}
                         </span>
                       </div>
-                      {player.email && (
-                        <p className="text-sm text-muted-foreground">{player.email}</p>
-                      )}
+                      <p className="text-sm text-muted-foreground truncate sm:hidden">
+                        {player.firstName} {player.lastName}
+                      </p>
                     </div>
-                    <div className="flex gap-8 text-sm">
+                    {/* Stats - hidden on mobile, shown on sm+ */}
+                    <div className="hidden sm:flex gap-6 text-sm flex-shrink-0">
                       <div className="text-center">
                         <div className="font-bold text-lg">
                           {player._count?.tournamentPlayers || 0}
@@ -744,79 +757,84 @@ export default function PlayersPage() {
                         <div className="font-bold text-lg">
                           {player._count?.eliminations || 0}
                         </div>
-                        <div className="text-muted-foreground">Éliminations</div>
+                        <div className="text-muted-foreground">Élims</div>
                       </div>
                     </div>
+                    <div className="flex gap-1 flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10"
+                        onClick={() => router.push(`/dashboard/players/${player.id}`)}
+                        title="Voir la fiche"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      {isAdmin() && (
+                        <>
+                          {canActivate(player) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-10 w-10 text-emerald-500 hover:text-emerald-600"
+                              onClick={() => handleOpenActivateDialog(player)}
+                              title="Activer manuellement"
+                            >
+                              <UserCheck className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canResetPassword(player) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-10 w-10 hidden sm:flex text-amber-500 hover:text-amber-600"
+                              onClick={() => handleOpenResetPasswordDialog(player)}
+                              title="Réinitialiser le mot de passe"
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canInvite(player) && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className={`h-10 w-10 hidden sm:flex ${inviteSuccess === player.id ? 'text-green-500' : ''}`}
+                              onClick={() => handleSendInvitation(player)}
+                              disabled={invitingPlayerId === player.id}
+                              title="Envoyer invitation par email"
+                            >
+                              {invitingPlayerId === player.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : inviteSuccess === player.id ? (
+                                <Check className="h-4 w-4" />
+                              ) : (
+                                <Mail className="h-4 w-4" />
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10"
+                            onClick={() => handleOpenDialog(player)}
+                            title="Modifier"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2 ml-4">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => router.push(`/dashboard/players/${player.id}`)}
-                      title="Voir la fiche"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {isAdmin() && (
-                      <>
-                        {canActivate(player) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenActivateDialog(player)}
-                            title="Activer manuellement"
-                            className="text-emerald-500 hover:text-emerald-600"
-                          >
-                            <UserCheck className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {canResetPassword(player) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenResetPasswordDialog(player)}
-                            title="Réinitialiser le mot de passe"
-                            className="text-amber-500 hover:text-amber-600"
-                          >
-                            <KeyRound className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {canInvite(player) && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleSendInvitation(player)}
-                            disabled={invitingPlayerId === player.id}
-                            title="Envoyer invitation par email"
-                            className={inviteSuccess === player.id ? 'text-green-500' : ''}
-                          >
-                            {invitingPlayerId === player.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : inviteSuccess === player.id ? (
-                              <Check className="h-4 w-4" />
-                            ) : (
-                              <Mail className="h-4 w-4" />
-                            )}
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenDialog(player)}
-                          title="Modifier"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(player.id)}
-                          title="Supprimer"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
+                  {/* Mobile stats row */}
+                  <div className="flex gap-4 text-sm mt-2 ml-13 sm:hidden">
+                    <div>
+                      <span className="text-muted-foreground">Tournois: </span>
+                      <span className="font-medium">{player._count?.tournamentPlayers || 0}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Élims: </span>
+                      <span className="font-medium">{player._count?.eliminations || 0}</span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1380,6 +1398,30 @@ export default function PlayersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog pour confirmer l'archivage d'un joueur */}
+      <AlertDialog open={!!archiveConfirm} onOpenChange={(open) => !open && setArchiveConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archiver ce joueur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir archiver ce joueur ? Cette action est réversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (archiveConfirm) handleDelete(archiveConfirm);
+                setArchiveConfirm(null);
+              }}
+            >
+              Archiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -64,7 +64,7 @@ export default function ActivatePage() {
   };
 
   const handleGoToLogin = () => {
-    router.push('/login');
+    router.push('/player/login');
   };
 
   // Success state

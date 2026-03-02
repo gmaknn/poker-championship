@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -256,10 +257,10 @@ export default function LeaderboardPage() {
               value={selectedSeason?.id}
               onValueChange={handleSeasonChange}
             >
-              <SelectTrigger className="w-[400px]">
+              <SelectTrigger className="w-full sm:w-[400px]">
                 <SelectValue placeholder="Sélectionner une saison" />
               </SelectTrigger>
-              <SelectContent className="w-[400px]">
+              <SelectContent className="w-full sm:w-[400px]">
                 {seasons.map((season) => (
                   <SelectItem key={season.id} value={season.id}>
                     <div className="flex items-center justify-between w-full gap-3">
@@ -407,15 +408,15 @@ export default function LeaderboardPage() {
                         <div className="flex-1 h-0.5 bg-gradient-to-r from-transparent via-yellow-500 to-transparent" />
                       </div>
                     )}
-                    <div
-                      className={`flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer ${
+                    <Link
+                      href={`/dashboard/players/${entry.playerId}`}
+                      className={`flex items-center justify-between p-3 border rounded-lg hover:bg-accent ${
                         entry.rank <= 3
                           ? 'bg-yellow-500/10 border-yellow-500/30'
                           : entry.rank <= 10
                           ? 'bg-yellow-500/5 border-yellow-500/20'
                           : ''
                       }`}
-                      onClick={() => router.push(`/dashboard/players/${entry.playerId}`)}
                     >
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 w-16">
@@ -454,16 +455,16 @@ export default function LeaderboardPage() {
                         <div className="text-sm text-muted-foreground">@{entry.player.nickname}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3 sm:gap-6">
                       <div className="text-right">
                         <div className="text-sm text-muted-foreground">Points</div>
                         <div className="text-lg font-bold text-primary">{entry.totalPoints}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right hidden sm:block">
                         <div className="text-sm text-muted-foreground">Moyenne</div>
                         <div className="text-sm font-medium">{entry.averagePoints}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right hidden sm:block">
                         <div className="text-sm text-muted-foreground">Tournois</div>
                         <div className="text-sm font-medium">{entry.tournamentsCount}</div>
                       </div>
@@ -486,7 +487,7 @@ export default function LeaderboardPage() {
                         )}
                       </div>
                     </div>
-                    </div>
+                    </Link>
                   </React.Fragment>
                 ))}
               </div>

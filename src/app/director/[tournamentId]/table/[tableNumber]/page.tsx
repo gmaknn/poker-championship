@@ -87,6 +87,15 @@ export default function DirectorTablePage({
   });
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Refreshing state (subtle, not full-screen)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Connection lost indicator
+  const [failedPolls, setFailedPolls] = useState(0);
+
+  // Confirm recave from list
+  const [confirmRecave, setConfirmRecave] = useState<{ playerId: string; playerName: string; type: 'STANDARD' | 'LIGHT' } | null>(null);
+
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState<'bust' | 'elim'>('bust');
@@ -172,9 +181,10 @@ export default function DirectorTablePage({
           recavesOpen: data.recavesOpen ?? true,
           isVoluntaryRebuyPeriod: data.isVoluntaryRebuyPeriod ?? false,
         });
+        setFailedPolls(0);
       }
     } catch {
-      // Silently ignore timer polling errors
+      setFailedPolls(prev => prev + 1);
     }
   }, [tournamentId]);
 
@@ -255,6 +265,7 @@ export default function DirectorTablePage({
       setError('Erreur de chargement');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [tournamentId, tableNumber]);
 
@@ -323,7 +334,7 @@ export default function DirectorTablePage({
       }
 
       // Refresh table data
-      setLoading(true);
+      setIsRefreshing(true);
       await fetchData();
     } catch (err) {
       console.error('Error submitting:', err);
@@ -373,7 +384,7 @@ export default function DirectorTablePage({
       setLastBustEvent(null);
 
       // Refresh table data
-      setLoading(true);
+      setIsRefreshing(true);
       await fetchData();
     } catch (err) {
       console.error('Error recave:', err);
@@ -407,7 +418,7 @@ export default function DirectorTablePage({
       }
 
       // Refresh table data
-      setLoading(true);
+      setIsRefreshing(true);
       await fetchData();
     } catch (err) {
       console.error('Error recave from list:', err);
@@ -475,27 +486,27 @@ export default function DirectorTablePage({
               Table {tableNumber} - {tournament?.name}
             </h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <Badge variant="default" className="text-xs">
+              <Badge variant="default" className="text-sm">
                 <Users className="mr-1 h-3 w-3" />
                 {activePlayers.length} actif{activePlayers.length > 1 ? 's' : ''}
               </Badge>
               {isInProgress && (
-                <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                <Badge variant="outline" className="text-sm text-green-600 border-green-600">
                   En cours
                 </Badge>
               )}
               {isInProgress && timerState.recavesOpen && !timerState.isVoluntaryRebuyPeriod && (
-                <Badge variant="outline" className="text-xs text-orange-600 border-orange-600">
+                <Badge variant="outline" className="text-sm text-orange-600 border-orange-600">
                   Recaves ouvertes
                 </Badge>
               )}
               {isInProgress && timerState.isVoluntaryRebuyPeriod && (
-                <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-600">
+                <Badge variant="outline" className="text-sm text-yellow-600 border-yellow-600">
                   Pause fin de recaves
                 </Badge>
               )}
               {isInProgress && !timerState.recavesOpen && !timerState.isVoluntaryRebuyPeriod && (
-                <Badge variant="outline" className="text-xs text-red-600 border-red-600">
+                <Badge variant="outline" className="text-sm text-red-600 border-red-600">
                   Recaves fermées
                 </Badge>
               )}
@@ -504,8 +515,21 @@ export default function DirectorTablePage({
         </div>
       </div>
 
+      {/* Connection lost banner */}
+      {failedPolls >= 3 && (
+        <div className="bg-destructive text-destructive-foreground px-4 py-2 text-sm font-medium flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Connexion perdue — données possiblement obsolètes
+        </div>
+      )}
+
       {/* Player list */}
-      <div className="p-4 space-y-3">
+      <div className={`p-4 space-y-3 relative ${isRefreshing ? 'opacity-50 pointer-events-none' : ''}`}>
+        {isRefreshing && (
+          <div className="absolute top-2 right-2 z-10">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        )}
         {/* Active players */}
         {activePlayers.map((assignment) => {
           const player = getPlayerFullInfo(assignment);
@@ -612,44 +636,43 @@ export default function DirectorTablePage({
                     {timerState.recavesOpen && !timerState.isVoluntaryRebuyPeriod ? (
                       <Button
                         size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white shrink-0"
-                        onClick={() => handleRecaveFromList(assignment.playerId)}
+                        className="min-h-[44px] bg-green-600 hover:bg-green-700 text-white shrink-0"
+                        onClick={() => {
+                          const p = getPlayerFullInfo(assignment);
+                          setConfirmRecave({ playerId: assignment.playerId, playerName: p?.nickname || 'Joueur', type: 'STANDARD' });
+                        }}
                         disabled={recaveSubmitting}
                       >
-                        {recaveSubmitting ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        ) : (
-                          <RotateCcw className="mr-1 h-3 w-3" />
-                        )}
+                        <RotateCcw className="mr-1 h-3 w-3" />
                         Recave
                       </Button>
                     ) : timerState.isVoluntaryRebuyPeriod ? (
                       <div className="flex gap-1 shrink-0">
                         <Button
                           size="sm"
-                          className="bg-green-600 hover:bg-green-700 text-white"
-                          onClick={() => handleRecaveFromList(assignment.playerId, 'STANDARD')}
+                          className="min-h-[44px] bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => {
+                            const p = getPlayerFullInfo(assignment);
+                            setConfirmRecave({ playerId: assignment.playerId, playerName: p?.nickname || 'Joueur', type: 'STANDARD' });
+                          }}
                           disabled={recaveSubmitting}
                         >
-                          {recaveSubmitting ? (
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          ) : null}
                           Full
                         </Button>
                         <Button
                           size="sm"
-                          className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                          onClick={() => handleRecaveFromList(assignment.playerId, 'LIGHT')}
+                          className="min-h-[44px] bg-yellow-600 hover:bg-yellow-700 text-white"
+                          onClick={() => {
+                            const p = getPlayerFullInfo(assignment);
+                            setConfirmRecave({ playerId: assignment.playerId, playerName: p?.nickname || 'Joueur', type: 'LIGHT' });
+                          }}
                           disabled={recaveSubmitting}
                         >
-                          {recaveSubmitting ? (
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          ) : null}
                           Light
                         </Button>
                       </div>
                     ) : (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-sm">
                         Éliminé
                       </Badge>
                     )}
@@ -808,6 +831,41 @@ export default function DirectorTablePage({
               disabled={recaveSubmitting}
             >
               Non, pas de recave
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Recave Dialog */}
+      <Dialog open={!!confirmRecave} onOpenChange={(open) => { if (!open) setConfirmRecave(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmer la recave ?</DialogTitle>
+            <DialogDescription>
+              Recave {confirmRecave?.type === 'LIGHT' ? 'light (5€)' : 'complète (10€)'} pour {confirmRecave?.playerName}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setConfirmRecave(null)}
+              disabled={recaveSubmitting}
+            >
+              Annuler
+            </Button>
+            <Button
+              className={confirmRecave?.type === 'LIGHT' ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}
+              onClick={async () => {
+                if (!confirmRecave) return;
+                await handleRecaveFromList(confirmRecave.playerId, confirmRecave.type);
+                setConfirmRecave(null);
+              }}
+              disabled={recaveSubmitting}
+            >
+              {recaveSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              Confirmer
             </Button>
           </DialogFooter>
         </DialogContent>

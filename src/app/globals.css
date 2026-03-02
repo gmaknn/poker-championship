@@ -85,6 +85,7 @@ body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-sans, Arial, Helvetica, sans-serif);
+  -webkit-text-size-adjust: 100%;
 }
 
 * {
@@ -179,6 +180,15 @@ body {
   .dark .badge {
     border-width: 1px;
   }
+}
+
+/* Hide scrollbar for horizontal scroll tabs on mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 /* Safe area padding for mobile devices with notch/home indicator */

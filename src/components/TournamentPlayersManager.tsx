@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Plus, UserMinus, Users, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
@@ -63,6 +74,7 @@ export default function TournamentPlayersManager({
   const [isEnrolling, setIsEnrolling] = useState(false);
   const [error, setError] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+  const [confirmUnenroll, setConfirmUnenroll] = useState<{ playerId: string; playerName: string } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -138,6 +150,7 @@ export default function TournamentPlayersManager({
         setSelectedPlayerIds(new Set());
         await fetchData();
         onUpdate?.();
+        toast.success(`${playerIds.length} joueur${playerIds.length > 1 ? 's' : ''} inscrit${playerIds.length > 1 ? 's' : ''}`);
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'inscription');
@@ -169,10 +182,6 @@ export default function TournamentPlayersManager({
   };
 
   const handleUnenrollPlayer = async (playerId: string) => {
-    if (!confirm('Voulez-vous vraiment désinscrire ce joueur ?')) {
-      return;
-    }
-
     try {
       const response = await fetch(
         `/api/tournaments/${tournamentId}/players/${playerId}`,
@@ -182,13 +191,14 @@ export default function TournamentPlayersManager({
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Joueur désinscrit');
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de la désinscription');
+        toast.error(data.error || 'Erreur lors de la désinscription');
       }
     } catch (error) {
       console.error('Error unenrolling player:', error);
-      alert('Erreur lors de la désinscription');
+      toast.error('Erreur lors de la désinscription');
     }
   };
 
@@ -206,13 +216,14 @@ export default function TournamentPlayersManager({
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success(!hasPaid ? 'Marqué comme payé' : 'Marqué comme non payé');
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de la mise à jour');
+        toast.error(data.error || 'Erreur lors de la mise à jour');
       }
     } catch (error) {
       console.error('Error toggling payment:', error);
-      alert('Erreur lors de la mise à jour');
+      toast.error('Erreur lors de la mise à jour');
     }
   };
 
@@ -285,7 +296,7 @@ export default function TournamentPlayersManager({
                         {enrollment.player.firstName} {enrollment.player.lastName}
                       </h3>
                       {enrollment.player.nickname && (
-                        <Badge variant="secondary" className="text-xs">{enrollment.player.nickname}</Badge>
+                        <Badge variant="secondary" className="text-sm">{enrollment.player.nickname}</Badge>
                       )}
                       <div className="flex items-center gap-2">
                         <Checkbox
@@ -314,15 +325,15 @@ export default function TournamentPlayersManager({
                             <span>{enrollment.rebuysCount} ({enrollment.rebuysCount * tournament.buyInAmount}€)</span>
                           )}
                           {enrollment.lightRebuyUsed && (
-                            <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300">Light {tournament.lightRebuyAmount}€</Badge>
+                            <Badge variant="outline" className="text-sm bg-amber-100 text-amber-700 border-amber-300">Light {tournament.lightRebuyAmount}€</Badge>
                           )}
                           {enrollment.voluntaryFullRebuyUsed && (
-                            <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">Full {tournament.buyInAmount}€</Badge>
+                            <Badge variant="outline" className="text-sm bg-blue-100 text-blue-700 border-blue-300">Full {tournament.buyInAmount}€</Badge>
                           )}
                         </div>
                       )}
                       {!enrollment.rebuysCount && !enrollment.lightRebuyUsed && enrollment.voluntaryFullRebuyUsed && (
-                        <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">Full {tournament.buyInAmount}€</Badge>
+                        <Badge variant="outline" className="text-sm bg-blue-100 text-blue-700 border-blue-300">Full {tournament.buyInAmount}€</Badge>
                       )}
                       <div>
                         <span className="font-medium">Total:</span> {getTotalBuyIn(enrollment)}€
@@ -335,7 +346,7 @@ export default function TournamentPlayersManager({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleUnenrollPlayer(enrollment.playerId)}
+                        onClick={() => setConfirmUnenroll({ playerId: enrollment.playerId, playerName: `${enrollment.player.firstName} ${enrollment.player.lastName}` })}
                       >
                         <UserMinus className="h-4 w-4" />
                       </Button>
@@ -453,6 +464,30 @@ export default function TournamentPlayersManager({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm unenroll dialog */}
+      <AlertDialog open={!!confirmUnenroll} onOpenChange={() => setConfirmUnenroll(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Désinscrire ce joueur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous vraiment désinscrire {confirmUnenroll?.playerName} du tournoi ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmUnenroll) handleUnenrollPlayer(confirmUnenroll.playerId);
+                setConfirmUnenroll(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Désinscrire
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
