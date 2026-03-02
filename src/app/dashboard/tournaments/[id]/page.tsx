@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check, Smartphone } from 'lucide-react';
 import type { PlayerRole } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -101,6 +101,7 @@ export default function TournamentDetailPage({
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
+  const [tables, setTables] = useState<{ tableNumber: number; activePlayers: number }[]>([]);
 
   const isAdmin = currentUserRole === 'ADMIN';
 
@@ -234,10 +235,23 @@ export default function TournamentDetailPage({
     setPendingTab(null);
   };
 
+  const fetchTables = async () => {
+    try {
+      const response = await fetch(`/api/tournaments/${id}/tables`);
+      if (response.ok) {
+        const data = await response.json();
+        setTables(data.tables || []);
+      }
+    } catch (error) {
+      console.error('Error fetching tables:', error);
+    }
+  };
+
   // Effect to load initial data
   useEffect(() => {
     fetchTournament();
     loadCurrentUser();
+    fetchTables();
   }, [id, session]);
 
   if (isLoading) {
@@ -368,6 +382,49 @@ export default function TournamentDetailPage({
           </p>
         </SectionCard>
       </div>
+
+      {/* Bandeau Mode Mobile — accès rapide Director Table */}
+      {tournament.status === 'IN_PROGRESS' && tables.length > 0 && (
+        <div className="sm:hidden sticky top-0 z-50 bg-primary text-primary-foreground rounded-lg border border-primary/20 shadow-lg p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Smartphone className="h-4 w-4" />
+            <span className="font-semibold text-sm">Mode Mobile — Vue Directeur</span>
+          </div>
+          {tables.length <= 3 ? (
+            <div className="flex gap-2">
+              {tables
+                .sort((a, b) => a.tableNumber - b.tableNumber)
+                .map((table) => (
+                  <Button
+                    key={table.tableNumber}
+                    size="sm"
+                    variant="secondary"
+                    className="flex-1 min-h-[44px] font-medium"
+                    onClick={() => window.open(`/director/${tournament.id}/table/${table.tableNumber}`, '_self')}
+                  >
+                    Table {table.tableNumber}
+                    <Badge variant="outline" className="ml-1.5 text-xs px-1.5">{table.activePlayers}</Badge>
+                  </Button>
+                ))}
+            </div>
+          ) : (
+            <Select onValueChange={(val) => window.location.href = `/director/${tournament.id}/table/${val}`}>
+              <SelectTrigger className="min-h-[44px] bg-secondary text-secondary-foreground">
+                <SelectValue placeholder="Choisir une table..." />
+              </SelectTrigger>
+              <SelectContent>
+                {tables
+                  .sort((a, b) => a.tableNumber - b.tableNumber)
+                  .map((table) => (
+                    <SelectItem key={table.tableNumber} value={String(table.tableNumber)}>
+                      Table {table.tableNumber} — {table.activePlayers} joueurs actifs
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      )}
 
       {/* Tabs - Navigation avec fond ink */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
