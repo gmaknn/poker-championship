@@ -296,26 +296,37 @@ export function MobileSidebar({ isOpen, onClose }: { isOpen: boolean; onClose: (
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = '';
+      // Delay to let the slide-out animation finish
+      const timer = setTimeout(() => {
+        document.body.style.overflow = '';
+      }, 300);
+      return () => clearTimeout(timer);
     }
     return () => {
       document.body.style.overflow = '';
     };
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   return (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/50 md:hidden"
+        className={cn(
+          "fixed inset-0 z-40 bg-black/50 md:hidden transition-opacity duration-300",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
         onClick={onClose}
         aria-hidden="true"
       />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-card border-r shadow-xl md:hidden transform transition-transform duration-200 ease-in-out">
+      <div
+        className={cn(
+          "fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-card border-r shadow-xl md:hidden transform transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        aria-hidden={!isOpen}
+      >
         <div className="flex items-center justify-between gap-2 border-b px-6 py-4">
           <div className="flex items-center gap-2">
             <Spade className="h-8 w-8 text-primary" />
