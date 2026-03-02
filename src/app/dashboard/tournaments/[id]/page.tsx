@@ -318,7 +318,7 @@ export default function TournamentDetailPage({
 
       {/* Info cards - KPIs avec variant ink */}
       <div className="grid gap-3 grid-cols-2 md:gap-4 md:grid-cols-4">
-        <SectionCard variant="ink" noPadding className="p-4">
+        <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Date</span>
             <Calendar className="h-4 w-4 text-ink-foreground/50" />
@@ -326,12 +326,12 @@ export default function TournamentDetailPage({
           <div className="text-lg font-bold">
             {format(new Date(tournament.date), 'd MMM yyyy', { locale: fr })}
           </div>
-          <p className="text-xs text-ink-foreground/60">
+          <p className="text-xs text-ink-foreground/70">
             {format(new Date(tournament.date), "HH'h'mm", { locale: fr })}
           </p>
         </SectionCard>
 
-        <SectionCard variant="ink" noPadding className="p-4">
+        <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Joueurs</span>
             <Users className="h-4 w-4 text-ink-foreground/50" />
@@ -340,21 +340,21 @@ export default function TournamentDetailPage({
             {tournament._count.tournamentPlayers}
             {tournament.totalPlayers && ` / ${tournament.totalPlayers}`}
           </div>
-          <p className="text-xs text-ink-foreground/60">inscrits</p>
+          <p className="text-xs text-ink-foreground/70">inscrits</p>
         </SectionCard>
 
-        <SectionCard variant="ink" noPadding className="p-4">
+        <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Buy-in</span>
             <Trophy className="h-4 w-4 text-ink-foreground/50" />
           </div>
           <div className="text-lg font-bold">{tournament.buyInAmount}€</div>
-          <p className="text-xs text-ink-foreground/60">
+          <p className="text-xs text-ink-foreground/70">
             {tournament.startingChips.toLocaleString()} jetons
           </p>
         </SectionCard>
 
-        <SectionCard variant="ink" noPadding className="p-4">
+        <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-medium text-ink-foreground/70">Structure</span>
             <Trophy className="h-4 w-4 text-ink-foreground/50" />
@@ -362,7 +362,7 @@ export default function TournamentDetailPage({
           <div className="text-lg font-bold">
             {tournament._count.blindLevels} niveaux
           </div>
-          <p className="text-xs text-ink-foreground/60">
+          <p className="text-xs text-ink-foreground/70">
             {Math.floor(tournament.targetDuration / 60)}h
             {tournament.targetDuration % 60}min
           </p>
@@ -371,17 +371,17 @@ export default function TournamentDetailPage({
 
       {/* Tabs - Navigation avec fond ink */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
-        <div className="bg-ink rounded-lg p-1 border border-border shadow-md overflow-x-auto">
-          <TabsList className="bg-transparent w-max md:w-full justify-start flex-nowrap">
-            <TabsTrigger value="structure" className="whitespace-nowrap text-xs md:text-sm">Structure</TabsTrigger>
-            <TabsTrigger value="config" className="whitespace-nowrap text-xs md:text-sm">Jetons</TabsTrigger>
-            <TabsTrigger value="players" data-admin-tab="players" className="whitespace-nowrap text-xs md:text-sm">Joueurs</TabsTrigger>
-            <TabsTrigger value="tables" data-admin-tab="tables" className="whitespace-nowrap text-xs md:text-sm">Tables</TabsTrigger>
-            <TabsTrigger value="timer" className="whitespace-nowrap text-xs md:text-sm">Timer</TabsTrigger>
-            <TabsTrigger value="eliminations" className="whitespace-nowrap text-xs md:text-sm">Élims</TabsTrigger>
-            <TabsTrigger value="prizepool" className="whitespace-nowrap text-xs md:text-sm">Prizes</TabsTrigger>
-            <TabsTrigger value="results" data-admin-tab="results" className="whitespace-nowrap text-xs md:text-sm">Résultats</TabsTrigger>
-            {isAdmin && <TabsTrigger value="directors" className="whitespace-nowrap text-xs md:text-sm">TD</TabsTrigger>}
+        <div className="bg-ink rounded-lg p-1 border border-border shadow-md">
+          <TabsList className="bg-transparent flex flex-wrap w-full md:flex-nowrap justify-start">
+            <TabsTrigger value="structure" className="flex-1 min-w-fit text-sm">Structure</TabsTrigger>
+            <TabsTrigger value="config" className="flex-1 min-w-fit text-sm">Jetons</TabsTrigger>
+            <TabsTrigger value="players" data-admin-tab="players" className="flex-1 min-w-fit text-sm">Joueurs</TabsTrigger>
+            <TabsTrigger value="tables" data-admin-tab="tables" className="flex-1 min-w-fit text-sm">Tables</TabsTrigger>
+            <TabsTrigger value="timer" className="flex-1 min-w-fit text-sm">Timer</TabsTrigger>
+            <TabsTrigger value="eliminations" className="flex-1 min-w-fit text-sm">Élims</TabsTrigger>
+            <TabsTrigger value="prizepool" className="flex-1 min-w-fit text-sm">Prizes</TabsTrigger>
+            <TabsTrigger value="results" data-admin-tab="results" className="flex-1 min-w-fit text-sm">Résultats</TabsTrigger>
+            {isAdmin && <TabsTrigger value="directors" className="flex-1 min-w-fit text-sm">TD</TabsTrigger>}
           </TabsList>
         </div>
 
@@ -483,7 +483,7 @@ export default function TournamentDetailPage({
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-date">Date et heure *</Label>
                   <Input
@@ -517,7 +517,7 @@ export default function TournamentDetailPage({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-buyin">Buy-in (€)</Label>
                   <Input
@@ -545,7 +545,7 @@ export default function TournamentDetailPage({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-duration">Durée cible (minutes)</Label>
                   <Input

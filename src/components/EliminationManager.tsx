@@ -734,7 +734,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 variant="outline"
                 size="sm"
                 onClick={(e) => { e.stopPropagation(); handleCancelLastBust(); }}
-                className="min-h-[40px]"
+                className="min-h-[44px]"
               >
                 <Undo2 className="mr-1 h-4 w-4" />
                 Annuler dernier
@@ -908,7 +908,6 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                                   [p.playerId]: value as number,
                                 }));
                               }}
-                              className="h-10"
                             />
                           </div>
 
