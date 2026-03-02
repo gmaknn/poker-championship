@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Save, Settings as SettingsIcon, CheckCircle2, Coins, ChevronRight, FileText } from 'lucide-react';
+import Link from 'next/link';
 import { PageHeader } from '@/components/PageHeader';
 
 interface SettingsData {
@@ -29,7 +29,6 @@ interface SettingsData {
 }
 
 export default function SettingsPage() {
-  const router = useRouter();
   const [settings, setSettings] = useState<SettingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -129,43 +128,47 @@ export default function SettingsPage() {
 
       {/* Quick Access Cards */}
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push('/dashboard/settings/chip-inventory')}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Coins className="h-6 w-6 text-primary" />
+        <Link href="/dashboard/settings/chip-inventory" className="block">
+          <Card className="hover:bg-accent/50 transition-colors h-full">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <Coins className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Inventaire de Jetons</CardTitle>
+                    <CardDescription>
+                      Gérez vos mallettes de jetons pour les tournois
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle>Inventaire de Jetons</CardTitle>
-                  <CardDescription>
-                    Gérez vos mallettes de jetons pour les tournois
-                  </CardDescription>
-                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-        </Card>
+            </CardHeader>
+          </Card>
+        </Link>
 
-        <Card className="cursor-pointer hover:bg-accent/50 transition-colors" onClick={() => router.push('/dashboard/settings/templates')}>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-lg">
-                  <FileText className="h-6 w-6 text-purple-500" />
+        <Link href="/dashboard/settings/templates" className="block">
+          <Card className="hover:bg-accent/50 transition-colors h-full">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-500/10 rounded-lg">
+                    <FileText className="h-6 w-6 text-purple-500" />
+                  </div>
+                  <div>
+                    <CardTitle>Templates de Tournoi</CardTitle>
+                    <CardDescription>
+                      Sauvegardez et réutilisez vos structures favorites
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle>Templates de Tournoi</CardTitle>
-                  <CardDescription>
-                    Sauvegardez et réutilisez vos structures favorites
-                  </CardDescription>
-                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </div>
-          </CardHeader>
-        </Card>
+            </CardHeader>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

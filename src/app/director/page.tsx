@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Calendar, Users, Trophy, Clock, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { PlayerRole } from '@prisma/client';
@@ -148,9 +149,6 @@ export default function DirectorDashboard() {
     router.push('/dashboard/tournaments/new');
   };
 
-  const handleViewTournament = (tournamentId: string) => {
-    router.push(`/dashboard/tournaments/${tournamentId}`);
-  };
 
   // État de chargement initial
   if (sessionStatus === 'loading' || (isLoading && !authError)) {
@@ -279,10 +277,10 @@ export default function DirectorDashboard() {
           <CardContent>
             <div className="space-y-3">
               {upcomingTournaments.map((tournament) => (
-                <div
+                <Link
                   key={tournament.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                  onClick={() => handleViewTournament(tournament.id)}
+                  href={`/dashboard/tournaments/${tournament.id}`}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
@@ -313,7 +311,7 @@ export default function DirectorDashboard() {
                       <div className="text-sm text-muted-foreground">Joueurs</div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </CardContent>
@@ -329,10 +327,10 @@ export default function DirectorDashboard() {
           <CardContent>
             <div className="space-y-3">
               {pastTournaments.map((tournament) => (
-                <div
+                <Link
                   key={tournament.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                  onClick={() => handleViewTournament(tournament.id)}
+                  href={`/dashboard/tournaments/${tournament.id}`}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-3">
@@ -361,7 +359,7 @@ export default function DirectorDashboard() {
                       <div className="text-sm text-muted-foreground">Joueurs</div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </CardContent>

@@ -725,8 +725,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {busts.length > 0 && (
         <Card>
           <CardHeader
-            className="flex flex-row items-center justify-between gap-2 pb-3 cursor-pointer select-none"
+            className="flex flex-row items-center justify-between gap-2 pb-3 cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
             onClick={() => setBustHistoryOpen(!bustHistoryOpen)}
+            onKeyDown={(e) => e.key === 'Enter' && setBustHistoryOpen(!bustHistoryOpen)}
+            role="button"
+            tabIndex={0}
           >
             <CardTitle className="flex items-center gap-2 text-lg font-semibold">
               <RefreshCw className="h-5 w-5 text-amber-500" />
@@ -842,8 +845,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {isVoluntaryRebuyPeriod && tournament?.status === 'IN_PROGRESS' && (
         <Card className="border-blue-500/50">
           <CardHeader
-            className="cursor-pointer select-none"
+            className="cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
             onClick={() => setVoluntaryRebuyOpen(!voluntaryRebuyOpen)}
+            onKeyDown={(e) => e.key === 'Enter' && setVoluntaryRebuyOpen(!voluntaryRebuyOpen)}
+            role="button"
+            tabIndex={0}
           >
             <CardTitle className="flex items-center gap-2 text-lg font-semibold">
               <Hand className="h-5 w-5 text-blue-500" />
@@ -962,8 +968,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {!recavesOpen && tournament?.status === 'IN_PROGRESS' && (
         <Card className="border-red-500/50">
           <CardHeader
-            className="cursor-pointer select-none"
+            className="cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
             onClick={() => setEliminationFormOpen(!eliminationFormOpen)}
+            onKeyDown={(e) => e.key === 'Enter' && setEliminationFormOpen(!eliminationFormOpen)}
+            role="button"
+            tabIndex={0}
           >
             <CardTitle className="flex items-center gap-2 text-lg font-semibold">
               <Skull className="h-5 w-5 text-red-500" />
@@ -1037,8 +1046,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       {/* 5. Historique des éliminations - Accordéon */}
       <Card>
         <CardHeader
-          className="flex flex-row items-center justify-between cursor-pointer select-none"
+          className="flex flex-row items-center justify-between cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-lg"
           onClick={() => setEliminationHistoryOpen(!eliminationHistoryOpen)}
+          onKeyDown={(e) => e.key === 'Enter' && setEliminationHistoryOpen(!eliminationHistoryOpen)}
+          role="button"
+          tabIndex={0}
         >
           <CardTitle className="flex items-center gap-2 text-lg font-semibold">
             <Skull className="h-5 w-5 text-red-500" />

@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Trophy, TrendingUp, Calendar, DollarSign, Users, ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 import { PageHeader } from '@/components/PageHeader';
 
 interface Tournament {
@@ -22,7 +22,7 @@ interface Tournament {
 }
 
 export default function LiveDashboardPage() {
-  const router = useRouter();
+
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -86,12 +86,11 @@ export default function LiveDashboardPage() {
             const isInProgress = tournament.status === 'IN_PROGRESS';
 
             return (
+              <Link key={tournament.id} href={`/dashboard/tournaments/${tournament.id}/live`} className="block">
               <Card
-                key={tournament.id}
-                className={`hover:shadow-lg transition-all cursor-pointer ${
+                className={`hover:shadow-lg transition-all ${
                   isInProgress ? 'border-yellow-500/50 bg-yellow-500/5' : ''
                 }`}
-                onClick={() => router.push(`/dashboard/tournaments/${tournament.id}/live`)}
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -142,6 +141,7 @@ export default function LiveDashboardPage() {
                   </Button>
                 </CardContent>
               </Card>
+              </Link>
             );
           })}
         </div>

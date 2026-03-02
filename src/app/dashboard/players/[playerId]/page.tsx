@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   Trophy,
   Calendar,
@@ -227,10 +228,10 @@ export default function AdminPlayerDetailPage({
             ) : (
               <div className="space-y-3">
                 {upcomingTournaments.map((tournament: any) => (
-                  <div
+                  <Link
                     key={tournament.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                    onClick={() => router.push(`/dashboard/tournaments/${tournament.id}`)}
+                    href={`/dashboard/tournaments/${tournament.id}`}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent"
                   >
                     <div>
                       <div className="font-medium">{tournament.name || 'Tournoi'}</div>
@@ -243,7 +244,7 @@ export default function AdminPlayerDetailPage({
                     <div className="text-right">
                       <Badge>{tournament._count.tournamentPlayers} inscrits</Badge>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -512,10 +513,10 @@ export default function AdminPlayerDetailPage({
           ) : (
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {tournamentHistory.map((tp: any) => (
-                <div
+                <Link
                   key={tp.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                  onClick={() => router.push(`/dashboard/tournaments/${tp.tournament.id}`)}
+                  href={`/dashboard/tournaments/${tp.tournament.id}`}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent"
                 >
                   <div className="flex-1">
                     <div className="font-medium">
@@ -546,7 +547,7 @@ export default function AdminPlayerDetailPage({
                       <div className="text-xs text-muted-foreground">Élim.</div>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

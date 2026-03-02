@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -12,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar, Users, Trophy, Clock, Euro, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -53,7 +53,6 @@ const statusConfig = {
 };
 
 export default function PlayerTournamentsPage() {
-  const router = useRouter();
   const [seasons, setSeasons] = useState<Season[]>([]);
   const [selectedSeasonId, setSelectedSeasonId] = useState<string>('');
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -115,10 +114,6 @@ export default function PlayerTournamentsPage() {
     fetchTournaments(seasonId);
   };
 
-  const handleTournamentClick = (tournamentId: string) => {
-    router.push(`/player/tournaments/${tournamentId}`);
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -174,11 +169,8 @@ export default function PlayerTournamentsPage() {
       ) : (
         <div className="grid gap-4 sm:gap-6">
           {tournaments.map((tournament) => (
-            <Card
-              key={tournament.id}
-              className="cursor-pointer hover:bg-accent/50 transition-colors"
-              onClick={() => handleTournamentClick(tournament.id)}
-            >
+            <Link key={tournament.id} href={`/player/tournaments/${tournament.id}`} className="block">
+            <Card className="hover:bg-accent/50 transition-colors">
               <CardHeader className="pb-2 sm:pb-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                   <div className="flex-1 min-w-0">
@@ -259,6 +251,7 @@ export default function PlayerTournamentsPage() {
                 )}
               </CardContent>
             </Card>
+            </Link>
           ))}
         </div>
       )}

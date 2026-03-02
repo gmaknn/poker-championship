@@ -284,10 +284,13 @@ export default function PlayerLivePage() {
               return (
                 <Card
                   key={tournament.id}
-                  className={`cursor-pointer hover:shadow-md transition-all ${
+                  className={`cursor-pointer hover:shadow-md transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                     isInProgress ? 'border-orange-500/50' : ''
                   }`}
                   onClick={() => fetchLiveLeaderboard(tournament)}
+                  onKeyDown={(e) => e.key === 'Enter' && fetchLiveLeaderboard(tournament)}
+                  role="button"
+                  tabIndex={0}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">

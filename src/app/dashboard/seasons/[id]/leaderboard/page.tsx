@@ -256,7 +256,10 @@ export default function SeasonLeaderboardPage({
                   )}
                   <div
                   onClick={() => setSelectedPlayer(entry)}
-                  className={`flex items-center justify-between p-5 rounded-xl border-2 hover:shadow-xl hover:scale-[1.01] cursor-pointer transition-all duration-200 ${
+                  onKeyDown={(e) => e.key === 'Enter' && setSelectedPlayer(entry)}
+                  role="button"
+                  tabIndex={0}
+                  className={`flex items-center justify-between p-5 rounded-xl border-2 hover:shadow-xl hover:scale-[1.01] cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                     entry.rank === 1
                       ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/10 border-yellow-500 shadow-lg'
                       : entry.rank === 2

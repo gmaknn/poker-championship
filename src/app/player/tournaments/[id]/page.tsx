@@ -316,8 +316,11 @@ function PlayerResultRow({ tp, isFinished }: { tp: TournamentPlayer; isFinished:
     <div className="hover:bg-muted/50 transition-colors">
       {/* Main row - clickable to expand */}
       <div
-        className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer"
+        className="flex items-center gap-3 p-3 sm:p-4 cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
         onClick={() => setIsExpanded(!isExpanded)}
+        onKeyDown={(e) => e.key === 'Enter' && setIsExpanded(!isExpanded)}
+        role="button"
+        tabIndex={0}
       >
         {/* Rank */}
         <div className="w-8 flex justify-center flex-shrink-0">
