@@ -28,6 +28,7 @@ import {
 import { toPng, toJpeg } from 'html-to-image';
 import { preloadImagesAsBase64 } from '@/lib/preload-images';
 import { useCurrentPlayer } from '@/components/layout/player-nav';
+import { toast } from 'sonner';
 import SeasonLeaderboardChart from '@/components/exports/SeasonLeaderboardChart';
 import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
 import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeaderboardWithEliminations';
@@ -334,7 +335,7 @@ export default function PlayerSeasonExportsPage() {
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error exporting image:', error);
-      alert('Erreur lors de l\'export de l\'image');
+      toast.error('Erreur lors de l\'export de l\'image');
     } finally {
       setIsExporting(false);
     }

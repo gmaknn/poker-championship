@@ -1,11 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { SectionCard } from '@/components/ui/section-card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp, LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -115,6 +126,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [eliminationFormOpen, setEliminationFormOpen] = useState(true);
   const [bustHistoryOpen, setBustHistoryOpen] = useState(false);
   const [eliminationHistoryOpen, setEliminationHistoryOpen] = useState(false);
+  // Confirm dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'elimination' | 'bust' | 'recave';
+    bustId?: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -308,12 +324,6 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   };
 
   const handleCancelLastElimination = async () => {
-    if (eliminations.length === 0) return;
-
-    if (!confirm('Voulez-vous vraiment annuler la dernière élimination ?')) {
-      return;
-    }
-
     try {
       const lastElimination = eliminations[0];
       const response = await fetch(
@@ -326,21 +336,15 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         onUpdate?.();
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de l\'annulation');
+        toast.error(data.error || 'Erreur lors de l\'annulation');
       }
     } catch (error) {
       console.error('Error canceling elimination:', error);
-      alert('Erreur lors de l\'annulation');
+      toast.error('Erreur lors de l\'annulation');
     }
   };
 
   const handleCancelLastBust = async () => {
-    if (busts.length === 0) return;
-
-    if (!confirm('Voulez-vous vraiment annuler le dernier bust ?')) {
-      return;
-    }
-
     try {
       const response = await fetch(
         `/api/tournaments/${tournamentId}/busts/last`,
@@ -352,11 +356,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         onUpdate?.();
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de l\'annulation');
+        toast.error(data.error || 'Erreur lors de l\'annulation');
       }
     } catch (error) {
       console.error('Error canceling bust:', error);
-      alert('Erreur lors de l\'annulation');
+      toast.error('Erreur lors de l\'annulation');
     }
   };
 
@@ -388,10 +392,6 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
   // Gérer l'annulation d'une recave depuis un bust
   const handleCancelBustRecave = async (bustId: string) => {
-    if (!confirm('Voulez-vous vraiment annuler cette recave ?')) {
-      return;
-    }
-
     setBustRecaveSubmitting(bustId);
     setError('');
 
@@ -733,7 +733,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) => { e.stopPropagation(); handleCancelLastBust(); }}
+                onClick={(e) => { e.stopPropagation(); setConfirmDialog({ type: 'bust' }); }}
                 className="min-h-[44px]"
               >
                 <Undo2 className="mr-1 h-4 w-4" />
@@ -790,7 +790,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                           size="sm"
                           variant="outline"
                           className="border-red-500 text-red-600 hover:bg-red-500/10 min-h-[44px] w-full"
-                          onClick={() => handleCancelBustRecave(bust.id)}
+                          onClick={() => setConfirmDialog({ type: 'recave', bustId: bust.id })}
                           disabled={bustRecaveSubmitting === bust.id}
                         >
                           {bustRecaveSubmitting === bust.id ? (
@@ -1045,7 +1045,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             <Button
               variant="outline"
               size="sm"
-              onClick={(e) => { e.stopPropagation(); handleCancelLastElimination(); }}
+              onClick={(e) => { e.stopPropagation(); setConfirmDialog({ type: 'elimination' }); }}
             >
               <Undo2 className="mr-2 h-4 w-4" />
               Annuler la dernière
@@ -1100,6 +1100,34 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </CardContent>
         )}
       </Card>
+
+      {/* Confirm cancel dialog */}
+      <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer l&apos;annulation</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog?.type === 'elimination' && 'Voulez-vous vraiment annuler la dernière élimination ?'}
+              {confirmDialog?.type === 'bust' && 'Voulez-vous vraiment annuler le dernier bust ?'}
+              {confirmDialog?.type === 'recave' && 'Voulez-vous vraiment annuler cette recave ?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Non</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmDialog?.type === 'elimination') handleCancelLastElimination();
+                else if (confirmDialog?.type === 'bust') handleCancelLastBust();
+                else if (confirmDialog?.type === 'recave' && confirmDialog.bustId) handleCancelBustRecave(confirmDialog.bustId);
+                setConfirmDialog(null);
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Oui, annuler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

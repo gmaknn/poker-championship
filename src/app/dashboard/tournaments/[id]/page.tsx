@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check } from 'lucide-react';
@@ -179,15 +180,14 @@ export default function TournamentDetailPage({
       } else {
         try {
           const error = await safeJsonParse(response);
-          alert(error.error || 'Erreur lors de la modification');
+          toast.error(error.error || 'Erreur lors de la modification');
         } catch {
-          // If parsing fails, show generic error
-          alert(`Erreur lors de la modification (${response.status})`);
+          toast.error(`Erreur lors de la modification (${response.status})`);
         }
       }
     } catch (error) {
       console.error('Error updating tournament:', error);
-      alert('Erreur lors de la modification');
+      toast.error('Erreur lors de la modification');
     } finally {
       setIsSaving(false);
     }
@@ -206,7 +206,7 @@ export default function TournamentDetailPage({
       }, 2000);
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
-      alert('Impossible de copier l\'URL');
+      toast.error('Impossible de copier l\'URL');
     }
   };
 

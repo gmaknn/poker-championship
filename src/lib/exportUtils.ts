@@ -1,5 +1,6 @@
 import { toPng, toJpeg } from 'html-to-image';
 import jsPDF from 'jspdf';
+import { toast } from 'sonner';
 import { preloadImagesAsBase64 } from './preload-images';
 
 /**
@@ -336,7 +337,7 @@ export const exportToWhatsAppText = (data: TournamentResultsData): void => {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text)
       .then(() => {
-        alert('✅ Texte copié dans le presse-papiers!\nVous pouvez maintenant le coller dans WhatsApp.');
+        toast.success('Texte copié ! Vous pouvez le coller dans WhatsApp.');
       })
       .catch((error) => {
         console.error('Error copying to clipboard:', error);
@@ -393,7 +394,7 @@ const showTextDialog = (text: string) => {
 
   document.body.appendChild(closeBtn);
 
-  alert('📋 Sélectionnez le texte et copiez-le (Ctrl+C ou Cmd+C)');
+  toast.info('Sélectionnez le texte et copiez-le (Ctrl+C ou Cmd+C)');
 };
 
 /**
@@ -467,7 +468,7 @@ export const exportBlindStructureText = (data: BlindStructureData): void => {
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text)
       .then(() => {
-        alert('✅ Structure de blindes copiée!\nVous pouvez maintenant la coller dans WhatsApp.');
+        toast.success('Structure de blindes copiée ! Vous pouvez la coller dans WhatsApp.');
       })
       .catch((error) => {
         console.error('Error copying to clipboard:', error);
@@ -551,7 +552,7 @@ export const exportSeasonLeaderboardText = (data: SeasonLeaderboardData): void =
   if (navigator.clipboard) {
     navigator.clipboard.writeText(text)
       .then(() => {
-        alert('✅ Classement copié!\nVous pouvez maintenant le coller dans WhatsApp.');
+        toast.success('Classement copié ! Vous pouvez le coller dans WhatsApp.');
       })
       .catch((error) => {
         console.error('Error copying to clipboard:', error);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -138,7 +139,7 @@ export default function ChipAssistantPage() {
 
   const handleCalculate = async () => {
     if (selectedChipSets.length === 0) {
-      alert('Sélectionnez au moins une mallette');
+      toast.warning('Sélectionnez au moins une mallette');
       return;
     }
 
@@ -165,11 +166,11 @@ export default function ChipAssistantPage() {
         setResult(data);
       } else {
         const error = await response.json();
-        alert(error.error || 'Erreur lors du calcul');
+        toast.error(error.error || 'Erreur lors du calcul');
       }
     } catch (error) {
       console.error('Error calculating distribution:', error);
-      alert('Erreur lors du calcul');
+      toast.error('Erreur lors du calcul');
     } finally {
       setIsCalculating(false);
     }
@@ -204,7 +205,7 @@ export default function ChipAssistantPage() {
 
   const handleCreateChipSet = async () => {
     if (!chipSetName.trim()) {
-      alert('Le nom de la mallette est requis');
+      toast.warning('Le nom de la mallette est requis');
       return;
     }
 
@@ -214,7 +215,7 @@ export default function ChipAssistantPage() {
     );
 
     if (validDenoms.length === 0) {
-      alert('Ajoutez au moins une dénomination valide');
+      toast.warning('Ajoutez au moins une dénomination valide');
       return;
     }
 
@@ -241,11 +242,11 @@ export default function ChipAssistantPage() {
         resetCreateForm();
       } else {
         const error = await response.json();
-        alert(error.error || 'Erreur lors de la création');
+        toast.error(error.error || 'Erreur lors de la création de la mallette');
       }
     } catch (error) {
       console.error('Error creating chip set:', error);
-      alert('Erreur lors de la création');
+      toast.error('Erreur lors de la création de la mallette');
     } finally {
       setIsCreating(false);
     }
@@ -281,7 +282,7 @@ export default function ChipAssistantPage() {
     if (!editingChipSet) return;
 
     if (!chipSetName.trim()) {
-      alert('Le nom de la mallette est requis');
+      toast.warning('Le nom de la mallette est requis');
       return;
     }
 
@@ -290,7 +291,7 @@ export default function ChipAssistantPage() {
     );
 
     if (validDenoms.length === 0) {
-      alert('Ajoutez au moins une dénomination valide');
+      toast.warning('Ajoutez au moins une dénomination valide');
       return;
     }
 
@@ -340,7 +341,7 @@ export default function ChipAssistantPage() {
       resetCreateForm();
     } catch (error) {
       console.error('Error updating chip set:', error);
-      alert('Erreur lors de la mise à jour');
+      toast.error('Erreur lors de la mise à jour');
     } finally {
       setIsCreating(false);
     }

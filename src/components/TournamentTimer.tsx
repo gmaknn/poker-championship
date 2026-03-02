@@ -8,6 +8,16 @@ import { SectionCard } from '@/components/ui/section-card';
 import { Play, Pause, RotateCcw, Clock, ArrowUp, Timer, X } from 'lucide-react';
 import { playCountdown, announceLevelChange } from '@/lib/audioManager';
 import { useTournamentEvent } from '@/contexts/SocketContext';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type BlindLevel = {
   id: string;
@@ -51,6 +61,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
   // Time (temps de réflexion) state
   const [isTimeActive, setIsTimeActive] = useState(false);
   const [isTimeLoading, setIsTimeLoading] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   // Listen for Time events via Socket.IO
   useTournamentEvent(tournamentId, 'tournament:time-called', useCallback(() => {
@@ -281,10 +292,6 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
   };
 
   const handleReset = async () => {
-    if (!confirm('Voulez-vous vraiment réinitialiser le timer ?')) {
-      return;
-    }
-
     try {
       const response = await fetch(`/api/tournaments/${tournamentId}/timer/reset`, {
         method: 'POST',
@@ -424,6 +431,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
   }
 
   return (
+    <>
     <div className="space-y-4 md:space-y-6">
       {error && (
         <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
@@ -534,7 +542,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
               )}
 
               <Button
-                onClick={handleReset}
+                onClick={() => setConfirmReset(true)}
                 variant="destructive"
                 className="min-h-[48px] sm:min-h-[56px] font-semibold flex-1 sm:flex-none sm:min-w-[140px]"
                 disabled={!timerState.timerStartedAt}
@@ -610,5 +618,30 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
         </Card>
       )}
     </div>
+
+    {/* AlertDialog réinitialisation timer */}
+    <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Réinitialiser le timer ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Voulez-vous vraiment réinitialiser le timer ? Le niveau actuel sera remis à zéro.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              handleReset();
+              setConfirmReset(false);
+            }}
+          >
+            Réinitialiser
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

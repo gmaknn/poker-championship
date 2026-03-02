@@ -24,6 +24,16 @@ import {
   Star,
 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type ChipDenomination = {
   id: string;
@@ -61,6 +71,8 @@ export default function ChipInventoryPage() {
   const [denomQuantity, setDenomQuantity] = useState('');
   const [denomColor, setDenomColor] = useState('#000000');
   const [denomColorSecondary, setDenomColorSecondary] = useState('');
+  const [deleteChipSet, setDeleteChipSet] = useState<string | null>(null);
+  const [deleteDenomination, setDeleteDenomination] = useState<{ setId: string; denomId: string } | null>(null);
 
   useEffect(() => {
     fetchChipSets();
@@ -128,8 +140,6 @@ export default function ChipInventoryPage() {
   };
 
   const handleDeleteChipSet = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette mallette ?')) return;
-
     try {
       const response = await fetch(`/api/chip-sets/${id}`, {
         method: 'DELETE',
@@ -198,8 +208,6 @@ export default function ChipInventoryPage() {
   };
 
   const handleDeleteDenomination = async (chipSetId: string, denominationId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette dénomination ?')) return;
-
     try {
       const response = await fetch(
         `/api/chip-sets/${chipSetId}/denominations/${denominationId}`,
@@ -402,7 +410,7 @@ export default function ChipInventoryPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleDeleteChipSet(chipSet.id)}
+                      onClick={() => setDeleteChipSet(chipSet.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -452,7 +460,7 @@ export default function ChipInventoryPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() =>
-                                handleDeleteDenomination(chipSet.id, denom.id)
+                                setDeleteDenomination({ setId: chipSet.id, denomId: denom.id })
                               }
                             >
                               <Trash2 className="h-4 w-4" />
@@ -642,6 +650,54 @@ export default function ChipInventoryPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog suppression mallette */}
+      <AlertDialog open={!!deleteChipSet} onOpenChange={(open) => !open && setDeleteChipSet(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette mallette ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette mallette ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteChipSet) handleDeleteChipSet(deleteChipSet);
+                setDeleteChipSet(null);
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* AlertDialog suppression dénomination */}
+      <AlertDialog open={!!deleteDenomination} onOpenChange={(open) => !open && setDeleteDenomination(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette dénomination ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette dénomination ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteDenomination) handleDeleteDenomination(deleteDenomination.setId, deleteDenomination.denomId);
+                setDeleteDenomination(null);
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -230,7 +231,7 @@ export default function CommunicationPage() {
 
     } catch (error) {
       console.error('Error preparing for WhatsApp:', error);
-      alert('❌ Erreur lors de la préparation. Vérifiez que votre navigateur autorise la copie dans le presse-papiers.');
+      toast.error('Impossible de copier dans le presse-papiers. Vérifiez les autorisations de votre navigateur.');
     } finally {
       setIsPreparing(false);
     }
@@ -265,7 +266,7 @@ export default function CommunicationPage() {
       setMessage(data.message);
     } catch (error) {
       console.error('Error generating AI message:', error);
-      alert('❌ Erreur lors de la génération du message. Veuillez réessayer.');
+      toast.error('Erreur lors de la génération du message. Veuillez réessayer.');
     } finally {
       setIsGeneratingAI(false);
     }

@@ -6,6 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, RotateCcw, Save } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type ChipDenomination = {
   id?: string;
@@ -28,6 +38,7 @@ export default function ChipManager({ tournamentId, onUpdate }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
     fetchChips();
@@ -77,8 +88,6 @@ export default function ChipManager({ tournamentId, onUpdate }: Props) {
   };
 
   const handleReset = async () => {
-    if (!confirm('Réinitialiser aux jetons par défaut ?')) return;
-
     try {
       const response = await fetch(`/api/tournaments/${tournamentId}/chips`, {
         method: 'DELETE',
@@ -128,6 +137,7 @@ export default function ChipManager({ tournamentId, onUpdate }: Props) {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -144,7 +154,7 @@ export default function ChipManager({ tournamentId, onUpdate }: Props) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleReset}
+                onClick={() => setConfirmReset(true)}
                 title="Réinitialiser aux jetons par défaut"
               >
                 <RotateCcw className="mr-2 h-4 w-4" />
@@ -239,5 +249,29 @@ export default function ChipManager({ tournamentId, onUpdate }: Props) {
         </div>
       </CardContent>
     </Card>
+
+    {/* AlertDialog réinitialisation jetons */}
+    <AlertDialog open={confirmReset} onOpenChange={setConfirmReset}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Réinitialiser aux jetons par défaut ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Les jetons personnalisés seront remplacés par les valeurs par défaut.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              handleReset();
+              setConfirmReset(false);
+            }}
+          >
+            Réinitialiser
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

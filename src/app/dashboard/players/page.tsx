@@ -27,6 +27,17 @@ import { PlayerWithStats } from '@/types';
 import { ROLES, getRoleLabel, getRoleDescription } from '@/lib/permissions';
 import { PlayerRole } from '@prisma/client';
 import { PageHeader } from '@/components/PageHeader';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const AVATAR_SEEDS = [
   'Felix', 'Aneka', 'Whiskers', 'Salem', 'Misty', 'Shadow',
@@ -83,6 +94,7 @@ export default function PlayersPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [invitingPlayerId, setInvitingPlayerId] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+  const [archiveConfirm, setArchiveConfirm] = useState<string | null>(null);
 
   // Activation manuelle
   const [isActivateDialogOpen, setIsActivateDialogOpen] = useState(false);
@@ -202,8 +214,6 @@ export default function PlayersPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir archiver ce joueur ?')) return;
-
     try {
       const response = await fetch(`/api/players/${id}`, {
         method: 'DELETE',
@@ -274,11 +284,11 @@ export default function PlayersPage() {
         setTimeout(() => setInviteSuccess(null), 3000);
       } else {
         const data = await response.json();
-        alert(data.error || 'Erreur lors de l\'envoi de l\'invitation');
+        toast.error(data.error || 'Erreur lors de l\'envoi de l\'invitation');
       }
     } catch (err) {
       console.error('Error sending invitation:', err);
-      alert('Erreur lors de l\'envoi de l\'invitation');
+      toast.error('Erreur lors de l\'envoi de l\'invitation');
     } finally {
       setInvitingPlayerId(null);
     }
@@ -379,7 +389,7 @@ export default function PlayersPage() {
       if (response.ok) {
         setIsActivateDialogOpen(false);
         fetchPlayers();
-        alert(`Compte activé avec succès pour ${activatingPlayer.firstName} ${activatingPlayer.lastName}.\n\nVous pouvez maintenant lui communiquer le mot de passe.`);
+        toast.success(`Compte activé pour ${activatingPlayer.firstName} ${activatingPlayer.lastName}. Vous pouvez maintenant lui communiquer le mot de passe.`);
       } else {
         const data = await response.json();
         setActivateError(data.error || 'Erreur lors de l\'activation');
@@ -1386,6 +1396,30 @@ export default function PlayersPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog pour confirmer l'archivage d'un joueur */}
+      <AlertDialog open={!!archiveConfirm} onOpenChange={(open) => !open && setArchiveConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Archiver ce joueur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir archiver ce joueur ? Cette action est réversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (archiveConfirm) handleDelete(archiveConfirm);
+                setArchiveConfirm(null);
+              }}
+            >
+              Archiver
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

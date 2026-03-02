@@ -28,6 +28,7 @@ import {
 import { toPng, toJpeg } from 'html-to-image';
 import JSZip from 'jszip';
 import { preloadImagesAsBase64 } from '@/lib/preload-images';
+import { toast } from 'sonner';
 import SeasonLeaderboardChart from '@/components/exports/SeasonLeaderboardChart';
 import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
 import SeasonLeaderboardWithEliminations from '@/components/exports/SeasonLeaderboardWithEliminations';
@@ -344,7 +345,7 @@ export default function SeasonExportsPage() {
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error exporting image:', error);
-      alert('Erreur lors de l\'export de l\'image');
+      toast.error('Erreur lors de l\'export de l\'image');
     } finally {
       setIsExporting(false);
     }
@@ -437,16 +438,16 @@ export default function SeasonExportsPage() {
         console.log(`[ZIP Export] Téléchargement lancé`);
       } catch (zipError) {
         console.error('[ZIP Export] Erreur génération ZIP:', zipError);
-        alert('Erreur lors de la création du fichier ZIP');
+        toast.error('Erreur lors de la création du fichier ZIP');
       }
     }
 
     if (errors.length > 0) {
       console.warn(`[ZIP Export] ${errors.length} erreur(s):`, errors);
       if (successCount === 0) {
-        alert(`Échec de l'export. Erreurs:\n${errors.join('\n')}`);
+        toast.error(`Échec de l'export. ${errors.length} erreur(s)`);
       } else {
-        alert(`Export partiel (${successCount}/${exports.length} fichiers).\nErreurs:\n${errors.join('\n')}`);
+        toast.warning(`Export partiel (${successCount}/${exports.length} fichiers). ${errors.length} erreur(s)`);
       }
     }
 

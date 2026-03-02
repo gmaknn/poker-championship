@@ -5,6 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertCircle, Briefcase, Users, TrendingUp, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type ChipDistribution = {
   value: number;
@@ -40,6 +50,7 @@ export default function ChipConfigDisplay({ tournamentId, onUpdate }: Props) {
   const [chipSets, setChipSets] = useState<ChipSet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     fetchConfig();
@@ -73,8 +84,6 @@ export default function ChipConfigDisplay({ tournamentId, onUpdate }: Props) {
   };
 
   const handleDelete = async () => {
-    if (!confirm('Supprimer la configuration de jetons de l\'assistant ?')) return;
-
     setIsDeleting(true);
     try {
       const response = await fetch(`/api/tournaments/${tournamentId}/chip-config`, {
@@ -129,6 +138,7 @@ export default function ChipConfigDisplay({ tournamentId, onUpdate }: Props) {
   }
 
   return (
+    <>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -149,7 +159,7 @@ export default function ChipConfigDisplay({ tournamentId, onUpdate }: Props) {
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => setConfirmDelete(true)}
               disabled={isDeleting}
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -258,5 +268,30 @@ export default function ChipConfigDisplay({ tournamentId, onUpdate }: Props) {
         </div>
       </CardContent>
     </Card>
+
+    {/* AlertDialog suppression config jetons */}
+    <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Supprimer la configuration ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Supprimer la configuration de jetons de l'assistant ?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Annuler</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              handleDelete();
+              setConfirmDelete(false);
+            }}
+          >
+            Supprimer
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

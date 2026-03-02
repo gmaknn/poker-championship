@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -71,7 +72,7 @@ export default function SettingsPage() {
       } else {
         const error = await response.json();
         console.error('Failed to save settings:', error);
-        alert('Erreur lors de la sauvegarde des paramètres');
+        toast.error('Erreur lors de la sauvegarde des paramètres');
       }
     } catch (error) {
       console.error('Error saving settings:', error);
