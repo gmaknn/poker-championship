@@ -3,6 +3,15 @@
  * Tests export functions with mocked html-to-image and jsPDF
  */
 
+// Mock sonner toast
+const mockToastSuccess = jest.fn();
+jest.mock('sonner', () => ({
+  toast: {
+    success: (...args: unknown[]) => mockToastSuccess(...args),
+    error: jest.fn(),
+  },
+}));
+
 // Mock html-to-image before imports
 jest.mock('html-to-image', () => ({
   toPng: jest.fn(),
@@ -373,9 +382,8 @@ describe('exportUtils', () => {
   });
 
   describe('Text Export Functions', () => {
-    // Mock clipboard and alert
+    // Mock clipboard
     const mockWriteText = jest.fn().mockResolvedValue(undefined);
-    const mockAlert = jest.fn();
 
     beforeEach(() => {
       Object.defineProperty(global, 'navigator', {
@@ -386,7 +394,7 @@ describe('exportUtils', () => {
         },
         writable: true,
       });
-      global.alert = mockAlert;
+      mockToastSuccess.mockClear();
     });
 
     describe('exportToWhatsAppText', () => {
@@ -442,12 +450,12 @@ describe('exportUtils', () => {
         expect(text).toContain('PODIUM');
       });
 
-      it('should show alert on success', async () => {
+      it('should show toast on success', async () => {
         exportToWhatsAppText(mockData);
 
         // Wait for async clipboard
         await new Promise((resolve) => setTimeout(resolve, 10));
-        expect(mockAlert).toHaveBeenCalledWith(expect.stringContaining('copié'));
+        expect(mockToastSuccess).toHaveBeenCalledWith(expect.stringContaining('copié'));
       });
     });
 
