@@ -413,7 +413,7 @@ export default function PlayerDashboardPage({
                   <div
                     key={tournament.id}
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                    onClick={() => router.push(`/dashboard/tournaments/${tournament.id}`)}
+                    onClick={() => router.push(`/player/tournaments/${tournament.id}`)}
                   >
                     <div>
                       <div className="font-medium">{tournament.name || 'Tournoi'}</div>
@@ -702,7 +702,7 @@ export default function PlayerDashboardPage({
                 <div
                   key={tp.id}
                   className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"
-                  onClick={() => router.push(`/dashboard/tournaments/${tp.tournament.id}`)}
+                  onClick={() => router.push(`/player/tournaments/${tp.tournament.id}`)}
                 >
                   <div className="flex-1">
                     <div className="font-medium">

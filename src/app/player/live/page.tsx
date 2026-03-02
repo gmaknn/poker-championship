@@ -140,7 +140,7 @@ export default function PlayerLivePage() {
                 <p className="text-muted-foreground">{authError.message}</p>
                 <div className="flex flex-col gap-2 pt-4">
                   {authError.type === 'unauthenticated' && (
-                    <Button onClick={() => router.push('/login')}>
+                    <Button onClick={() => router.push('/player/login')}>
                       <LogIn className="h-4 w-4 mr-2" />
                       Se connecter
                     </Button>
