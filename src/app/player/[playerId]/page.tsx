@@ -257,7 +257,7 @@ export default function PlayerDashboardPage({
                     {uploadError}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Formats: JPG, PNG, WebP • Max 5MB
                 </p>
               </div>
@@ -306,23 +306,23 @@ export default function PlayerDashboardPage({
       <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Tournois</CardTitle>
+            <CardTitle className="text-sm font-medium">Tournois</CardTitle>
             <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">{funStats.totalTournaments}</div>
-            <p className="text-xs text-muted-foreground">Joués</p>
+            <p className="text-sm text-muted-foreground">Joués</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Victoires</CardTitle>
+            <CardTitle className="text-sm font-medium">Victoires</CardTitle>
             <Award className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">{funStats.victories}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {funStats.totalTournaments > 0
                 ? `${Math.round((funStats.victories / funStats.totalTournaments) * 100)}%`
                 : '0%'}
@@ -332,23 +332,23 @@ export default function PlayerDashboardPage({
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Podiums</CardTitle>
+            <CardTitle className="text-sm font-medium">Podiums</CardTitle>
             <Trophy className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">{funStats.podiums}</div>
-            <p className="text-xs text-muted-foreground">Top 3</p>
+            <p className="text-sm text-muted-foreground">Top 3</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 sm:pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium">Éliminations</CardTitle>
+            <CardTitle className="text-sm font-medium">Éliminations</CardTitle>
             <Target className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent className="p-3 pt-0 sm:p-6 sm:pt-0">
             <div className="text-xl sm:text-2xl font-bold">{funStats.totalEliminations}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {funStats.totalLeaderKills} LK
             </p>
           </CardContent>
@@ -384,7 +384,7 @@ export default function PlayerDashboardPage({
                   <div className="text-4xl">{badge.icon}</div>
                   <div className="flex-1">
                     <div className="font-bold text-sm">{badge.name}</div>
-                    <div className="text-xs text-muted-foreground">{badge.description}</div>
+                    <div className="text-sm text-muted-foreground">{badge.description}</div>
                   </div>
                 </div>
               ))}
@@ -465,19 +465,19 @@ export default function PlayerDashboardPage({
                     <div className="text-2xl font-bold">
                       #{lastTournament.finalRank || '-'}
                     </div>
-                    <div className="text-xs text-muted-foreground">Classement</div>
+                    <div className="text-sm text-muted-foreground">Classement</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold text-primary">
                       {lastTournament.totalPoints}
                     </div>
-                    <div className="text-xs text-muted-foreground">Points</div>
+                    <div className="text-sm text-muted-foreground">Points</div>
                   </div>
                   <div>
                     <div className="text-2xl font-bold">
                       {lastTournament.eliminationsCount}
                     </div>
-                    <div className="text-xs text-muted-foreground">Éliminations</div>
+                    <div className="text-sm text-muted-foreground">Éliminations</div>
                   </div>
                 </div>
               </div>
@@ -513,17 +513,17 @@ export default function PlayerDashboardPage({
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
                     <div className="text-lg font-bold">{myRanking.totalPoints}</div>
-                    <div className="text-xs text-muted-foreground">Points</div>
+                    <div className="text-sm text-muted-foreground">Points</div>
                   </div>
                   <div>
                     <div className="text-lg font-bold">
                       {myRanking.tournamentsCount}
                     </div>
-                    <div className="text-xs text-muted-foreground">Tournois</div>
+                    <div className="text-sm text-muted-foreground">Tournois</div>
                   </div>
                   <div>
                     <div className="text-lg font-bold">{myRanking.averagePoints}</div>
-                    <div className="text-xs text-muted-foreground">Moyenne</div>
+                    <div className="text-sm text-muted-foreground">Moyenne</div>
                   </div>
                 </div>
                 {activeSeason && (
@@ -557,7 +557,7 @@ export default function PlayerDashboardPage({
                   <Skull className="h-5 w-5 text-red-500" />
                   <div>
                     <div className="text-sm font-medium">Votre bourreau</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {funStats.nemesis.player.firstName}{' '}
                       {funStats.nemesis.player.lastName}
                     </div>
@@ -573,7 +573,7 @@ export default function PlayerDashboardPage({
                   <Heart className="h-5 w-5 text-pink-500" />
                   <div>
                     <div className="text-sm font-medium">Votre victime favorite</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {funStats.favoriteVictim.player.firstName}{' '}
                       {funStats.favoriteVictim.player.lastName}
                     </div>
@@ -589,7 +589,7 @@ export default function PlayerDashboardPage({
                   <Zap className="h-5 w-5 text-orange-500" />
                   <div>
                     <div className="text-sm font-medium">Tournoi le plus meurtrier</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       {funStats.deadliestTournament.eliminationsCount} éliminations
                     </div>
                   </div>
@@ -604,7 +604,7 @@ export default function PlayerDashboardPage({
                   <Trophy className="h-5 w-5 text-green-500" />
                   <div>
                     <div className="text-sm font-medium">Meilleur Comeback</div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-sm text-muted-foreground">
                       Victoire avec {funStats.bestComeback.rebuysCount} recave{funStats.bestComeback.rebuysCount > 1 ? 's' : ''}
                     </div>
                   </div>
@@ -719,18 +719,18 @@ export default function PlayerDashboardPage({
                     {tp.finalRank !== null && (
                       <div className="text-center">
                         <div className="text-lg font-bold">#{tp.finalRank}</div>
-                        <div className="text-xs text-muted-foreground">Rank</div>
+                        <div className="text-sm text-muted-foreground">Rank</div>
                       </div>
                     )}
                     <div className="text-center">
                       <div className="text-lg font-bold text-primary">
                         {tp.totalPoints}
                       </div>
-                      <div className="text-xs text-muted-foreground">Points</div>
+                      <div className="text-sm text-muted-foreground">Points</div>
                     </div>
                     <div className="text-center">
                       <div className="text-sm">{tp.eliminationsCount}</div>
-                      <div className="text-xs text-muted-foreground">Élim.</div>
+                      <div className="text-sm text-muted-foreground">Élim.</div>
                     </div>
                   </div>
                 </div>

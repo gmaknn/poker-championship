@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import { Plus, Trash2, Eye, Clock, Users, Coins, FileText } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import {
@@ -71,6 +72,7 @@ export default function TemplatesPage() {
 
       if (response.ok) {
         await fetchTemplates();
+        toast.success('Template supprimé');
       }
     } catch (error) {
       console.error('Error deleting template:', error);

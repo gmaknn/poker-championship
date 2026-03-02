@@ -264,6 +264,7 @@ export default function CommunicationPage() {
 
       const data = await response.json();
       setMessage(data.message);
+      toast.success('Message généré par l\'IA');
     } catch (error) {
       console.error('Error generating AI message:', error);
       toast.error('Erreur lors de la génération du message. Veuillez réessayer.');

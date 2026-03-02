@@ -267,6 +267,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         setSelectedEliminator('');
         await fetchData();
         onUpdate?.();
+        toast.success('Bust enregistré');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'enregistrement');
@@ -311,6 +312,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         setSelectedEliminator('');
         await fetchData();
         onUpdate?.();
+        toast.success('Élimination enregistrée');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'enregistrement');
@@ -334,6 +336,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Élimination annulée');
       } else {
         const data = await response.json();
         toast.error(data.error || 'Erreur lors de l\'annulation');
@@ -354,6 +357,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Bust annulé');
       } else {
         const data = await response.json();
         toast.error(data.error || 'Erreur lors de l\'annulation');
@@ -378,6 +382,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Recave appliquée');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'application de la recave');
@@ -403,6 +408,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Recave annulée');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'annulation de la recave');
@@ -435,6 +441,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchData();
         onUpdate?.();
+        toast.success('Light rebuy appliqué');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'application du light rebuy');
@@ -482,6 +489,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         });
         await fetchData();
         onUpdate?.();
+        toast.success('Full rebuy appliqué');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors du rebuy volontaire');
@@ -561,7 +569,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             <div className="flex items-center gap-2 mb-2">
               <LayoutGrid className="h-4 w-4 text-blue-500" />
               <span className="font-semibold text-sm">Vue Directeur de Table</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">— optimisée mobile</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline">— optimisée mobile</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {tables.map(table => (
@@ -572,7 +580,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 >
                   <Button variant="outline" size="sm" className="border-blue-500/30 hover:bg-blue-500/10">
                     Table {table.tableNumber}
-                    <Badge variant="secondary" className="ml-1.5 text-xs px-1.5">
+                    <Badge variant="secondary" className="ml-1.5 text-sm px-1.5">
                       {table.activePlayers}
                     </Badge>
                   </Button>
@@ -753,11 +761,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                 >
                   {/* Ligne 1: Badges + Nom */}
                   <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-xs">
+                    <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400 bg-amber-500/10 text-sm">
                       Bust
                     </Badge>
                     {bust.recaveApplied && (
-                      <Badge variant="default" className="bg-green-600 text-xs">
+                      <Badge variant="default" className="bg-green-600 text-sm">
                         <Check className="h-3 w-3 mr-1" />
                         Recave
                       </Badge>
@@ -765,7 +773,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                     <span className="font-semibold text-base">
                       {bust.eliminated.player.nickname}
                     </span>
-                    <span className="text-xs text-muted-foreground ml-auto">
+                    <span className="text-sm text-muted-foreground ml-auto">
                       {format(new Date(bust.createdAt), 'HH:mm', { locale: fr })}
                     </span>
                   </div>
@@ -871,16 +879,16 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                   <div key={p.playerId} className="flex flex-col gap-2 p-3 rounded-lg border">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">{p.player.nickname}</span>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-sm">
                         {p.rebuysCount} rebuy{p.rebuysCount !== 1 ? 's' : ''}
                       </Badge>
                       {p.lightRebuyUsed && (
-                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 text-xs">
+                        <Badge variant="secondary" className="bg-green-500/10 text-green-600 text-sm">
                           Light utilisé
                         </Badge>
                       )}
                       {p.voluntaryFullRebuyUsed && (
-                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 text-xs">
+                        <Badge variant="secondary" className="bg-blue-500/10 text-blue-600 text-sm">
                           Full utilisé
                         </Badge>
                       )}
@@ -1090,7 +1098,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                       )}
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-sm text-muted-foreground">
                     {format(new Date(elim.createdAt), 'HH:mm', { locale: fr })}
                   </div>
                 </div>

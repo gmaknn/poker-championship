@@ -204,6 +204,7 @@ export default function PlayersPage() {
       if (response.ok) {
         setIsDialogOpen(false);
         fetchPlayers();
+        toast.success(editingPlayer ? 'Joueur modifié' : 'Joueur créé');
       } else {
         const data = await response.json();
         setError(data.error || 'Une erreur est survenue');
@@ -221,6 +222,7 @@ export default function PlayersPage() {
 
       if (response.ok) {
         fetchPlayers();
+        toast.success('Joueur archivé');
       }
     } catch (error) {
       console.error('Error deleting player:', error);

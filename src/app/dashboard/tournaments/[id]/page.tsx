@@ -178,6 +178,7 @@ export default function TournamentDetailPage({
       if (response.ok) {
         await fetchTournament();
         setIsEditDialogOpen(false);
+        toast.success('Tournoi modifié');
       } else {
         try {
           const error = await safeJsonParse(response);
@@ -340,7 +341,7 @@ export default function TournamentDetailPage({
           <div className="text-lg font-bold">
             {format(new Date(tournament.date), 'd MMM yyyy', { locale: fr })}
           </div>
-          <p className="text-xs text-ink-foreground/70">
+          <p className="text-sm text-ink-foreground/70">
             {format(new Date(tournament.date), "HH'h'mm", { locale: fr })}
           </p>
         </SectionCard>
@@ -354,7 +355,7 @@ export default function TournamentDetailPage({
             {tournament._count.tournamentPlayers}
             {tournament.totalPlayers && ` / ${tournament.totalPlayers}`}
           </div>
-          <p className="text-xs text-ink-foreground/70">inscrits</p>
+          <p className="text-sm text-ink-foreground/70">inscrits</p>
         </SectionCard>
 
         <SectionCard variant="ink" noPadding className="p-3 sm:p-4">
@@ -363,7 +364,7 @@ export default function TournamentDetailPage({
             <Trophy className="h-4 w-4 text-ink-foreground/50" />
           </div>
           <div className="text-lg font-bold">{tournament.buyInAmount}€</div>
-          <p className="text-xs text-ink-foreground/70">
+          <p className="text-sm text-ink-foreground/70">
             {tournament.startingChips.toLocaleString()} jetons
           </p>
         </SectionCard>
@@ -376,7 +377,7 @@ export default function TournamentDetailPage({
           <div className="text-lg font-bold">
             {tournament._count.blindLevels} niveaux
           </div>
-          <p className="text-xs text-ink-foreground/70">
+          <p className="text-sm text-ink-foreground/70">
             {Math.floor(tournament.targetDuration / 60)}h
             {tournament.targetDuration % 60}min
           </p>

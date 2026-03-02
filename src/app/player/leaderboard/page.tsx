@@ -225,7 +225,7 @@ export default function PlayerLeaderboardPage() {
                     {entry.rank === 11 && (
                       <div key="separator" className="flex items-center gap-3 py-2 px-4 bg-muted/30">
                         <div className="flex-1 h-px bg-yellow-500/50" />
-                        <span className="text-xs text-muted-foreground">Hors Zone Master</span>
+                        <span className="text-sm text-muted-foreground">Hors Zone Master</span>
                         <div className="flex-1 h-px bg-yellow-500/50" />
                       </div>
                     )}
@@ -257,10 +257,10 @@ export default function PlayerLeaderboardPage() {
                       <p className="font-medium truncate">
                         {entry.player.nickname}
                         {isCurrentPlayer && (
-                          <span className="text-xs text-primary ml-2">(vous)</span>
+                          <span className="text-sm text-primary ml-2">(vous)</span>
                         )}
                       </p>
-                      <p className="text-xs sm:text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground">
                         {entry.tournamentsCount} tournoi
                         {entry.tournamentsCount > 1 ? 's' : ''}
                         {entry.victories > 0 && (
@@ -278,7 +278,7 @@ export default function PlayerLeaderboardPage() {
                       <p className="font-bold text-lg sm:text-xl text-primary">
                         {entry.totalPoints}
                       </p>
-                      <p className="text-xs text-muted-foreground">pts</p>
+                      <p className="text-sm text-muted-foreground">pts</p>
                     </div>
                     </div>
                   </>

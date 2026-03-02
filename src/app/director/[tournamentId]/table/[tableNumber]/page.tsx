@@ -486,27 +486,27 @@ export default function DirectorTablePage({
               Table {tableNumber} - {tournament?.name}
             </h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <Badge variant="default" className="text-xs">
+              <Badge variant="default" className="text-sm">
                 <Users className="mr-1 h-3 w-3" />
                 {activePlayers.length} actif{activePlayers.length > 1 ? 's' : ''}
               </Badge>
               {isInProgress && (
-                <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                <Badge variant="outline" className="text-sm text-green-600 border-green-600">
                   En cours
                 </Badge>
               )}
               {isInProgress && timerState.recavesOpen && !timerState.isVoluntaryRebuyPeriod && (
-                <Badge variant="outline" className="text-xs text-orange-600 border-orange-600">
+                <Badge variant="outline" className="text-sm text-orange-600 border-orange-600">
                   Recaves ouvertes
                 </Badge>
               )}
               {isInProgress && timerState.isVoluntaryRebuyPeriod && (
-                <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-600">
+                <Badge variant="outline" className="text-sm text-yellow-600 border-yellow-600">
                   Pause fin de recaves
                 </Badge>
               )}
               {isInProgress && !timerState.recavesOpen && !timerState.isVoluntaryRebuyPeriod && (
-                <Badge variant="outline" className="text-xs text-red-600 border-red-600">
+                <Badge variant="outline" className="text-sm text-red-600 border-red-600">
                   Recaves fermées
                 </Badge>
               )}
@@ -672,7 +672,7 @@ export default function DirectorTablePage({
                         </Button>
                       </div>
                     ) : (
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-sm">
                         Éliminé
                       </Badge>
                     )}

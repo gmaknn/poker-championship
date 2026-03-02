@@ -310,7 +310,7 @@ export default function DirectorDashboard() {
                       <div className="text-2xl font-bold">
                         {tournament._count?.tournamentPlayers || 0}
                       </div>
-                      <div className="text-xs text-muted-foreground">Joueurs</div>
+                      <div className="text-sm text-muted-foreground">Joueurs</div>
                     </div>
                   </div>
                 </div>
@@ -358,7 +358,7 @@ export default function DirectorDashboard() {
                       <div className="text-2xl font-bold">
                         {tournament._count?.tournamentPlayers || 0}
                       </div>
-                      <div className="text-xs text-muted-foreground">Joueurs</div>
+                      <div className="text-sm text-muted-foreground">Joueurs</div>
                     </div>
                   </div>
                 </div>

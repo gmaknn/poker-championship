@@ -118,6 +118,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
         setTablesData(data);
         setIsGenerateDialogOpen(false);
         onUpdate?.();
+        toast.success(`${data.totalTables} table${data.totalTables > 1 ? 's' : ''} générée${data.totalTables > 1 ? 's' : ''}`);
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de la génération des tables');
@@ -168,6 +169,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       if (response.ok) {
         setTablesData(null);
         onUpdate?.();
+        toast.success('Tables supprimées');
       } else {
         const data = await response.json();
         toast.error(data.error || 'Erreur lors de la suppression des assignations');
@@ -192,6 +194,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
 
       if (response.ok) {
         await fetchTables();
+        toast.success(!currentValue ? 'Directeur de table désigné' : 'Directeur de table retiré');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de la désignation du DT');
@@ -265,7 +268,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                   value={seatsPerTable}
                   onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   Généralement 8-10 places pour le poker
                 </p>
                 {tablesData && tablesData.activePlayers > 0 && seatsPerTable > 0 && (
@@ -409,7 +412,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <Badge variant="outline" className="text-xs flex-shrink-0">
+                        <Badge variant="outline" className="text-sm flex-shrink-0">
                           #{assignment.seatNumber || '-'}
                         </Badge>
                         {assignment.isTableDirector && (
@@ -421,7 +424,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                       </div>
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {assignment.isEliminated ? (
-                          <Badge variant="secondary" className="text-xs">
+                          <Badge variant="secondary" className="text-sm">
                             Éliminé
                           </Badge>
                         ) : !readOnly && (
@@ -515,7 +518,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                     includeMargin
                   />
                   <p className="text-sm font-bold">Table {table.tableNumber}</p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {table.activePlayers} joueur{table.activePlayers > 1 ? 's' : ''}
                   </p>
                 </div>
@@ -594,7 +597,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                 value={seatsPerTable}
                 onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Nombre de joueurs maximum par table
               </p>
             </div>
@@ -608,7 +611,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                 value={minPlayersToBreakTable}
                 onChange={(e) => setMinPlayersToBreakTable(parseInt(e.target.value) || 3)}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Nombre minimum de joueurs en dessous duquel une table est cassée et les joueurs sont redistribués
               </p>
             </div>

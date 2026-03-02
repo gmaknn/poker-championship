@@ -225,7 +225,7 @@ export default function PlayerLivePage() {
                       {/* Player Info */}
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">{entry.player.nickname}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                           {entry.eliminationsCount} elimination{entry.eliminationsCount !== 1 ? 's' : ''}
                         </p>
                       </div>
@@ -233,7 +233,7 @@ export default function PlayerLivePage() {
                       {/* Points */}
                       <div className="text-right">
                         <p className="font-bold text-lg">{entry.currentPoints}</p>
-                        <p className="text-xs text-muted-foreground">pts</p>
+                        <p className="text-sm text-muted-foreground">pts</p>
                       </div>
                     </div>
                   ))}

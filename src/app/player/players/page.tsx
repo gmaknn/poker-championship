@@ -153,7 +153,7 @@ export default function PlayerPlayersPage() {
                     <p className="text-sm text-muted-foreground truncate">
                       {player.nickname}
                     </p>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Trophy className="h-3 w-3" />
                         {player._count.tournamentPlayers} tournois

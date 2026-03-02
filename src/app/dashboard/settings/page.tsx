@@ -68,6 +68,7 @@ export default function SettingsPage() {
         }
 
         setSaved(true);
+        toast.success('Paramètres sauvegardés');
         setTimeout(() => setSaved(false), 3000);
       } else {
         const error = await response.json();
@@ -76,7 +77,7 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('Erreur lors de la sauvegarde des paramètres');
+      toast.error('Erreur lors de la sauvegarde des paramètres');
     } finally {
       setSaving(false);
     }

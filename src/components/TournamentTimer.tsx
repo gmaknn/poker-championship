@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -243,6 +244,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
       if (response.ok) {
         await fetchTimerState();
         onUpdate?.();
+        toast.success('Timer démarré');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors du démarrage');
@@ -262,6 +264,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
       if (response.ok) {
         await fetchTimerState();
         onUpdate?.();
+        toast.success('Timer en pause');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de la mise en pause');
@@ -281,6 +284,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
       if (response.ok) {
         await fetchTimerState();
         onUpdate?.();
+        toast.success('Timer repris');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de la reprise');
@@ -300,6 +304,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
       if (response.ok) {
         await fetchTimerState();
         onUpdate?.();
+        toast.success('Timer réinitialisé');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de la réinitialisation');
@@ -324,6 +329,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
 
       if (response.ok) {
         setIsTimeActive(true);
+        toast.success('Time appelé');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'appel du Time');
@@ -349,6 +355,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
 
       if (response.ok) {
         setIsTimeActive(false);
+        toast.success('Time annulé');
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'annulation du Time');
@@ -452,7 +459,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
         <div className="grid grid-cols-3 gap-2 md:gap-6">
           {/* Small Blind */}
           <div className="text-center">
-            <div className="text-xs md:text-sm text-ink-foreground/70 mb-1">SB</div>
+            <div className="text-sm text-ink-foreground/70 mb-1">SB</div>
             <div className="text-xl md:text-3xl font-bold">
               {timerState.currentLevelData.smallBlind.toLocaleString()}
             </div>
@@ -460,7 +467,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
 
           {/* Big Blind */}
           <div className="text-center">
-            <div className="text-xs md:text-sm text-ink-foreground/70 mb-1">BB</div>
+            <div className="text-sm text-ink-foreground/70 mb-1">BB</div>
             <div className="text-xl md:text-3xl font-bold">
               {timerState.currentLevelData.bigBlind.toLocaleString()}
             </div>
@@ -468,7 +475,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
 
           {/* Ante */}
           <div className="text-center">
-            <div className="text-xs md:text-sm text-ink-foreground/70 mb-1">Ante</div>
+            <div className="text-sm text-ink-foreground/70 mb-1">Ante</div>
             <div className="text-xl md:text-3xl font-bold">
               {timerState.currentLevelData.ante > 0
                 ? timerState.currentLevelData.ante.toLocaleString()
@@ -484,7 +491,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
           <div className="space-y-4">
             {/* Temps restant - TRÈS visible */}
             <div className="text-center">
-              <div className="text-xs md:text-sm text-muted-foreground mb-1 flex items-center justify-center gap-2">
+              <div className="text-sm text-muted-foreground mb-1 flex items-center justify-center gap-2">
                 <Clock className="h-4 w-4" />
                 Temps restant
               </div>
@@ -506,7 +513,7 @@ export default function TournamentTimer({ tournamentId, tournamentStatus, onUpda
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <div className="text-xs text-muted-foreground text-center">
+              <div className="text-sm text-muted-foreground text-center">
                 {Math.floor(progress)}% du niveau
               </div>
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Play, Square, Pause, RotateCcw, Flag, Users, Table, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -102,6 +103,14 @@ export default function AdminQuickActions({
       }
 
       // Success - trigger refetch
+      const messages: Record<ActionType, string> = {
+        start: 'Tournoi démarré',
+        pause: 'Timer en pause',
+        resume: 'Timer repris',
+        reset: 'Timer réinitialisé',
+        finish: 'Tournoi terminé',
+      };
+      toast.success(messages[action]);
       onActionComplete();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');

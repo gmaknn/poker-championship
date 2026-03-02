@@ -309,6 +309,7 @@ export default function TournamentsPage() {
         await fetchTournaments();
         setIsDialogOpen(false);
         resetForm();
+        toast.success(editingTournament ? 'Tournoi modifié' : 'Tournoi créé');
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur lors de la sauvegarde');
@@ -408,6 +409,7 @@ export default function TournamentsPage() {
 
       if (response.ok) {
         await fetchTournaments();
+        toast.success('Tournoi supprimé');
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur lors de la suppression');

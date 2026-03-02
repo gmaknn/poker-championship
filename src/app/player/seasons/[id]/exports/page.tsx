@@ -524,31 +524,31 @@ export default function PlayerSeasonExportsPage() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7">
-          <TabsTrigger value="tournaments" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+          <TabsTrigger value="tournaments" className="flex items-center gap-1 sm:gap-2 text-sm">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Tournois</span>
           </TabsTrigger>
-          <TabsTrigger value="general" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+          <TabsTrigger value="general" className="flex items-center gap-1 sm:gap-2 text-sm">
             <Trophy className="h-4 w-4" />
             <span className="hidden sm:inline">Classement</span>
           </TabsTrigger>
-          <TabsTrigger value="stats" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+          <TabsTrigger value="stats" className="flex items-center gap-1 sm:gap-2 text-sm">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Stats</span>
           </TabsTrigger>
-          <TabsTrigger value="chart" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+          <TabsTrigger value="chart" className="flex items-center gap-1 sm:gap-2 text-sm">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Sharks</span>
           </TabsTrigger>
-          <TabsTrigger value="eliminations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+          <TabsTrigger value="eliminations" className="flex items-center gap-1 sm:gap-2 text-sm">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Elims</span>
           </TabsTrigger>
-          <TabsTrigger value="evolution" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+          <TabsTrigger value="evolution" className="flex items-center gap-1 sm:gap-2 text-sm">
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">Evolution</span>
           </TabsTrigger>
-          <TabsTrigger value="confrontations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm">
+          <TabsTrigger value="confrontations" className="flex items-center gap-1 sm:gap-2 text-sm">
             <Swords className="h-4 w-4" />
             <span className="hidden sm:inline">Duels</span>
           </TabsTrigger>

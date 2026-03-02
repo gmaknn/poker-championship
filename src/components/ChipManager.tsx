@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 import { Plus, Trash2, RotateCcw, Save } from 'lucide-react';
 import {
   AlertDialog,
@@ -76,6 +77,7 @@ export default function ChipManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchChips();
         onUpdate?.();
+        toast.success('Jetons enregistrés');
       } else {
         setError('Erreur lors de la sauvegarde');
       }
@@ -96,6 +98,7 @@ export default function ChipManager({ tournamentId, onUpdate }: Props) {
       if (response.ok) {
         await fetchChips();
         onUpdate?.();
+        toast.success('Jetons réinitialisés');
       } else {
         setError('Erreur lors de la réinitialisation');
       }

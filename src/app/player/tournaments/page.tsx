@@ -226,7 +226,7 @@ export default function PlayerTournamentsPage() {
                 {/* Podium for finished tournaments */}
                 {tournament.status === 'FINISHED' && tournament.podium && tournament.podium.length > 0 && (
                   <div className="mt-4 pt-4 border-t">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">PODIUM</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">PODIUM</p>
                     <div className="flex flex-wrap gap-2 sm:gap-4">
                       {tournament.podium.slice(0, 3).map((entry) => (
                         <div

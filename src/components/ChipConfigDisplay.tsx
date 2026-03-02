@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
 import { AlertCircle, Briefcase, Users, TrendingUp, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import {
@@ -94,6 +95,7 @@ export default function ChipConfigDisplay({ tournamentId, onUpdate }: Props) {
         setConfig(null);
         setChipSets([]);
         onUpdate?.();
+        toast.success('Configuration supprimée');
       }
     } catch (error) {
       console.error('Error deleting chip config:', error);

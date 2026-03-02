@@ -24,6 +24,7 @@ import {
   Star,
 } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -108,6 +109,7 @@ export default function ChipInventoryPage() {
         await fetchChipSets();
         setIsDialogOpen(false);
         resetChipSetForm();
+        toast.success('Mallette créée');
       }
     } catch (error) {
       console.error('Error creating chip set:', error);
@@ -133,6 +135,7 @@ export default function ChipInventoryPage() {
         setIsDialogOpen(false);
         setEditingChipSet(null);
         resetChipSetForm();
+        toast.success('Mallette modifiée');
       }
     } catch (error) {
       console.error('Error updating chip set:', error);
@@ -147,6 +150,7 @@ export default function ChipInventoryPage() {
 
       if (response.ok) {
         await fetchChipSets();
+        toast.success('Mallette supprimée');
       }
     } catch (error) {
       console.error('Error deleting chip set:', error);
@@ -172,6 +176,7 @@ export default function ChipInventoryPage() {
         await fetchChipSets();
         setIsDenominationDialogOpen(false);
         resetDenominationForm();
+        toast.success('Dénomination ajoutée');
       }
     } catch (error) {
       console.error('Error adding denomination:', error);
@@ -201,6 +206,7 @@ export default function ChipInventoryPage() {
         setIsDenominationDialogOpen(false);
         resetDenominationForm();
         setEditingDenomination(null);
+        toast.success('Dénomination modifiée');
       }
     } catch (error) {
       console.error('Error updating denomination:', error);
@@ -216,6 +222,7 @@ export default function ChipInventoryPage() {
 
       if (response.ok) {
         await fetchChipSets();
+        toast.success('Dénomination supprimée');
       }
     } catch (error) {
       console.error('Error deleting denomination:', error);
@@ -259,6 +266,7 @@ export default function ChipInventoryPage() {
 
       if (response.ok) {
         await fetchChipSets();
+        toast.success('Mallette par défaut mise à jour');
       }
     } catch (error) {
       console.error('Error setting default chip set:', error);

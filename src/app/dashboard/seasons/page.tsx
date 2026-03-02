@@ -21,6 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Season } from '@prisma/client';
 import RecavePenaltyTiersEditor from '@/components/RecavePenaltyTiersEditor';
 import { RecavePenaltyTier } from '@/lib/scoring';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -242,6 +243,7 @@ export default function SeasonsPage() {
       if (response.ok) {
         setIsDialogOpen(false);
         fetchSeasons();
+        toast.success(editingSeason ? 'Saison modifiée' : 'Saison créée');
       } else {
         const data = await response.json();
         setError(data.error || 'Une erreur est survenue');
@@ -259,6 +261,7 @@ export default function SeasonsPage() {
 
       if (response.ok) {
         fetchSeasons();
+        toast.success('Saison archivée');
       }
     } catch (error) {
       console.error('Error archiving season:', error);

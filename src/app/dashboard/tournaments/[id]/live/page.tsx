@@ -191,7 +191,7 @@ export default function LiveLeaderboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.remainingPlayers}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               sur {data.stats.totalPlayers} joueurs
             </p>
           </CardContent>
@@ -204,7 +204,7 @@ export default function LiveLeaderboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.totalEliminations}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {data.stats.eliminatedPlayers} joueurs éliminés
             </p>
           </CardContent>
@@ -217,7 +217,7 @@ export default function LiveLeaderboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.leaderKillsTotal}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               +{data.season.leaderKillerBonus} points chacun
             </p>
           </CardContent>
@@ -230,7 +230,7 @@ export default function LiveLeaderboardPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.totalRebuys}</div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Recaves effectuées
             </p>
           </CardContent>
@@ -301,12 +301,12 @@ export default function LiveLeaderboardPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="font-semibold text-base sm:text-lg truncate">{entry.player.nickname}</div>
                         {entry.isEliminated && (
-                          <Badge variant="destructive" className="text-xs">
+                          <Badge variant="destructive" className="text-sm">
                             Éliminé (#{entry.finalRank})
                           </Badge>
                         )}
                         {isLeader && !entry.isEliminated && (
-                          <Badge variant="default" className="bg-yellow-500 text-xs">
+                          <Badge variant="default" className="bg-yellow-500 text-sm">
                             Leader
                           </Badge>
                         )}
@@ -353,7 +353,7 @@ export default function LiveLeaderboardPage() {
                       <div className="text-2xl font-bold">
                         {entry.currentPoints >= 0 ? '+' : ''}{entry.currentPoints} pts
                       </div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2">
+                      <div className="text-sm text-muted-foreground flex items-center gap-2">
                         {entry.eliminationPoints > 0 && (
                           <span className="text-green-600">+{entry.eliminationPoints} élim.</span>
                         )}

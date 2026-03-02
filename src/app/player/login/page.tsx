@@ -115,7 +115,7 @@ export default function PlayerLoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground">
+          <p className="mt-6 text-center text-sm text-muted-foreground">
             Pas encore de compte ? Contactez un administrateur pour recevoir une invitation.
           </p>
         </CardContent>
