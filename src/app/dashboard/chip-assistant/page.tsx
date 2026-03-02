@@ -644,7 +644,7 @@ export default function ChipAssistantPage() {
                   {result.metrics && (
                     <div className="space-y-2">
                       <div className="font-semibold text-sm">Qualité de la configuration :</div>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="text-center p-3 bg-muted/30 rounded-lg">
                           <div className="text-xl font-bold text-green-600 dark:text-green-400">
                             {result.metrics.overallScore.toFixed(1)}
@@ -948,7 +948,7 @@ export default function ChipAssistantPage() {
                     key={index}
                     className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg"
                   >
-                    <div className="flex-1 grid grid-cols-3 gap-3">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="space-y-1">
                         <Label className="text-xs">Valeur</Label>
                         <Input

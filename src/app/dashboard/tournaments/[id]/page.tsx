@@ -281,7 +281,7 @@ export default function TournamentDetailPage({
             <Button
               variant="outline"
               size="sm"
-              className="md:h-10 md:px-4"
+              className="min-h-[44px] px-3 md:h-10 md:px-4"
               onClick={() => window.open(`/tv-v3/${tournament.id}`, '_blank')}
             >
               <Tv className="mr-1 md:mr-2 h-4 w-4" />
@@ -290,7 +290,7 @@ export default function TournamentDetailPage({
             <Button
               variant="outline"
               size="sm"
-              className="md:h-10 md:px-4"
+              className="min-h-[44px] px-3 md:h-10 md:px-4"
               onClick={handleCopyTvUrl}
               title="Copier l'URL du mode TV"
             >
@@ -304,7 +304,7 @@ export default function TournamentDetailPage({
             <Button
               variant="outline"
               size="sm"
-              className="md:h-10 md:px-4"
+              className="min-h-[44px] px-3 md:h-10 md:px-4"
               onClick={handleEditClick}
               disabled={tournament.status === 'FINISHED'}
               title={tournament.status === 'FINISHED' ? 'Impossible de modifier un tournoi terminé' : ''}

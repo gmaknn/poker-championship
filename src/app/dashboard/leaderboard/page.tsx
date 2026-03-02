@@ -454,16 +454,16 @@ export default function LeaderboardPage() {
                         <div className="text-sm text-muted-foreground">@{entry.player.nickname}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3 sm:gap-6">
                       <div className="text-right">
                         <div className="text-sm text-muted-foreground">Points</div>
                         <div className="text-lg font-bold text-primary">{entry.totalPoints}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right hidden sm:block">
                         <div className="text-sm text-muted-foreground">Moyenne</div>
                         <div className="text-sm font-medium">{entry.averagePoints}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right hidden sm:block">
                         <div className="text-sm text-muted-foreground">Tournois</div>
                         <div className="text-sm font-medium">{entry.tournamentsCount}</div>
                       </div>

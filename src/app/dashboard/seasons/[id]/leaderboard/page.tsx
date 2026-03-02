@@ -429,7 +429,7 @@ export default function SeasonLeaderboardPage({
                   0
                 );
                 return (
-                  <div className="grid grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
                     <Card className="bg-gradient-to-br from-primary/10 to-primary/5">
                       <CardContent className="pt-6 text-center">
                         <div className="text-4xl font-bold text-primary">
