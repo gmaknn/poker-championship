@@ -25,6 +25,7 @@ export async function GET(
         timerPausedAt: true,
         timerElapsedSeconds: true,
         levelDuration: true,
+        lastRebalancedAtLevel: true,
         blindLevels: {
           orderBy: { level: 'asc' },
         },
@@ -91,6 +92,24 @@ export async function GET(
       tournament.blindLevels
     );
 
+    // Vérifier si un rééquilibrage automatique est en attente
+    let pendingAutoRebalance = false;
+    let pendingRebalanceForLevel: number | null = null;
+    const lastRebalanced = tournament.lastRebalancedAtLevel ?? 0;
+
+    for (const level of tournament.blindLevels) {
+      // Niveau complété (< calculatedLevel), avec rebalanceTables activé, non encore traité
+      if (
+        level.level < calculatedLevel &&
+        level.rebalanceTables &&
+        level.level > lastRebalanced
+      ) {
+        pendingAutoRebalance = true;
+        pendingRebalanceForLevel = level.level;
+        break; // Traiter un seul niveau à la fois
+      }
+    }
+
     const response = NextResponse.json({
       tournamentId: tournament.id,
       status: tournament.status,
@@ -105,6 +124,8 @@ export async function GET(
       recavesOpen,
       isVoluntaryRebuyPeriod,
       rebuyEndLevel: tournament.rebuyEndLevel,
+      pendingAutoRebalance,
+      pendingRebalanceForLevel,
     });
 
     // Disable all caching for live timer state

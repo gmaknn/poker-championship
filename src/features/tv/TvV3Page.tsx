@@ -197,6 +197,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const previousPlayerCountRef = useRef<number>(0);
   const confettiTriggeredRef = useRef(false);
   const photoCapturedRef = useRef(false);
+  const autoRebalanceTriggeredRef = useRef<number>(0);
 
   // TTS controls
   const [ttsVolume, setTtsVolume] = useState(1);
@@ -212,6 +213,16 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const [showTablesPlan, setShowTablesPlan] = useState(false);
   const [tablesPlanData, setTablesPlanData] = useState<TablesPlanResponse | null>(null);
   const [tablesPlanError, setTablesPlanError] = useState<string | null>(null);
+
+  // Player moved overlay (post-elimination rebalance)
+  const [playerMovedNotifications, setPlayerMovedNotifications] = useState<Array<{
+    id: number;
+    playerName: string;
+    fromTable: number;
+    toTable: number;
+    seatNumber: number;
+  }>>([]);
+  const playerMovedIdRef = useRef(0);
 
   // Chips Modal
   const [showChipsModal, setShowChipsModal] = useState(false);
@@ -503,6 +514,40 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   useTournamentEvent(tournamentId, 'rebuy:applied', handleRebuyApplied);
   useTournamentEvent(tournamentId, 'rebuy:recorded', handleRebuyRecorded);
 
+  // Rafraîchir les données quand les tables sont rééquilibrées (auto ou manuel)
+  const handleTablesRebalanced = useCallback(() => {
+    fetchData();
+  }, []);
+  useTournamentEvent(tournamentId, 'tables:rebalanced', handleTablesRebalanced);
+
+  // Notification de déplacement de joueur après élimination
+  const handlePlayerMoved = useCallback((data: {
+    tournamentId: string;
+    playerId: string;
+    playerName: string;
+    fromTable: number;
+    toTable: number;
+    seatNumber: number;
+  }) => {
+    const notifId = ++playerMovedIdRef.current;
+    setPlayerMovedNotifications(prev => [...prev, {
+      id: notifId,
+      playerName: data.playerName,
+      fromTable: data.fromTable,
+      toTable: data.toTable,
+      seatNumber: data.seatNumber,
+    }]);
+
+    // Retirer la notification après 10 secondes
+    setTimeout(() => {
+      setPlayerMovedNotifications(prev => prev.filter(n => n.id !== notifId));
+    }, 10000);
+
+    // Rafraîchir les données pour mettre à jour le plan de tables
+    fetchData();
+  }, []);
+  useTournamentEvent(tournamentId, 'table:player_moved', handlePlayerMoved);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -722,6 +767,29 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     return () => clearInterval(timer);
   }, []);
 
+  // Auto-rebalance des tables quand un niveau avec rebalanceTables est complété
+  const triggerAutoRebalance = async (forLevel: number) => {
+    if (autoRebalanceTriggeredRef.current >= forLevel) return;
+    autoRebalanceTriggeredRef.current = forLevel;
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/auto-rebalance`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forLevel }),
+      });
+
+      if (!response.ok && response.status !== 401) {
+        // Reset ref pour retry au prochain poll (sauf 401 = non-authentifié)
+        autoRebalanceTriggeredRef.current = forLevel - 1;
+      }
+    } catch {
+      // Erreur réseau : reset ref pour retry au prochain poll
+      autoRebalanceTriggeredRef.current = forLevel - 1;
+    }
+  };
+
   const fetchData = async () => {
     try {
       const [tournamentResponse, timerResponse, chipsResponse] = await Promise.all([
@@ -744,6 +812,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             timerPausedAt: timerData.timerPausedAt,
             fetchedAt: Date.now(),
           });
+
+          // Déclencher l'auto-rebalance si un niveau avec rebalanceTables est en attente
+          if (timerData.pendingAutoRebalance && timerData.pendingRebalanceForLevel) {
+            triggerAutoRebalance(timerData.pendingRebalanceForLevel);
+          }
         }
 
         // Transform data to match ResultsData structure
@@ -1089,6 +1162,26 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
   return (
     <div className="min-h-screen text-white overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
+      {/* Overlay de déplacement de joueur après élimination */}
+      {playerMovedNotifications.length > 0 && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none">
+          {playerMovedNotifications.map((notif) => (
+            <div
+              key={notif.id}
+              className="px-6 py-3 rounded-xl shadow-2xl text-white text-center font-bold text-lg backdrop-blur-sm"
+              style={{
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(37, 99, 235, 0.95))',
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                animation: 'slideDown 0.4s ease-out',
+              }}
+            >
+              <span className="mr-2">&#x1F504;</span>
+              {notif.playerName} → Table {notif.toTable}, Siège {notif.seatNumber}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header - Hidden in fullscreen mode */}
       {!isFullscreen && (
       <div className={`border-b-4 ${isMobilePortrait ? 'py-2 px-3' : isMobileLandscape ? 'py-1 px-3' : 'py-4 px-8'}`} style={{
