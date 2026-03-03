@@ -589,7 +589,7 @@ export default function SeasonExportsPage() {
   })();
 
   return (
-    <div className="w-full px-6 py-6 space-y-6">
+    <div className="w-full px-4 sm:px-6 py-6 space-y-6 min-w-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -602,60 +602,42 @@ export default function SeasonExportsPage() {
             Retour
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Exports Visuels</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Exports Visuels</h1>
             <p className="text-muted-foreground">
               {season.name} ({season.year})
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="text-lg">
-            {leaderboard.length} joueurs
-          </Badge>
-          {/* TODO: Réactiver quand le bug ZIP sera corrigé
-          <Button
-            onClick={handleExportAll}
-            disabled={isExporting}
-            size="lg"
-            className="gap-2"
-          >
-            <Download className="h-5 w-5" />
-            {isExporting ? 'Export en cours...' : 'Tout télécharger (ZIP)'}
-          </Button>
-          */}
-        </div>
+        <Badge variant="outline" className="text-lg">
+          {leaderboard.length} joueurs
+        </Badge>
       </div>
 
       {/* Info card */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-start justify-between gap-4">
-            <p className="text-sm text-muted-foreground flex-1">
+          <div className="flex flex-col gap-4">
+            <p className="hidden md:block text-sm text-muted-foreground">
               💡 Utilisez ces exports pour partager les stats de la saison sur WhatsApp,
-              Facebook, ou les imprimer. Chaque export met en valeur différentes informations :
-              les Top Sharks 🦈 pour les killers, le tableau détaillé pour l'évolution des points,
-              et le classement avec éliminations pour les rivalités.
+              Facebook, ou les imprimer.
             </p>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-muted-foreground">
-                Format d'export :
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  variant={exportFormat === 'png' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setExportFormat('png')}
-                >
-                  PNG (Meilleure qualité)
-                </Button>
-                <Button
-                  variant={exportFormat === 'jpg' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setExportFormat('jpg')}
-                >
-                  JPG (Fichier plus léger)
-                </Button>
-              </div>
+            <div className="flex gap-2">
+              <Button
+                className="flex-1 sm:flex-none"
+                variant={exportFormat === 'png' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setExportFormat('png')}
+              >
+                PNG (Meilleure qualité)
+              </Button>
+              <Button
+                className="flex-1 sm:flex-none"
+                variant={exportFormat === 'jpg' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setExportFormat('jpg')}
+              >
+                JPG (Plus léger)
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -695,46 +677,43 @@ export default function SeasonExportsPage() {
         </TabsList>
 
         {/* Export: Individual Tournament */}
-        <TabsContent value="tournaments" className="space-y-4">
+        <TabsContent value="tournaments" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <CardTitle>Export Tournoi</CardTitle>
-                  {tournaments.length > 0 && (
-                    <Select
-                      value={selectedTournamentId}
-                      onValueChange={setSelectedTournamentId}
-                    >
-                      <SelectTrigger className="w-full sm:w-[300px]">
-                        <SelectValue placeholder="Sélectionner un tournoi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tournaments.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            Tournoi #{t.number} - {new Date(t.date).toLocaleDateString('fr-FR')}
-                            {t.name && ` (${t.name})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
+              <div className="flex flex-col gap-3">
+                <CardTitle>Export Tournoi</CardTitle>
+                {tournaments.length > 0 && (
+                  <Select
+                    value={selectedTournamentId}
+                    onValueChange={setSelectedTournamentId}
+                  >
+                    <SelectTrigger className="w-full sm:w-[300px]">
+                      <SelectValue placeholder="Sélectionner un tournoi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tournaments.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          Tournoi #{t.number} - {new Date(t.date).toLocaleDateString('fr-FR')}
+                          {t.name && ` (${t.name})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 {selectedTournamentData && (
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleExportImage(
-                        tournamentExportRef,
-                        `Tournoi_${tournaments.find(t => t.id === selectedTournamentId)?.number || 'export'}`,
-                        undefined,
-                        '#f8fafc'
-                      )}
-                      disabled={isExporting || isLoadingTournament}
-                    >
-                      <Download className="h-4 w-4 mr-2" />
-                      {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
-                    </Button>
-                  </div>
+                  <Button
+                    className="w-full sm:w-auto self-start"
+                    onClick={() => handleExportImage(
+                      tournamentExportRef,
+                      `Tournoi_${tournaments.find(t => t.id === selectedTournamentId)?.number || 'export'}`,
+                      undefined,
+                      '#f8fafc'
+                    )}
+                    disabled={isExporting || isLoadingTournament}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    {isExporting ? 'Export...' : `Télécharger`}
+                  </Button>
                 )}
               </div>
             </CardHeader>
@@ -793,20 +772,19 @@ export default function SeasonExportsPage() {
         </TabsContent>
 
         {/* Export: General Leaderboard (Light theme) */}
-        <TabsContent value="general" className="space-y-4">
+        <TabsContent value="general" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <CardTitle>Classement Général</CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement_general`, undefined, '#f8fafc')}
-                    disabled={isExporting}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
-                  </Button>
-                </div>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement_general`, undefined, '#f8fafc')}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isExporting ? 'Export...' : 'Télécharger'}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -838,17 +816,18 @@ export default function SeasonExportsPage() {
         </TabsContent>
 
         {/* Player Stats Export */}
-        <TabsContent value="stats" className="space-y-4">
+        <TabsContent value="stats" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <CardTitle>Stats Joueurs</CardTitle>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={() => handleExportImage(playerStatsRef, `Saison_${season.year}_stats`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
+                  {isExporting ? 'Export...' : 'Télécharger'}
                 </Button>
               </div>
             </CardHeader>
@@ -868,20 +847,19 @@ export default function SeasonExportsPage() {
         </TabsContent>
 
         {/* Export #1: Sharks Chart */}
-        <TabsContent value="chart" className="space-y-4">
+        <TabsContent value="chart" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>🦈 Top Sharks - Les Tueurs</CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => handleExportImage(chartRef, `${season.name}_graphique`)}
-                    disabled={isExporting}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
-                  </Button>
-                </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle>Top Sharks</CardTitle>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() => handleExportImage(chartRef, `${season.name}_graphique`)}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isExporting ? 'Export...' : 'Télécharger'}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -932,22 +910,21 @@ export default function SeasonExportsPage() {
         */}
 
         {/* Export #3: With Eliminations */}
-        <TabsContent value="eliminations" className="space-y-4">
+        <TabsContent value="eliminations" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Classement avec Éliminations</CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() =>
-                      handleExportImage(eliminationsRef, `${season.name}_eliminations`, undefined, '#f8fafc')
-                    }
-                    disabled={isExporting}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
-                  </Button>
-                </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle>Avec Éliminations</CardTitle>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() =>
+                    handleExportImage(eliminationsRef, `${season.name}_eliminations`, undefined, '#f8fafc')
+                  }
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isExporting ? 'Export...' : 'Télécharger'}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -964,22 +941,21 @@ export default function SeasonExportsPage() {
         </TabsContent>
 
         {/* Export #4: Evolution Chart */}
-        <TabsContent value="evolution" className="space-y-4">
+        <TabsContent value="evolution" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Evolution du Classement</CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() =>
-                      handleExportImage(evolutionRef, `${season.name}_evolution`, undefined, '#f8fafc')
-                    }
-                    disabled={isExporting}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
-                  </Button>
-                </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle>Évolution</CardTitle>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() =>
+                    handleExportImage(evolutionRef, `${season.name}_evolution`, undefined, '#f8fafc')
+                  }
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isExporting ? 'Export...' : 'Télécharger'}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -997,22 +973,21 @@ export default function SeasonExportsPage() {
         </TabsContent>
 
         {/* Export #5: Confrontations Matrix */}
-        <TabsContent value="confrontations" className="space-y-4">
+        <TabsContent value="confrontations" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>⚔️ Confrontations Directes - Qui élimine qui ?</CardTitle>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() =>
-                      handleExportImage(confrontationsRef, `${season.name}_confrontations`, undefined, '#f8fafc')
-                    }
-                    disabled={isExporting}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : `Télécharger ${exportFormat.toUpperCase()}`}
-                  </Button>
-                </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle>Confrontations</CardTitle>
+                <Button
+                  className="w-full sm:w-auto"
+                  onClick={() =>
+                    handleExportImage(confrontationsRef, `${season.name}_confrontations`, undefined, '#f8fafc')
+                  }
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isExporting ? 'Export...' : 'Télécharger'}
+                </Button>
               </div>
             </CardHeader>
             <CardContent>
