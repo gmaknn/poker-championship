@@ -57,6 +57,7 @@ export interface TournamentEvents {
   'tables:rebalanced': {
     tournamentId: string;
     tablesCount: number;
+    movedPlayerIds?: string[];
   };
   'table:player_moved': {
     tournamentId: string;
