@@ -64,12 +64,13 @@ export async function GET(request: NextRequest, { params }: Params) {
       },
     });
 
-    // Get last tournament played
+    // Get last tournament played (CHAMPIONSHIP only)
     const lastTournament = await prisma.tournamentPlayer.findFirst({
       where: {
         playerId: id,
         tournament: {
           status: 'FINISHED',
+          type: 'CHAMPIONSHIP',
         },
       },
       orderBy: {
@@ -102,12 +103,13 @@ export async function GET(request: NextRequest, { params }: Params) {
       }
     }
 
-    // Get tournament history (all tournaments)
+    // Get tournament history (CHAMPIONSHIP only)
     const tournamentHistory = await prisma.tournamentPlayer.findMany({
       where: {
         playerId: id,
         tournament: {
           status: 'FINISHED',
+          type: 'CHAMPIONSHIP',
         },
       },
       orderBy: {
@@ -125,11 +127,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       },
     });
 
-    // Calculate fun stats
+    // Calculate fun stats (CHAMPIONSHIP only)
     // 1. Nemesis (who eliminates me the most)
     const eliminatedBy = await prisma.elimination.groupBy({
       by: ['eliminatorId'],
-      where: { eliminatedId: id },
+      where: {
+        eliminatedId: id,
+        tournament: { type: 'CHAMPIONSHIP' },
+      },
       _count: { eliminatorId: true },
       orderBy: {
         _count: { eliminatorId: 'desc' },
@@ -153,7 +158,10 @@ export async function GET(request: NextRequest, { params }: Params) {
     // 2. Favorite victim (who I eliminate the most)
     const iEliminated = await prisma.elimination.groupBy({
       by: ['eliminatedId'],
-      where: { eliminatorId: id },
+      where: {
+        eliminatorId: id,
+        tournament: { type: 'CHAMPIONSHIP' },
+      },
       _count: { eliminatedId: true },
       orderBy: {
         _count: { eliminatedId: 'desc' },
@@ -174,60 +182,48 @@ export async function GET(request: NextRequest, { params }: Params) {
       }
     }
 
-    // 3. Overall stats
+    // 3. Overall stats (CHAMPIONSHIP only)
+    const championshipFilter = {
+      playerId: id,
+      tournament: { status: 'FINISHED' as const, type: 'CHAMPIONSHIP' as const },
+    };
+
     const totalTournaments = await prisma.tournamentPlayer.count({
-      where: {
-        playerId: id,
-        tournament: { status: 'FINISHED' },
-      },
+      where: championshipFilter,
     });
 
     const victories = await prisma.tournamentPlayer.count({
       where: {
-        playerId: id,
+        ...championshipFilter,
         finalRank: 1,
-        tournament: { status: 'FINISHED' },
       },
     });
 
     const podiums = await prisma.tournamentPlayer.count({
       where: {
-        playerId: id,
+        ...championshipFilter,
         finalRank: { lte: 3 },
-        tournament: { status: 'FINISHED' },
       },
     });
 
     const totalEliminationsSum = await prisma.tournamentPlayer.aggregate({
-      where: {
-        playerId: id,
-        tournament: { status: 'FINISHED' },
-      },
+      where: championshipFilter,
       _sum: { eliminationsCount: true },
     });
 
     const totalLeaderKillsSum = await prisma.tournamentPlayer.aggregate({
-      where: {
-        playerId: id,
-        tournament: { status: 'FINISHED' },
-      },
+      where: championshipFilter,
       _sum: { leaderKills: true },
     });
 
     const totalRebuysSum = await prisma.tournamentPlayer.aggregate({
-      where: {
-        playerId: id,
-        tournament: { status: 'FINISHED' },
-      },
+      where: championshipFilter,
       _sum: { rebuysCount: true },
     });
 
-    // Get all finished tournament participations for detailed stats
+    // Get all finished CHAMPIONSHIP participations for detailed stats
     const allTournamentParticipations = await prisma.tournamentPlayer.findMany({
-      where: {
-        playerId: id,
-        tournament: { status: 'FINISHED' },
-      },
+      where: championshipFilter,
       orderBy: {
         tournament: { date: 'asc' },
       },
@@ -260,12 +256,9 @@ export async function GET(request: NextRequest, { params }: Params) {
       tp => tp.rebuysCount === 0
     ).length;
 
-    // 8. Total winnings and losses
+    // 8. Total winnings and losses (CHAMPIONSHIP only)
     const totalWinningsSum = await prisma.tournamentPlayer.aggregate({
-      where: {
-        playerId: id,
-        tournament: { status: 'FINISHED' },
-      },
+      where: championshipFilter,
       _sum: { prizeAmount: true },
     });
     const totalWinnings = totalWinningsSum._sum.prizeAmount || 0;
