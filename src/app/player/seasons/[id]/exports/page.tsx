@@ -497,24 +497,26 @@ export default function PlayerSeasonExportsPage() {
       {/* Format selector */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <p className="text-sm text-muted-foreground">
+          <div className="flex flex-col gap-4">
+            <p className="hidden md:block text-sm text-muted-foreground">
               Exportez les classements et statistiques pour les partager sur WhatsApp ou les imprimer.
             </p>
             <div className="flex gap-2">
               <Button
+                className="flex-1 sm:flex-none"
                 variant={exportFormat === 'png' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setExportFormat('png')}
               >
-                PNG
+                PNG (Meilleure qualité)
               </Button>
               <Button
+                className="flex-1 sm:flex-none"
                 variant={exportFormat === 'jpg' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setExportFormat('jpg')}
               >
-                JPG
+                JPG (Plus léger)
               </Button>
             </div>
           </div>
@@ -558,29 +560,28 @@ export default function PlayerSeasonExportsPage() {
         <TabsContent value="tournaments" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <CardTitle>Export Tournoi</CardTitle>
-                  {tournaments.length > 0 && (
-                    <Select
-                      value={selectedTournamentId}
-                      onValueChange={setSelectedTournamentId}
-                    >
-                      <SelectTrigger className="w-full sm:w-[300px]">
-                        <SelectValue placeholder="Sélectionner un tournoi" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {tournaments.map((t) => (
-                          <SelectItem key={t.id} value={t.id}>
-                            Tournoi #{t.number} - {new Date(t.date).toLocaleDateString('fr-FR')}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
+              <div className="flex flex-col gap-3">
+                <CardTitle>Export Tournoi</CardTitle>
+                {tournaments.length > 0 && (
+                  <Select
+                    value={selectedTournamentId}
+                    onValueChange={setSelectedTournamentId}
+                  >
+                    <SelectTrigger className="w-full sm:w-[300px]">
+                      <SelectValue placeholder="Sélectionner un tournoi" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tournaments.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          Tournoi #{t.number} - {new Date(t.date).toLocaleDateString('fr-FR')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 {selectedTournamentData && (
                   <Button
+                    className="w-full sm:w-auto self-start"
                     onClick={() => handleExportImage(
                       tournamentExportRef,
                       `Tournoi_${tournaments.find(t => t.id === selectedTournamentId)?.number || 'export'}`,
