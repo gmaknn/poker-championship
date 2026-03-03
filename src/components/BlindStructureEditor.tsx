@@ -31,6 +31,8 @@ import {
   AlertCircle,
   Info,
   Coins,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 import { getMinDenomination } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
@@ -434,6 +436,17 @@ export default function BlindStructureEditor({
     setDragOverIndex(null);
   };
 
+  const handleMoveLevel = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= levels.length) return;
+    const newLevels = [...levels];
+    [newLevels[index], newLevels[targetIndex]] = [newLevels[targetIndex], newLevels[index]];
+    const renumbered = newLevels.map((level, i) => ({ ...level, level: i + 1 }));
+    setLevels(renumbered);
+    calculateStats(renumbered);
+    setHasUnsavedChanges(true);
+  };
+
 
   if (isLoading) {
     return (
@@ -684,17 +697,17 @@ export default function BlindStructureEditor({
                             </span>
                           </div>
                           {!readOnly && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveLevel(index);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={index === 0} onClick={() => handleMoveLevel(index, 'up')}>
+                                <ChevronUp className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={index === levels.length - 1} onClick={() => handleMoveLevel(index, 'down')}>
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleRemoveLevel(index); }}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -722,17 +735,17 @@ export default function BlindStructureEditor({
                             Niv. {level.level}
                           </Badge>
                           {!readOnly && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveLevel(index);
-                              }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={index === 0} onClick={() => handleMoveLevel(index, 'up')}>
+                                <ChevronUp className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={index === levels.length - 1} onClick={() => handleMoveLevel(index, 'down')}>
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); handleRemoveLevel(index); }}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           )}
                         </div>
                         <div className="grid grid-cols-2 gap-3">
