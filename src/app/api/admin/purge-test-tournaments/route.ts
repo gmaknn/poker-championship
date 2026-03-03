@@ -3,20 +3,13 @@ import { getCurrentPlayer } from '@/lib/auth-helpers';
 import { isAdminMultiRole } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 
-type Params = {
-  params: Promise<{ id: string }>;
-};
-
 /**
- * DELETE /api/admin/delete-tournament/[id]
- * Route temporaire pour supprimer un tournoi de test
- * Sécurité : Admin uniquement + nom doit contenir "TEST"
+ * DELETE /api/admin/purge-test-tournaments
+ * Supprime tous les tournois dont le nom contient "TEST"
+ * Sécurité : Admin uniquement
  */
-export async function DELETE(request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest) {
   try {
-    const { id } = await params;
-
-    // 1. Vérifier l'authentification admin
     const currentPlayer = await getCurrentPlayer(request);
 
     if (!currentPlayer) {
@@ -26,7 +19,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Vérifier permission admin
     const isAdmin = isAdminMultiRole(currentPlayer.role, currentPlayer.additionalRoles);
     if (!isAdmin) {
       return NextResponse.json(
@@ -35,67 +27,63 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Note: id déjà extrait en haut de la fonction
-
-    // 2. Récupérer le tournoi et vérifier qu'il contient "TEST"
-    const tournament = await prisma.tournament.findUnique({
-      where: { id },
+    // Trouver tous les tournois avec "TEST" dans le nom
+    const testTournaments = await prisma.tournament.findMany({
+      where: {
+        name: { contains: 'TEST' },
+      },
       select: { id: true, name: true },
     });
 
-    if (!tournament) {
-      return NextResponse.json(
-        { error: 'Tournoi non trouvé' },
-        { status: 404 }
-      );
+    if (testTournaments.length === 0) {
+      return NextResponse.json({
+        deleted: 0,
+        message: 'Aucun tournoi de test trouvé',
+      });
     }
 
-    if (!tournament.name || !tournament.name.toUpperCase().includes('TEST')) {
-      return NextResponse.json(
-        { error: 'Sécurité : seuls les tournois avec "TEST" dans le nom peuvent être supprimés via cette route' },
-        { status: 400 }
-      );
-    }
+    const tournamentIds = testTournaments.map((t) => t.id);
 
-    // 3. Supprimer dans une transaction (ordre FK : enfants d'abord)
+    // Supprimer dans une transaction (ordre FK : enfants d'abord)
     const deletedCounts = await prisma.$transaction(async (tx) => {
       const eliminations = await tx.elimination.deleteMany({
-        where: { tournamentId: id },
+        where: { tournamentId: { in: tournamentIds } },
       });
 
       const bustEvents = await tx.bustEvent.deleteMany({
-        where: { tournamentId: id },
+        where: { tournamentId: { in: tournamentIds } },
       });
 
       const tournamentPlayers = await tx.tournamentPlayer.deleteMany({
-        where: { tournamentId: id },
+        where: { tournamentId: { in: tournamentIds } },
       });
 
       const blindLevels = await tx.blindLevel.deleteMany({
-        where: { tournamentId: id },
+        where: { tournamentId: { in: tournamentIds } },
       });
 
       const tables = await tx.tableAssignment.deleteMany({
-        where: { tournamentId: id },
+        where: { tournamentId: { in: tournamentIds } },
       });
 
       const chipConfigs = await tx.tournamentChipConfig.deleteMany({
-        where: { tournamentId: id },
+        where: { tournamentId: { in: tournamentIds } },
       });
 
       const chipDenominations = await tx.chipDenomination.deleteMany({
-        where: { tournamentId: id },
+        where: { tournamentId: { in: tournamentIds } },
       });
 
       const directors = await tx.tournamentDirector.deleteMany({
-        where: { tournamentId: id },
+        where: { tournamentId: { in: tournamentIds } },
       });
 
-      await tx.tournament.delete({
-        where: { id },
+      const tournaments = await tx.tournament.deleteMany({
+        where: { id: { in: tournamentIds } },
       });
 
       return {
+        tournaments: tournaments.count,
         eliminations: eliminations.count,
         bustEvents: bustEvents.count,
         tournamentPlayers: tournamentPlayers.count,
@@ -108,15 +96,14 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     });
 
     return NextResponse.json({
-      deleted: true,
-      tournamentId: id,
-      tournamentName: tournament.name,
+      deleted: deletedCounts.tournaments,
+      tournamentNames: testTournaments.map((t) => t.name),
       deletedCounts,
     });
   } catch (error) {
-    console.error('Error deleting test tournament:', error);
+    console.error('Error purging test tournaments:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la suppression du tournoi' },
+      { error: 'Erreur lors de la purge des tournois de test' },
       { status: 500 }
     );
   }

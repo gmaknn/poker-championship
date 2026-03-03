@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy } from 'lucide-react';
+import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy, FlaskConical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -112,6 +112,8 @@ export default function TournamentsPage() {
   const [pendingChipConfig, setPendingChipConfig] = useState<any | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<PlayerRole | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [purgeTestConfirm, setPurgeTestConfirm] = useState(false);
+  const [purging, setPurging] = useState(false);
 
   useEffect(() => {
     fetchTournaments();
@@ -420,6 +422,34 @@ export default function TournamentsPage() {
     }
   };
 
+  const testTournamentsCount = tournaments.filter(
+    (t) => t.name && t.name.toUpperCase().includes('TEST')
+  ).length;
+
+  const handlePurgeTest = async () => {
+    setPurging(true);
+    try {
+      const response = await fetch('/api/admin/purge-test-tournaments', {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        await fetchTournaments();
+        toast.success(`${data.deleted} tournoi(s) de test supprime(s)`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erreur lors de la purge');
+      }
+    } catch (error) {
+      console.error('Error purging test tournaments:', error);
+      toast.error('Erreur lors de la purge');
+    } finally {
+      setPurging(false);
+      setPurgeTestConfirm(false);
+    }
+  };
+
   const resetForm = () => {
     setEditingTournament(null);
     setPendingBlindStructure(null);
@@ -450,6 +480,16 @@ export default function TournamentsPage() {
                 <List className="h-4 w-4" />
               </ToggleGroupItem>
             </ToggleGroup>
+            {currentUserRole === 'ADMIN' && testTournamentsCount > 0 && (
+              <Button
+                variant="destructive"
+                onClick={() => setPurgeTestConfirm(true)}
+              >
+                <FlaskConical className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Purger TEST ({testTournamentsCount})</span>
+                <span className="sm:hidden">{testTournamentsCount}</span>
+              </Button>
+            )}
             {canCreateTournament() && (
               <Button onClick={() => setIsDialogOpen(true)}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -1059,6 +1099,30 @@ export default function TournamentsPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Purge test tournaments confirmation dialog */}
+      <AlertDialog open={purgeTestConfirm} onOpenChange={setPurgeTestConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Purger les tournois de test ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {testTournamentsCount} tournoi(s) contenant &quot;TEST&quot; dans le nom seront
+              supprimes avec toutes leurs donnees associees (joueurs inscrits,
+              eliminations, blinds, etc.). Cette action est irreversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={purging}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handlePurgeTest}
+              disabled={purging}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {purging ? 'Suppression...' : `Supprimer ${testTournamentsCount} tournoi(s)`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
