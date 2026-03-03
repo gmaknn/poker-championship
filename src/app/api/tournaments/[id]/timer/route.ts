@@ -110,6 +110,29 @@ export async function GET(
       }
     }
 
+    // Détecter un déséquilibre de tables (filet de sécurité)
+    let pendingTableImbalance = false;
+    if (tournament.status === 'IN_PROGRESS') {
+      const tableAssignments = await prisma.tableAssignment.findMany({
+        where: { tournamentId: id, isActive: true },
+        select: { tableNumber: true },
+      });
+
+      if (tableAssignments.length > 0) {
+        const tableCounts = new Map<number, number>();
+        for (const a of tableAssignments) {
+          tableCounts.set(a.tableNumber, (tableCounts.get(a.tableNumber) || 0) + 1);
+        }
+
+        if (tableCounts.size > 1) {
+          const counts = Array.from(tableCounts.values());
+          const maxCount = Math.max(...counts);
+          const minCount = Math.min(...counts);
+          pendingTableImbalance = (maxCount - minCount) >= 2;
+        }
+      }
+    }
+
     const response = NextResponse.json({
       tournamentId: tournament.id,
       status: tournament.status,
@@ -126,6 +149,7 @@ export async function GET(
       rebuyEndLevel: tournament.rebuyEndLevel,
       pendingAutoRebalance,
       pendingRebalanceForLevel,
+      pendingTableImbalance,
     });
 
     // Disable all caching for live timer state
