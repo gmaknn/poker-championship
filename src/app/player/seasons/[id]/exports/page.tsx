@@ -470,7 +470,7 @@ export default function PlayerSeasonExportsPage() {
   })();
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 min-w-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -557,7 +557,7 @@ export default function PlayerSeasonExportsPage() {
         </TabsList>
 
         {/* Tournament Export */}
-        <TabsContent value="tournaments" className="space-y-4">
+        <TabsContent value="tournaments" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-3">
@@ -650,7 +650,7 @@ export default function PlayerSeasonExportsPage() {
         </TabsContent>
 
         {/* General Leaderboard (Light theme) */}
-        <TabsContent value="general" className="space-y-4">
+        <TabsContent value="general" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -694,7 +694,7 @@ export default function PlayerSeasonExportsPage() {
         </TabsContent>
 
         {/* Player Stats */}
-        <TabsContent value="stats" className="space-y-4">
+        <TabsContent value="stats" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -725,7 +725,7 @@ export default function PlayerSeasonExportsPage() {
         </TabsContent>
 
         {/* Sharks Chart */}
-        <TabsContent value="chart" className="space-y-4">
+        <TabsContent value="chart" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -786,7 +786,7 @@ export default function PlayerSeasonExportsPage() {
         */}
 
         {/* Eliminations */}
-        <TabsContent value="eliminations" className="space-y-4">
+        <TabsContent value="eliminations" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -815,7 +815,7 @@ export default function PlayerSeasonExportsPage() {
         </TabsContent>
 
         {/* Evolution */}
-        <TabsContent value="evolution" className="space-y-4">
+        <TabsContent value="evolution" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -845,7 +845,7 @@ export default function PlayerSeasonExportsPage() {
         </TabsContent>
 
         {/* Confrontations */}
-        <TabsContent value="confrontations" className="space-y-4">
+        <TabsContent value="confrontations" className="space-y-4 min-w-0">
           <Card>
             <CardHeader>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
