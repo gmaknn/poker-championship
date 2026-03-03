@@ -197,6 +197,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const previousPlayerCountRef = useRef<number>(0);
   const confettiTriggeredRef = useRef(false);
   const photoCapturedRef = useRef(false);
+  const autoRebalanceTriggeredRef = useRef<number>(0);
 
   // TTS controls
   const [ttsVolume, setTtsVolume] = useState(1);
@@ -503,6 +504,12 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   useTournamentEvent(tournamentId, 'rebuy:applied', handleRebuyApplied);
   useTournamentEvent(tournamentId, 'rebuy:recorded', handleRebuyRecorded);
 
+  // Rafraîchir les données quand les tables sont rééquilibrées (auto ou manuel)
+  const handleTablesRebalanced = useCallback(() => {
+    fetchData();
+  }, []);
+  useTournamentEvent(tournamentId, 'tables:rebalanced', handleTablesRebalanced);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -722,6 +729,29 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     return () => clearInterval(timer);
   }, []);
 
+  // Auto-rebalance des tables quand un niveau avec rebalanceTables est complété
+  const triggerAutoRebalance = async (forLevel: number) => {
+    if (autoRebalanceTriggeredRef.current >= forLevel) return;
+    autoRebalanceTriggeredRef.current = forLevel;
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/auto-rebalance`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forLevel }),
+      });
+
+      if (!response.ok && response.status !== 401) {
+        // Reset ref pour retry au prochain poll (sauf 401 = non-authentifié)
+        autoRebalanceTriggeredRef.current = forLevel - 1;
+      }
+    } catch {
+      // Erreur réseau : reset ref pour retry au prochain poll
+      autoRebalanceTriggeredRef.current = forLevel - 1;
+    }
+  };
+
   const fetchData = async () => {
     try {
       const [tournamentResponse, timerResponse, chipsResponse] = await Promise.all([
@@ -744,6 +774,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             timerPausedAt: timerData.timerPausedAt,
             fetchedAt: Date.now(),
           });
+
+          // Déclencher l'auto-rebalance si un niveau avec rebalanceTables est en attente
+          if (timerData.pendingAutoRebalance && timerData.pendingRebalanceForLevel) {
+            triggerAutoRebalance(timerData.pendingRebalanceForLevel);
+          }
         }
 
         // Transform data to match ResultsData structure
