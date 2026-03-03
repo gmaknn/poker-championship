@@ -326,6 +326,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   };
 
   const handleCancelLastElimination = async () => {
+    if (!eliminations.length) return;
     try {
       const lastElimination = eliminations[0];
       const response = await fetch(

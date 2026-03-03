@@ -324,8 +324,10 @@ export default function DirectorTablePage({
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        setSubmitError(data.error || 'Erreur lors de l\'enregistrement');
+        try {
+          const data = await res.json();
+          setSubmitError(data.error || 'Erreur lors de l\'enregistrement');
+        } catch { setSubmitError('Erreur serveur'); }
         return;
       }
 
@@ -382,8 +384,10 @@ export default function DirectorTablePage({
       }
 
       if (!res.ok) {
-        const data = await res.json();
-        setRecaveError(data.error || 'Erreur lors de la recave');
+        try {
+          const data = await res.json();
+          setRecaveError(data.error || 'Erreur lors de la recave');
+        } catch { setRecaveError('Erreur serveur'); }
         return;
       }
 
@@ -420,8 +424,10 @@ export default function DirectorTablePage({
       );
 
       if (!res.ok) {
-        const data = await res.json();
-        setRecaveError(data.error || 'Erreur lors de la recave');
+        try {
+          const data = await res.json();
+          setRecaveError(data.error || 'Erreur lors de la recave');
+        } catch { setRecaveError('Erreur serveur'); }
         return;
       }
 
@@ -777,7 +783,7 @@ export default function DirectorTablePage({
           <DialogHeader>
             <DialogTitle>Recave</DialogTitle>
             <DialogDescription>
-              {lastBustEvent?.eliminated.player.nickname} a perdu son tapis. Souhaite-t-il recaver ?
+              {lastBustEvent?.eliminated?.player?.nickname || 'Joueur'} a perdu son tapis. Souhaite-t-il recaver ?
             </DialogDescription>
           </DialogHeader>
 
