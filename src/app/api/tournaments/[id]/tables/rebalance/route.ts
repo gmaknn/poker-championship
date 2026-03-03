@@ -76,16 +76,13 @@ export async function POST(
     const optimalTables = Math.ceil(totalActivePlayers / seatsPerTable);
 
     // Si on a assez de joueurs pour remplir convenablement les tables
-    let numberOfTables = optimalTables;
+    let numberOfTables = Math.max(1, optimalTables);
     const playersPerTable = Math.ceil(totalActivePlayers / numberOfTables);
 
     // Vérifier qu'aucune table ne sera trop vide
     if (playersPerTable < minPlayersToBreakTable && numberOfTables > 1) {
-      numberOfTables = Math.floor(totalActivePlayers / minPlayersToBreakTable);
+      numberOfTables = Math.max(1, Math.floor(totalActivePlayers / minPlayersToBreakTable));
     }
-
-    // Minimum 1 table
-    numberOfTables = Math.max(1, numberOfTables);
 
     // Récupérer les assignations actuelles
     const currentAssignments = await prisma.tableAssignment.findMany({
