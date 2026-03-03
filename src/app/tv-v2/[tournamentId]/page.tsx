@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState, use } from 'react';
+import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
-import { Trophy, Users, DollarSign, Clock } from 'lucide-react';
+import { Trophy, Users, DollarSign, Clock, Monitor } from 'lucide-react';
 import { LegacyBanner } from '@/components/LegacyBanner';
+import { Button } from '@/components/ui/button';
 
 type Player = {
   id: string;
@@ -89,6 +91,7 @@ export default function TVSpectatorViewV2({
   params: Promise<{ tournamentId: string }>;
 }) {
   const { tournamentId } = use(params);
+  const router = useRouter();
   const [resultsData, setResultsData] = useState<ResultsData | null>(null);
   const [blindStructure, setBlindStructure] = useState<BlindLevel[] | null>(null);
   const [chips, setChips] = useState<ChipDenomination[]>([]);
@@ -361,6 +364,18 @@ export default function TVSpectatorViewV2({
 
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden pt-10">
+      {/* Mobile: redirect to V3 */}
+      <div className="sm:hidden fixed inset-0 z-50 bg-background flex items-center justify-center p-6">
+        <div className="text-center space-y-4">
+          <Monitor className="h-12 w-12 text-muted-foreground mx-auto" />
+          <p className="text-lg font-medium">Cette vue est optimisée pour grand écran</p>
+          <p className="text-sm text-muted-foreground">La vue TV V2 nécessite un écran large. Utilisez la version mobile.</p>
+          <Button onClick={() => router.push(`/tv/${tournamentId}`)}>
+            Utiliser la version mobile
+          </Button>
+        </div>
+      </div>
+
       {/* Legacy Banner */}
       <LegacyBanner version="v2" canonicalPath={`/tv/${tournamentId}`} />
 

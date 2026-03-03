@@ -247,13 +247,13 @@ export default function SeasonLeaderboardWithEliminations({
           borderRadius: '8px',
           border: '1px solid #cbd5e1',
         }}>
-          <h3 style={{ fontWeight: '600', color: '#1e293b', marginBottom: '12px', fontSize: '14px' }}>Legende :</h3>
+          <h3 style={{ fontWeight: '600', color: '#1e293b', marginBottom: '12px', fontSize: '14px' }}>Légende :</h3>
           <ul style={{ fontSize: '13px', color: '#64748b', margin: 0, paddingLeft: '20px', listStyle: 'disc' }}>
             <li style={{ marginBottom: '4px' }}>
-              <span style={{ fontWeight: '600' }}>Dernier tournoi :</span> Points gagnes lors du dernier tournoi joue
+              <span style={{ fontWeight: '600' }}>Dernier tournoi :</span> Points gagnés lors du dernier tournoi joué
             </li>
             <li style={{ marginBottom: '4px' }}>
-              <span style={{ fontWeight: '600' }}>Victimes :</span> Joueurs elimines par ce joueur durant la saison
+              <span style={{ fontWeight: '600' }}>Victimes :</span> Joueurs éliminés par ce joueur durant la saison
             </li>
             <li>
               <span style={{ color: '#ca8a04', fontWeight: '600' }}>xN :</span> Nombre d'eliminations du meme joueur

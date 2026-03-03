@@ -108,14 +108,14 @@ function DevLoginContent() {
             Poker Championship
           </CardTitle>
           <CardDescription className="text-center">
-            Selectionnez un joueur pour vous connecter (Dev Mode)
+            Sélectionnez un joueur pour vous connecter (Dev Mode)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto">
             {players.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                Aucun joueur disponible. Creez-en un dans la page Players.
+                Aucun joueur disponible. Créez-en un dans la page Players.
               </div>
             ) : (
               players.map((player) => {

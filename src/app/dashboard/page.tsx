@@ -290,7 +290,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">Actions rapides</CardTitle>
-            <CardDescription>Acces direct aux fonctions principales</CardDescription>
+            <CardDescription>Accès direct aux fonctions principales</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Zap, ArrowLeft, Calendar, Users, Trophy, LogIn, ChevronRight } from 'lucide-react';
+import { Zap, ArrowLeft, Calendar, Users, Trophy, LogIn, ChevronRight, RefreshCw } from 'lucide-react';
 
 interface Tournament {
   id: string;
@@ -42,12 +42,9 @@ export default function PlayerLivePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [authError, setAuthError] = useState<AuthError | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  useEffect(() => {
-    fetchActiveTournaments();
-  }, []);
-
-  const fetchActiveTournaments = async () => {
+  const fetchActiveTournaments = useCallback(async () => {
     try {
       const res = await fetch('/api/tournaments');
       if (res.ok) {
@@ -61,8 +58,13 @@ export default function PlayerLivePage() {
       console.error('Error fetching tournaments:', error);
     } finally {
       setIsLoading(false);
+      setLastRefresh(new Date());
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchActiveTournaments();
+  }, [fetchActiveTournaments]);
 
   const fetchLiveLeaderboard = async (tournament: Tournament) => {
     setSelectedTournament(tournament);
@@ -102,8 +104,36 @@ export default function PlayerLivePage() {
       });
     } finally {
       setIsLoadingLeaderboard(false);
+      setLastRefresh(new Date());
     }
   };
+
+  // Silent refresh for leaderboard (no loading spinner)
+  const silentRefreshLeaderboard = useCallback(async () => {
+    if (!selectedTournament) return;
+    try {
+      const response = await fetch(`/api/tournaments/${selectedTournament.id}/live-leaderboard`);
+      if (response.ok) {
+        const data = await response.json();
+        setLeaderboard(data.leaderboard || []);
+        setLastRefresh(new Date());
+      }
+    } catch (error) {
+      console.error('Error refreshing leaderboard:', error);
+    }
+  }, [selectedTournament]);
+
+  // Auto-refresh every 30s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (selectedTournament) {
+        silentRefreshLeaderboard();
+      } else {
+        fetchActiveTournaments();
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [selectedTournament, silentRefreshLeaderboard, fetchActiveTournaments]);
 
   const handleBack = () => {
     if (selectedTournament) {
@@ -136,7 +166,7 @@ export default function PlayerLivePage() {
             <CardContent className="pt-6">
               <div className="text-center space-y-4">
                 <Zap className="h-16 w-16 text-muted-foreground mx-auto" />
-                <h2 className="text-xl font-semibold">Acces restreint</h2>
+                <h2 className="text-xl font-semibold">Accès restreint</h2>
                 <p className="text-muted-foreground">{authError.message}</p>
                 <div className="flex flex-col gap-2 pt-4">
                   {authError.type === 'unauthenticated' && (
@@ -189,10 +219,24 @@ export default function PlayerLivePage() {
           {/* Leaderboard */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Zap className="h-5 w-5 text-orange-500" />
-                Classement Live
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-orange-500" />
+                  Classement Live
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9"
+                  onClick={silentRefreshLeaderboard}
+                  aria-label="Rafraîchir"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Mis à jour à {lastRefresh.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · auto-refresh 30s
+              </p>
             </CardHeader>
             <CardContent className="p-0">
               {isLoadingLeaderboard ? (
