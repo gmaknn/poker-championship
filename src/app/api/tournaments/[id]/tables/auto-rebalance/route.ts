@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { emitToTournament } from '@/lib/socket';
+import { rebalanceTablesBetweenExisting } from '@/lib/table-rebalance';
 
-const SEATS_PER_TABLE = 9;
-const MIN_PLAYERS_TO_BREAK_TABLE = 3;
-
-// POST - Rééquilibrage automatique des tables (idempotent via lastRebalancedAtLevel)
+// POST - Rééquilibrage automatique des tables en fin de niveau (idempotent via lastRebalancedAtLevel)
+// Conserve les tables existantes, déplace les joueurs un par un entre tables
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -84,139 +83,53 @@ export async function POST(
       return NextResponse.json({ skipped: true, reason: 'No pending rebalance' });
     }
 
-    // Récupérer les joueurs actifs
-    const activePlayers = await prisma.tournamentPlayer.findMany({
-      where: {
-        tournamentId,
-        finalRank: null,
-      },
-      include: {
-        player: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            nickname: true,
-          },
-        },
-      },
+    // Vérification d'idempotence dans une transaction avant le rééquilibrage
+    const freshTournament = await prisma.tournament.findUnique({
+      where: { id: tournamentId },
+      select: { lastRebalancedAtLevel: true },
     });
 
-    if (activePlayers.length === 0) {
-      return NextResponse.json({ skipped: true, reason: 'No active players' });
+    if ((freshTournament?.lastRebalancedAtLevel ?? 0) >= pendingLevel.level) {
+      return NextResponse.json({ skipped: true, reason: 'Already rebalanced by another client' });
     }
 
-    const totalActivePlayers = activePlayers.length;
+    // Marquer le niveau comme traité AVANT le rééquilibrage (idempotence)
+    await prisma.tournament.update({
+      where: { id: tournamentId },
+      data: { lastRebalancedAtLevel: pendingLevel.level },
+    });
 
-    // Calculer le nombre optimal de tables
-    const optimalTables = Math.ceil(totalActivePlayers / SEATS_PER_TABLE);
-    let numberOfTables = Math.max(1, optimalTables);
-    const playersPerTable = Math.ceil(totalActivePlayers / numberOfTables);
+    // Rééquilibrer entre les tables existantes (pas de redistribution complète)
+    const moves = await rebalanceTablesBetweenExisting(tournamentId, {
+      emitSocketEvents: true,
+    });
 
-    if (playersPerTable < MIN_PLAYERS_TO_BREAK_TABLE && numberOfTables > 1) {
-      numberOfTables = Math.max(1, Math.floor(totalActivePlayers / MIN_PLAYERS_TO_BREAK_TABLE));
-    }
-
-    // Récupérer les assignations actuelles
-    const currentAssignments = await prisma.tableAssignment.findMany({
+    // Compter les tables actuelles
+    const tableAssignments = await prisma.tableAssignment.findMany({
       where: { tournamentId, isActive: true },
-      orderBy: [{ tableNumber: 'asc' }, { seatNumber: 'asc' }],
+      select: { tableNumber: true },
     });
+    const uniqueTables = new Set(tableAssignments.map((a) => a.tableNumber));
 
-    const currentTableMap = new Map(
-      currentAssignments.map((a) => [a.playerId, a.tableNumber])
-    );
-
-    // Algorithme de rééquilibrage (même que rebalance/route.ts)
-    const playersToAssign = activePlayers.map((p) => ({
-      playerId: p.playerId,
-      currentTable: currentTableMap.get(p.playerId),
-      player: p.player,
-    }));
-
-    const shuffledPlayers = [...playersToAssign].sort(() => Math.random() * 0.4 - 0.2);
-
-    const newAssignments: Array<{
-      tournamentId: string;
-      playerId: string;
-      tableNumber: number;
-      seatNumber: number;
-      isActive: boolean;
-    }> = [];
-    let playerIndex = 0;
-
-    for (let tableNumber = 1; tableNumber <= numberOfTables; tableNumber++) {
-      const playersForThisTable = Math.ceil(
-        (totalActivePlayers - playerIndex) / (numberOfTables - tableNumber + 1)
-      );
-      for (let seatNumber = 1; seatNumber <= playersForThisTable; seatNumber++) {
-        if (playerIndex < shuffledPlayers.length) {
-          newAssignments.push({
-            tournamentId,
-            playerId: shuffledPlayers[playerIndex].playerId,
-            tableNumber,
-            seatNumber,
-            isActive: true,
-          });
-          playerIndex++;
-        }
-      }
-    }
-
-    // Statistiques
-    const movedPlayers = newAssignments.filter((assignment) => {
-      const currentTable = currentTableMap.get(assignment.playerId);
-      return currentTable !== undefined && currentTable !== assignment.tableNumber;
-    });
-
-    // Transaction atomique : rééquilibrage + mise à jour lastRebalancedAtLevel
-    await prisma.$transaction(async (tx) => {
-      // Vérification d'idempotence dans la transaction
-      const freshTournament = await tx.tournament.findUnique({
-        where: { id: tournamentId },
-        select: { lastRebalancedAtLevel: true },
-      });
-
-      if ((freshTournament?.lastRebalancedAtLevel ?? 0) >= pendingLevel.level) {
-        // Déjà traité par un autre client
-        return;
-      }
-
-      await tx.tableAssignment.updateMany({
-        where: { tournamentId },
-        data: { isActive: false },
-      });
-
-      if (newAssignments.length > 0) {
-        await tx.tableAssignment.createMany({
-          data: newAssignments,
-        });
-      }
-
-      await tx.tournament.update({
-        where: { id: tournamentId },
-        data: { lastRebalancedAtLevel: pendingLevel.level },
-      });
-    });
-
-    // Émettre l'événement Socket.IO
+    // Émettre l'événement Socket.IO global avec les joueurs déplacés
     emitToTournament(tournamentId, 'tables:rebalanced', {
       tournamentId,
-      tablesCount: numberOfTables,
+      tablesCount: uniqueTables.size,
+      movedPlayerIds: moves.map((m) => m.playerId),
     });
 
     console.log(
       `🔄 Auto-rebalance for tournament ${tournamentId} at level ${pendingLevel.level}: ` +
-      `${totalActivePlayers} players → ${numberOfTables} tables, ${movedPlayers.length} moved`
+      `${moves.length} move(s), ${uniqueTables.size} tables preserved`
     );
 
     return NextResponse.json({
       success: true,
       autoRebalanced: true,
       forLevel: pendingLevel.level,
-      totalTables: numberOfTables,
-      totalPlayers: totalActivePlayers,
-      movedPlayers: movedPlayers.length,
+      totalTables: uniqueTables.size,
+      moves,
+      totalMoves: moves.length,
     });
   } catch (error) {
     console.error('Error in auto-rebalance:', error);

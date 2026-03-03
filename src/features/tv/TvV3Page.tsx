@@ -225,6 +225,12 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   }>>([]);
   const playerMovedIdRef = useRef(0);
 
+  // Auto-rebalance table plan overlay (shown during pause after level-end rebalance)
+  const [rebalanceOverlay, setRebalanceOverlay] = useState<{
+    tablesPlan: TablesPlanResponse | null;
+    movedPlayerIds: string[];
+  } | null>(null);
+
   // Chips Modal
   const [showChipsModal, setShowChipsModal] = useState(false);
 
@@ -516,9 +522,31 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   useTournamentEvent(tournamentId, 'rebuy:recorded', handleRebuyRecorded);
 
   // Rafraîchir les données quand les tables sont rééquilibrées (auto ou manuel)
-  const handleTablesRebalanced = useCallback(() => {
+  const handleTablesRebalanced = useCallback(async (data: {
+    tournamentId: string;
+    tablesCount: number;
+    movedPlayerIds?: string[];
+  }) => {
     fetchData();
-  }, []);
+
+    // Si des joueurs ont été déplacés, charger le plan de tables pour l'overlay
+    if (data.movedPlayerIds && data.movedPlayerIds.length > 0) {
+      try {
+        const response = await fetch(`/api/tournaments/${tournamentId}/tables-plan`, {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const planData = await response.json();
+          setRebalanceOverlay({
+            tablesPlan: planData,
+            movedPlayerIds: data.movedPlayerIds,
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching tables plan for rebalance overlay:', error);
+      }
+    }
+  }, [tournamentId]);
   useTournamentEvent(tournamentId, 'tables:rebalanced', handleTablesRebalanced);
 
   // Notification de déplacement de joueur après élimination
@@ -548,6 +576,13 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     fetchData();
   }, []);
   useTournamentEvent(tournamentId, 'table:player_moved', handlePlayerMoved);
+
+  // Masquer l'overlay de rééquilibrage quand le timer reprend (fin de pause)
+  useEffect(() => {
+    if (rebalanceOverlay && serverTimerData?.timerStartedAt && !serverTimerData?.timerPausedAt) {
+      setRebalanceOverlay(null);
+    }
+  }, [serverTimerData?.timerPausedAt, serverTimerData?.timerStartedAt, rebalanceOverlay]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -2069,6 +2104,95 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                 {tablesPlanData.totalTables} tables • {tablesPlanData.totalActivePlayers} joueurs actifs / {tablesPlanData.totalPlayers} total
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Rebalance Overlay - Auto-shown during pause after level-end rebalance */}
+      {rebalanceOverlay && rebalanceOverlay.tablesPlan && (
+        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
+          <div
+            className="w-[94vw] h-[92vh] overflow-hidden rounded-3xl p-8 flex flex-col"
+            style={{ backgroundColor: currentTheme.colors.backgroundDark }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
+              <h2 className="text-4xl font-bold text-white flex items-center gap-4">
+                <RefreshCw className="h-10 w-10 animate-spin" style={{ color: currentTheme.colors.primary, animationDuration: '3s' }} />
+                Nouveau Plan des Tables
+              </h2>
+              <button
+                onClick={() => setRebalanceOverlay(null)}
+                className="text-white/60 hover:text-white text-4xl font-bold w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
+              >
+                x
+              </button>
+            </div>
+
+            {/* Content - Scrollable */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                {rebalanceOverlay.tablesPlan.tables.map((table) => (
+                  <div
+                    key={table.tableNumber}
+                    className="rounded-2xl p-6 border-3"
+                    style={{
+                      backgroundColor: currentTheme.colors.backgroundLight,
+                      borderColor: currentTheme.colors.border,
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-4xl font-black" style={{ color: currentTheme.colors.primary }}>
+                        Table {table.tableNumber}
+                      </h3>
+                      <span className="text-2xl text-white/60 font-bold">
+                        {table.activeCount} joueurs
+                      </span>
+                    </div>
+                    <div className="space-y-4">
+                      {table.seats.filter(seat => !seat.isEliminated).map((seat, idx) => {
+                        const isMoved = rebalanceOverlay.movedPlayerIds.includes(seat.playerId);
+                        return (
+                          <div
+                            key={seat.playerId}
+                            className={`flex items-center justify-between gap-6 py-4 px-6 rounded-xl transition-all ${
+                              isMoved ? 'ring-4 ring-yellow-400 scale-105' : ''
+                            }`}
+                            style={{
+                              backgroundColor: isMoved
+                                ? 'rgba(250, 204, 21, 0.25)'
+                                : 'rgba(255,255,255,0.9)',
+                            }}
+                          >
+                            <span className={`text-2xl font-bold whitespace-nowrap ${isMoved ? 'text-yellow-300' : 'text-slate-500'}`}>
+                              S{seat.seatNumber ?? idx + 1}
+                            </span>
+                            <span className={`font-black text-4xl uppercase truncate ${isMoved ? 'text-yellow-300' : 'text-slate-900'}`}>
+                              {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
+                            </span>
+                            {isMoved && (
+                              <span className="text-yellow-300 text-2xl flex-shrink-0">NEW</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-6 pt-4 border-t border-white/10 text-center flex-shrink-0">
+              <div className="text-white/60 text-lg">
+                {rebalanceOverlay.tablesPlan.totalTables} tables
+                {' \u2022 '}
+                {rebalanceOverlay.tablesPlan.totalActivePlayers} joueurs actifs
+              </div>
+              <div className="text-yellow-400 text-sm mt-2 font-medium">
+                Les joueurs en surbrillance ont changé de table - Cet affichage disparaîtra à la reprise du timer
+              </div>
+            </div>
           </div>
         </div>
       )}
