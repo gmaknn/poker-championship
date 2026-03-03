@@ -259,7 +259,7 @@ export default function SeasonLeaderboardPage({
                   onKeyDown={(e) => e.key === 'Enter' && setSelectedPlayer(entry)}
                   role="button"
                   tabIndex={0}
-                  className={`flex items-center justify-between p-5 rounded-xl border-2 hover:shadow-xl hover:scale-[1.01] cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
+                  className={`flex items-center justify-between gap-3 p-3 sm:p-5 rounded-xl border-2 hover:shadow-xl hover:scale-[1.01] cursor-pointer transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
                     entry.rank === 1
                       ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/10 border-yellow-500 shadow-lg'
                       : entry.rank === 2
@@ -271,47 +271,37 @@ export default function SeasonLeaderboardPage({
                       : 'bg-card border-border hover:border-primary/50'
                   }`}
                 >
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-3 sm:gap-6 min-w-0 flex-1">
                     {/* Rank avec trophée pour le podium */}
-                    <div className="flex items-center gap-3 min-w-[80px]">
-                      {entry.rank === 1 && <Trophy className="h-8 w-8 text-yellow-500" />}
-                      {entry.rank === 2 && <Trophy className="h-7 w-7 text-gray-400" />}
-                      {entry.rank === 3 && <Trophy className="h-7 w-7 text-orange-600" />}
-                      {entry.rank > 3 && entry.rank <= 10 && (
-                        <Medal className="h-6 w-6 text-yellow-500/70" />
-                      )}
-                      <span className="text-3xl font-bold text-muted-foreground">
+                    <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+                      <span className="hidden sm:block">
+                        {entry.rank === 1 && <Trophy className="h-8 w-8 text-yellow-500" />}
+                        {entry.rank === 2 && <Trophy className="h-7 w-7 text-gray-400" />}
+                        {entry.rank === 3 && <Trophy className="h-7 w-7 text-orange-600" />}
+                        {entry.rank > 3 && entry.rank <= 10 && (
+                          <Medal className="h-6 w-6 text-yellow-500/70" />
+                        )}
+                      </span>
+                      <span className="text-xl sm:text-3xl font-bold text-muted-foreground">
                         {entry.rank}
                       </span>
                     </div>
 
                     {/* Player info */}
-                    <div className="min-w-[200px]">
-                      <div className="font-semibold text-lg">
-                        {entry.player.firstName} {entry.player.lastName}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-sm sm:text-lg truncate">
                         {entry.player.nickname}
+                      </div>
+                      <div className="text-xs sm:text-sm text-muted-foreground truncate hidden sm:block">
+                        {entry.player.firstName} {entry.player.lastName}
                       </div>
                     </div>
 
-                    {/* Stats */}
-                    <div className="flex items-center gap-8 ml-8">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">
-                          {entry.totalPoints}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Points</div>
-                      </div>
-
+                    {/* Stats — desktop only */}
+                    <div className="hidden md:flex items-center gap-4 lg:gap-8">
                       <div className="text-center">
                         <div className="text-lg font-semibold">
                           {entry.tournamentsCount}
-                          {entry.tournamentsPlayed !== entry.tournamentsCount && (
-                            <span className="text-muted-foreground">
-                              /{entry.tournamentsPlayed}
-                            </span>
-                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">Tournois</div>
                       </div>
@@ -335,9 +325,6 @@ export default function SeasonLeaderboardPage({
                           <Badge variant="default" className="bg-yellow-500">
                             {entry.victories} 🏆
                           </Badge>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Victoire{entry.victories > 1 ? 's' : ''}
-                          </div>
                         </div>
                       )}
 
@@ -346,42 +333,48 @@ export default function SeasonLeaderboardPage({
                           <Badge variant="secondary">
                             {entry.podiums} 🥉
                           </Badge>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Podium{entry.podiums > 1 ? 's' : ''}
-                          </div>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* Rank Change Indicator */}
-                  <div className="flex items-center gap-3">
-                    {entry.rankChange === undefined ? (
-                      <Badge variant="outline" className="text-blue-500 border-blue-500">NEW</Badge>
-                    ) : entry.rankChange !== 0 ? (
-                      <div className={`flex items-center gap-1 font-semibold ${
-                        entry.rankChange > 0
-                          ? 'text-green-500'
-                          : 'text-red-500'
-                      }`}>
-                        {entry.rankChange > 0 ? (
-                          <>
-                            <TrendingUp className="h-5 w-5" />
-                            <span>+{entry.rankChange}</span>
-                          </>
-                        ) : (
-                          <>
-                            <TrendingDown className="h-5 w-5" />
-                            <span>{entry.rankChange}</span>
-                          </>
-                        )}
+                  {/* Points — always visible */}
+                  <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                    <div className="text-center">
+                      <div className="text-lg sm:text-2xl font-bold text-primary">
+                        {entry.totalPoints}
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-1 font-semibold text-muted-foreground">
-                        <Minus className="h-5 w-5" />
-                      </div>
-                    )}
-                    <span className="text-sm text-muted-foreground">Détails →</span>
+                      <div className="text-xs text-muted-foreground">pts</div>
+                    </div>
+
+                    {/* Rank Change Indicator */}
+                    <div className="hidden sm:flex items-center gap-1">
+                      {entry.rankChange === undefined ? (
+                        <Badge variant="outline" className="text-blue-500 border-blue-500">NEW</Badge>
+                      ) : entry.rankChange !== 0 ? (
+                        <div className={`flex items-center gap-1 font-semibold ${
+                          entry.rankChange > 0
+                            ? 'text-green-500'
+                            : 'text-red-500'
+                        }`}>
+                          {entry.rankChange > 0 ? (
+                            <>
+                              <TrendingUp className="h-5 w-5" />
+                              <span>+{entry.rankChange}</span>
+                            </>
+                          ) : (
+                            <>
+                              <TrendingDown className="h-5 w-5" />
+                              <span>{entry.rankChange}</span>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 font-semibold text-muted-foreground">
+                          <Minus className="h-5 w-5" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   </div>
                 </React.Fragment>

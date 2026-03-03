@@ -180,7 +180,7 @@ export default function PlayerLeaderboardPage() {
             <SelectContent>
               {seasons.map((season) => (
                 <SelectItem key={season.id} value={season.id}>
-                  {season.name} {season.status === 'ACTIVE' && '(en cours)'}
+                  {season.name.includes(String(season.year)) ? season.name : `${season.name} ${season.year}`}{season.status === 'ACTIVE' ? ' (en cours)' : ''}
                 </SelectItem>
               ))}
             </SelectContent>
