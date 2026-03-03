@@ -361,7 +361,7 @@ export default function PlayerSeasonExportsPage() {
   if (!season) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
-        <p className="text-muted-foreground">Saison non trouvee</p>
+        <p className="text-muted-foreground">Saison non trouvée</p>
       </div>
     );
   }
@@ -523,32 +523,32 @@ export default function PlayerSeasonExportsPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 sm:grid-cols-7">
-          <TabsTrigger value="tournaments" className="flex items-center gap-1 sm:gap-2 text-sm">
+        <TabsList className="flex w-full overflow-x-auto scrollbar-hide">
+          <TabsTrigger value="tournaments" className="shrink-0 flex items-center gap-1 sm:gap-2 text-sm px-3 sm:flex-1">
             <Calendar className="h-4 w-4" />
             <span className="hidden sm:inline">Tournois</span>
           </TabsTrigger>
-          <TabsTrigger value="general" className="flex items-center gap-1 sm:gap-2 text-sm">
+          <TabsTrigger value="general" className="shrink-0 flex items-center gap-1 sm:gap-2 text-sm px-3 sm:flex-1">
             <Trophy className="h-4 w-4" />
             <span className="hidden sm:inline">Classement</span>
           </TabsTrigger>
-          <TabsTrigger value="stats" className="flex items-center gap-1 sm:gap-2 text-sm">
+          <TabsTrigger value="stats" className="shrink-0 flex items-center gap-1 sm:gap-2 text-sm px-3 sm:flex-1">
             <DollarSign className="h-4 w-4" />
             <span className="hidden sm:inline">Stats</span>
           </TabsTrigger>
-          <TabsTrigger value="chart" className="flex items-center gap-1 sm:gap-2 text-sm">
+          <TabsTrigger value="chart" className="shrink-0 flex items-center gap-1 sm:gap-2 text-sm px-3 sm:flex-1">
             <BarChart3 className="h-4 w-4" />
             <span className="hidden sm:inline">Sharks</span>
           </TabsTrigger>
-          <TabsTrigger value="eliminations" className="flex items-center gap-1 sm:gap-2 text-sm">
+          <TabsTrigger value="eliminations" className="shrink-0 flex items-center gap-1 sm:gap-2 text-sm px-3 sm:flex-1">
             <Users className="h-4 w-4" />
             <span className="hidden sm:inline">Elims</span>
           </TabsTrigger>
-          <TabsTrigger value="evolution" className="flex items-center gap-1 sm:gap-2 text-sm">
+          <TabsTrigger value="evolution" className="shrink-0 flex items-center gap-1 sm:gap-2 text-sm px-3 sm:flex-1">
             <TrendingUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Evolution</span>
+            <span className="hidden sm:inline">Évolution</span>
           </TabsTrigger>
-          <TabsTrigger value="confrontations" className="flex items-center gap-1 sm:gap-2 text-sm">
+          <TabsTrigger value="confrontations" className="shrink-0 flex items-center gap-1 sm:gap-2 text-sm px-3 sm:flex-1">
             <Swords className="h-4 w-4" />
             <span className="hidden sm:inline">Duels</span>
           </TabsTrigger>
@@ -652,9 +652,10 @@ export default function PlayerSeasonExportsPage() {
         <TabsContent value="general" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Classement General</CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle>Classement Général</CardTitle>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={() => handleExportImage(generalLeaderboardRef, `Saison_${season.year}_classement`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
@@ -695,9 +696,10 @@ export default function PlayerSeasonExportsPage() {
         <TabsContent value="stats" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <CardTitle>Stats Joueurs</CardTitle>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={() => handleExportImage(playerStatsRef, `Saison_${season.year}_stats`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
@@ -725,9 +727,10 @@ export default function PlayerSeasonExportsPage() {
         <TabsContent value="chart" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <CardTitle>Top Sharks</CardTitle>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={() => handleExportImage(chartRef, `${season.name}_sharks`)}
                   disabled={isExporting}
                 >
@@ -785,9 +788,10 @@ export default function PlayerSeasonExportsPage() {
         <TabsContent value="eliminations" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Avec Eliminations</CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle>Avec Éliminations</CardTitle>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={() => handleExportImage(eliminationsRef, `${season.name}_eliminations`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
@@ -813,9 +817,10 @@ export default function PlayerSeasonExportsPage() {
         <TabsContent value="evolution" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Evolution</CardTitle>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle>Évolution</CardTitle>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={() => handleExportImage(evolutionRef, `${season.name}_evolution`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
@@ -842,9 +847,10 @@ export default function PlayerSeasonExportsPage() {
         <TabsContent value="confrontations" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <CardTitle>Confrontations</CardTitle>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={() => handleExportImage(confrontationsRef, `${season.name}_confrontations`, undefined, '#f8fafc')}
                   disabled={isExporting}
                 >
