@@ -198,6 +198,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const confettiTriggeredRef = useRef(false);
   const photoCapturedRef = useRef(false);
   const autoRebalanceTriggeredRef = useRef<number>(0);
+  const smartRebalancePendingRef = useRef(false);
 
   // TTS controls
   const [ttsVolume, setTtsVolume] = useState(1);
@@ -790,6 +791,28 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     }
   };
 
+  // Smart-rebalance : filet de sécurité pour corriger les déséquilibres détectés par le timer
+  const triggerSmartRebalance = async () => {
+    if (smartRebalancePendingRef.current) return;
+    smartRebalancePendingRef.current = true;
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/smart-rebalance`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok && response.status !== 401) {
+        smartRebalancePendingRef.current = false;
+      }
+      // Si succès, le flag reste true pour éviter de re-déclencher au prochain poll
+      // Il sera reset quand pendingTableImbalance redevient false
+    } catch {
+      smartRebalancePendingRef.current = false;
+    }
+  };
+
   const fetchData = async () => {
     try {
       const [tournamentResponse, timerResponse, chipsResponse] = await Promise.all([
@@ -816,6 +839,14 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
           // Déclencher l'auto-rebalance si un niveau avec rebalanceTables est en attente
           if (timerData.pendingAutoRebalance && timerData.pendingRebalanceForLevel) {
             triggerAutoRebalance(timerData.pendingRebalanceForLevel);
+          }
+
+          // Filet de sécurité : détecter et corriger les déséquilibres de tables
+          if (timerData.pendingTableImbalance) {
+            triggerSmartRebalance();
+          } else {
+            // Reset le flag quand les tables sont équilibrées
+            smartRebalancePendingRef.current = false;
           }
         }
 
