@@ -60,10 +60,10 @@ export default function LeaderboardExportPngLight({
         </div>
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#f8fafc', margin: '0 0 8px 0' }}>
-            Classement General - Saison {seasonYear}
+            Classement Général - Saison {seasonYear}
           </h1>
           <p style={{ color: '#86efac', margin: '0', fontSize: '18px' }}>
-            {tournamentsPlayed} tournoi(s) joue(s)
+            {tournamentsPlayed} tournoi(s) joué(s)
           </p>
         </div>
         <div style={{ position: 'absolute', right: '40px', top: '50%', transform: 'translateY(-50%)' }}>

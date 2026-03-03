@@ -567,7 +567,7 @@ export default function PlayerSeasonExportsPage() {
                       onValueChange={setSelectedTournamentId}
                     >
                       <SelectTrigger className="w-full sm:w-[300px]">
-                        <SelectValue placeholder="Selectionner un tournoi" />
+                        <SelectValue placeholder="Sélectionner un tournoi" />
                       </SelectTrigger>
                       <SelectContent>
                         {tournaments.map((t) => (
@@ -590,7 +590,7 @@ export default function PlayerSeasonExportsPage() {
                     disabled={isExporting || isLoadingTournament}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    {isExporting ? 'Export...' : `Telecharger`}
+                    {isExporting ? 'Export...' : `Télécharger`}
                   </Button>
                 )}
               </div>
@@ -599,7 +599,7 @@ export default function PlayerSeasonExportsPage() {
               {tournaments.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Aucun tournoi joue pour le moment</p>
+                  <p>Aucun tournoi joué pour le moment</p>
                 </div>
               ) : isLoadingTournament ? (
                 <div className="text-center py-12">
@@ -641,7 +641,7 @@ export default function PlayerSeasonExportsPage() {
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
-                  <p>Selectionnez un tournoi</p>
+                  <p>Sélectionnez un tournoi</p>
                 </div>
               )}
             </CardContent>
@@ -659,7 +659,7 @@ export default function PlayerSeasonExportsPage() {
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
+                  {isExporting ? 'Export...' : 'Télécharger'}
                 </Button>
               </div>
             </CardHeader>
@@ -702,7 +702,7 @@ export default function PlayerSeasonExportsPage() {
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
+                  {isExporting ? 'Export...' : 'Télécharger'}
                 </Button>
               </div>
             </CardHeader>
@@ -732,7 +732,7 @@ export default function PlayerSeasonExportsPage() {
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
+                  {isExporting ? 'Export...' : 'Télécharger'}
                 </Button>
               </div>
             </CardHeader>
@@ -762,7 +762,7 @@ export default function PlayerSeasonExportsPage() {
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
+                  {isExporting ? 'Export...' : 'Télécharger'}
                 </Button>
               </div>
             </CardHeader>
@@ -792,7 +792,7 @@ export default function PlayerSeasonExportsPage() {
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
+                  {isExporting ? 'Export...' : 'Télécharger'}
                 </Button>
               </div>
             </CardHeader>
@@ -820,7 +820,7 @@ export default function PlayerSeasonExportsPage() {
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
+                  {isExporting ? 'Export...' : 'Télécharger'}
                 </Button>
               </div>
             </CardHeader>
@@ -849,7 +849,7 @@ export default function PlayerSeasonExportsPage() {
                   disabled={isExporting}
                 >
                   <Download className="h-4 w-4 mr-2" />
-                  {isExporting ? 'Export...' : 'Telecharger'}
+                  {isExporting ? 'Export...' : 'Télécharger'}
                 </Button>
               </div>
             </CardHeader>

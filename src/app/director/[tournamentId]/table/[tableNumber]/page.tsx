@@ -285,6 +285,12 @@ export default function DirectorTablePage({
     return player;
   };
 
+  const vibrate = (pattern: number | number[] = 50) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
+  };
+
   const activePlayers = table?.players.filter(p => !p.isEliminated) || [];
   const eliminatedPlayers = table?.players.filter(p => p.isEliminated) || [];
 
@@ -325,6 +331,7 @@ export default function DirectorTablePage({
 
       const data = await res.json();
       setDialogOpen(false);
+      vibrate(50);
 
       // After a bust, show recave dialog if recaves are open or during voluntary rebuy period
       if (dialogType === 'bust' && data.bustEvent && (timerState.recavesOpen || timerState.isVoluntaryRebuyPeriod)) {
@@ -382,6 +389,7 @@ export default function DirectorTablePage({
 
       setRecaveDialogOpen(false);
       setLastBustEvent(null);
+      vibrate([50, 50, 50]);
 
       // Refresh table data
       setIsRefreshing(true);
@@ -416,6 +424,8 @@ export default function DirectorTablePage({
         setRecaveError(data.error || 'Erreur lors de la recave');
         return;
       }
+
+      vibrate([50, 50, 50]);
 
       // Refresh table data
       setIsRefreshing(true);

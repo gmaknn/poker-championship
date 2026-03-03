@@ -110,14 +110,14 @@ export default function PlayerSeasonsPage() {
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <div className="space-y-1">
                         <CardTitle className="text-lg">{season.name}</CardTitle>
-                        <CardDescription>Annee {season.year}</CardDescription>
+                        <CardDescription>Année {season.year}</CardDescription>
                       </div>
                       <Badge variant="default">Active</Badge>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2 text-sm">
                         <div>
-                          <span className="text-muted-foreground">Debut : </span>
+                          <span className="text-muted-foreground">Début :</span>
                           <span>{new Date(season.startDate).toLocaleDateString('fr-FR')}</span>
                         </div>
                         {season.endDate && (
@@ -163,7 +163,7 @@ export default function PlayerSeasonsPage() {
             <div className="space-y-4">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Archive className="h-5 w-5 text-muted-foreground" />
-                Saisons archivees
+                Saisons archivées
               </h2>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {archivedSeasons.map((season) => (
@@ -171,9 +171,9 @@ export default function PlayerSeasonsPage() {
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                       <div className="space-y-1">
                         <CardTitle className="text-lg">{season.name}</CardTitle>
-                        <CardDescription>Annee {season.year}</CardDescription>
+                        <CardDescription>Année {season.year}</CardDescription>
                       </div>
-                      <Badge variant="outline">Archivee</Badge>
+                      <Badge variant="outline">Archivée</Badge>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2 text-sm">
