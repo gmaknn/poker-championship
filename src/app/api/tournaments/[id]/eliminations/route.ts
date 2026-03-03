@@ -127,6 +127,150 @@ const eliminationSchema = z.object({
   eliminatorId: z.string().cuid(),
 });
 
+/**
+ * Rééquilibrage automatique des tables après une élimination.
+ * Boucle tant que l'écart entre la table la plus remplie et la moins remplie est ≥ 2.
+ * Déplace un joueur par itération : du même siège (ou le plus proche) de la table source
+ * vers le siège libéré sur la table cible.
+ */
+async function rebalanceTablesAfterElimination(
+  tournamentId: string,
+  eliminatedPlayerId: string
+): Promise<void> {
+  // Récupérer l'assignation de l'éliminé (avant qu'elle soit désactivée)
+  const eliminatedAssignment = await prisma.tableAssignment.findFirst({
+    where: {
+      tournamentId,
+      playerId: eliminatedPlayerId,
+      isActive: true,
+    },
+  });
+
+  if (!eliminatedAssignment) return;
+
+  // Désactiver l'assignation de l'éliminé
+  await prisma.tableAssignment.update({
+    where: { id: eliminatedAssignment.id },
+    data: { isActive: false },
+  });
+
+  // Le siège cible initial est celui de l'éliminé
+  let targetTableNumber = eliminatedAssignment.tableNumber;
+  let targetSeatNumber = eliminatedAssignment.seatNumber;
+
+  // Charger les noms des joueurs pour les notifications
+  const players = await prisma.player.findMany({
+    where: {
+      tournamentPlayers: { some: { tournamentId } },
+    },
+    select: { id: true, firstName: true, lastName: true, nickname: true },
+  });
+  const playerNameMap = new Map(
+    players.map((p) => [p.id, p.nickname || `${p.firstName} ${p.lastName}`])
+  );
+
+  // Boucle de rééquilibrage
+  while (true) {
+    // Compter les joueurs actifs par table
+    const activeAssignments = await prisma.tableAssignment.findMany({
+      where: { tournamentId, isActive: true },
+    });
+
+    // Grouper par table
+    const tableCountMap = new Map<number, typeof activeAssignments>();
+    for (const a of activeAssignments) {
+      const existing = tableCountMap.get(a.tableNumber) || [];
+      existing.push(a);
+      tableCountMap.set(a.tableNumber, existing);
+    }
+
+    // Inclure la table cible même si elle est vide (elle existe encore)
+    if (!tableCountMap.has(targetTableNumber)) {
+      tableCountMap.set(targetTableNumber, []);
+    }
+
+    // Trouver min et max
+    let maxTable = -1;
+    let maxCount = 0;
+    let minCount = Infinity;
+
+    // Parcourir par ordre de numéro de table pour prendre la première en cas d'égalité
+    const sortedTableNumbers = Array.from(tableCountMap.keys()).sort((a, b) => a - b);
+
+    for (const tableNum of sortedTableNumbers) {
+      const count = tableCountMap.get(tableNum)!.length;
+      if (count > maxCount) {
+        maxCount = count;
+        maxTable = tableNum;
+      }
+      if (count < minCount) {
+        minCount = count;
+      }
+    }
+
+    // Si écart < 2, on arrête
+    if (maxCount - minCount < 2) break;
+
+    // Table source = la plus remplie (première par numéro en cas d'égalité)
+    const sourceTableNumber = maxTable;
+    const sourceAssignments = tableCountMap.get(sourceTableNumber)!;
+
+    // Trouver le joueur au même siège que l'éliminé, sinon le plus proche
+    const targetSeat = targetSeatNumber ?? 1;
+    let bestAssignment = sourceAssignments[0];
+    let bestDistance = Infinity;
+
+    for (const a of sourceAssignments) {
+      const seat = a.seatNumber ?? 1;
+      const distance = Math.abs(seat - targetSeat);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestAssignment = a;
+      }
+    }
+
+    if (!bestAssignment) break;
+
+    const playerName = playerNameMap.get(bestAssignment.playerId) || 'Joueur';
+
+    // Déplacer le joueur : désactiver l'ancienne assignation, créer la nouvelle
+    await prisma.$transaction(async (tx) => {
+      await tx.tableAssignment.update({
+        where: { id: bestAssignment.id },
+        data: { isActive: false },
+      });
+
+      await tx.tableAssignment.create({
+        data: {
+          tournamentId,
+          playerId: bestAssignment.playerId,
+          tableNumber: targetTableNumber,
+          seatNumber: targetSeatNumber,
+          isActive: true,
+        },
+      });
+    });
+
+    // Émettre l'événement Socket.IO pour le TV et le dashboard
+    emitToTournament(tournamentId, 'table:player_moved', {
+      tournamentId,
+      playerId: bestAssignment.playerId,
+      playerName,
+      fromTable: sourceTableNumber,
+      toTable: targetTableNumber,
+      seatNumber: targetSeatNumber ?? 0,
+    });
+
+    console.log(
+      `🔄 Post-elimination rebalance: ${playerName} moved from Table ${sourceTableNumber} → Table ${targetTableNumber}, Seat ${targetSeatNumber}`
+    );
+
+    // Pour la prochaine itération : le nouveau "trou" est le siège libéré à la table source
+    targetTableNumber = sourceTableNumber;
+    targetSeatNumber = bestAssignment.seatNumber;
+  }
+}
+
 // GET - Récupérer toutes les éliminations du tournoi
 export async function GET(
   request: NextRequest,
@@ -419,6 +563,16 @@ export async function POST(
         finalRank: null,
       },
     });
+
+    // Rééquilibrage automatique des tables après élimination
+    if (activePlayersCount > 1) {
+      try {
+        await rebalanceTablesAfterElimination(tournamentId, validatedData.eliminatedId);
+      } catch (rebalanceError) {
+        console.error('Error during post-elimination rebalance:', rebalanceError);
+        // Ne pas bloquer la réponse d'élimination en cas d'erreur de rééquilibrage
+      }
+    }
 
     let tournamentCompleted = false;
     if (activePlayersCount === 1) {

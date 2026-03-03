@@ -61,8 +61,10 @@ export interface TournamentEvents {
   'table:player_moved': {
     tournamentId: string;
     playerId: string;
-    newTable: number;
-    newSeat: number;
+    playerName: string;
+    fromTable: number;
+    toTable: number;
+    seatNumber: number;
   };
 
   // Elimination events
