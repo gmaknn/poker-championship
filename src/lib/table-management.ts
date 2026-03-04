@@ -83,9 +83,10 @@ async function getActivePlayersByTable(
 
 /**
  * Vérifie si une table peut être cassée et la casse si oui.
- * Condition : joueurs_actifs <= seatsPerTable × (nb_tables - 1)
+ * Condition UNIQUE : la table la moins remplie a STRICTEMENT MOINS de tableBreakThreshold joueurs
+ * ET les joueurs restants tiennent physiquement dans N-1 tables.
  * La table la MOINS remplie est cassée, ses joueurs sont redistribués
- * aléatoirement sur les sièges libres des tables restantes.
+ * en round-robin sur les sièges libres des tables restantes.
  */
 export async function breakTable(tournamentId: string): Promise<BreakResult> {
   const tournament = await prisma.tournament.findUnique({
@@ -104,12 +105,11 @@ export async function breakTable(tournamentId: string): Promise<BreakResult> {
   }
 
   const totalPlayers = Array.from(tableMap.values()).reduce((sum, p) => sum + p.length, 0);
-  const maxCapacityWithOneLess = seatsPerTable * (tableNumbers.length - 1);
 
-  // Vérifier qu'on peut physiquement caser les joueurs dans N-1 tables
-  if (totalPlayers > maxCapacityWithOneLess) {
-    console.log(`🔨 [breakTable] Cannot break — players (${totalPlayers}) > capacity (${maxCapacityWithOneLess})`);
-    return { broken: false };
+  // Log de diagnostic pour chaque table
+  for (const tableNum of tableNumbers) {
+    const count = tableMap.get(tableNum)!.length;
+    console.log(`🔨 [breakTable] Table ${tableNum}: ${count} players, threshold=${tableBreakThreshold}, under threshold: ${count < tableBreakThreshold}`);
   }
 
   // Trouver la table la moins remplie (première par numéro en cas d'égalité)
@@ -123,7 +123,7 @@ export async function breakTable(tournamentId: string): Promise<BreakResult> {
     }
   }
 
-  // Vérifier que la table la moins remplie est sous le seuil de casse
+  // Condition UNIQUE : la table la moins remplie doit être STRICTEMENT sous le seuil
   if (minCount >= tableBreakThreshold) {
     console.log(
       `🔨 [breakTable] Table ${minTable} has ${minCount} players, ` +
@@ -132,9 +132,19 @@ export async function breakTable(tournamentId: string): Promise<BreakResult> {
     return { broken: false };
   }
 
+  // Vérification de sécurité : les joueurs doivent tenir dans N-1 tables
+  const maxCapacityWithOneLess = seatsPerTable * (tableNumbers.length - 1);
+  if (totalPlayers > maxCapacityWithOneLess) {
+    console.log(
+      `🔨 [breakTable] Table ${minTable} is under threshold (${minCount} < ${tableBreakThreshold}) ` +
+      `but players (${totalPlayers}) won't fit in ${tableNumbers.length - 1} tables (capacity ${maxCapacityWithOneLess}) — no break`
+    );
+    return { broken: false };
+  }
+
   console.log(
     `🔨 [breakTable] ${totalPlayers} players, ${tableNumbers.length} tables, ` +
-    `Table ${minTable} has ${minCount} players (< threshold ${tableBreakThreshold})`
+    `Table ${minTable} has ${minCount} players (< threshold ${tableBreakThreshold}) — BREAKING`
   );
 
   const playersToMove = tableMap.get(minTable)!;
