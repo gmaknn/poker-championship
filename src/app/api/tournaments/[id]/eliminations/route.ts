@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
-import { pauseTimerForTournament } from '@/lib/timer-actions';
+import { pauseTimerForTournament, scheduleAutoResume } from '@/lib/timer-actions';
 import { breakTable, balanceTables } from '@/lib/table-management';
 
 // Type for detailed points configuration
@@ -465,8 +465,11 @@ export async function POST(
       timestamp: new Date(),
     });
 
-    // Auto-pause du timer lors d'une élimination
-    await pauseTimerForTournament(tournamentId);
+    // Auto-pause du timer lors d'une élimination + auto-reprise après 10 secondes
+    const pauseResult = await pauseTimerForTournament(tournamentId);
+    if (pauseResult.paused) {
+      scheduleAutoResume(tournamentId, 10);
+    }
 
     // Vérifier s'il ne reste qu'un joueur actif (fin du tournoi)
     const activePlayersCount = await prisma.tournamentPlayer.count({
