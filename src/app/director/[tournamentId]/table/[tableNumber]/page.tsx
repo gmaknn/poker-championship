@@ -150,7 +150,10 @@ export default function DirectorTablePage({
         );
 
         if (!foundTable) {
-          router.push('/player');
+          // Table has been broken/closed — show error instead of redirecting
+          setError('Cette table a été fermée');
+          setAuthChecked(true);
+          setLoading(false);
           return;
         }
 
@@ -236,7 +239,7 @@ export default function DirectorTablePage({
       );
 
       if (!foundTable) {
-        setError(`Table ${tableNumber} introuvable`);
+        setError(`Cette table a été fermée`);
         setLoading(false);
         return;
       }
@@ -458,6 +461,7 @@ export default function DirectorTablePage({
   }
 
   if (error) {
+    const isTableClosed = error.includes('fermée');
     return (
       <div className="min-h-screen bg-background p-4">
         <Button
@@ -468,8 +472,25 @@ export default function DirectorTablePage({
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour
         </Button>
-        <div className="text-center py-12">
-          <p className="text-destructive text-lg">{error}</p>
+        <div className="text-center py-12 space-y-4">
+          {isTableClosed ? (
+            <>
+              <div className="text-5xl mb-2">&#x274C;</div>
+              <p className="text-xl font-bold text-muted-foreground">{error}</p>
+              <p className="text-muted-foreground">
+                Les joueurs ont été redistribués sur les autres tables.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/dashboard/tournaments/${tournamentId}`)}
+                className="mt-4"
+              >
+                Voir le tournoi
+              </Button>
+            </>
+          ) : (
+            <p className="text-destructive text-lg">{error}</p>
+          )}
         </div>
       </div>
     );

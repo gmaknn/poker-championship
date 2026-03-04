@@ -598,11 +598,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       movements: data.movements,
       tablesPlan: planData,
     });
-
-    // Auto-dismiss after 15 seconds
-    tableOverlayTimeoutRef.current = setTimeout(() => {
-      setTableOverlay(prev => prev?.type === 'breaking' ? null : prev);
-    }, 15000);
+    // No auto-dismiss — stays visible during pause, dismissed on timer resume
   }, [tournamentId]);
   useTournamentEvent(tournamentId, 'tables:broken', handleTablesBroken);
 
@@ -659,9 +655,9 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   }, []);
   useTournamentEvent(tournamentId, 'table:player_moved', handlePlayerMoved);
 
-  // Masquer l'overlay REASSIGN quand le timer reprend (fin de pause)
+  // Masquer l'overlay BREAKING/REASSIGN quand le timer reprend (fin de pause)
   useEffect(() => {
-    if (tableOverlay?.type === 'reassign' && serverTimerData?.timerStartedAt && !serverTimerData?.timerPausedAt) {
+    if ((tableOverlay?.type === 'reassign' || tableOverlay?.type === 'breaking') && serverTimerData?.timerStartedAt && !serverTimerData?.timerPausedAt) {
       setTableOverlay(null);
     }
   }, [serverTimerData?.timerPausedAt, serverTimerData?.timerStartedAt, tableOverlay]);
@@ -1290,75 +1286,85 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     <div className="min-h-screen text-white overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
       {/* Table Overlay — BREAKING / BALANCING / REASSIGN */}
       {tableOverlay?.type === 'breaking' && (
-        <div className="fixed inset-0 z-[9999] bg-black/90 flex flex-col items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
-          <div className="text-center mb-8">
-            <div className="text-8xl mb-4">&#x274C;</div>
-            <h2 className="text-4xl md:text-6xl font-black text-red-500 uppercase tracking-wider mb-6">
-              Table {tableOverlay.brokenTable} Fermée
-            </h2>
-            <div className="space-y-3 mb-8">
-              {tableOverlay.movements.map((m, idx) => (
-                <div key={idx} className="text-2xl md:text-4xl font-bold text-white">
-                  {m.playerName} <span className="text-amber-400">→</span> Table {m.toTable}, Siège {m.toSeat}
-                </div>
-              ))}
+        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
+          <div
+            className="w-[94vw] h-[92vh] overflow-hidden rounded-3xl p-8 flex flex-col"
+            style={{ backgroundColor: currentTheme.colors.backgroundDark }}
+          >
+            {/* Header */}
+            <div className="text-center mb-6 flex-shrink-0">
+              <h2 className="text-4xl md:text-6xl font-black text-red-500 uppercase tracking-wider flex items-center justify-center gap-4">
+                <span className="text-5xl md:text-7xl">&#x274C;</span>
+                Table {tableOverlay.brokenTable} Fermée
+              </h2>
             </div>
-          </div>
 
-          {/* Plan des tables en dessous */}
-          {tableOverlay.tablesPlan && (
-            <div className="w-[94vw] max-h-[50vh] overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {tableOverlay.tablesPlan.tables.map((table) => (
-                  <div
-                    key={table.tableNumber}
-                    className="rounded-2xl p-5 border-2"
-                    style={{
-                      backgroundColor: currentTheme.colors.backgroundLight,
-                      borderColor: currentTheme.colors.border,
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-3xl font-black" style={{ color: currentTheme.colors.primary }}>
-                        Table {table.tableNumber}
-                      </h3>
-                      <span className="text-xl text-white/60 font-bold">
-                        {table.activeCount} joueurs
-                      </span>
+            {/* Plan complet des tables en colonnes */}
+            {tableOverlay.tablesPlan && (
+              <div className="flex-1 overflow-y-auto">
+                <div className={`grid gap-8 ${
+                  tableOverlay.tablesPlan.tables.length <= 2 ? 'grid-cols-1 md:grid-cols-2' :
+                  tableOverlay.tablesPlan.tables.length <= 3 ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3' :
+                  'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
+                }`}>
+                  {tableOverlay.tablesPlan.tables.map((table) => (
+                    <div
+                      key={table.tableNumber}
+                      className="rounded-2xl p-6 border-3"
+                      style={{
+                        backgroundColor: currentTheme.colors.backgroundLight,
+                        borderColor: currentTheme.colors.border,
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-4xl font-black" style={{ color: currentTheme.colors.primary }}>
+                          Table {table.tableNumber}
+                        </h3>
+                        <span className="text-2xl text-white/60 font-bold">
+                          {table.activeCount} joueurs
+                        </span>
+                      </div>
+                      <div className="space-y-4">
+                        {table.seats.filter(seat => !seat.isEliminated).map((seat, idx) => {
+                          const isMoved = tableOverlay.movements.some(m => m.playerId === seat.playerId);
+                          return (
+                            <div
+                              key={seat.playerId}
+                              className={`flex items-center justify-between gap-6 py-4 px-6 rounded-xl transition-all ${
+                                isMoved ? 'ring-4 ring-yellow-400 scale-105' : ''
+                              }`}
+                              style={{
+                                backgroundColor: isMoved
+                                  ? 'rgba(250, 204, 21, 0.25)'
+                                  : 'rgba(255,255,255,0.08)',
+                              }}
+                            >
+                              <span className={`text-2xl font-bold whitespace-nowrap ${isMoved ? 'text-yellow-300' : 'text-white/50'}`}>
+                                #{seat.seatNumber ?? idx + 1}
+                              </span>
+                              <span className={`font-black text-3xl uppercase truncate ${isMoved ? 'text-yellow-300' : 'text-white'}`}>
+                                {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
+                              </span>
+                              {isMoved && (
+                                <span className="text-yellow-300 text-2xl flex-shrink-0">&#x2B50;</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="space-y-3">
-                      {table.seats.filter(seat => !seat.isEliminated).map((seat, idx) => {
-                        const isMoved = tableOverlay.movements.some(m => m.playerId === seat.playerId);
-                        return (
-                          <div
-                            key={seat.playerId}
-                            className={`flex items-center justify-between gap-4 py-3 px-4 rounded-xl ${
-                              isMoved ? 'ring-4 ring-yellow-400 scale-105' : ''
-                            }`}
-                            style={{
-                              backgroundColor: isMoved
-                                ? 'rgba(250, 204, 21, 0.25)'
-                                : 'rgba(255,255,255,0.08)',
-                            }}
-                          >
-                            <span className={`text-xl font-bold ${isMoved ? 'text-yellow-300' : 'text-white/50'}`}>
-                              S{seat.seatNumber ?? idx + 1}
-                            </span>
-                            <span className={`font-black text-2xl uppercase truncate ${isMoved ? 'text-yellow-300' : 'text-white'}`}>
-                              {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
-                            </span>
-                            {isMoved && (
-                              <span className="text-yellow-300 text-lg flex-shrink-0 font-bold">NEW</span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="mt-6 pt-4 border-t border-white/10 text-center flex-shrink-0">
+              <div className="text-yellow-400 text-lg font-medium">
+                Les joueurs &#x2B50; viennent de la Table {tableOverlay.brokenTable}
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 

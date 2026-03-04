@@ -134,28 +134,22 @@ export async function breakTable(tournamentId: string): Promise<BreakResult> {
     `redistributing to tables [${remainingTables.join(', ')}]`
   );
 
-  // Collecter les sièges libres sur les tables restantes
-  const freeSeats: Array<{ tableNumber: number; seatNumber: number }> = [];
+  // Build free seats per table
+  const freeSeatsByTable = new Map<number, number[]>();
+  const playerCountByTable = new Map<number, number>();
   for (const tableNum of remainingTables) {
+    const players = tableMap.get(tableNum)!;
+    playerCountByTable.set(tableNum, players.length);
     const occupied = new Set(
-      tableMap.get(tableNum)!.map((p) => p.seatNumber).filter((s): s is number => s !== null)
+      players.map((p) => p.seatNumber).filter((s): s is number => s !== null)
     );
+    const free: number[] = [];
     for (let s = 1; s <= seatsPerTable; s++) {
       if (!occupied.has(s)) {
-        freeSeats.push({ tableNumber: tableNum, seatNumber: s });
+        free.push(s);
       }
     }
-  }
-
-  // Mélanger les sièges libres pour distribution aléatoire
-  for (let i = freeSeats.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [freeSeats[i], freeSeats[j]] = [freeSeats[j], freeSeats[i]];
-  }
-
-  if (freeSeats.length < playersToMove.length) {
-    console.error(`🔨 [breakTable] Not enough free seats (${freeSeats.length}) for ${playersToMove.length} players`);
-    return { broken: false };
+    freeSeatsByTable.set(tableNum, free);
   }
 
   const movements: Array<{
@@ -165,37 +159,66 @@ export async function breakTable(tournamentId: string): Promise<BreakResult> {
     toSeat: number;
   }> = [];
 
+  // Mélanger les joueurs à déplacer
+  const shuffledPlayers = [...playersToMove];
+  for (let i = shuffledPlayers.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledPlayers[i], shuffledPlayers[j]] = [shuffledPlayers[j], shuffledPlayers[i]];
+  }
+
+  // Round-robin : attribuer chaque joueur à la table la MOINS remplie
+  for (const player of shuffledPlayers) {
+    // Trouver la table avec le moins de joueurs (première par numéro en cas d'égalité)
+    let bestTable = remainingTables[0];
+    let bestCount = playerCountByTable.get(bestTable) ?? Infinity;
+    for (const tableNum of remainingTables) {
+      const count = playerCountByTable.get(tableNum) ?? Infinity;
+      if (count < bestCount) {
+        bestCount = count;
+        bestTable = tableNum;
+      }
+    }
+
+    const freeSeats = freeSeatsByTable.get(bestTable) || [];
+    if (freeSeats.length === 0) {
+      console.error(`🔨 [breakTable] No free seat on table ${bestTable} — aborting`);
+      return { broken: false };
+    }
+
+    const seatNumber = freeSeats.shift()!;
+    playerCountByTable.set(bestTable, (playerCountByTable.get(bestTable) ?? 0) + 1);
+
+    movements.push({
+      playerId: player.playerId,
+      playerName: player.playerName,
+      toTable: bestTable,
+      toSeat: seatNumber,
+    });
+
+    console.log(
+      `🔨 [breakTable] ${player.playerName}: Table ${minTable} → Table ${bestTable} Seat ${seatNumber}`
+    );
+  }
+
   // Transaction atomique : désactiver les assignations de la table cassée + créer les nouvelles
   await prisma.$transaction(async (tx) => {
-    for (let i = 0; i < playersToMove.length; i++) {
-      const player = playersToMove[i];
-      const seat = freeSeats[i];
-
+    for (const player of playersToMove) {
       await tx.tableAssignment.update({
         where: { id: player.id },
         data: { isActive: false },
       });
+    }
 
+    for (const movement of movements) {
       await tx.tableAssignment.create({
         data: {
           tournamentId,
-          playerId: player.playerId,
-          tableNumber: seat.tableNumber,
-          seatNumber: seat.seatNumber,
+          playerId: movement.playerId,
+          tableNumber: movement.toTable,
+          seatNumber: movement.toSeat,
           isActive: true,
         },
       });
-
-      movements.push({
-        playerId: player.playerId,
-        playerName: player.playerName,
-        toTable: seat.tableNumber,
-        toSeat: seat.seatNumber,
-      });
-
-      console.log(
-        `🔨 [breakTable] ${player.playerName}: Table ${minTable} → Table ${seat.tableNumber} Seat ${seat.seatNumber}`
-      );
     }
   });
 
