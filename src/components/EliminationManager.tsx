@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -136,6 +136,9 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     bustId: string;
     playerName: string;
   } | null>(null);
+  // Ref pour détecter la transition recavesOpen true→false
+  const prevRecavesOpenRef = useRef<boolean | null>(null);
+  const autoEliminateCalledRef = useRef(false);
 
   useEffect(() => {
     fetchData();
@@ -170,6 +173,51 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     const interval = setInterval(pollTimer, 10000);
     return () => clearInterval(interval);
   }, [tournamentId, tournament?.status, effectiveLevel]);
+
+  // Auto-élimination des bustés sans recave quand recavesOpen passe de true à false
+  useEffect(() => {
+    // Ignorer le premier rendu (pas de transition)
+    if (prevRecavesOpenRef.current === null) {
+      prevRecavesOpenRef.current = recavesOpen;
+      return;
+    }
+
+    // Détecter la transition true → false
+    if (prevRecavesOpenRef.current === true && recavesOpen === false && !autoEliminateCalledRef.current) {
+      autoEliminateCalledRef.current = true;
+
+      const autoEliminate = async () => {
+        try {
+          const response = await fetch(`/api/tournaments/${tournamentId}/auto-eliminate-busts`, {
+            method: 'POST',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            if (data.eliminated > 0) {
+              toast.success(
+                `${data.eliminated} joueur(s) busté(s) sans recave automatiquement éliminé(s)`,
+                {
+                  description: data.eliminations?.map((e: { playerName: string; rank: number }) =>
+                    `${e.playerName} → rang ${e.rank}`
+                  ).join(', '),
+                  duration: 8000,
+                }
+              );
+              // Rafraîchir les données
+              fetchData();
+              onUpdate?.();
+            }
+          }
+        } catch (err) {
+          console.error('Error auto-eliminating busts:', err);
+        }
+      };
+
+      autoEliminate();
+    }
+
+    prevRecavesOpenRef.current = recavesOpen;
+  }, [recavesOpen, tournamentId]);
 
   const fetchData = async () => {
     try {
