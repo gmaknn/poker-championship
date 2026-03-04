@@ -59,6 +59,17 @@ export interface TournamentEvents {
     tablesCount: number;
     movedPlayerIds?: string[];
   };
+  'tables:broken': {
+    tournamentId: string;
+    brokenTable: number;
+    remainingTables: number;
+    movements: Array<{
+      playerId: string;
+      playerName: string;
+      toTable: number;
+      toSeat: number;
+    }>;
+  };
   'table:player_moved': {
     tournamentId: string;
     playerId: string;

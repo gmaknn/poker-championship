@@ -6,6 +6,7 @@ import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
 import { pauseTimerForTournament } from '@/lib/timer-actions';
+import { breakTable, balanceTables } from '@/lib/table-management';
 
 // Type for detailed points configuration
 interface DetailedPointsConfig {
@@ -128,16 +129,16 @@ const eliminationSchema = z.object({
 });
 
 /**
- * Rééquilibrage automatique des tables après une élimination.
- * Boucle tant que l'écart entre la table la plus remplie et la moins remplie est ≥ 2.
- * Déplace un joueur par itération : du même siège (ou le plus proche) de la table source
- * vers le siège libéré sur la table cible.
+ * Gestion des tables après une élimination :
+ * 1. Désactive l'assignation du joueur éliminé
+ * 2. Vérifie si un BREAKING est possible (casse de table)
+ * 3. Sinon, vérifie si un BALANCING est nécessaire (équilibrage)
  */
-async function rebalanceTablesAfterElimination(
+async function handleTablesAfterElimination(
   tournamentId: string,
   eliminatedPlayerId: string
 ): Promise<void> {
-  console.log(`🔄 [rebalance] Triggered after elimination of player ${eliminatedPlayerId} in tournament ${tournamentId}`);
+  console.log(`🎯 [tables] Triggered after elimination of player ${eliminatedPlayerId} in tournament ${tournamentId}`);
 
   // Récupérer l'assignation de l'éliminé (avant qu'elle soit désactivée)
   const eliminatedAssignment = await prisma.tableAssignment.findFirst({
@@ -149,11 +150,11 @@ async function rebalanceTablesAfterElimination(
   });
 
   if (!eliminatedAssignment) {
-    console.log(`🔄 [rebalance] No active table assignment found for eliminated player — skipping (tables may not be distributed)`);
+    console.log(`🎯 [tables] No active table assignment found for eliminated player — skipping`);
     return;
   }
 
-  console.log(`🔄 [rebalance] Eliminated player was at Table ${eliminatedAssignment.tableNumber}, Seat ${eliminatedAssignment.seatNumber}`);
+  console.log(`🎯 [tables] Eliminated player was at Table ${eliminatedAssignment.tableNumber}, Seat ${eliminatedAssignment.seatNumber}`);
 
   // Désactiver l'assignation de l'éliminé
   await prisma.tableAssignment.update({
@@ -161,135 +162,24 @@ async function rebalanceTablesAfterElimination(
     data: { isActive: false },
   });
 
-  // Le siège cible initial est celui de l'éliminé
-  let targetTableNumber = eliminatedAssignment.tableNumber;
-  let targetSeatNumber = eliminatedAssignment.seatNumber;
+  // Mécanisme 1 — BREAKING : vérifier si on peut casser une table
+  const breakResult = await breakTable(tournamentId);
+  if (breakResult.broken) {
+    console.log(`🎯 [tables] Table ${breakResult.brokenTable} broken — done`);
+    return; // STOP après breaking
+  }
 
-  // Charger les noms des joueurs pour les notifications
-  const players = await prisma.player.findMany({
-    where: {
-      tournamentPlayers: { some: { tournamentId } },
-    },
-    select: { id: true, firstName: true, lastName: true, nickname: true },
-  });
-  const playerNameMap = new Map(
-    players.map((p) => [p.id, p.nickname || `${p.firstName} ${p.lastName}`])
+  // Mécanisme 2 — BALANCING : équilibrer si écart ≥ 2
+  console.log(`🎯 [tables] No breaking possible, checking balancing...`);
+  const moves = await balanceTables(
+    tournamentId,
+    eliminatedAssignment.seatNumber,
+    eliminatedAssignment.tableNumber
   );
-
-  // Boucle de rééquilibrage
-  let iteration = 0;
-  while (true) {
-    iteration++;
-    // Compter les joueurs actifs par table
-    const activeAssignments = await prisma.tableAssignment.findMany({
-      where: { tournamentId, isActive: true },
-    });
-
-    // Grouper par table
-    const tableCountMap = new Map<number, typeof activeAssignments>();
-    for (const a of activeAssignments) {
-      const existing = tableCountMap.get(a.tableNumber) || [];
-      existing.push(a);
-      tableCountMap.set(a.tableNumber, existing);
-    }
-
-    // Inclure la table cible même si elle est vide (elle existe encore)
-    if (!tableCountMap.has(targetTableNumber)) {
-      tableCountMap.set(targetTableNumber, []);
-    }
-
-    // Log du compte par table
-    const sortedTableNumbers = Array.from(tableCountMap.keys()).sort((a, b) => a - b);
-    for (const tableNum of sortedTableNumbers) {
-      console.log(`🔄 [rebalance] Iteration ${iteration} — Table ${tableNum}: ${tableCountMap.get(tableNum)!.length} active players`);
-    }
-
-    // Trouver min et max
-    let maxTable = -1;
-    let maxCount = 0;
-    let minCount = Infinity;
-
-    for (const tableNum of sortedTableNumbers) {
-      const count = tableCountMap.get(tableNum)!.length;
-      if (count > maxCount) {
-        maxCount = count;
-        maxTable = tableNum;
-      }
-      if (count < minCount) {
-        minCount = count;
-      }
-    }
-
-    const gap = maxCount - minCount;
-    console.log(`🔄 [rebalance] Iteration ${iteration} — Max: ${maxCount}, Min: ${minCount}, Gap: ${gap}`);
-
-    // Si écart < 2, on arrête
-    if (gap < 2) {
-      console.log(`🔄 [rebalance] Tables balanced (gap < 2), stopping`);
-      break;
-    }
-
-    console.log(`🔄 [rebalance] Rebalance needed: moving player from Table ${maxTable} to Table ${targetTableNumber}`);
-
-    // Table source = la plus remplie (première par numéro en cas d'égalité)
-    const sourceTableNumber = maxTable;
-    const sourceAssignments = tableCountMap.get(sourceTableNumber)!;
-
-    // Trouver le joueur au même siège que l'éliminé, sinon le plus proche
-    const targetSeat = targetSeatNumber ?? 1;
-    let bestAssignment = sourceAssignments[0];
-    let bestDistance = Infinity;
-
-    for (const a of sourceAssignments) {
-      const seat = a.seatNumber ?? 1;
-      const distance = Math.abs(seat - targetSeat);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestAssignment = a;
-      }
-    }
-
-    if (!bestAssignment) {
-      console.log(`🔄 [rebalance] No player found at source table — stopping`);
-      break;
-    }
-
-    const playerName = playerNameMap.get(bestAssignment.playerId) || 'Joueur';
-    console.log(`🔄 [rebalance] Moving ${playerName} from Table ${sourceTableNumber} Seat ${bestAssignment.seatNumber} → Table ${targetTableNumber} Seat ${targetSeatNumber}`);
-
-    // Déplacer le joueur : désactiver l'ancienne assignation, créer la nouvelle
-    await prisma.$transaction(async (tx) => {
-      await tx.tableAssignment.update({
-        where: { id: bestAssignment.id },
-        data: { isActive: false },
-      });
-
-      await tx.tableAssignment.create({
-        data: {
-          tournamentId,
-          playerId: bestAssignment.playerId,
-          tableNumber: targetTableNumber,
-          seatNumber: targetSeatNumber,
-          isActive: true,
-        },
-      });
-    });
-
-    // Émettre l'événement Socket.IO pour le TV et le dashboard
-    emitToTournament(tournamentId, 'table:player_moved', {
-      tournamentId,
-      playerId: bestAssignment.playerId,
-      playerName,
-      fromTable: sourceTableNumber,
-      toTable: targetTableNumber,
-      seatNumber: targetSeatNumber ?? 0,
-    });
-
-    console.log(`🔄 [rebalance] ✅ ${playerName} moved successfully`);
-
-    // Pour la prochaine itération : le nouveau "trou" est le siège libéré à la table source
-    targetTableNumber = sourceTableNumber;
-    targetSeatNumber = bestAssignment.seatNumber;
+  if (moves.length > 0) {
+    console.log(`🎯 [tables] ${moves.length} balancing move(s) completed`);
+  } else {
+    console.log(`🎯 [tables] Tables already balanced, no moves needed`);
   }
 }
 
@@ -590,7 +480,7 @@ export async function POST(
     console.log(`🔄 [elimination] ${activePlayersCount} active players remaining, checking table rebalance...`);
     if (activePlayersCount > 1) {
       try {
-        await rebalanceTablesAfterElimination(tournamentId, validatedData.eliminatedId);
+        await handleTablesAfterElimination(tournamentId, validatedData.eliminatedId);
       } catch (rebalanceError) {
         console.error('🔄 [elimination] Error during post-elimination rebalance:', rebalanceError);
         // Ne pas bloquer la réponse d'élimination en cas d'erreur de rééquilibrage

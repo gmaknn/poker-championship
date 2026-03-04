@@ -154,6 +154,7 @@ model Tournament {
   // Données du tournoi
   totalPlayers          Int?
   tablesCount           Int?
+  seatsPerTable         Int                 @default(9)
   currentLevel          Int                 @default(1)
   timerStartedAt        DateTime?
   timerPausedAt         DateTime?

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { emitToTournament } from '@/lib/socket';
-import { rebalanceTablesBetweenExisting } from '@/lib/table-rebalance';
+import { reassignAllPlayers } from '@/lib/table-management';
 
-// POST - Rééquilibrage automatique des tables en fin de niveau (idempotent via lastRebalancedAtLevel)
-// Conserve les tables existantes, déplace les joueurs un par un entre tables
+// POST - Réassignation complète des tables en fin de niveau (idempotent via lastRebalancedAtLevel)
+// Redistribution COMPLÈTE de tous les joueurs sur les tables EXISTANTES (mécanisme 3 — REASSIGN)
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,7 +13,6 @@ export async function POST(
   try {
     const { id: tournamentId } = await params;
 
-    // Récupérer le tournoi avec ses blind levels
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       select: {
@@ -34,7 +33,6 @@ export async function POST(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    // Vérifier les permissions (ADMIN ou TD du tournoi)
     const permResult = await requireTournamentPermission(request, tournament.createdById, 'manage', tournamentId);
     if (!permResult.success) {
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
@@ -44,7 +42,7 @@ export async function POST(
       return NextResponse.json({ error: 'Tournament is not in progress' }, { status: 400 });
     }
 
-    // Recalculer le niveau courant (même logique que timer/route.ts)
+    // Recalculer le niveau courant
     let currentElapsedSeconds = tournament.timerElapsedSeconds;
     if (tournament.timerStartedAt && !tournament.timerPausedAt) {
       const now = new Date();
@@ -83,7 +81,7 @@ export async function POST(
       return NextResponse.json({ skipped: true, reason: 'No pending rebalance' });
     }
 
-    // Vérification d'idempotence dans une transaction avant le rééquilibrage
+    // Vérification d'idempotence
     const freshTournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       select: { lastRebalancedAtLevel: true },
@@ -99,37 +97,28 @@ export async function POST(
       data: { lastRebalancedAtLevel: pendingLevel.level },
     });
 
-    // Rééquilibrer entre les tables existantes (pas de redistribution complète)
-    const moves = await rebalanceTablesBetweenExisting(tournamentId, {
-      emitSocketEvents: true,
-    });
+    // Mécanisme 3 — REASSIGN : redistribution complète sur les tables existantes
+    const result = await reassignAllPlayers(tournamentId);
 
-    // Compter les tables actuelles
-    const tableAssignments = await prisma.tableAssignment.findMany({
-      where: { tournamentId, isActive: true },
-      select: { tableNumber: true },
-    });
-    const uniqueTables = new Set(tableAssignments.map((a) => a.tableNumber));
-
-    // Émettre l'événement Socket.IO global avec les joueurs déplacés
+    // Émettre l'événement Socket.IO
     emitToTournament(tournamentId, 'tables:rebalanced', {
       tournamentId,
-      tablesCount: uniqueTables.size,
-      movedPlayerIds: moves.map((m) => m.playerId),
+      tablesCount: result.tablesCount,
+      movedPlayerIds: result.movedPlayerIds,
     });
 
     console.log(
-      `🔄 Auto-rebalance for tournament ${tournamentId} at level ${pendingLevel.level}: ` +
-      `${moves.length} move(s), ${uniqueTables.size} tables preserved`
+      `🔀 Auto-reassign for tournament ${tournamentId} at level ${pendingLevel.level}: ` +
+      `${result.totalMoves} move(s), ${result.tablesCount} tables`
     );
 
     return NextResponse.json({
       success: true,
       autoRebalanced: true,
       forLevel: pendingLevel.level,
-      totalTables: uniqueTables.size,
-      moves,
-      totalMoves: moves.length,
+      totalTables: result.tablesCount,
+      totalMoves: result.totalMoves,
+      movedPlayerIds: result.movedPlayerIds,
     });
   } catch (error) {
     console.error('Error in auto-rebalance:', error);
