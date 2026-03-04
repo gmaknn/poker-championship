@@ -9,19 +9,19 @@ const updateTournamentSchema = z.object({
   name: z.string().min(1).optional(),
   seasonId: z.string().optional(),
   date: z.string().datetime().optional(),
-  buyIn: z.number().int().min(0).optional(),
-  startingChips: z.number().int().min(1000).optional(),
-  estimatedDuration: z.number().int().min(30).optional(),
-  maxPlayers: z.number().int().optional(),
+  buyIn: z.coerce.number().int().min(0).optional(),
+  startingChips: z.coerce.number().int().min(1000).optional(),
+  estimatedDuration: z.coerce.number().int().min(30).optional(),
+  maxPlayers: z.coerce.number().int().optional(),
   status: z.enum(['PLANNED', 'REGISTRATION', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).optional(),
   location: z.string().optional(),
   notes: z.string().optional(),
-  prizePool: z.number().optional(),
-  prizeDistribution: z.record(z.string(), z.number()).optional(), // Prize distribution by position
-  actualDuration: z.number().int().optional(),
+  prizePool: z.coerce.number().optional(),
+  prizeDistribution: z.record(z.string(), z.coerce.number()).optional(), // Prize distribution by position
+  actualDuration: z.coerce.number().int().optional(),
   completedAt: z.string().datetime().optional(),
-  rebuyEndLevel: z.number().int().min(0).nullable().optional(), // Niveau de fin de periode de recave
-  tableBreakThreshold: z.number().int().min(1).max(10).optional(),
+  rebuyEndLevel: z.coerce.number().int().min(0).nullable().optional(), // Niveau de fin de periode de recave
+  tableBreakThreshold: z.coerce.number().int().min(1).max(10).optional(),
 });
 
 // GET single tournament

@@ -9,13 +9,13 @@ const tournamentSchema = z.object({
   name: z.string().min(1, 'Le nom est requis'),
   seasonId: z.string().min(1, 'La saison est requise'),
   date: z.string().datetime(),
-  buyInAmount: z.number().min(0).default(10),
-  startingChips: z.number().int().min(1000).default(5000),
-  targetDuration: z.number().int().min(30).default(180),
-  totalPlayers: z.number().int().min(2).optional(),
+  buyInAmount: z.coerce.number().min(0).default(10),
+  startingChips: z.coerce.number().int().min(1000).default(5000),
+  targetDuration: z.coerce.number().int().min(30).default(180),
+  totalPlayers: z.coerce.number().int().min(2).optional(),
   status: z.enum(['PLANNED', 'REGISTRATION', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).default('PLANNED'),
   createdById: z.string().optional(), // ID du joueur créateur (Tournament Director ou Admin)
-  tableBreakThreshold: z.number().int().min(1).max(10).default(3),
+  tableBreakThreshold: z.coerce.number().int().min(1).max(10).default(3),
 });
 
 // GET all tournaments
