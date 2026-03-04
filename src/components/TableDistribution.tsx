@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { Grid3x3, Shuffle, Trash2, Users, QrCode, Printer, Shield, Crosshair } from 'lucide-react';
+import { Grid3x3, Shuffle, Trash2, Users, QrCode, Printer, Shield, Crosshair, Scissors } from 'lucide-react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -78,10 +78,41 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   const [togglingDirector, setTogglingDirector] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [confirmRedistribute, setConfirmRedistribute] = useState(false);
+  const [tableBreakThreshold, setTableBreakThreshold] = useState(3);
 
   useEffect(() => {
     fetchTables();
+    fetchThreshold();
   }, [tournamentId]);
+
+  const fetchThreshold = async () => {
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTableBreakThreshold(data.tableBreakThreshold ?? 3);
+      }
+    } catch (error) {
+      // silently ignore
+    }
+  };
+
+  const handleThresholdChange = async (value: number) => {
+    if (value < 1 || value > 10) return;
+    setTableBreakThreshold(value);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableBreakThreshold: value }),
+      });
+      if (response.ok) {
+        toast.success(`Seuil de casse : ${value} joueurs min.`);
+      }
+    } catch (error) {
+      console.error('Error updating threshold:', error);
+    }
+  };
 
   const fetchTables = async () => {
     try {
@@ -319,6 +350,21 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
             <span className="text-xl font-bold">{tablesData.activePlayers}</span>
             <span className="text-muted-foreground text-sm sm:text-base">actifs</span>
           </div>
+          {!readOnly && (
+            <div className="flex items-center gap-1.5">
+              <Scissors className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Casse :</span>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={tableBreakThreshold}
+                onChange={(e) => handleThresholdChange(parseInt(e.target.value) || 3)}
+                className="w-14 h-7 text-center text-sm px-1"
+              />
+              <span className="text-sm text-muted-foreground">min.</span>
+            </div>
+          )}
         </div>
         {!readOnly && (
           <div className="flex items-center gap-2 flex-wrap">
