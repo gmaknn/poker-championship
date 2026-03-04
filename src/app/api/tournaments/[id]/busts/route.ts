@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
-import { pauseTimerForTournament } from '@/lib/timer-actions';
+// Note: pas d'auto-pause du timer pour un bust (ce n'est pas une élimination définitive)
 
 const bustSchema = z.object({
   eliminatedId: z.string().cuid(), // playerId du joueur qui a perdu son tapis
@@ -230,8 +230,7 @@ export async function POST(
       level: effectiveLevel,
     });
 
-    // Auto-pause du timer lors d'un bust
-    await pauseTimerForTournament(tournamentId);
+    // Pas d'auto-pause du timer pour un bust — le jeu continue pendant la période de recaves
 
     return NextResponse.json({
       success: true,

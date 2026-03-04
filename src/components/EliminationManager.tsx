@@ -138,7 +138,6 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   } | null>(null);
   // Ref pour détecter la transition recavesOpen true→false
   const prevRecavesOpenRef = useRef<boolean | null>(null);
-  const autoEliminateCalledRef = useRef(false);
 
   useEffect(() => {
     fetchData();
@@ -174,50 +173,59 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     return () => clearInterval(interval);
   }, [tournamentId, tournament?.status, effectiveLevel]);
 
-  // Auto-élimination des bustés sans recave quand recavesOpen passe de true à false
+  // Appel d'auto-élimination des bustés sans recave.
+  // Déclenché dans 2 cas :
+  //   1. Au chargement : recavesOpen est false dès le premier fetch (composant monté après la transition)
+  //   2. Pendant le polling : recavesOpen passe de true à false
+  // L'endpoint est idempotent (bustsAutoEliminatedAtLevel) donc les appels multiples sont sans effet.
+  const triggerAutoEliminate = async () => {
+    console.log('[auto-eliminate] Triggering auto-eliminate for tournament', tournamentId);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/auto-eliminate-busts`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      console.log('[auto-eliminate] Result:', data);
+      if (response.ok && data.eliminated > 0) {
+        toast.success(
+          `${data.eliminated} joueur(s) busté(s) sans recave automatiquement éliminé(s)`,
+          {
+            description: data.eliminations?.map((e: { playerName: string; rank: number }) =>
+              `${e.playerName} → rang ${e.rank}`
+            ).join(', '),
+            duration: 8000,
+          }
+        );
+        // Rafraîchir les données
+        fetchData();
+        onUpdate?.();
+      }
+    } catch (err) {
+      console.error('[auto-eliminate] Error:', err);
+    }
+  };
+
   useEffect(() => {
-    // Ignorer le premier rendu (pas de transition)
+    // Premier rendu : stocker la valeur initiale
     if (prevRecavesOpenRef.current === null) {
       prevRecavesOpenRef.current = recavesOpen;
+      // Cas 1 : si recavesOpen est déjà false au montage (composant monté après la transition)
+      // → tenter l'auto-élimination (l'idempotence côté serveur empêche les doublons)
+      if (recavesOpen === false && tournament?.rebuyEndLevel) {
+        console.log('[auto-eliminate] recavesOpen=false at mount, triggering check');
+        triggerAutoEliminate();
+      }
       return;
     }
 
-    // Détecter la transition true → false
-    if (prevRecavesOpenRef.current === true && recavesOpen === false && !autoEliminateCalledRef.current) {
-      autoEliminateCalledRef.current = true;
-
-      const autoEliminate = async () => {
-        try {
-          const response = await fetch(`/api/tournaments/${tournamentId}/auto-eliminate-busts`, {
-            method: 'POST',
-          });
-          if (response.ok) {
-            const data = await response.json();
-            if (data.eliminated > 0) {
-              toast.success(
-                `${data.eliminated} joueur(s) busté(s) sans recave automatiquement éliminé(s)`,
-                {
-                  description: data.eliminations?.map((e: { playerName: string; rank: number }) =>
-                    `${e.playerName} → rang ${e.rank}`
-                  ).join(', '),
-                  duration: 8000,
-                }
-              );
-              // Rafraîchir les données
-              fetchData();
-              onUpdate?.();
-            }
-          }
-        } catch (err) {
-          console.error('Error auto-eliminating busts:', err);
-        }
-      };
-
-      autoEliminate();
+    // Cas 2 : transition true → false détectée pendant le polling
+    if (prevRecavesOpenRef.current === true && recavesOpen === false) {
+      console.log('[auto-eliminate] Transition detected: recavesOpen true→false');
+      triggerAutoEliminate();
     }
 
     prevRecavesOpenRef.current = recavesOpen;
-  }, [recavesOpen, tournamentId]);
+  }, [recavesOpen, tournamentId, tournament?.rebuyEndLevel]);
 
   const fetchData = async () => {
     try {
