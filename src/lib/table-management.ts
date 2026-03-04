@@ -90,9 +90,10 @@ async function getActivePlayersByTable(
 export async function breakTable(tournamentId: string): Promise<BreakResult> {
   const tournament = await prisma.tournament.findUnique({
     where: { id: tournamentId },
-    select: { seatsPerTable: true },
+    select: { seatsPerTable: true, tableBreakThreshold: true },
   });
   const seatsPerTable = tournament?.seatsPerTable ?? 9;
+  const tableBreakThreshold = tournament?.tableBreakThreshold ?? 3;
 
   const tableMap = await getActivePlayersByTable(tournamentId);
   const tableNumbers = Array.from(tableMap.keys()).sort((a, b) => a - b);
@@ -105,11 +106,7 @@ export async function breakTable(tournamentId: string): Promise<BreakResult> {
   const totalPlayers = Array.from(tableMap.values()).reduce((sum, p) => sum + p.length, 0);
   const maxCapacityWithOneLess = seatsPerTable * (tableNumbers.length - 1);
 
-  console.log(
-    `🔨 [breakTable] ${totalPlayers} players, ${tableNumbers.length} tables, ` +
-    `capacity with ${tableNumbers.length - 1} tables: ${maxCapacityWithOneLess}`
-  );
-
+  // Vérifier qu'on peut physiquement caser les joueurs dans N-1 tables
   if (totalPlayers > maxCapacityWithOneLess) {
     console.log(`🔨 [breakTable] Cannot break — players (${totalPlayers}) > capacity (${maxCapacityWithOneLess})`);
     return { broken: false };
@@ -125,6 +122,20 @@ export async function breakTable(tournamentId: string): Promise<BreakResult> {
       minTable = tableNum;
     }
   }
+
+  // Vérifier que la table la moins remplie est sous le seuil de casse
+  if (minCount >= tableBreakThreshold) {
+    console.log(
+      `🔨 [breakTable] Table ${minTable} has ${minCount} players, ` +
+      `threshold is ${tableBreakThreshold} — no break needed`
+    );
+    return { broken: false };
+  }
+
+  console.log(
+    `🔨 [breakTable] ${totalPlayers} players, ${tableNumbers.length} tables, ` +
+    `Table ${minTable} has ${minCount} players (< threshold ${tableBreakThreshold})`
+  );
 
   const playersToMove = tableMap.get(minTable)!;
   const remainingTables = tableNumbers.filter((t) => t !== minTable);

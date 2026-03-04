@@ -155,6 +155,7 @@ model Tournament {
   totalPlayers          Int?
   tablesCount           Int?
   seatsPerTable         Int                 @default(9)
+  tableBreakThreshold   Int                 @default(3)
   currentLevel          Int                 @default(1)
   timerStartedAt        DateTime?
   timerPausedAt         DateTime?

@@ -131,6 +131,11 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     type: 'elimination' | 'bust' | 'recave';
     bustId?: string;
   } | null>(null);
+  // Post-bust recave dialog
+  const [postBustRecaveDialog, setPostBustRecaveDialog] = useState<{
+    bustId: string;
+    playerName: string;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -263,11 +268,21 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
       });
 
       if (response.ok) {
+        const data = await response.json();
+        const eliminatedPlayer = players.find(p => p.playerId === selectedEliminated);
+        const playerName = eliminatedPlayer
+          ? (eliminatedPlayer.player.nickname || `${eliminatedPlayer.player.firstName} ${eliminatedPlayer.player.lastName}`)
+          : 'Joueur';
         setSelectedEliminated('');
         setSelectedEliminator('');
         await fetchData();
         onUpdate?.();
         toast.success('Bust enregistré');
+
+        // Proposer la recave si les recaves sont ouvertes
+        if (recavesOpen && data.bustEvent?.id) {
+          setPostBustRecaveDialog({ bustId: data.bustEvent.id, playerName });
+        }
       } else {
         const data = await response.json();
         setError(data.error || 'Erreur lors de l\'enregistrement');
@@ -1145,6 +1160,37 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Oui, annuler
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Post-bust recave dialog */}
+      <AlertDialog open={!!postBustRecaveDialog} onOpenChange={() => setPostBustRecaveDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <div className="flex items-center gap-2">
+                <Coins className="h-5 w-5 text-amber-500" />
+                Recave pour {postBustRecaveDialog?.playerName} ?
+              </div>
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {postBustRecaveDialog?.playerName} a perdu son tapis. Souhaitez-vous appliquer une recave immédiatement ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Non merci</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (postBustRecaveDialog?.bustId) {
+                  handleBustRecave(postBustRecaveDialog.bustId);
+                }
+                setPostBustRecaveDialog(null);
+              }}
+            >
+              <Coins className="mr-2 h-4 w-4" />
+              Appliquer la recave
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
