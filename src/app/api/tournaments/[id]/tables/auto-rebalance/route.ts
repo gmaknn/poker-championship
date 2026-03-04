@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { emitToTournament } from '@/lib/socket';
 import { reassignAllPlayers } from '@/lib/table-management';
-import { pauseTimerForTournament } from '@/lib/timer-actions';
 
 // POST - Réassignation complète des tables en fin de niveau (idempotent via lastRebalancedAtLevel)
 // Redistribution COMPLÈTE de tous les joueurs sur les tables EXISTANTES (mécanisme 3 — REASSIGN)
@@ -100,12 +99,6 @@ export async function POST(
 
     // Mécanisme 3 — REASSIGN : redistribution complète sur les tables existantes
     const result = await reassignAllPlayers(tournamentId);
-
-    // Auto-pause du timer pour laisser le temps aux joueurs de changer de place
-    if (result.totalMoves > 0) {
-      await pauseTimerForTournament(tournamentId);
-      console.log(`⏸️ Timer paused for table reassignment (${result.totalMoves} moves)`);
-    }
 
     // Émettre l'événement Socket.IO
     emitToTournament(tournamentId, 'tables:rebalanced', {
