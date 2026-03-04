@@ -198,7 +198,6 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const confettiTriggeredRef = useRef(false);
   const photoCapturedRef = useRef(false);
   const autoRebalanceTriggeredRef = useRef<number>(0);
-  const smartRebalancePendingRef = useRef(false);
 
   // TTS controls
   const [ttsVolume, setTtsVolume] = useState(1);
@@ -215,21 +214,25 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const [tablesPlanData, setTablesPlanData] = useState<TablesPlanResponse | null>(null);
   const [tablesPlanError, setTablesPlanError] = useState<string | null>(null);
 
-  // Player moved overlay (post-elimination rebalance)
-  const [playerMovedNotifications, setPlayerMovedNotifications] = useState<Array<{
-    id: number;
-    playerName: string;
-    fromTable: number;
-    toTable: number;
-    seatNumber: number;
-  }>>([]);
-  const playerMovedIdRef = useRef(0);
-
-  // Auto-rebalance table plan overlay (shown during pause after level-end rebalance)
-  const [rebalanceOverlay, setRebalanceOverlay] = useState<{
+  // Unified table overlay state (breaking, balancing, reassign)
+  type TableOverlay = {
+    type: 'breaking';
+    brokenTable: number;
+    movements: Array<{ playerId: string; playerName: string; toTable: number; toSeat: number }>;
+    tablesPlan: TablesPlanResponse | null;
+  } | {
+    type: 'balancing';
+    moves: Array<{ playerName: string; fromTable: number; toTable: number; seatNumber: number }>;
+  } | {
+    type: 'reassign';
     tablesPlan: TablesPlanResponse | null;
     movedPlayerIds: string[];
-  } | null>(null);
+  };
+  const [tableOverlay, setTableOverlay] = useState<TableOverlay | null>(null);
+  const tableOverlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const balancingMovesRef = useRef<Array<{ playerName: string; fromTable: number; toTable: number; seatNumber: number }>>([]);
+  const balancingDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const balancingSoundPlayedRef = useRef(false);
 
   // Chips Modal
   const [showChipsModal, setShowChipsModal] = useState(false);
@@ -521,7 +524,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   useTournamentEvent(tournamentId, 'rebuy:applied', handleRebuyApplied);
   useTournamentEvent(tournamentId, 'rebuy:recorded', handleRebuyRecorded);
 
-  // Rafraîchir les données quand les tables sont rééquilibrées (auto ou manuel)
+  // Rafraîchir les données quand les tables sont rééquilibrées — overlay REASSIGN
   const handleTablesRebalanced = useCallback(async (data: {
     tournamentId: string;
     tablesCount: number;
@@ -531,13 +534,20 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
     // Si des joueurs ont été déplacés, charger le plan de tables pour l'overlay
     if (data.movedPlayerIds && data.movedPlayerIds.length > 0) {
+      // Clear any existing overlay timeout
+      if (tableOverlayTimeoutRef.current) {
+        clearTimeout(tableOverlayTimeoutRef.current);
+        tableOverlayTimeoutRef.current = null;
+      }
+
       try {
         const response = await fetch(`/api/tournaments/${tournamentId}/tables-plan`, {
           credentials: 'include',
         });
         if (response.ok) {
           const planData = await response.json();
-          setRebalanceOverlay({
+          setTableOverlay({
+            type: 'reassign',
             tablesPlan: planData,
             movedPlayerIds: data.movedPlayerIds,
           });
@@ -549,7 +559,54 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   }, [tournamentId]);
   useTournamentEvent(tournamentId, 'tables:rebalanced', handleTablesRebalanced);
 
-  // Notification de déplacement de joueur après élimination
+  // Casse de table (breaking) — rafraîchir les données et montrer l'overlay BREAKING
+  const handleTablesBroken = useCallback(async (data: {
+    tournamentId: string;
+    brokenTable: number;
+    remainingTables: number;
+    movements: Array<{
+      playerId: string;
+      playerName: string;
+      toTable: number;
+      toSeat: number;
+    }>;
+  }) => {
+    fetchData();
+    playAlertSound('urgent');
+
+    // Fetch tables plan for the overlay
+    let planData: TablesPlanResponse | null = null;
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables-plan`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        planData = await response.json();
+      }
+    } catch (error) {
+      console.error('Error fetching tables plan for broken table overlay:', error);
+    }
+
+    // Clear any existing overlay timeout
+    if (tableOverlayTimeoutRef.current) {
+      clearTimeout(tableOverlayTimeoutRef.current);
+    }
+
+    setTableOverlay({
+      type: 'breaking',
+      brokenTable: data.brokenTable,
+      movements: data.movements,
+      tablesPlan: planData,
+    });
+
+    // Auto-dismiss after 15 seconds
+    tableOverlayTimeoutRef.current = setTimeout(() => {
+      setTableOverlay(prev => prev?.type === 'breaking' ? null : prev);
+    }, 15000);
+  }, [tournamentId]);
+  useTournamentEvent(tournamentId, 'tables:broken', handleTablesBroken);
+
+  // Notification de déplacement de joueur après élimination — overlay BALANCING
   const handlePlayerMoved = useCallback((data: {
     tournamentId: string;
     playerId: string;
@@ -558,31 +615,56 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     toTable: number;
     seatNumber: number;
   }) => {
-    const notifId = ++playerMovedIdRef.current;
-    setPlayerMovedNotifications(prev => [...prev, {
-      id: notifId,
+    // Play warning sound only on the first movement of a batch
+    if (!balancingSoundPlayedRef.current) {
+      balancingSoundPlayedRef.current = true;
+      playAlertSound('warning');
+    }
+
+    // Accumulate moves
+    balancingMovesRef.current = [...balancingMovesRef.current, {
       playerName: data.playerName,
       fromTable: data.fromTable,
       toTable: data.toTable,
       seatNumber: data.seatNumber,
-    }]);
+    }];
 
-    // Retirer la notification après 10 secondes
-    setTimeout(() => {
-      setPlayerMovedNotifications(prev => prev.filter(n => n.id !== notifId));
-    }, 10000);
+    // Debounce: wait 2 seconds after last movement before showing overlay
+    if (balancingDebounceRef.current) {
+      clearTimeout(balancingDebounceRef.current);
+    }
+    balancingDebounceRef.current = setTimeout(() => {
+      // Clear any existing overlay timeout
+      if (tableOverlayTimeoutRef.current) {
+        clearTimeout(tableOverlayTimeoutRef.current);
+      }
+
+      setTableOverlay({
+        type: 'balancing',
+        moves: [...balancingMovesRef.current],
+      });
+
+      // Reset accumulator
+      balancingMovesRef.current = [];
+      balancingSoundPlayedRef.current = false;
+
+      // Auto-dismiss after 10 seconds
+      tableOverlayTimeoutRef.current = setTimeout(() => {
+        setTableOverlay(prev => prev?.type === 'balancing' ? null : prev);
+      }, 10000);
+    }, 2000);
 
     // Rafraîchir les données pour mettre à jour le plan de tables
     fetchData();
   }, []);
   useTournamentEvent(tournamentId, 'table:player_moved', handlePlayerMoved);
 
-  // Masquer l'overlay de rééquilibrage quand le timer reprend (fin de pause)
+  // Masquer l'overlay REASSIGN quand le timer reprend (fin de pause)
   useEffect(() => {
-    if (rebalanceOverlay && serverTimerData?.timerStartedAt && !serverTimerData?.timerPausedAt) {
-      setRebalanceOverlay(null);
+    if (tableOverlay?.type === 'reassign' && serverTimerData?.timerStartedAt && !serverTimerData?.timerPausedAt) {
+      setTableOverlay(null);
     }
-  }, [serverTimerData?.timerPausedAt, serverTimerData?.timerStartedAt, rebalanceOverlay]);
+  }, [serverTimerData?.timerPausedAt, serverTimerData?.timerStartedAt, tableOverlay]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -592,6 +674,12 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       }
       if (autoResumeIntervalRef.current) {
         clearInterval(autoResumeIntervalRef.current);
+      }
+      if (tableOverlayTimeoutRef.current) {
+        clearTimeout(tableOverlayTimeoutRef.current);
+      }
+      if (balancingDebounceRef.current) {
+        clearTimeout(balancingDebounceRef.current);
       }
     };
   }, []);
@@ -826,27 +914,6 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     }
   };
 
-  // Smart-rebalance : filet de sécurité pour corriger les déséquilibres détectés par le timer
-  const triggerSmartRebalance = async () => {
-    if (smartRebalancePendingRef.current) return;
-    smartRebalancePendingRef.current = true;
-
-    try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/tables/smart-rebalance`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!response.ok && response.status !== 401) {
-        smartRebalancePendingRef.current = false;
-      }
-      // Si succès, le flag reste true pour éviter de re-déclencher au prochain poll
-      // Il sera reset quand pendingTableImbalance redevient false
-    } catch {
-      smartRebalancePendingRef.current = false;
-    }
-  };
 
   const fetchData = async () => {
     try {
@@ -876,13 +943,6 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             triggerAutoRebalance(timerData.pendingRebalanceForLevel);
           }
 
-          // Filet de sécurité : détecter et corriger les déséquilibres de tables
-          if (timerData.pendingTableImbalance) {
-            triggerSmartRebalance();
-          } else {
-            // Reset le flag quand les tables sont équilibrées
-            smartRebalancePendingRef.current = false;
-          }
         }
 
         // Transform data to match ResultsData structure
@@ -1228,23 +1288,99 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
   return (
     <div className="min-h-screen text-white overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
-      {/* Overlay de déplacement de joueur après élimination */}
-      {playerMovedNotifications.length > 0 && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none">
-          {playerMovedNotifications.map((notif) => (
-            <div
-              key={notif.id}
-              className="px-6 py-3 rounded-xl shadow-2xl text-white text-center font-bold text-lg backdrop-blur-sm"
-              style={{
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.9), rgba(37, 99, 235, 0.95))',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                animation: 'slideDown 0.4s ease-out',
-              }}
-            >
-              <span className="mr-2">&#x1F504;</span>
-              {notif.playerName} → Table {notif.toTable}, Siège {notif.seatNumber}
+      {/* Table Overlay — BREAKING / BALANCING / REASSIGN */}
+      {tableOverlay?.type === 'breaking' && (
+        <div className="fixed inset-0 z-[9999] bg-black/90 flex flex-col items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
+          <div className="text-center mb-8">
+            <div className="text-8xl mb-4">&#x274C;</div>
+            <h2 className="text-4xl md:text-6xl font-black text-red-500 uppercase tracking-wider mb-6">
+              Table {tableOverlay.brokenTable} Fermée
+            </h2>
+            <div className="space-y-3 mb-8">
+              {tableOverlay.movements.map((m, idx) => (
+                <div key={idx} className="text-2xl md:text-4xl font-bold text-white">
+                  {m.playerName} <span className="text-amber-400">→</span> Table {m.toTable}, Siège {m.toSeat}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Plan des tables en dessous */}
+          {tableOverlay.tablesPlan && (
+            <div className="w-[94vw] max-h-[50vh] overflow-y-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {tableOverlay.tablesPlan.tables.map((table) => (
+                  <div
+                    key={table.tableNumber}
+                    className="rounded-2xl p-5 border-2"
+                    style={{
+                      backgroundColor: currentTheme.colors.backgroundLight,
+                      borderColor: currentTheme.colors.border,
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-3xl font-black" style={{ color: currentTheme.colors.primary }}>
+                        Table {table.tableNumber}
+                      </h3>
+                      <span className="text-xl text-white/60 font-bold">
+                        {table.activeCount} joueurs
+                      </span>
+                    </div>
+                    <div className="space-y-3">
+                      {table.seats.filter(seat => !seat.isEliminated).map((seat, idx) => {
+                        const isMoved = tableOverlay.movements.some(m => m.playerId === seat.playerId);
+                        return (
+                          <div
+                            key={seat.playerId}
+                            className={`flex items-center justify-between gap-4 py-3 px-4 rounded-xl ${
+                              isMoved ? 'ring-4 ring-yellow-400 scale-105' : ''
+                            }`}
+                            style={{
+                              backgroundColor: isMoved
+                                ? 'rgba(250, 204, 21, 0.25)'
+                                : 'rgba(255,255,255,0.08)',
+                            }}
+                          >
+                            <span className={`text-xl font-bold ${isMoved ? 'text-yellow-300' : 'text-white/50'}`}>
+                              S{seat.seatNumber ?? idx + 1}
+                            </span>
+                            <span className={`font-black text-2xl uppercase truncate ${isMoved ? 'text-yellow-300' : 'text-white'}`}>
+                              {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
+                            </span>
+                            {isMoved && (
+                              <span className="text-yellow-300 text-lg flex-shrink-0 font-bold">NEW</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tableOverlay?.type === 'balancing' && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none" style={{ animation: 'slideDown 0.4s ease-out' }}>
+          <div
+            className="bg-black/85 backdrop-blur-md rounded-3xl shadow-2xl border-4 border-blue-500 px-10 py-8 max-w-2xl w-full pointer-events-auto"
+          >
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-3">&#x2696;&#xFE0F;</div>
+              <h2 className="text-2xl md:text-4xl font-black text-blue-400 uppercase tracking-wider">
+                Équilibrage des Tables
+              </h2>
+            </div>
+            <div className="space-y-3">
+              {tableOverlay.moves.map((m, idx) => (
+                <div key={idx} className="text-xl md:text-3xl font-bold text-white text-center">
+                  {m.playerName} : Table {m.fromTable} <span className="text-blue-400">→</span> Table {m.toTable}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -2108,8 +2244,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         </div>
       )}
 
-      {/* Rebalance Overlay - Auto-shown during pause after level-end rebalance */}
-      {rebalanceOverlay && rebalanceOverlay.tablesPlan && (
+      {/* Reassign Overlay - Auto-shown during pause after level-end rebalance */}
+      {tableOverlay?.type === 'reassign' && tableOverlay.tablesPlan && (
         <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
           <div
             className="w-[94vw] h-[92vh] overflow-hidden rounded-3xl p-8 flex flex-col"
@@ -2122,7 +2258,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                 Nouveau Plan des Tables
               </h2>
               <button
-                onClick={() => setRebalanceOverlay(null)}
+                onClick={() => setTableOverlay(null)}
                 className="text-white/60 hover:text-white text-4xl font-bold w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
               >
                 x
@@ -2132,7 +2268,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             {/* Content - Scrollable */}
             <div className="flex-1 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                {rebalanceOverlay.tablesPlan.tables.map((table) => (
+                {tableOverlay.tablesPlan.tables.map((table) => (
                   <div
                     key={table.tableNumber}
                     className="rounded-2xl p-6 border-3"
@@ -2151,7 +2287,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                     </div>
                     <div className="space-y-4">
                       {table.seats.filter(seat => !seat.isEliminated).map((seat, idx) => {
-                        const isMoved = rebalanceOverlay.movedPlayerIds.includes(seat.playerId);
+                        const isMoved = tableOverlay.movedPlayerIds.includes(seat.playerId);
                         return (
                           <div
                             key={seat.playerId}
@@ -2185,9 +2321,9 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             {/* Footer */}
             <div className="mt-6 pt-4 border-t border-white/10 text-center flex-shrink-0">
               <div className="text-white/60 text-lg">
-                {rebalanceOverlay.tablesPlan.totalTables} tables
+                {tableOverlay.tablesPlan.totalTables} tables
                 {' \u2022 '}
-                {rebalanceOverlay.tablesPlan.totalActivePlayers} joueurs actifs
+                {tableOverlay.tablesPlan.totalActivePlayers} joueurs actifs
               </div>
               <div className="text-yellow-400 text-sm mt-2 font-medium">
                 Les joueurs en surbrillance ont changé de table - Cet affichage disparaîtra à la reprise du timer

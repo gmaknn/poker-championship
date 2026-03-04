@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
-import { Grid3x3, Shuffle, RefreshCw, Trash2, Users, QrCode, Printer, Shield, Crosshair } from 'lucide-react';
+import { Grid3x3, Shuffle, Trash2, Users, QrCode, Printer, Shield, Crosshair } from 'lucide-react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -71,14 +71,13 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerateDialogOpen, setIsGenerateDialogOpen] = useState(false);
   const [seatsPerTable, setSeatsPerTable] = useState(9);
-  const [minPlayersToBreakTable, setMinPlayersToBreakTable] = useState(3);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isRebalancing, setIsRebalancing] = useState(false);
-  const [isRebalanceDialogOpen, setIsRebalanceDialogOpen] = useState(false);
+  const [isRedistributing, setIsRedistributing] = useState(false);
   const [isQRDialogOpen, setIsQRDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const [togglingDirector, setTogglingDirector] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmRedistribute, setConfirmRedistribute] = useState(false);
 
   useEffect(() => {
     fetchTables();
@@ -91,7 +90,6 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
         const data = await response.json();
         setTablesData(data);
       } else {
-        // Pas encore de tables générées
         setTablesData(null);
       }
     } catch (error) {
@@ -102,7 +100,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
     }
   };
 
-  const handleGenerateTables = async (force = false) => {
+  const handleGenerateTables = async () => {
     setIsGenerating(true);
     setError('');
 
@@ -110,7 +108,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       const response = await fetch(`/api/tournaments/${tournamentId}/tables`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seatsPerTable, force }),
+        body: JSON.stringify({ seatsPerTable }),
       });
 
       if (response.ok) {
@@ -131,32 +129,32 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
     }
   };
 
-  const handleRebalanceTables = async () => {
-    setIsRebalancing(true);
+  const handleRedistribute = async () => {
+    setIsRedistributing(true);
     setError('');
 
     try {
-      const response = await fetch(`/api/tournaments/${tournamentId}/tables/rebalance`, {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ seatsPerTable, minPlayersToBreakTable }),
+        body: JSON.stringify({ seatsPerTable, force: true }),
       });
 
       if (response.ok) {
         const data = await response.json();
         setTablesData(data);
-        setIsRebalanceDialogOpen(false);
+        setConfirmRedistribute(false);
         onUpdate?.();
-        toast.info(`Rééquilibrage effectué : ${data.totalTables} table(s), ${data.movedPlayers} joueur(s) déplacé(s), ${data.brokenTables} table(s) cassée(s)`);
+        toast.success(`Redistribution effectuée : ${data.totalTables} table(s), ${data.totalPlayers} joueur(s)`);
       } else {
         const data = await response.json();
-        setError(data.error || 'Erreur lors du rééquilibrage');
+        setError(data.error || 'Erreur lors de la redistribution');
       }
     } catch (error) {
-      console.error('Error rebalancing tables:', error);
-      setError('Erreur lors du rééquilibrage');
+      console.error('Error redistributing tables:', error);
+      setError('Erreur lors de la redistribution');
     } finally {
-      setIsRebalancing(false);
+      setIsRedistributing(false);
     }
   };
 
@@ -219,7 +217,6 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   if (!tablesData || tablesData.tables.length === 0) {
     return (
       <div className="space-y-6">
-        {/* Bandeau lecture seule */}
         {readOnly && (
           <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
             <Grid3x3 className="h-5 w-5" />
@@ -271,13 +268,6 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                 <p className="text-sm text-muted-foreground">
                   Généralement 8-10 places pour le poker
                 </p>
-                {tablesData && tablesData.activePlayers > 0 && seatsPerTable > 0 && (
-                  <div className="mt-3 p-3 bg-muted rounded-md">
-                    <p className="text-sm font-medium">
-                      {tablesData.activePlayers} joueurs actifs ÷ {seatsPerTable} places par table = {Math.ceil(tablesData.activePlayers / seatsPerTable)} table{Math.ceil(tablesData.activePlayers / seatsPerTable) > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -288,7 +278,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
               >
                 Annuler
               </Button>
-              <Button onClick={() => handleGenerateTables()} disabled={isGenerating}>
+              <Button onClick={handleGenerateTables} disabled={isGenerating}>
                 {isGenerating ? 'Génération...' : 'Générer'}
               </Button>
             </DialogFooter>
@@ -301,7 +291,6 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   // Afficher les tables
   return (
     <div className="space-y-6 min-w-0">
-      {/* Bandeau lecture seule */}
       {readOnly && (
         <div className="bg-muted/50 text-muted-foreground px-4 py-3 rounded-lg border flex items-center gap-2">
           <Grid3x3 className="h-5 w-5" />
@@ -344,19 +333,11 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsRebalanceDialogOpen(true)}
-              disabled={isRebalancing}
-            >
-              <RefreshCw className="sm:mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Rééquilibrer</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsGenerateDialogOpen(true)}
+              onClick={() => setConfirmRedistribute(true)}
+              disabled={isRedistributing}
             >
               <Shuffle className="sm:mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Régénérer</span>
+              <span className="hidden sm:inline">Redistribuer les joueurs</span>
             </Button>
             <Button
               variant="ghost"
@@ -455,47 +436,6 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
         ))}
       </div>
 
-      {/* Dialog de régénération */}
-      <Dialog open={isGenerateDialogOpen} onOpenChange={setIsGenerateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Régénérer la distribution des tables</DialogTitle>
-            <DialogDescription>
-              Attention : cela va remplacer la distribution actuelle
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="rounded-md bg-destructive/15 p-3 text-sm text-destructive">
-              Les assignations actuelles ({tablesData.totalTables} table{tablesData.totalTables > 1 ? 's' : ''}, {tablesData.activePlayers} joueur{tablesData.activePlayers > 1 ? 's' : ''} actif{tablesData.activePlayers > 1 ? 's' : ''}) seront supprimées et remplacées par une nouvelle distribution aléatoire.
-              Les désignations de Directeurs de Table seront perdues.
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nombre de places par table</label>
-              <Input
-                type="number"
-                min={2}
-                max={10}
-                value={seatsPerTable}
-                onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsGenerateDialogOpen(false)}
-            >
-              Annuler
-            </Button>
-            <Button variant="destructive" onClick={() => handleGenerateTables(true)} disabled={isGenerating}>
-              {isGenerating ? 'Régénération...' : 'Confirmer la régénération'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* QR Codes dialog */}
       <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -577,67 +517,27 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
         </DialogContent>
       </Dialog>
 
-      {/* Rebalance dialog */}
-      <Dialog open={isRebalanceDialogOpen} onOpenChange={setIsRebalanceDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rééquilibrer les tables</DialogTitle>
-            <DialogDescription>
-              Configurez les paramètres de rééquilibrage des tables
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nombre de places par table</label>
-              <Input
-                type="number"
-                min={2}
-                max={10}
-                value={seatsPerTable}
-                onChange={(e) => setSeatsPerTable(parseInt(e.target.value) || 9)}
-              />
-              <p className="text-sm text-muted-foreground">
-                Nombre de joueurs maximum par table
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Seuil de casse de table</label>
-              <Input
-                type="number"
-                min={2}
-                max={seatsPerTable - 1}
-                value={minPlayersToBreakTable}
-                onChange={(e) => setMinPlayersToBreakTable(parseInt(e.target.value) || 3)}
-              />
-              <p className="text-sm text-muted-foreground">
-                Nombre minimum de joueurs en dessous duquel une table est cassée et les joueurs sont redistribués
-              </p>
-            </div>
-
-            {tablesData && (
-              <div className="mt-3 p-3 bg-muted rounded-md">
-                <p className="text-sm font-medium">
-                  Actuellement: {tablesData.activePlayers} joueurs actifs sur {tablesData.totalTables} table{tablesData.totalTables > 1 ? 's' : ''}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsRebalanceDialogOpen(false)}
+      {/* Confirm redistribute dialog */}
+      <AlertDialog open={confirmRedistribute} onOpenChange={setConfirmRedistribute}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Redistribuer tous les joueurs ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tous les joueurs actifs seront mélangés aléatoirement et redistribués sur les tables existantes.
+              Les désignations de Directeurs de Table seront perdues.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRedistribute}
+              disabled={isRedistributing}
             >
-              Annuler
-            </Button>
-            <Button onClick={handleRebalanceTables} disabled={isRebalancing}>
-              {isRebalancing ? 'Rééquilibrage...' : 'Rééquilibrer'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {isRedistributing ? 'Redistribution...' : 'Redistribuer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirm clear all dialog */}
       <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
