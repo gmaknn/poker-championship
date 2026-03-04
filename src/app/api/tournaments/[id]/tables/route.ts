@@ -273,6 +273,7 @@ export async function POST(
       tables,
       totalTables: tables.length,
       totalPlayers: enrichedAssignments.length,
+      activePlayers: enrichedAssignments.length,
       seatsPerTable: validatedData.seatsPerTable,
     });
   } catch (error) {
