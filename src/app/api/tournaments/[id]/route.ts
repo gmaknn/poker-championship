@@ -21,6 +21,7 @@ const updateTournamentSchema = z.object({
   actualDuration: z.number().int().optional(),
   completedAt: z.string().datetime().optional(),
   rebuyEndLevel: z.number().int().min(0).nullable().optional(), // Niveau de fin de periode de recave
+  tableBreakThreshold: z.number().int().min(1).max(10).optional(),
 });
 
 // GET single tournament

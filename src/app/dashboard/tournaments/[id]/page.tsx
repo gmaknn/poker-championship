@@ -4,7 +4,7 @@ import { useEffect, useState, use } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check, Smartphone } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check, Smartphone, Clock } from 'lucide-react';
 import type { PlayerRole } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,6 +42,7 @@ interface Tournament {
   totalPlayers?: number | null;
   status: TournamentStatus;
   levelDuration: number;
+  tableBreakThreshold: number;
   prizePool?: number | null;
   season: {
     id: string;
@@ -94,6 +95,7 @@ export default function TournamentDetailPage({
     targetDuration: 0,
     totalPlayers: 0,
     status: 'PLANNED' as TournamentStatus,
+    tableBreakThreshold: 3,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -157,6 +159,7 @@ export default function TournamentDetailPage({
       targetDuration: tournament.targetDuration,
       totalPlayers: tournament.totalPlayers || 0,
       status: tournament.status,
+      tableBreakThreshold: tournament.tableBreakThreshold ?? 3,
     });
     setIsEditDialogOpen(true);
   };
@@ -301,6 +304,15 @@ export default function TournamentDetailPage({
             >
               <Tv className="mr-1 md:mr-2 h-4 w-4" />
               <span className="hidden sm:inline">Vue </span>TV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-[44px] px-3 md:h-10 md:px-4"
+              onClick={() => handleTabChange('timer')}
+            >
+              <Clock className="mr-1 md:mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">Timer</span>
             </Button>
             <Button
               variant="outline"
@@ -631,6 +643,23 @@ export default function TournamentDetailPage({
                     }
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-threshold">Seuil de casse de table (joueurs min.)</Label>
+                <Input
+                  id="edit-threshold"
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={editFormData.tableBreakThreshold}
+                  onChange={(e) =>
+                    setEditFormData({ ...editFormData, tableBreakThreshold: parseInt(e.target.value) || 3 })
+                  }
+                />
+                <p className="text-sm text-muted-foreground">
+                  Si une table a moins de ce nombre de joueurs, elle sera automatiquement cassée
+                </p>
               </div>
             </div>
 
