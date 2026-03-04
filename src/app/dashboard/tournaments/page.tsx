@@ -83,6 +83,7 @@ const DEFAULT_TOURNAMENT = {
   targetDuration: 180,
   totalPlayers: 20,
   status: 'PLANNED' as TournamentStatus,
+  tableBreakThreshold: 3,
 };
 
 const STATUS_CONFIG = {
@@ -336,6 +337,7 @@ export default function TournamentsPage() {
       targetDuration: tournament.targetDuration,
       totalPlayers: tournament.totalPlayers || 20,
       status: tournament.status,
+      tableBreakThreshold: (tournament as any).tableBreakThreshold ?? 3,
     });
     setIsDialogOpen(true);
   };
@@ -381,6 +383,7 @@ export default function TournamentsPage() {
         targetDuration: tournament.targetDuration,
         totalPlayers: tournament.totalPlayers || 20,
         status: 'PLANNED',
+        tableBreakThreshold: (tournament as any).tableBreakThreshold ?? 3,
       });
 
       // Stocker la structure de blinds et la config de jetons pour la création
@@ -645,6 +648,21 @@ export default function TournamentsPage() {
                         onChange={(e) => setFormData({ ...formData, totalPlayers: parseInt(e.target.value) })}
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="tableBreakThreshold">Seuil de casse de table (joueurs min.)</Label>
+                    <Input
+                      id="tableBreakThreshold"
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={formData.tableBreakThreshold}
+                      onChange={(e) => setFormData({ ...formData, tableBreakThreshold: parseInt(e.target.value) || 3 })}
+                    />
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Si une table a moins de ce nombre de joueurs, elle sera automatiquement cassée
+                    </p>
                   </div>
 
                   <div className="rounded-lg bg-muted p-4 space-y-2">

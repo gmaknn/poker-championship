@@ -15,6 +15,7 @@ const tournamentSchema = z.object({
   totalPlayers: z.number().int().min(2).optional(),
   status: z.enum(['PLANNED', 'REGISTRATION', 'IN_PROGRESS', 'FINISHED', 'CANCELLED']).default('PLANNED'),
   createdById: z.string().optional(), // ID du joueur créateur (Tournament Director ou Admin)
+  tableBreakThreshold: z.number().int().min(1).max(10).default(3),
 });
 
 // GET all tournaments
