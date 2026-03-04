@@ -534,12 +534,6 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
     // Si des joueurs ont été déplacés, charger le plan de tables pour l'overlay
     if (data.movedPlayerIds && data.movedPlayerIds.length > 0) {
-      // Clear any existing overlay timeout
-      if (tableOverlayTimeoutRef.current) {
-        clearTimeout(tableOverlayTimeoutRef.current);
-        tableOverlayTimeoutRef.current = null;
-      }
-
       try {
         const response = await fetch(`/api/tournaments/${tournamentId}/tables-plan`, {
           credentials: 'include',
@@ -587,18 +581,12 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       console.error('Error fetching tables plan for broken table overlay:', error);
     }
 
-    // Clear any existing overlay timeout
-    if (tableOverlayTimeoutRef.current) {
-      clearTimeout(tableOverlayTimeoutRef.current);
-    }
-
     setTableOverlay({
       type: 'breaking',
       brokenTable: data.brokenTable,
       movements: data.movements,
       tablesPlan: planData,
     });
-    // No auto-dismiss — stays visible during pause, dismissed on timer resume
   }, [tournamentId]);
   useTournamentEvent(tournamentId, 'tables:broken', handleTablesBroken);
 
@@ -655,12 +643,44 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   }, []);
   useTournamentEvent(tournamentId, 'table:player_moved', handlePlayerMoved);
 
-  // Masquer l'overlay BREAKING/REASSIGN quand le timer reprend (fin de pause)
+  // Auto-dismiss BREAKING overlay after 30 seconds (timer continues underneath)
   useEffect(() => {
-    if ((tableOverlay?.type === 'reassign' || tableOverlay?.type === 'breaking') && serverTimerData?.timerStartedAt && !serverTimerData?.timerPausedAt) {
+    if (tableOverlay?.type === 'breaking') {
+      tableOverlayTimeoutRef.current = setTimeout(() => {
+        setTableOverlay(prev => prev?.type === 'breaking' ? null : prev);
+      }, 30000);
+      return () => {
+        if (tableOverlayTimeoutRef.current) {
+          clearTimeout(tableOverlayTimeoutRef.current);
+          tableOverlayTimeoutRef.current = null;
+        }
+      };
+    }
+  }, [tableOverlay?.type === 'breaking']);
+
+  // Auto-dismiss REASSIGN overlay when the next level starts (level change)
+  const reassignShownAtLevelRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (tableOverlay?.type === 'reassign') {
+      // Record which level was active when overlay appeared
+      reassignShownAtLevelRef.current = resultsData?.tournament.currentLevel ?? null;
+    } else {
+      reassignShownAtLevelRef.current = null;
+    }
+  }, [tableOverlay?.type]);
+
+  useEffect(() => {
+    if (
+      tableOverlay?.type === 'reassign' &&
+      reassignShownAtLevelRef.current !== null &&
+      resultsData?.tournament.currentLevel !== undefined &&
+      resultsData.tournament.currentLevel !== reassignShownAtLevelRef.current
+    ) {
+      // Level changed → pause is over, dismiss overlay
       setTableOverlay(null);
     }
-  }, [serverTimerData?.timerPausedAt, serverTimerData?.timerStartedAt, tableOverlay]);
+  }, [resultsData?.tournament.currentLevel, tableOverlay?.type]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -1292,11 +1312,17 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             style={{ backgroundColor: currentTheme.colors.backgroundDark }}
           >
             {/* Header */}
-            <div className="text-center mb-6 flex-shrink-0">
-              <h2 className="text-4xl md:text-6xl font-black text-red-500 uppercase tracking-wider flex items-center justify-center gap-4">
+            <div className="flex items-center justify-between mb-6 flex-shrink-0">
+              <h2 className="text-4xl md:text-6xl font-black text-red-500 uppercase tracking-wider flex items-center gap-4">
                 <span className="text-5xl md:text-7xl">&#x274C;</span>
                 Table {tableOverlay.brokenTable} Fermée
               </h2>
+              <button
+                onClick={() => setTableOverlay(null)}
+                className="text-white/60 hover:text-white text-4xl font-bold w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
+              >
+                x
+              </button>
             </div>
 
             {/* Plan complet des tables en colonnes */}
