@@ -100,10 +100,10 @@ describe('/api/tournaments', () => {
         const { status } = await parseJsonResponse(response);
 
         expect(status).toBe(200);
-        // Vérifie que findMany a été appelé sans filtre createdById
+        // Vérifie que findMany a été appelé avec le filtre isTestGenerated
         expect(mockPrisma.tournament.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: {},
+            where: { isTestGenerated: false },
           })
         );
       });
@@ -138,7 +138,7 @@ describe('/api/tournaments', () => {
         // Le filtre createdById n'est appliqué que si explicitement demandé via query param
         expect(mockPrisma.tournament.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: {},
+            where: { isTestGenerated: false },
           })
         );
       });
@@ -157,7 +157,7 @@ describe('/api/tournaments', () => {
         // La restriction createdById ne s'applique qu'aux actions d'édition/suppression
         expect(mockPrisma.tournament.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
-            where: {},
+            where: { isTestGenerated: false },
           })
         );
       });
