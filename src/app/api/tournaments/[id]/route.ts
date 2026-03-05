@@ -23,6 +23,8 @@ const updateTournamentSchema = z.object({
   rebuyEndLevel: z.coerce.number().int().min(0).nullable().optional(), // Niveau de fin de periode de recave
   tableBreakThreshold: z.coerce.number().int().min(1).max(10).optional(),
   isTestTemplate: z.boolean().optional(),
+  bustsAutoEliminatedAtLevel: z.coerce.number().int().nullable().optional(),
+  timerElapsedSeconds: z.coerce.number().int().min(0).optional(),
 });
 
 // GET single tournament
