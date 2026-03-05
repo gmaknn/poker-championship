@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
           status: 'PLANNED',
           isTestGenerated: true,
           seasonId: template.seasonId,
-          createdById: currentPlayer.id,
+          createdById: template.createdById,
           buyInAmount: template.buyInAmount,
           startingChips: template.startingChips,
           targetDuration: template.targetDuration,
