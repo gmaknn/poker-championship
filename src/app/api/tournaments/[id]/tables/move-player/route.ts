@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
+import { emitToTournament } from '@/lib/socket';
 
 const movePlayerSchema = z.object({
   playerId: z.string().cuid(),
@@ -69,6 +70,13 @@ export async function POST(
       );
     }
 
+    // Charger le nom du joueur pour l'event Socket.IO
+    const player = await prisma.player.findUnique({
+      where: { id: playerId },
+      select: { firstName: true, lastName: true, nickname: true },
+    });
+    const playerName = player?.nickname || `${player?.firstName} ${player?.lastName}`;
+
     // Transaction : désactiver l'ancienne assignation, créer la nouvelle
     await prisma.$transaction(async (tx) => {
       await tx.tableAssignment.update({
@@ -87,8 +95,18 @@ export async function POST(
       });
     });
 
+    // Émettre l'événement Socket.IO
+    emitToTournament(tournamentId, 'tables:player-moved-manual', {
+      tournamentId,
+      playerId,
+      playerName,
+      fromTable: currentAssignment.tableNumber,
+      toTable,
+      seatNumber: toSeat,
+    });
+
     console.log(
-      `🔀 [move-player] ${playerId}: Table ${currentAssignment.tableNumber} Seat ${currentAssignment.seatNumber} → Table ${toTable} Seat ${toSeat}`
+      `🔀 [move-player] ${playerName}: Table ${currentAssignment.tableNumber} Seat ${currentAssignment.seatNumber} → Table ${toTable} Seat ${toSeat}`
     );
 
     return NextResponse.json({
