@@ -55,3 +55,4 @@ test-results/
 /public/avatars/*.png
 /public/avatars/*.webp
 !/public/avatars/.gitkeep
+nul

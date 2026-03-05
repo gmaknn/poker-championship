@@ -3,7 +3,6 @@ import { prisma } from '@/lib/prisma';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { emitToTournament } from '@/lib/socket';
 import { calculateEffectiveLevel, areRecavesOpen } from '@/lib/tournament-utils';
-import { breakTable, balanceTables } from '@/lib/table-management';
 
 /**
  * POST - Auto-élimination des joueurs bustés sans recave à la fin de la période de recave.
@@ -242,19 +241,6 @@ export async function POST(
           winnerId: winner.playerId,
           winnerName: winner.player.nickname,
         });
-      }
-    } else if (remainingPlayers > 1) {
-      // Breaking/balancing après les éliminations
-      try {
-        const breakResult = await breakTable(tournamentId);
-        if (!breakResult.broken) {
-          // Pas de breaking possible, mais les tables sont peut-être déséquilibrées
-          // Le balancing se fait normalement après chaque élimination individuelle
-          // Ici on fait un seul check après toutes les éliminations
-          console.log(`💀 [auto-eliminate] Checking table balance after ${eliminations.length} eliminations`);
-        }
-      } catch (err) {
-        console.error('💀 [auto-eliminate] Error during post-elimination table management:', err);
       }
     }
 
