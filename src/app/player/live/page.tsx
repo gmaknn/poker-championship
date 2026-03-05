@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Zap, ArrowLeft, Calendar, Users, Trophy, LogIn, ChevronRight, RefreshCw } from 'lucide-react';
+import { Zap, ArrowLeft, Calendar, Users, Trophy, LogIn, ChevronRight, RefreshCw, MapPin, X } from 'lucide-react';
+import { useTournamentEvent } from '@/contexts/SocketContext';
 
 interface Tournament {
   id: string;
@@ -19,6 +20,33 @@ interface Tournament {
   } | null;
 }
 
+interface BlindLevel {
+  level: number;
+  smallBlind: number;
+  bigBlind: number;
+  ante: number;
+  duration: number;
+  isBreak: boolean;
+}
+
+interface TimerData {
+  isRunning: boolean;
+  isPaused: boolean;
+  currentLevel: number;
+  currentLevelData: {
+    level: number;
+    smallBlind: number;
+    bigBlind: number;
+    ante: number;
+    duration: number;
+    isBreak?: boolean;
+  } | null;
+  secondsIntoCurrentLevel: number;
+  timerStartedAt: string | null;
+  timerPausedAt: string | null;
+  recavesOpen: boolean;
+}
+
 interface LeaderboardEntry {
   player: {
     id: string;
@@ -27,11 +55,25 @@ interface LeaderboardEntry {
   currentPoints: number;
   currentRank: number;
   eliminationsCount: number;
+  isEliminated: boolean;
+  finalRank: number | null;
+}
+
+interface TournamentStats {
+  totalPlayers: number;
+  remainingPlayers: number;
+  totalRebuys: number;
 }
 
 type AuthError = {
   type: 'unauthenticated' | 'inactive' | 'error';
   message: string;
+};
+
+const formatTime = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 };
 
 export default function PlayerLivePage() {
@@ -43,6 +85,94 @@ export default function PlayerLivePage() {
   const [isLoadingLeaderboard, setIsLoadingLeaderboard] = useState(false);
   const [authError, setAuthError] = useState<AuthError | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  // Timer state
+  const [timerData, setTimerData] = useState<TimerData | null>(null);
+  const timerFetchedAtRef = useRef<number>(0);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Blind levels (fetched once per tournament)
+  const [blindLevels, setBlindLevels] = useState<BlindLevel[]>([]);
+
+  // Player position
+  const [playerPosition, setPlayerPosition] = useState<{
+    tableNumber: number;
+    seatNumber: number;
+  } | null>(null);
+
+  // Table move notification
+  const [tableMoveAlert, setTableMoveAlert] = useState<{
+    toTable: number;
+    toSeat: number;
+  } | null>(null);
+
+  // Current player ID
+  const [currentPlayerId, setCurrentPlayerId] = useState<string | null>(null);
+
+  // Tournament stats
+  const [tournamentStats, setTournamentStats] = useState<TournamentStats | null>(null);
+
+  // Starting chips (from tournament detail or leaderboard)
+  const [startingChips, setStartingChips] = useState<number>(0);
+
+  // Read player-id cookie
+  useEffect(() => {
+    const match = document.cookie.match(/player-id=([^;]+)/);
+    if (match) setCurrentPlayerId(match[1]);
+  }, []);
+
+  // 1-second tick for countdown
+  useEffect(() => {
+    const interval = setInterval(() => setCurrentTime(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate time remaining
+  const remaining = useMemo(() => {
+    if (!timerData?.currentLevelData) return null;
+    const duration = timerData.currentLevelData.duration * 60;
+    let elapsed = timerData.secondsIntoCurrentLevel;
+    if (timerData.isRunning && !timerData.isPaused) {
+      elapsed += Math.floor((currentTime - timerFetchedAtRef.current) / 1000);
+    }
+    return Math.max(0, duration - elapsed);
+  }, [timerData, currentTime]);
+
+  // Progress percentage for the bar
+  const progressPct = useMemo(() => {
+    if (!timerData?.currentLevelData || remaining === null) return 0;
+    const duration = timerData.currentLevelData.duration * 60;
+    if (duration === 0) return 0;
+    return Math.min(100, ((duration - remaining) / duration) * 100);
+  }, [timerData, remaining]);
+
+  // Next level data
+  const nextLevelData = useMemo(() => {
+    if (!timerData || blindLevels.length === 0) return null;
+    return blindLevels.find((bl) => bl.level === timerData.currentLevel + 1) || null;
+  }, [timerData, blindLevels]);
+
+  // Average stack
+  const averageStack = useMemo(() => {
+    if (!tournamentStats || !startingChips || tournamentStats.remainingPlayers === 0) return null;
+    return Math.round(
+      (startingChips * (tournamentStats.totalPlayers + tournamentStats.totalRebuys)) /
+        tournamentStats.remainingPlayers
+    );
+  }, [tournamentStats, startingChips]);
+
+  // Number of tables
+  const tableCount = useMemo(() => {
+    if (!tournamentStats || tournamentStats.remainingPlayers === 0) return 0;
+    // Approximate — we'll get exact from tables API if available
+    return Math.ceil(tournamentStats.remainingPlayers / 9);
+  }, [tournamentStats]);
+
+  // Current player rank & elimination status
+  const currentPlayerEntry = useMemo(() => {
+    if (!currentPlayerId) return null;
+    return leaderboard.find((e) => e.player.id === currentPlayerId) || null;
+  }, [currentPlayerId, leaderboard]);
 
   const fetchActiveTournaments = useCallback(async () => {
     try {
@@ -66,10 +196,63 @@ export default function PlayerLivePage() {
     fetchActiveTournaments();
   }, [fetchActiveTournaments]);
 
+  // Fetch blind levels + starting chips once when tournament selected
+  const fetchTournamentDetails = useCallback(async (tournamentId: string) => {
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.blindLevels) {
+          setBlindLevels(data.blindLevels);
+        }
+        if (data.startingChips) {
+          setStartingChips(data.startingChips);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching tournament details:', error);
+    }
+  }, []);
+
+  // Fetch player position from tables API
+  const fetchPlayerPosition = useCallback(
+    async (tournamentId: string) => {
+      if (!currentPlayerId) return;
+      try {
+        const res = await fetch(`/api/tournaments/${tournamentId}/tables`);
+        if (res.ok) {
+          const data = await res.json();
+          for (const table of data.tables) {
+            const seat = table.players.find(
+              (p: { playerId: string; isEliminated: boolean }) =>
+                p.playerId === currentPlayerId && !p.isEliminated
+            );
+            if (seat) {
+              setPlayerPosition({
+                tableNumber: table.tableNumber,
+                seatNumber: seat.seatNumber,
+              });
+              return;
+            }
+          }
+          setPlayerPosition(null);
+        }
+      } catch (error) {
+        console.error('Error fetching player position:', error);
+      }
+    },
+    [currentPlayerId]
+  );
+
   const fetchLiveLeaderboard = async (tournament: Tournament) => {
     setSelectedTournament(tournament);
     setIsLoadingLeaderboard(true);
     setAuthError(null);
+    setTimerData(null);
+    setBlindLevels([]);
+    setPlayerPosition(null);
+    setTableMoveAlert(null);
+    setTournamentStats(null);
 
     try {
       const response = await fetch(`/api/tournaments/${tournament.id}/live-leaderboard`);
@@ -95,6 +278,16 @@ export default function PlayerLivePage() {
       if (response.ok) {
         const data = await response.json();
         setLeaderboard(data.leaderboard || []);
+        if (data.stats) {
+          setTournamentStats({
+            totalPlayers: data.stats.totalPlayers,
+            remainingPlayers: data.stats.remainingPlayers,
+            totalRebuys: data.stats.totalRebuys,
+          });
+        }
+        if (data.tournament?.startingChips) {
+          setStartingChips(data.tournament.startingChips);
+        }
       }
     } catch (error) {
       console.error('Error fetching live leaderboard:', error);
@@ -106,6 +299,12 @@ export default function PlayerLivePage() {
       setIsLoadingLeaderboard(false);
       setLastRefresh(new Date());
     }
+
+    // Fetch extra data for IN_PROGRESS tournaments
+    if (tournament.status === 'IN_PROGRESS') {
+      fetchTournamentDetails(tournament.id);
+      fetchPlayerPosition(tournament.id);
+    }
   };
 
   // Silent refresh for leaderboard (no loading spinner)
@@ -116,6 +315,13 @@ export default function PlayerLivePage() {
       if (response.ok) {
         const data = await response.json();
         setLeaderboard(data.leaderboard || []);
+        if (data.stats) {
+          setTournamentStats({
+            totalPlayers: data.stats.totalPlayers,
+            remainingPlayers: data.stats.remainingPlayers,
+            totalRebuys: data.stats.totalRebuys,
+          });
+        }
         setLastRefresh(new Date());
       }
     } catch (error) {
@@ -123,7 +329,27 @@ export default function PlayerLivePage() {
     }
   }, [selectedTournament]);
 
-  // Auto-refresh every 30s
+  // Timer polling (5 seconds) for IN_PROGRESS tournaments
+  useEffect(() => {
+    if (!selectedTournament || selectedTournament.status !== 'IN_PROGRESS') return;
+    const fetchTimer = async () => {
+      try {
+        const res = await fetch(`/api/tournaments/${selectedTournament.id}/timer`);
+        if (res.ok) {
+          const data = await res.json();
+          setTimerData(data);
+          timerFetchedAtRef.current = Date.now();
+        }
+      } catch (error) {
+        console.error('Error fetching timer:', error);
+      }
+    };
+    fetchTimer();
+    const interval = setInterval(fetchTimer, 5000);
+    return () => clearInterval(interval);
+  }, [selectedTournament]);
+
+  // Auto-refresh leaderboard every 30s
   useEffect(() => {
     const interval = setInterval(() => {
       if (selectedTournament) {
@@ -135,11 +361,69 @@ export default function PlayerLivePage() {
     return () => clearInterval(interval);
   }, [selectedTournament, silentRefreshLeaderboard, fetchActiveTournaments]);
 
+  // Socket: table broken
+  useTournamentEvent(selectedTournament?.id ?? null, 'tables:broken', useCallback((data: {
+    movements: Array<{ playerId: string; toTable: number; toSeat: number }>;
+  }) => {
+    if (!currentPlayerId) return;
+    const myMove = data.movements.find((m) => m.playerId === currentPlayerId);
+    if (myMove) {
+      setTableMoveAlert({ toTable: myMove.toTable, toSeat: myMove.toSeat });
+      setPlayerPosition({ tableNumber: myMove.toTable, seatNumber: myMove.toSeat });
+    }
+  }, [currentPlayerId]));
+
+  // Socket: player moved (rebalance)
+  useTournamentEvent(selectedTournament?.id ?? null, 'table:player_moved', useCallback((data: {
+    playerId: string; toTable: number; seatNumber: number;
+  }) => {
+    if (data.playerId === currentPlayerId) {
+      setTableMoveAlert({ toTable: data.toTable, toSeat: data.seatNumber });
+      setPlayerPosition({ tableNumber: data.toTable, seatNumber: data.seatNumber });
+    }
+  }, [currentPlayerId]));
+
+  // Socket: leaderboard updated
+  useTournamentEvent(selectedTournament?.id ?? null, 'leaderboard:updated', useCallback(() => {
+    silentRefreshLeaderboard();
+  }, [silentRefreshLeaderboard]));
+
+  // Socket: timer events — refetch timer state
+  const refetchTimer = useCallback(() => {
+    if (!selectedTournament) return;
+    fetch(`/api/tournaments/${selectedTournament.id}/timer`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data) {
+          setTimerData(data);
+          timerFetchedAtRef.current = Date.now();
+        }
+      })
+      .catch(() => {});
+  }, [selectedTournament]);
+
+  useTournamentEvent(selectedTournament?.id ?? null, 'timer:paused', useCallback(() => {
+    refetchTimer();
+  }, [refetchTimer]));
+
+  useTournamentEvent(selectedTournament?.id ?? null, 'timer:resumed', useCallback(() => {
+    refetchTimer();
+  }, [refetchTimer]));
+
+  useTournamentEvent(selectedTournament?.id ?? null, 'timer:level_change', useCallback(() => {
+    refetchTimer();
+  }, [refetchTimer]));
+
   const handleBack = () => {
     if (selectedTournament) {
       setSelectedTournament(null);
       setLeaderboard([]);
       setAuthError(null);
+      setTimerData(null);
+      setBlindLevels([]);
+      setPlayerPosition(null);
+      setTableMoveAlert(null);
+      setTournamentStats(null);
     } else {
       router.push('/player');
     }
@@ -188,8 +472,12 @@ export default function PlayerLivePage() {
     );
   }
 
-  // Leaderboard view
+  // Leaderboard view (enriched)
   if (selectedTournament) {
+    const isInProgress = selectedTournament.status === 'IN_PROGRESS';
+    const isBreak = timerData?.currentLevelData?.isBreak;
+    const isPaused = timerData?.isPaused && !isBreak;
+
     return (
       <div className="min-h-screen p-4 pb-20">
         <div className="max-w-2xl mx-auto space-y-4">
@@ -204,8 +492,8 @@ export default function PlayerLivePage() {
                 {selectedTournament.season?.name || 'Hors saison'}
               </p>
             </div>
-            <Badge variant={selectedTournament.status === 'IN_PROGRESS' ? 'default' : 'secondary'}>
-              {selectedTournament.status === 'IN_PROGRESS' ? (
+            <Badge variant={isInProgress ? 'default' : 'secondary'}>
+              {isInProgress ? (
                 <span className="flex items-center gap-1">
                   <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   En cours
@@ -215,6 +503,149 @@ export default function PlayerLivePage() {
               )}
             </Badge>
           </div>
+
+          {/* Timer + Blinds (only for IN_PROGRESS) */}
+          {isInProgress && (
+            <>
+              {/* Timer Card */}
+              <Card>
+                <CardContent className="pt-6 pb-4">
+                  {timerData?.currentLevelData ? (
+                    <div className="space-y-3">
+                      {/* Countdown */}
+                      <div className="text-center">
+                        <p className="text-5xl font-mono font-bold tracking-wider text-white">
+                          {remaining !== null ? formatTime(remaining) : '--:--'}
+                        </p>
+                        {isPaused && (
+                          <Badge className="mt-2 bg-red-500 text-white animate-pulse">
+                            EN PAUSE
+                          </Badge>
+                        )}
+                        {isBreak && (
+                          <Badge className="mt-2 bg-blue-500 text-white">
+                            PAUSE TOURNOI
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Progress bar */}
+                      <div className="h-2 w-full rounded-full bg-white/20 overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-1000"
+                          style={{ width: `${progressPct}%` }}
+                        />
+                      </div>
+
+                      {/* Blinds info */}
+                      {!isBreak ? (
+                        <div className="text-center space-y-1">
+                          <p className="text-base font-semibold">
+                            Niveau {timerData.currentLevel} — {timerData.currentLevelData.smallBlind}/{timerData.currentLevelData.bigBlind}
+                            {timerData.currentLevelData.ante > 0 && (
+                              <span className="text-muted-foreground"> (ante {timerData.currentLevelData.ante})</span>
+                            )}
+                          </p>
+                          {nextLevelData && (
+                            <p className="text-sm text-muted-foreground">
+                              {nextLevelData.isBreak ? (
+                                'Prochain : Pause tournoi'
+                              ) : (
+                                <>
+                                  Prochain : {nextLevelData.smallBlind}/{nextLevelData.bigBlind}
+                                  {nextLevelData.ante > 0 && ` (ante ${nextLevelData.ante})`}
+                                </>
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <p className="text-base font-semibold text-blue-400">
+                            Pause tournoi
+                          </p>
+                          {nextLevelData && !nextLevelData.isBreak && (
+                            <p className="text-sm text-muted-foreground">
+                              Prochain : Niveau {nextLevelData.level} — {nextLevelData.smallBlind}/{nextLevelData.bigBlind}
+                              {nextLevelData.ante > 0 && ` (ante ${nextLevelData.ante})`}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Skeleton loading for timer */
+                    <div className="space-y-3 animate-pulse">
+                      <div className="text-center">
+                        <div className="h-12 w-32 bg-white/10 rounded mx-auto" />
+                      </div>
+                      <div className="h-2 w-full rounded-full bg-white/10" />
+                      <div className="h-5 w-48 bg-white/10 rounded mx-auto" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Stats bar */}
+              {tournamentStats && (
+                <div className="flex items-center justify-around text-sm px-2">
+                  <span className="flex items-center gap-1">
+                    <Users className="h-4 w-4" />
+                    {tournamentStats.remainingPlayers}/{tournamentStats.totalPlayers}
+                  </span>
+                  {averageStack !== null && (
+                    <span>
+                      Moy: {averageStack.toLocaleString('fr-FR')}
+                    </span>
+                  )}
+                  {tableCount > 0 && (
+                    <span>
+                      {tableCount}T
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Player position card */}
+              {currentPlayerId && currentPlayerEntry && (
+                <Card className="border-primary/50 bg-primary/5">
+                  <CardContent className="pt-4 pb-4">
+                    {currentPlayerEntry.isEliminated ? (
+                      <div className="flex items-center gap-3">
+                        <Trophy className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-semibold">
+                            Éliminé — Rang #{currentPlayerEntry.finalRank || currentPlayerEntry.currentRank}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {currentPlayerEntry.currentPoints} pts
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-3">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        <div className="flex-1">
+                          {playerPosition ? (
+                            <p className="font-semibold">
+                              Table {playerPosition.tableNumber} — Siège {playerPosition.seatNumber}
+                            </p>
+                          ) : (
+                            <p className="font-semibold text-muted-foreground">
+                              Position en chargement...
+                            </p>
+                          )}
+                          <p className="text-sm text-muted-foreground">
+                            Rang #{currentPlayerEntry.currentRank} ({currentPlayerEntry.currentPoints} pts)
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
 
           {/* Leaderboard */}
           <Card>
@@ -249,43 +680,80 @@ export default function PlayerLivePage() {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {leaderboard.slice(0, 20).map((entry) => (
-                    <div
-                      key={entry.player.id}
-                      className="flex items-center gap-3 p-3"
-                    >
-                      {/* Rank */}
-                      <div className="w-8 text-center">
-                        {entry.currentRank <= 3 ? (
-                          <Trophy className={`h-5 w-5 mx-auto ${
-                            entry.currentRank === 1 ? 'text-yellow-500' :
-                            entry.currentRank === 2 ? 'text-gray-400' : 'text-amber-600'
-                          }`} />
-                        ) : (
-                          <span className="font-mono text-muted-foreground">{entry.currentRank}</span>
-                        )}
-                      </div>
+                  {leaderboard.slice(0, 20).map((entry) => {
+                    const isCurrentPlayer = entry.player.id === currentPlayerId;
+                    return (
+                      <div
+                        key={entry.player.id}
+                        className={`flex items-center gap-3 p-3 ${isCurrentPlayer ? 'bg-primary/10' : ''}`}
+                      >
+                        {/* Rank */}
+                        <div className="w-8 text-center">
+                          {entry.currentRank <= 3 ? (
+                            <Trophy className={`h-5 w-5 mx-auto ${
+                              entry.currentRank === 1 ? 'text-yellow-500' :
+                              entry.currentRank === 2 ? 'text-gray-400' : 'text-amber-600'
+                            }`} />
+                          ) : (
+                            <span className="font-mono text-muted-foreground">{entry.currentRank}</span>
+                          )}
+                        </div>
 
-                      {/* Player Info */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{entry.player.nickname}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {entry.eliminationsCount} elimination{entry.eliminationsCount !== 1 ? 's' : ''}
-                        </p>
-                      </div>
+                        {/* Player Info */}
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-medium truncate ${isCurrentPlayer ? 'text-primary' : ''}`}>
+                            {entry.player.nickname}
+                            {isCurrentPlayer && ' (vous)'}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {entry.eliminationsCount} elimination{entry.eliminationsCount !== 1 ? 's' : ''}
+                          </p>
+                        </div>
 
-                      {/* Points */}
-                      <div className="text-right">
-                        <p className="font-bold text-lg">{entry.currentPoints}</p>
-                        <p className="text-sm text-muted-foreground">pts</p>
+                        {/* Points */}
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{entry.currentPoints}</p>
+                          <p className="text-sm text-muted-foreground">pts</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
         </div>
+
+        {/* Table move notification */}
+        {tableMoveAlert && (
+          <div className="fixed bottom-24 inset-x-4 z-50 bg-amber-500 text-black rounded-2xl p-6 shadow-2xl max-w-2xl mx-auto">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <p className="font-bold text-lg">CHANGEMENT DE TABLE !</p>
+                <p className="mt-1">
+                  Rendez-vous Table {tableMoveAlert.toTable} — Siège {tableMoveAlert.toSeat}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-black hover:bg-amber-600 shrink-0"
+                onClick={() => setTableMoveAlert(null)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <Button
+                variant="outline"
+                className="bg-black/10 border-black/20 text-black hover:bg-black/20"
+                onClick={() => setTableMoveAlert(null)}
+              >
+                OK, compris
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
