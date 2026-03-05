@@ -164,6 +164,7 @@ export async function POST(
             rank: currentRank,
             level: effectiveLevel,
             isLeaderKill: false,
+            isAutoElimination: true,
           },
         });
 

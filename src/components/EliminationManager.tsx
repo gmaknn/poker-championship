@@ -47,6 +47,7 @@ type Elimination = {
   rank: number;
   level: number;
   isLeaderKill: boolean;
+  isAutoElimination?: boolean;
   createdAt: string;
   eliminated: Player;
   eliminator: Player;
@@ -1170,11 +1171,20 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      Éliminé par{' '}
-                      <span className="font-medium">
-                        {elim.eliminator.nickname}
-                      </span>{' '}
-                      au niveau {elim.level}
+                      {elim.isAutoElimination ? (
+                        <>
+                          <span className="font-medium">Auto — fin de recave</span>
+                          {' '}au niveau {elim.level}
+                        </>
+                      ) : (
+                        <>
+                          Éliminé par{' '}
+                          <span className="font-medium">
+                            {elim.eliminator.nickname}
+                          </span>{' '}
+                          au niveau {elim.level}
+                        </>
+                      )}
                       {elim.isLeaderKill && (
                         <Badge variant="default" className="ml-2">
                           Leader Kill

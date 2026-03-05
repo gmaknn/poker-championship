@@ -286,6 +286,7 @@ model Elimination {
   rank            Int         // Position de sortie du joueur éliminé
   level           Int         // Niveau auquel l'élimination a eu lieu
   isLeaderKill    Boolean     @default(false)
+  isAutoElimination Boolean   @default(false) // Éliminé automatiquement (fin de recave)
 
   createdAt       DateTime    @default(now())
 

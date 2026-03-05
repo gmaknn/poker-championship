@@ -417,9 +417,23 @@ export async function reassignAllPlayers(tournamentId: string): Promise<Reassign
     return { totalMoves: 0, movedPlayerIds: [], tablesCount: 0 };
   }
 
-  // Tables existantes (on les conserve)
-  const existingTables = new Set(activeAssignments.map((a) => a.tableNumber));
-  const tableNumbers = Array.from(existingTables).sort((a, b) => a - b);
+  // Tables existantes : TOUTES les tables du tournoi (y compris celles vidées par auto-élimination)
+  // On ne doit JAMAIS réduire le nombre de tables — la casse est le job de breakTable()
+  const allAssignments = await prisma.tableAssignment.findMany({
+    where: { tournamentId },
+    select: { tableNumber: true, isActive: true },
+  });
+  const allTables = new Set(allAssignments.map((a) => a.tableNumber));
+  // Utiliser toutes les tables connues, pas seulement celles avec joueurs actifs
+  // (une table vide après auto-élim reste une table valide pour la redistribution)
+  const tableNumbers = Array.from(allTables).sort((a, b) => a - b);
+
+  // Vérifier que les joueurs tiennent dans les tables (sécurité)
+  const totalCapacity = tableNumbers.length * seatsPerTable;
+  if (activeAssignments.length > totalCapacity) {
+    console.error(`🔀 [reassignAllPlayers] ${activeAssignments.length} players > ${totalCapacity} capacity — aborting`);
+    return { totalMoves: 0, movedPlayerIds: [], tablesCount: tableNumbers.length };
+  }
 
   // Charger les noms
   const players = await prisma.player.findMany({
