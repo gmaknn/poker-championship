@@ -167,6 +167,10 @@ model Tournament {
   updatedAt             DateTime            @updatedAt
   finishedAt            DateTime?
 
+  // Test workflow
+  isTestTemplate        Boolean             @default(false)  // Tournoi modèle pour génération test
+  isTestGenerated       Boolean             @default(false)  // Tournoi test généré (caché de la liste)
+
   // Leader du classement saison au démarrage du tournoi (pour bonus Leader Killer)
   // Figé au moment du démarrage, null si premier tournoi de la saison
   seasonLeaderAtStartId String?

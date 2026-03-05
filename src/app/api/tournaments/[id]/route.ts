@@ -22,6 +22,7 @@ const updateTournamentSchema = z.object({
   completedAt: z.string().datetime().optional(),
   rebuyEndLevel: z.coerce.number().int().min(0).nullable().optional(), // Niveau de fin de periode de recave
   tableBreakThreshold: z.coerce.number().int().min(1).max(10).optional(),
+  isTestTemplate: z.boolean().optional(),
 });
 
 // GET single tournament
@@ -187,6 +188,14 @@ export async function PATCH(
           { status: 400 }
         );
       }
+    }
+
+    // If setting as test template, unset all other templates first
+    if (validatedData.isTestTemplate === true) {
+      await prisma.tournament.updateMany({
+        where: { isTestTemplate: true, id: { not: id } },
+        data: { isTestTemplate: false },
+      });
     }
 
     // If changing season, verify it exists
