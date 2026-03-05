@@ -4,8 +4,37 @@ import { isAdminMultiRole } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 
 /**
+ * GET /api/admin/purge-test-tournaments
+ * Retourne le nombre de tournois test générés (pour le badge)
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const currentPlayer = await getCurrentPlayer(request);
+
+    if (!currentPlayer) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    const isAdmin = isAdminMultiRole(currentPlayer.role, currentPlayer.additionalRoles);
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    }
+
+    const count = await prisma.tournament.count({
+      where: { isTestGenerated: true },
+    });
+
+    return NextResponse.json({ count });
+  } catch (error) {
+    console.error('Error counting test tournaments:', error);
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+  }
+}
+
+/**
  * DELETE /api/admin/purge-test-tournaments
- * Supprime tous les tournois dont le nom contient "TEST"
+ * Supprime tous les tournois avec isTestGenerated === true
+ * NE touche PAS aux tournois isTestTemplate ni aux tournois normaux
  * Sécurité : Admin uniquement
  */
 export async function DELETE(request: NextRequest) {
@@ -27,10 +56,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Trouver tous les tournois avec "TEST" dans le nom
+    // Trouver tous les tournois test générés (pas les templates)
     const testTournaments = await prisma.tournament.findMany({
       where: {
-        name: { contains: 'TEST' },
+        isTestGenerated: true,
       },
       select: { id: true, name: true },
     });

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy, FlaskConical, UserPlus } from 'lucide-react';
+import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy, FlaskConical, UserPlus, Star, TestTube } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,7 @@ interface Tournament {
   targetDuration: number;
   totalPlayers?: number | null;
   status: TournamentStatus;
+  isTestTemplate?: boolean;
   season: {
     id: string;
     name: string;
@@ -119,11 +120,14 @@ export default function TournamentsPage() {
   const [cloneSourceId, setCloneSourceId] = useState<string | null>(null);
   const [cloneWithPlayers, setCloneWithPlayers] = useState(false);
   const [cloneSourcePlayerCount, setCloneSourcePlayerCount] = useState(0);
+  const [testTournamentsCount, setTestTournamentsCount] = useState(0);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     fetchTournaments();
     fetchSeasons();
     loadCurrentUser();
+    fetchTestCount();
   }, [session]);
 
   const loadCurrentUser = async () => {
@@ -474,9 +478,17 @@ export default function TournamentsPage() {
     }
   };
 
-  const testTournamentsCount = tournaments.filter(
-    (t) => t.name && t.name.toUpperCase().includes('TEST')
-  ).length;
+  const fetchTestCount = async () => {
+    try {
+      const res = await fetch('/api/admin/purge-test-tournaments');
+      if (res.ok) {
+        const data = await res.json();
+        setTestTournamentsCount(data.count);
+      }
+    } catch {
+      // Silently fail for non-admins
+    }
+  };
 
   const handlePurgeTest = async () => {
     setPurging(true);
@@ -488,7 +500,8 @@ export default function TournamentsPage() {
       if (response.ok) {
         const data = await response.json();
         await fetchTournaments();
-        toast.success(`${data.deleted} tournoi(s) de test supprime(s)`);
+        await fetchTestCount();
+        toast.success(`${data.deleted} tournoi(s) de test supprimé(s)`);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Erreur lors de la purge');
@@ -499,6 +512,51 @@ export default function TournamentsPage() {
     } finally {
       setPurging(false);
       setPurgeTestConfirm(false);
+    }
+  };
+
+  const handleGenerateTest = async () => {
+    setGenerating(true);
+    try {
+      const response = await fetch('/api/admin/generate-test-tournament', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Tournoi test généré avec ${data.playerCount} joueurs`);
+        await fetchTestCount();
+        router.push(`/dashboard/tournaments/${data.id}`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erreur lors de la génération');
+      }
+    } catch (error) {
+      console.error('Error generating test tournament:', error);
+      toast.error('Erreur lors de la génération');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleSetTemplate = async (tournament: Tournament) => {
+    try {
+      const response = await fetch(`/api/tournaments/${tournament.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isTestTemplate: true }),
+      });
+
+      if (response.ok) {
+        await fetchTournaments();
+        toast.success(`"${tournament.name}" défini comme template test`);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Erreur');
+      }
+    } catch (error) {
+      console.error('Error setting template:', error);
+      toast.error('Erreur');
     }
   };
 
@@ -535,13 +593,23 @@ export default function TournamentsPage() {
                 <List className="h-4 w-4" />
               </ToggleGroupItem>
             </ToggleGroup>
+            {canCreateTournament() && (
+              <Button
+                variant="outline"
+                onClick={handleGenerateTest}
+                disabled={generating}
+              >
+                <TestTube className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">{generating ? 'Génération...' : 'Générer test'}</span>
+              </Button>
+            )}
             {currentUserRole === 'ADMIN' && testTournamentsCount > 0 && (
               <Button
                 variant="destructive"
                 onClick={() => setPurgeTestConfirm(true)}
               >
                 <FlaskConical className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Purger TEST ({testTournamentsCount})</span>
+                <span className="hidden sm:inline">Purger Test ({testTournamentsCount})</span>
                 <span className="sm:hidden">{testTournamentsCount}</span>
               </Button>
             )}
@@ -807,7 +875,15 @@ export default function TournamentsPage() {
               <div className="space-y-4">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
-                    <h3 className="font-semibold">{tournament.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{tournament.name}</h3>
+                      {tournament.isTestTemplate && (
+                        <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-500">
+                          <Star className="h-3 w-3 mr-1 fill-yellow-500" />
+                          TEMPLATE
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {tournament.season?.name} ({tournament.season?.year})
                     </p>
@@ -943,6 +1019,16 @@ export default function TournamentsPage() {
                       <Copy className="h-3 w-3" />
                     </Button>
                   )}
+                  {canEditTournament(tournament) && !tournament.isTestTemplate && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleSetTemplate(tournament)}
+                      title="Définir comme template test"
+                    >
+                      <Star className="h-3 w-3" />
+                    </Button>
+                  )}
                   {canEditTournament(tournament) && (
                     <Button
                       variant="outline"
@@ -997,6 +1083,12 @@ export default function TournamentsPage() {
                     <div className="flex flex-col gap-1 sm:min-w-[180px]">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold text-lg">{tournament.name}</h3>
+                        {tournament.isTestTemplate && (
+                          <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-500">
+                            <Star className="h-3 w-3 mr-1 fill-yellow-500" />
+                            TEMPLATE
+                          </Badge>
+                        )}
                         <Badge variant={statusConfig.variant} className="text-xs">
                           {statusConfig.label}
                         </Badge>
@@ -1132,6 +1224,17 @@ export default function TournamentsPage() {
                         <Copy className="h-4 w-4 sm:h-3 sm:w-3" />
                       </Button>
                     )}
+                    {canEditTournament(tournament) && !tournament.isTestTemplate && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0"
+                        onClick={() => handleSetTemplate(tournament)}
+                        title="Définir comme template test"
+                      >
+                        <Star className="h-4 w-4 sm:h-3 sm:w-3" />
+                      </Button>
+                    )}
                     {canEditTournament(tournament) && (
                       <Button
                         variant="outline"
@@ -1202,9 +1305,10 @@ export default function TournamentsPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Purger les tournois de test ?</AlertDialogTitle>
             <AlertDialogDescription>
-              {testTournamentsCount} tournoi(s) contenant &quot;TEST&quot; dans le nom seront
-              supprimes avec toutes leurs donnees associees (joueurs inscrits,
-              eliminations, blinds, etc.). Cette action est irreversible.
+              {testTournamentsCount} tournoi(s) test généré(s) seront
+              supprimés avec toutes leurs données associées (joueurs inscrits,
+              éliminations, blinds, etc.). Les tournois templates ne seront pas affectés.
+              Cette action est irréversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
