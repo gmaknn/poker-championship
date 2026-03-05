@@ -361,25 +361,16 @@ export default function PlayerLivePage() {
     return () => clearInterval(interval);
   }, [selectedTournament, silentRefreshLeaderboard, fetchActiveTournaments]);
 
-  // Socket: table broken
-  useTournamentEvent(selectedTournament?.id ?? null, 'tables:broken', useCallback((data: {
-    movements: Array<{ playerId: string; toTable: number; toSeat: number }>;
+  // Socket: tables merged
+  useTournamentEvent(selectedTournament?.id ?? null, 'tables:merged', useCallback((data: {
+    closedTable: number;
+    movements: Array<{ playerId: string; playerName: string; toTable: number; toSeat: number }>;
   }) => {
     if (!currentPlayerId) return;
     const myMove = data.movements.find((m) => m.playerId === currentPlayerId);
     if (myMove) {
       setTableMoveAlert({ toTable: myMove.toTable, toSeat: myMove.toSeat });
       setPlayerPosition({ tableNumber: myMove.toTable, seatNumber: myMove.toSeat });
-    }
-  }, [currentPlayerId]));
-
-  // Socket: player moved (rebalance)
-  useTournamentEvent(selectedTournament?.id ?? null, 'table:player_moved', useCallback((data: {
-    playerId: string; toTable: number; seatNumber: number;
-  }) => {
-    if (data.playerId === currentPlayerId) {
-      setTableMoveAlert({ toTable: data.toTable, toSeat: data.seatNumber });
-      setPlayerPosition({ tableNumber: data.toTable, seatNumber: data.seatNumber });
     }
   }, [currentPlayerId]));
 

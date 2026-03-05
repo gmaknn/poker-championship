@@ -6,7 +6,6 @@ import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
 import { pauseTimerForTournament, scheduleAutoResume } from '@/lib/timer-actions';
-import { breakTable, balanceTables } from '@/lib/table-management';
 
 // Type for detailed points configuration
 interface DetailedPointsConfig {
@@ -128,60 +127,6 @@ const eliminationSchema = z.object({
   eliminatorId: z.string().cuid(),
 });
 
-/**
- * Gestion des tables après une élimination :
- * 1. Désactive l'assignation du joueur éliminé
- * 2. Vérifie si un BREAKING est possible (casse de table)
- * 3. Sinon, vérifie si un BALANCING est nécessaire (équilibrage)
- */
-async function handleTablesAfterElimination(
-  tournamentId: string,
-  eliminatedPlayerId: string
-): Promise<void> {
-  console.log(`🎯 [tables] Triggered after elimination of player ${eliminatedPlayerId} in tournament ${tournamentId}`);
-
-  // Récupérer l'assignation de l'éliminé (avant qu'elle soit désactivée)
-  const eliminatedAssignment = await prisma.tableAssignment.findFirst({
-    where: {
-      tournamentId,
-      playerId: eliminatedPlayerId,
-      isActive: true,
-    },
-  });
-
-  if (!eliminatedAssignment) {
-    console.log(`🎯 [tables] No active table assignment found for eliminated player — skipping`);
-    return;
-  }
-
-  console.log(`🎯 [tables] Eliminated player was at Table ${eliminatedAssignment.tableNumber}, Seat ${eliminatedAssignment.seatNumber}`);
-
-  // Désactiver l'assignation de l'éliminé
-  await prisma.tableAssignment.update({
-    where: { id: eliminatedAssignment.id },
-    data: { isActive: false },
-  });
-
-  // Mécanisme 1 — BREAKING : vérifier si on peut casser une table
-  const breakResult = await breakTable(tournamentId);
-  if (breakResult.broken) {
-    console.log(`🎯 [tables] Table ${breakResult.brokenTable} broken — done`);
-    return; // STOP après breaking
-  }
-
-  // Mécanisme 2 — BALANCING : équilibrer si écart ≥ 2
-  console.log(`🎯 [tables] No breaking possible, checking balancing...`);
-  const moves = await balanceTables(
-    tournamentId,
-    eliminatedAssignment.seatNumber,
-    eliminatedAssignment.tableNumber
-  );
-  if (moves.length > 0) {
-    console.log(`🎯 [tables] ${moves.length} balancing move(s) completed`);
-  } else {
-    console.log(`🎯 [tables] Tables already balanced, no moves needed`);
-  }
-}
 
 // GET - Récupérer toutes les éliminations du tournoi
 export async function GET(
@@ -479,17 +424,16 @@ export async function POST(
       },
     });
 
-    // Rééquilibrage automatique des tables après élimination
-    console.log(`🔄 [elimination] ${activePlayersCount} active players remaining, checking table rebalance...`);
-    if (activePlayersCount > 1) {
-      try {
-        await handleTablesAfterElimination(tournamentId, validatedData.eliminatedId);
-      } catch (rebalanceError) {
-        console.error('🔄 [elimination] Error during post-elimination rebalance:', rebalanceError);
-        // Ne pas bloquer la réponse d'élimination en cas d'erreur de rééquilibrage
-      }
-    } else {
-      console.log(`🔄 [elimination] Skipping rebalance — tournament ending (${activePlayersCount} player left)`);
+    // Désactiver l'assignation de table du joueur éliminé
+    if (activePlayersCount >= 1) {
+      await prisma.tableAssignment.updateMany({
+        where: {
+          tournamentId,
+          playerId: validatedData.eliminatedId,
+          isActive: true,
+        },
+        data: { isActive: false },
+      });
     }
 
     let tournamentCompleted = false;

@@ -367,9 +367,9 @@ fi
 echo ""
 
 # =============================================================================
-# STEP 9: Balancing — eliminate players, verify gap ≤ 1
+# STEP 9: Tables after elimination — verify tables still exist (no auto-balancing)
 # =============================================================================
-bold "⚖️  Test Balancing"
+bold "📊 Test Tables après élimination"
 
 # Eliminate another player from table 1
 if [ -n "$PLAYER_G" ]; then
@@ -384,27 +384,25 @@ if [ -n "$PLAYER_G" ]; then
   sleep 2
 fi
 
-# Check table balance
+# Check tables still exist after eliminations (no auto-balancing/breaking)
 api_get "$BASE_URL/api/tournaments/$TOURNAMENT_ID/tables"
 
 if [ "$RESP_STATUS" = "200" ]; then
-  BALANCE=$(j "
+  TABLE_CHECK=$(j "
     const tables = (d.tables||[]).filter(t=>t.activePlayers>0);
     const sizes = tables.map(t=>t.activePlayers);
-    const gap = Math.max(...sizes) - Math.min(...sizes);
-    return gap+'|'+sizes.join('-')+'|'+tables.length
+    return tables.length+'|'+sizes.join('-')
   ")
-  GAP=$(echo "$BALANCE" | cut -d'|' -f1)
-  SIZES=$(echo "$BALANCE" | cut -d'|' -f2)
-  NUM_TABLES=$(echo "$BALANCE" | cut -d'|' -f3)
+  NUM_TABLES=$(echo "$TABLE_CHECK" | cut -d'|' -f1)
+  SIZES=$(echo "$TABLE_CHECK" | cut -d'|' -f2)
 
-  if [ "$GAP" -le 1 ] 2>/dev/null; then
-    pass "Balancing OK (écart ≤ 1, tables: $SIZES)"
+  if [ "$NUM_TABLES" -ge 1 ] 2>/dev/null; then
+    pass "Tables OK après éliminations ($NUM_TABLES tables: $SIZES)"
   else
-    fail "Balancing" "Écart=$GAP (tables: $SIZES)"
+    fail "Tables après élimination" "Aucune table trouvée"
   fi
 else
-  fail "GET tables pour balancing" "HTTP $RESP_STATUS"
+  fail "GET tables après élimination" "HTTP $RESP_STATUS"
 fi
 
 echo ""

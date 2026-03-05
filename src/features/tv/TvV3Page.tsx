@@ -214,15 +214,12 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const [tablesPlanData, setTablesPlanData] = useState<TablesPlanResponse | null>(null);
   const [tablesPlanError, setTablesPlanError] = useState<string | null>(null);
 
-  // Unified table overlay state (breaking, balancing, reassign)
+  // Unified table overlay state (merged, reassign)
   type TableOverlay = {
-    type: 'breaking';
-    brokenTable: number;
+    type: 'merged';
+    closedTable: number;
     movements: Array<{ playerId: string; playerName: string; toTable: number; toSeat: number }>;
     tablesPlan: TablesPlanResponse | null;
-  } | {
-    type: 'balancing';
-    moves: Array<{ playerName: string; fromTable: number; toTable: number; seatNumber: number }>;
   } | {
     type: 'reassign';
     tablesPlan: TablesPlanResponse | null;
@@ -230,9 +227,6 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   };
   const [tableOverlay, setTableOverlay] = useState<TableOverlay | null>(null);
   const tableOverlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const balancingMovesRef = useRef<Array<{ playerName: string; fromTable: number; toTable: number; seatNumber: number }>>([]);
-  const balancingDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const balancingSoundPlayedRef = useRef(false);
 
   // Chips Modal
   const [showChipsModal, setShowChipsModal] = useState(false);
@@ -553,11 +547,10 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   }, [tournamentId]);
   useTournamentEvent(tournamentId, 'tables:rebalanced', handleTablesRebalanced);
 
-  // Casse de table (breaking) — rafraîchir les données et montrer l'overlay BREAKING
-  const handleTablesBroken = useCallback(async (data: {
+  // Fusion de table (merged) — rafraîchir les données et montrer l'overlay MERGED
+  const handleTablesMerged = useCallback(async (data: {
     tournamentId: string;
-    brokenTable: number;
-    remainingTables: number;
+    closedTable: number;
     movements: Array<{
       playerId: string;
       playerName: string;
@@ -578,76 +571,23 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         planData = await response.json();
       }
     } catch (error) {
-      console.error('Error fetching tables plan for broken table overlay:', error);
+      console.error('Error fetching tables plan for merged table overlay:', error);
     }
 
     setTableOverlay({
-      type: 'breaking',
-      brokenTable: data.brokenTable,
+      type: 'merged',
+      closedTable: data.closedTable,
       movements: data.movements,
       tablesPlan: planData,
     });
   }, [tournamentId]);
-  useTournamentEvent(tournamentId, 'tables:broken', handleTablesBroken);
+  useTournamentEvent(tournamentId, 'tables:merged', handleTablesMerged);
 
-  // Notification de déplacement de joueur après élimination — overlay BALANCING
-  const handlePlayerMoved = useCallback((data: {
-    tournamentId: string;
-    playerId: string;
-    playerName: string;
-    fromTable: number;
-    toTable: number;
-    seatNumber: number;
-  }) => {
-    // Play warning sound only on the first movement of a batch
-    if (!balancingSoundPlayedRef.current) {
-      balancingSoundPlayedRef.current = true;
-      playAlertSound('warning');
-    }
-
-    // Accumulate moves
-    balancingMovesRef.current = [...balancingMovesRef.current, {
-      playerName: data.playerName,
-      fromTable: data.fromTable,
-      toTable: data.toTable,
-      seatNumber: data.seatNumber,
-    }];
-
-    // Debounce: wait 2 seconds after last movement before showing overlay
-    if (balancingDebounceRef.current) {
-      clearTimeout(balancingDebounceRef.current);
-    }
-    balancingDebounceRef.current = setTimeout(() => {
-      // Clear any existing overlay timeout
-      if (tableOverlayTimeoutRef.current) {
-        clearTimeout(tableOverlayTimeoutRef.current);
-      }
-
-      setTableOverlay({
-        type: 'balancing',
-        moves: [...balancingMovesRef.current],
-      });
-
-      // Reset accumulator
-      balancingMovesRef.current = [];
-      balancingSoundPlayedRef.current = false;
-
-      // Auto-dismiss after 10 seconds
-      tableOverlayTimeoutRef.current = setTimeout(() => {
-        setTableOverlay(prev => prev?.type === 'balancing' ? null : prev);
-      }, 10000);
-    }, 2000);
-
-    // Rafraîchir les données pour mettre à jour le plan de tables
-    fetchData();
-  }, []);
-  useTournamentEvent(tournamentId, 'table:player_moved', handlePlayerMoved);
-
-  // Auto-dismiss BREAKING overlay after 30 seconds (timer continues underneath)
+  // Auto-dismiss MERGED overlay after 30 seconds
   useEffect(() => {
-    if (tableOverlay?.type === 'breaking') {
+    if (tableOverlay?.type === 'merged') {
       tableOverlayTimeoutRef.current = setTimeout(() => {
-        setTableOverlay(prev => prev?.type === 'breaking' ? null : prev);
+        setTableOverlay(prev => prev?.type === 'merged' ? null : prev);
       }, 30000);
       return () => {
         if (tableOverlayTimeoutRef.current) {
@@ -656,7 +596,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         }
       };
     }
-  }, [tableOverlay?.type === 'breaking']);
+  }, [tableOverlay?.type === 'merged']);
 
   // Auto-dismiss REASSIGN overlay when the next level starts (level change)
   const reassignShownAtLevelRef = useRef<number | null>(null);
@@ -693,9 +633,6 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       }
       if (tableOverlayTimeoutRef.current) {
         clearTimeout(tableOverlayTimeoutRef.current);
-      }
-      if (balancingDebounceRef.current) {
-        clearTimeout(balancingDebounceRef.current);
       }
     };
   }, []);
@@ -1304,8 +1241,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
   return (
     <div className="min-h-screen text-white overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
-      {/* Table Overlay — BREAKING / BALANCING / REASSIGN */}
-      {tableOverlay?.type === 'breaking' && (
+      {/* Table Overlay — MERGED / REASSIGN */}
+      {tableOverlay?.type === 'merged' && (
         <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
           <div
             className="w-[94vw] h-[92vh] overflow-hidden rounded-3xl p-8 flex flex-col"
@@ -1315,7 +1252,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <h2 className="text-4xl md:text-6xl font-black text-red-500 uppercase tracking-wider flex items-center gap-4">
                 <span className="text-5xl md:text-7xl">&#x274C;</span>
-                Table {tableOverlay.brokenTable} Fermée
+                Table {tableOverlay.closedTable} Fermée
               </h2>
               <button
                 onClick={() => setTableOverlay(null)}
@@ -1387,30 +1324,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             {/* Footer */}
             <div className="mt-6 pt-4 border-t border-white/10 text-center flex-shrink-0">
               <div className="text-yellow-400 text-lg font-medium">
-                Les joueurs &#x2B50; viennent de la Table {tableOverlay.brokenTable}
+                Les joueurs &#x2B50; viennent de la Table {tableOverlay.closedTable}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {tableOverlay?.type === 'balancing' && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none" style={{ animation: 'slideDown 0.4s ease-out' }}>
-          <div
-            className="bg-black/85 backdrop-blur-md rounded-3xl shadow-2xl border-4 border-blue-500 px-10 py-8 max-w-2xl w-full pointer-events-auto"
-          >
-            <div className="text-center mb-6">
-              <div className="text-6xl mb-3">&#x2696;&#xFE0F;</div>
-              <h2 className="text-2xl md:text-4xl font-black text-blue-400 uppercase tracking-wider">
-                Équilibrage des Tables
-              </h2>
-            </div>
-            <div className="space-y-3">
-              {tableOverlay.moves.map((m, idx) => (
-                <div key={idx} className="text-xl md:text-3xl font-bold text-white text-center">
-                  {m.playerName} : Table {m.fromTable} <span className="text-blue-400">→</span> Table {m.toTable}
-                </div>
-              ))}
             </div>
           </div>
         </div>

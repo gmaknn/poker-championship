@@ -59,24 +59,15 @@ export interface TournamentEvents {
     tablesCount: number;
     movedPlayerIds?: string[];
   };
-  'tables:broken': {
+  'tables:merged': {
     tournamentId: string;
-    brokenTable: number;
-    remainingTables: number;
+    closedTable: number;
     movements: Array<{
       playerId: string;
       playerName: string;
       toTable: number;
       toSeat: number;
     }>;
-  };
-  'table:player_moved': {
-    tournamentId: string;
-    playerId: string;
-    playerName: string;
-    fromTable: number;
-    toTable: number;
-    seatNumber: number;
   };
 
   // Elimination events

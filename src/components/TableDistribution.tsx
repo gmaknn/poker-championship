@@ -23,8 +23,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Grid3x3, Shuffle, Trash2, Users, QrCode, Printer, Shield, Crosshair, Scissors } from 'lucide-react';
+import { Grid3x3, Shuffle, Trash2, Users, QrCode, Printer, Shield, Crosshair, Scissors, ArrowRightLeft, Merge } from 'lucide-react';
 import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -80,6 +87,21 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
   const [confirmRedistribute, setConfirmRedistribute] = useState(false);
   const [tableBreakThreshold, setTableBreakThreshold] = useState(3);
 
+  // Move player state
+  const [movePlayer, setMovePlayer] = useState<{
+    playerId: string;
+    playerName: string;
+    fromTable: number;
+  } | null>(null);
+  const [moveToTable, setMoveToTable] = useState<string>('');
+  const [moveToSeat, setMoveToSeat] = useState<string>('');
+  const [isMoving, setIsMoving] = useState(false);
+
+  // Merge table state
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [mergeTableToClose, setMergeTableToClose] = useState<string>('');
+  const [isMerging, setIsMerging] = useState(false);
+
   useEffect(() => {
     fetchTables();
     fetchThreshold();
@@ -91,6 +113,7 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
       if (response.ok) {
         const data = await response.json();
         setTableBreakThreshold(data.tableBreakThreshold ?? 3);
+        if (data.seatsPerTable) setSeatsPerTable(data.seatsPerTable);
       }
     } catch (error) {
       // silently ignore
@@ -236,6 +259,88 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
     }
   };
 
+  // Move player handler
+  const handleMovePlayer = async () => {
+    if (!movePlayer || !moveToTable || !moveToSeat) return;
+    setIsMoving(true);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/move-player`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId: movePlayer.playerId,
+          toTable: parseInt(moveToTable),
+          toSeat: parseInt(moveToSeat),
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`${movePlayer.playerName} déplacé vers Table ${moveToTable} Siège ${moveToSeat}`);
+        setMovePlayer(null);
+        setMoveToTable('');
+        setMoveToSeat('');
+        await fetchTables();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur lors du déplacement');
+      }
+    } catch (err) {
+      console.error('Error moving player:', err);
+      toast.error('Erreur réseau');
+    } finally {
+      setIsMoving(false);
+    }
+  };
+
+  // Merge table handler
+  const handleMergeTable = async () => {
+    if (!mergeTableToClose) return;
+    setIsMerging(true);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableToClose: parseInt(mergeTableToClose) }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Table ${mergeTableToClose} fermée, ${data.movements.length} joueur(s) redistribué(s)`);
+        setMergeDialogOpen(false);
+        setMergeTableToClose('');
+        await fetchTables();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur lors de la fusion');
+      }
+    } catch (err) {
+      console.error('Error merging tables:', err);
+      toast.error('Erreur réseau');
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  // Compute free seats for a given table (for move dialog)
+  const getFreeSeats = (targetTableNum: number): number[] => {
+    if (!tablesData) return [];
+    const table = tablesData.tables.find((t) => t.tableNumber === targetTableNum);
+    if (!table) return [];
+    const occupied = new Set(
+      table.players
+        .filter((p) => !p.isEliminated)
+        .map((p) => p.seatNumber)
+        .filter((s): s is number => s !== null)
+    );
+    const free: number[] = [];
+    for (let s = 1; s <= seatsPerTable; s++) {
+      if (!occupied.has(s)) free.push(s);
+    }
+    return free;
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -368,6 +473,16 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
         </div>
         {!readOnly && (
           <div className="flex items-center gap-2 flex-wrap">
+            {tablesData.tables.length >= 2 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setMergeDialogOpen(true)}
+              >
+                <Merge className="sm:mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">Fusionner</span>
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -455,22 +570,35 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
                             Éliminé
                           </Badge>
                         ) : !readOnly && (
-                          <button
-                            onClick={() => handleToggleDirector(
-                              assignment.tableNumber,
-                              assignment.playerId,
-                              !!assignment.isTableDirector
-                            )}
-                            disabled={togglingDirector === assignment.playerId}
-                            className={`p-1 rounded-md transition-colors ${
-                              assignment.isTableDirector
-                                ? 'text-amber-600 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-900'
-                                : 'text-muted-foreground hover:text-amber-600 hover:bg-muted'
-                            }`}
-                            title={assignment.isTableDirector ? 'Retirer DT' : 'Désigner DT'}
-                          >
-                            <Shield className="h-3.5 w-3.5" />
-                          </button>
+                          <>
+                            <button
+                              onClick={() => setMovePlayer({
+                                playerId: assignment.playerId,
+                                playerName: assignment.player?.nickname || 'Joueur',
+                                fromTable: assignment.tableNumber,
+                              })}
+                              className="p-1 rounded-md transition-colors text-muted-foreground hover:text-blue-600 hover:bg-muted"
+                              title="Déplacer"
+                            >
+                              <ArrowRightLeft className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleToggleDirector(
+                                assignment.tableNumber,
+                                assignment.playerId,
+                                !!assignment.isTableDirector
+                              )}
+                              disabled={togglingDirector === assignment.playerId}
+                              className={`p-1 rounded-md transition-colors ${
+                                assignment.isTableDirector
+                                  ? 'text-amber-600 bg-amber-100 dark:bg-amber-900/50 hover:bg-amber-200 dark:hover:bg-amber-900'
+                                  : 'text-muted-foreground hover:text-amber-600 hover:bg-muted'
+                              }`}
+                              title={assignment.isTableDirector ? 'Retirer DT' : 'Désigner DT'}
+                            >
+                              <Shield className="h-3.5 w-3.5" />
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -481,6 +609,113 @@ export default function TableDistribution({ tournamentId, onUpdate, readOnly = f
           </Card>
         ))}
       </div>
+
+      {/* Move player dialog */}
+      <Dialog open={!!movePlayer} onOpenChange={(open) => { if (!open) { setMovePlayer(null); setMoveToTable(''); setMoveToSeat(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Déplacer {movePlayer?.playerName}</DialogTitle>
+            <DialogDescription>
+              Actuellement Table {movePlayer?.fromTable}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Table destination</label>
+              <Select value={moveToTable} onValueChange={(v) => { setMoveToTable(v); setMoveToSeat(''); }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une table" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tablesData.tables
+                    .filter((t) => t.tableNumber !== movePlayer?.fromTable)
+                    .map((t) => (
+                      <SelectItem key={t.tableNumber} value={String(t.tableNumber)}>
+                        Table {t.tableNumber} ({t.activePlayers} joueurs)
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {moveToTable && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Siège</label>
+                <Select value={moveToSeat} onValueChange={setMoveToSeat}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un siège" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getFreeSeats(parseInt(moveToTable)).map((s) => (
+                      <SelectItem key={s} value={String(s)}>
+                        Siège {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMovePlayer(null); setMoveToTable(''); setMoveToSeat(''); }}>
+              Annuler
+            </Button>
+            <Button onClick={handleMovePlayer} disabled={isMoving || !moveToTable || !moveToSeat}>
+              {isMoving ? 'Déplacement...' : 'Déplacer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge table dialog */}
+      <Dialog open={mergeDialogOpen} onOpenChange={(open) => { if (!open) { setMergeDialogOpen(false); setMergeTableToClose(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fusionner une table</DialogTitle>
+            <DialogDescription>
+              Les joueurs de la table fermée seront redistribués vers les tables restantes.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Table à fermer</label>
+              <Select value={mergeTableToClose} onValueChange={setMergeTableToClose}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choisir une table" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tablesData.tables.map((t) => (
+                    <SelectItem key={t.tableNumber} value={String(t.tableNumber)}>
+                      Table {t.tableNumber} ({t.activePlayers} joueurs)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {mergeTableToClose && (
+              <div className="rounded-md bg-muted p-3 text-sm">
+                <p>
+                  {tablesData.tables.find((t) => t.tableNumber === parseInt(mergeTableToClose))?.activePlayers || 0} joueur(s)
+                  seront redistribués vers les {tablesData.tables.length - 1} table(s) restante(s).
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMergeDialogOpen(false); setMergeTableToClose(''); }}>
+              Annuler
+            </Button>
+            <Button onClick={handleMergeTable} disabled={isMerging || !mergeTableToClose}>
+              {isMerging ? 'Fusion...' : 'Fermer la table'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* QR Codes dialog */}
       <Dialog open={isQRDialogOpen} onOpenChange={setIsQRDialogOpen}>
