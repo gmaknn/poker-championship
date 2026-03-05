@@ -45,6 +45,7 @@ interface Tournament {
   totalPlayers?: number | null;
   status: TournamentStatus;
   isTestTemplate?: boolean;
+  isTestGenerated?: boolean;
   season: {
     id: string;
     name: string;
@@ -883,6 +884,12 @@ export default function TournamentsPage() {
                           TEMPLATE
                         </Badge>
                       )}
+                      {tournament.isTestGenerated && (
+                        <Badge variant="outline" className="text-xs border-purple-500 text-purple-500">
+                          <TestTube className="h-3 w-3 mr-1" />
+                          TEST
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {tournament.season?.name} ({tournament.season?.year})
@@ -1087,6 +1094,12 @@ export default function TournamentsPage() {
                           <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-500">
                             <Star className="h-3 w-3 mr-1 fill-yellow-500" />
                             TEMPLATE
+                          </Badge>
+                        )}
+                        {tournament.isTestGenerated && (
+                          <Badge variant="outline" className="text-xs border-purple-500 text-purple-500">
+                            <TestTube className="h-3 w-3 mr-1" />
+                            TEST
                           </Badge>
                         )}
                         <Badge variant={statusConfig.variant} className="text-xs">

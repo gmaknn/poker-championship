@@ -28,9 +28,7 @@ export async function GET(request: NextRequest) {
     const seasonId = searchParams.get('seasonId');
     const createdById = searchParams.get('createdById'); // Filter by creator
 
-    const where: any = {
-      isTestGenerated: false, // Always hide test-generated tournaments from list
-    };
+    const where: any = {};
     if (seasonId) where.seasonId = seasonId;
     if (createdById) where.createdById = createdById;
 
