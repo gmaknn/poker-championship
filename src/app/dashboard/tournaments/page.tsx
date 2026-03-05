@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy, FlaskConical } from 'lucide-react';
+import { Plus, Calendar, Users, Trophy, Edit2, Trash2, Eye, Grid3x3, List, Copy, FlaskConical, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 // Using native img for avatars to avoid next/image restrictions with external SVGs
@@ -115,6 +116,9 @@ export default function TournamentsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [purgeTestConfirm, setPurgeTestConfirm] = useState(false);
   const [purging, setPurging] = useState(false);
+  const [cloneSourceId, setCloneSourceId] = useState<string | null>(null);
+  const [cloneWithPlayers, setCloneWithPlayers] = useState(false);
+  const [cloneSourcePlayerCount, setCloneSourcePlayerCount] = useState(0);
 
   useEffect(() => {
     fetchTournaments();
@@ -309,6 +313,38 @@ export default function TournamentsPage() {
           }
         }
 
+        // Si c'est un clone avec joueurs, inscrire les joueurs du tournoi source
+        if (!editingTournament && cloneSourceId && cloneWithPlayers) {
+          try {
+            const playersResponse = await fetch(`/api/tournaments/${cloneSourceId}/players`);
+            if (playersResponse.ok) {
+              const sourcePlayers = await playersResponse.json();
+              const playerIds = (Array.isArray(sourcePlayers) ? sourcePlayers : [])
+                .map((tp: any) => tp.playerId)
+                .filter(Boolean);
+
+              if (playerIds.length > 0) {
+                const enrollResponse = await fetch(`/api/tournaments/${createdTournament.id}/players`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ playerIds }),
+                });
+
+                if (enrollResponse.ok) {
+                  toast.success(`${playerIds.length} joueur${playerIds.length > 1 ? 's' : ''} inscrit${playerIds.length > 1 ? 's' : ''}`);
+                } else {
+                  const error = await enrollResponse.json();
+                  console.error('Error enrolling players:', error);
+                  toast.error('Erreur lors de l\'inscription des joueurs');
+                }
+              }
+            }
+          } catch (enrollError) {
+            console.error('Error cloning players:', enrollError);
+            toast.error('Erreur lors de l\'inscription des joueurs');
+          }
+        }
+
         await fetchTournaments();
         setIsDialogOpen(false);
         resetForm();
@@ -386,6 +422,14 @@ export default function TournamentsPage() {
         tableBreakThreshold: (tournament as any).tableBreakThreshold ?? 3,
       });
 
+      // Récupérer les joueurs inscrits du tournoi source
+      const playersResponse = await fetch(`/api/tournaments/${tournament.id}/players`);
+      let sourcePlayerCount = 0;
+      if (playersResponse.ok) {
+        const players = await playersResponse.json();
+        sourcePlayerCount = Array.isArray(players) ? players.length : 0;
+      }
+
       // Stocker la structure de blinds et la config de jetons pour la création
       if (blindStructure) {
         setPendingBlindStructure(blindStructure);
@@ -393,6 +437,11 @@ export default function TournamentsPage() {
       if (chipConfig) {
         setPendingChipConfig(chipConfig);
       }
+
+      // Stocker les infos de clone pour l'option joueurs
+      setCloneSourceId(tournament.id);
+      setCloneSourcePlayerCount(sourcePlayerCount);
+      setCloneWithPlayers(sourcePlayerCount > 0);
 
       // Ouvrir le dialogue de création
       setEditingTournament(null);
@@ -457,6 +506,9 @@ export default function TournamentsPage() {
     setEditingTournament(null);
     setPendingBlindStructure(null);
     setPendingChipConfig(null);
+    setCloneSourceId(null);
+    setCloneWithPlayers(false);
+    setCloneSourcePlayerCount(0);
     setFormData({
       ...DEFAULT_TOURNAMENT,
       seasonId: seasons[0]?.id || '',
@@ -684,6 +736,28 @@ export default function TournamentsPage() {
                   </div>
                 </TabsContent>
               </Tabs>
+
+              {cloneSourceId && cloneSourcePlayerCount > 0 && (
+                <div className="flex items-start space-x-3 rounded-lg border p-4 bg-muted/50">
+                  <Checkbox
+                    id="cloneWithPlayers"
+                    checked={cloneWithPlayers}
+                    onCheckedChange={(checked) => setCloneWithPlayers(checked === true)}
+                  />
+                  <div className="grid gap-1 leading-none">
+                    <label
+                      htmlFor="cloneWithPlayers"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Inscrire les mêmes joueurs
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                      Les {cloneSourcePlayerCount} joueur{cloneSourcePlayerCount > 1 ? 's' : ''} du tournoi source seront automatiquement inscrit{cloneSourcePlayerCount > 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2">
                 <Button
