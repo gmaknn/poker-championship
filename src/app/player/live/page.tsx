@@ -374,6 +374,19 @@ export default function PlayerLivePage() {
     }
   }, [currentPlayerId]));
 
+  // Socket: player moved manually
+  useTournamentEvent(selectedTournament?.id ?? null, 'tables:player-moved-manual', useCallback((data: {
+    playerId: string;
+    toTable: number;
+    seatNumber: number;
+  }) => {
+    if (!currentPlayerId) return;
+    if (data.playerId === currentPlayerId) {
+      setTableMoveAlert({ toTable: data.toTable, toSeat: data.seatNumber });
+      setPlayerPosition({ tableNumber: data.toTable, seatNumber: data.seatNumber });
+    }
+  }, [currentPlayerId]));
+
   // Socket: leaderboard updated
   useTournamentEvent(selectedTournament?.id ?? null, 'leaderboard:updated', useCallback(() => {
     silentRefreshLeaderboard();

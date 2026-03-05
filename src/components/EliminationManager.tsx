@@ -17,6 +17,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp, LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -76,6 +83,7 @@ type Tournament = {
   rebuyEndLevel: number | null;
   lightRebuyEnabled: boolean;
   lightRebuyAmount: number;
+  buyInAmount: number;
   startingChips: number;
   maxRebuysPerPlayer: number | null;
   seasonLeaderAtStartId: string | null;
@@ -136,6 +144,9 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [postBustRecaveDialog, setPostBustRecaveDialog] = useState<{
     bustId: string;
     playerName: string;
+    killerName: string;
+    eliminatedId: string;
+    killerId: string | null;
   } | null>(null);
   // Ref pour détecter la transition recavesOpen true→false
   const prevRecavesOpenRef = useRef<boolean | null>(null);
@@ -338,7 +349,17 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
         // Proposer la recave si les recaves sont ouvertes
         if (recavesOpen && data.bustEvent?.id) {
-          setPostBustRecaveDialog({ bustId: data.bustEvent.id, playerName });
+          const killerPlayer = players.find(p => p.playerId === selectedEliminator);
+          const killerName = killerPlayer
+            ? (killerPlayer.player.nickname || `${killerPlayer.player.firstName} ${killerPlayer.player.lastName}`)
+            : 'Inconnu';
+          setPostBustRecaveDialog({
+            bustId: data.bustEvent.id,
+            playerName,
+            killerName,
+            eliminatedId: selectedEliminated,
+            killerId: selectedEliminator || null,
+          });
         }
       } else {
         const data = await response.json();
@@ -1231,23 +1252,26 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Post-bust recave dialog */}
-      <AlertDialog open={!!postBustRecaveDialog} onOpenChange={() => setPostBustRecaveDialog(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
+      {/* Post-bust recave dialog — 3 choix */}
+      <Dialog open={!!postBustRecaveDialog} onOpenChange={() => setPostBustRecaveDialog(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
               <div className="flex items-center gap-2">
-                <Coins className="h-5 w-5 text-amber-500" />
-                Recave pour {postBustRecaveDialog?.playerName} ?
+                <Skull className="h-5 w-5 text-red-500" />
+                Bust de {postBustRecaveDialog?.playerName}
+                {postBustRecaveDialog?.killerName && (
+                  <span className="text-muted-foreground font-normal text-sm">par {postBustRecaveDialog.killerName}</span>
+                )}
               </div>
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {postBustRecaveDialog?.playerName} a perdu son tapis. Souhaitez-vous appliquer une recave immédiatement ?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Non merci</AlertDialogCancel>
-            <AlertDialogAction
+            </DialogTitle>
+            <DialogDescription>
+              {postBustRecaveDialog?.playerName} a perdu son tapis. Que souhaitez-vous faire ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <Button
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
               onClick={() => {
                 if (postBustRecaveDialog?.bustId) {
                   handleBustRecave(postBustRecaveDialog.bustId);
@@ -1256,11 +1280,51 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               }}
             >
               <Coins className="mr-2 h-4 w-4" />
-              Appliquer la recave
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              Recave ({tournament?.buyInAmount ?? 10}€)
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setPostBustRecaveDialog(null)}
+            >
+              Pas maintenant
+            </Button>
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={async () => {
+                if (!postBustRecaveDialog) return;
+                const { eliminatedId, killerId, playerName } = postBustRecaveDialog;
+                setPostBustRecaveDialog(null);
+                try {
+                  const response = await fetch(`/api/tournaments/${tournamentId}/eliminations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      eliminatedId,
+                      eliminatorId: killerId || eliminatedId,
+                    }),
+                  });
+                  if (response.ok) {
+                    toast.success(`${playerName} éliminé définitivement`);
+                    await fetchData();
+                    onUpdate?.();
+                  } else {
+                    const data = await response.json();
+                    toast.error(data.error || 'Erreur lors de l\'élimination');
+                  }
+                } catch (err) {
+                  console.error('Error eliminating player from bust dialog:', err);
+                  toast.error('Erreur lors de l\'élimination');
+                }
+              }}
+            >
+              <Skull className="mr-2 h-4 w-4" />
+              Élimination définitive
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -224,6 +224,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     type: 'reassign';
     tablesPlan: TablesPlanResponse | null;
     movedPlayerIds: string[];
+  } | {
+    type: 'player-moved';
+    playerName: string;
+    toTable: number;
+    seatNumber: number;
   };
   const [tableOverlay, setTableOverlay] = useState<TableOverlay | null>(null);
   const tableOverlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -582,6 +587,32 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     });
   }, [tournamentId]);
   useTournamentEvent(tournamentId, 'tables:merged', handleTablesMerged);
+
+  // Déplacement manuel d'un joueur — overlay centré 10s
+  const handlePlayerMovedManual = useCallback((data: {
+    playerName: string;
+    fromTable: number;
+    toTable: number;
+    seatNumber: number;
+  }) => {
+    setTableOverlay({
+      type: 'player-moved',
+      playerName: data.playerName,
+      toTable: data.toTable,
+      seatNumber: data.seatNumber,
+    });
+  }, []);
+  useTournamentEvent(tournamentId, 'tables:player-moved-manual', handlePlayerMovedManual);
+
+  // Auto-dismiss player-moved overlay after 10 seconds
+  useEffect(() => {
+    if (tableOverlay?.type === 'player-moved') {
+      const timeout = setTimeout(() => {
+        setTableOverlay(prev => prev?.type === 'player-moved' ? null : prev);
+      }, 10000);
+      return () => clearTimeout(timeout);
+    }
+  }, [tableOverlay?.type === 'player-moved']);
 
   // Auto-dismiss MERGED overlay after 30 seconds
   useEffect(() => {
@@ -1241,6 +1272,26 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
   return (
     <div className="min-h-screen text-white overflow-hidden relative" style={{ backgroundColor: currentTheme.colors.background }}>
+      {/* Overlay — PLAYER MOVED MANUAL (centré, pas plein écran) */}
+      {tableOverlay?.type === 'player-moved' && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
+          <div
+            className="rounded-2xl border-2 border-blue-500 px-12 py-10 text-center shadow-2xl"
+            style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}
+          >
+            <h2 className="text-3xl md:text-5xl font-black text-blue-400 uppercase tracking-wider mb-6">
+              Changement de Table
+            </h2>
+            <p className="text-2xl md:text-4xl font-bold text-white mb-4">
+              {tableOverlay.playerName}
+            </p>
+            <p className="text-xl md:text-3xl text-blue-300 font-semibold">
+              → Table {tableOverlay.toTable}, Siège {tableOverlay.seatNumber}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Table Overlay — MERGED / REASSIGN */}
       {tableOverlay?.type === 'merged' && (
         <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
