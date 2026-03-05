@@ -95,6 +95,8 @@ export async function POST(request: NextRequest) {
             ante: bl.ante,
             duration: bl.duration,
             isBreak: bl.isBreak,
+            rebalanceTables: bl.rebalanceTables,
+            isRebuyEnd: bl.isRebuyEnd,
           })),
         });
       }
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
           data: playerIds.map((playerId) => ({
             tournamentId: newTournament.id,
             playerId,
+            hasPaid: true,
           })),
         });
 
