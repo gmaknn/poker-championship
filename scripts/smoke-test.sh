@@ -70,7 +70,8 @@ api_get() {
 
 api_post() {
   local url="$1"
-  local data="${2:-{}}"
+  local empty='{}'
+  local data="${2:-$empty}"
   local raw
   raw=$(curl -s -b "$COOKIE_FILE" -X POST -H "Content-Type: application/json" \
     -d "$data" -w '\n%{http_code}' --max-time 15 "$url" 2>/dev/null)
@@ -80,7 +81,8 @@ api_post() {
 
 api_patch() {
   local url="$1"
-  local data="${2:-{}}"
+  local empty='{}'
+  local data="${2:-$empty}"
   local raw
   raw=$(curl -s -b "$COOKIE_FILE" -X PATCH -H "Content-Type: application/json" \
     -d "$data" -w '\n%{http_code}' --max-time 15 "$url" 2>/dev/null)
@@ -313,9 +315,10 @@ echo ""
 # =============================================================================
 bold "🔄 Fermeture période de recave"
 
-api_patch "$BASE_URL/api/tournaments/$TOURNAMENT_ID" '{"rebuyEndLevel":0}'
+# Advance timer past rebuyEndLevel (level 3 * 720s = 2160s needed)
+api_patch "$BASE_URL/api/tournaments/$TOURNAMENT_ID" '{"timerElapsedSeconds":3600}'
 if [ "$RESP_STATUS" = "200" ]; then
-  dim "   rebuyEndLevel → 0 (recaves fermées)"
+  dim "   timerElapsedSeconds → 3600 (forcer recaves fermées)"
 else
   fail "Fermeture recaves" "HTTP $RESP_STATUS — $RESP_BODY"
 fi
@@ -411,12 +414,13 @@ echo ""
 # =============================================================================
 bold "💀 Test Auto-élimination bustés sans recave"
 
-# Re-open rebuys to bust players
-api_patch "$BASE_URL/api/tournaments/$TOURNAMENT_ID" '{"rebuyEndLevel":99}'
-dim "   rebuyEndLevel → 99 (recaves ouvertes)"
+# Strategy: reset timer to level 1 (rebuys open since rebuyEndLevel=3),
+# bust players, then advance timer past level 3 to close rebuys, then auto-eliminate.
+api_patch "$BASE_URL/api/tournaments/$TOURNAMENT_ID" '{"timerElapsedSeconds":0,"rebuyEndLevel":3}'
+dim "   Timer reset + rebuyEndLevel → 3 (recaves ouvertes)"
 
-# Reset the idempotence flag so auto-eliminate will run again
-api_patch "$BASE_URL/api/tournaments/$TOURNAMENT_ID" '{"bustsAutoEliminatedAtLevel":0}'
+# Reset idempotence flag
+api_patch "$BASE_URL/api/tournaments/$TOURNAMENT_ID" '{"bustsAutoEliminatedAtLevel":null}'
 
 # Get fresh active players
 sleep 1
@@ -435,7 +439,7 @@ BUST_P1=$(echo "$FRESH_PLAYERS" | sed -n '1p')
 BUST_P2=$(echo "$FRESH_PLAYERS" | sed -n '2p')
 BUST_KILLER=$(echo "$FRESH_PLAYERS" | sed -n '3p')
 
-# Register 2 busts (during rebuy period)
+# Register 2 busts (during rebuy period, level 1 ≤ rebuyEndLevel 3)
 api_post "$BASE_URL/api/tournaments/$TOURNAMENT_ID/busts" \
   "{\"eliminatedId\":\"$BUST_P1\",\"killerId\":\"$BUST_KILLER\"}"
 if [ "$RESP_STATUS" = "201" ]; then
@@ -452,9 +456,10 @@ else
   dim "   Bust 2: HTTP $RESP_STATUS — $RESP_BODY"
 fi
 
-# Close rebuys at level 1 (current level)
-api_patch "$BASE_URL/api/tournaments/$TOURNAMENT_ID" '{"rebuyEndLevel":1}'
-dim "   rebuyEndLevel → 1 (recaves fermées)"
+# Advance timer past rebuyEndLevel by boosting timerElapsedSeconds
+# (each level is 12 min = 720s, need to be past level 3 = 3*720 = 2160s)
+api_patch "$BASE_URL/api/tournaments/$TOURNAMENT_ID" '{"timerElapsedSeconds":3600}'
+dim "   timerElapsedSeconds → 3600 (forcer niveau > 3, recaves fermées)"
 
 # Trigger auto-elimination
 api_post "$BASE_URL/api/tournaments/$TOURNAMENT_ID/auto-eliminate-busts"
