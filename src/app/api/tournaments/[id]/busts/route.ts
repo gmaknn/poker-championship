@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
-import { areRecavesOpen, calculateEffectiveLevel } from '@/lib/tournament-utils';
+import { areRecavesOpen, calculateEffectiveLevel, isBreakAfterRebuyEnd } from '@/lib/tournament-utils';
 // Note: pas d'auto-pause du timer pour un bust (ce n'est pas une élimination définitive)
 
 const bustSchema = z.object({
@@ -121,8 +121,14 @@ export async function POST(
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
 
     // Les busts ne sont autorisés que pendant la période de recaves
-    // (inclut la pause suivant "Fin recaves" pour permettre les recaves light)
-    if (!areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
+    // Accepter aussi pendant la pause "fin de recave" (voluntary rebuy period)
+    const recavesOpen = areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels);
+    const voluntaryRebuyPeriod = isBreakAfterRebuyEnd(
+      tournament.rebuyEndLevel,
+      effectiveLevel,
+      tournament.blindLevels
+    );
+    if (!recavesOpen && !voluntaryRebuyPeriod) {
       return NextResponse.json(
         { error: 'Période de recaves terminée. Utilisez l\'élimination définitive.' },
         { status: 400 }
