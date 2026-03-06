@@ -126,6 +126,7 @@ const eliminationSchema = z.object({
   eliminatedId: z.string().cuid(),
   eliminatorId: z.string().cuid().optional(),
   isAbandonment: z.boolean().optional(),
+  forceDuringRecave: z.boolean().optional(),
 });
 
 
@@ -229,10 +230,11 @@ export async function POST(
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
 
     const isAbandonment = validatedData.isAbandonment === true;
+    const forceDuringRecave = validatedData.forceDuringRecave === true;
 
     // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
-    // SAUF pour les abandons qui sont possibles à tout moment
-    if (!isAbandonment && areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
+    // SAUF pour les abandons ou les éliminations forcées (bust sans recave)
+    if (!isAbandonment && !forceDuringRecave && areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
       // Diagnostic optionnel (activé via RECIPE_DIAGNOSTICS=1)
       const isDiag = process.env.RECIPE_DIAGNOSTICS === '1';
       if (isDiag) {
