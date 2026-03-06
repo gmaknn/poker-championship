@@ -32,6 +32,9 @@ jest.mock('@/lib/prisma', () => ({
       create: jest.fn(),
       findMany: jest.fn(),
     },
+    tableAssignment: {
+      updateMany: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
