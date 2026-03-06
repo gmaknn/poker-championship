@@ -733,8 +733,8 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
       });
     }
 
-    // Rebuy (during rebuy period — player still has chips)
-    if (canBust) {
+    // Rebuy volontaire (UNIQUEMENT pendant la pause fin de recave)
+    if (timer?.isVoluntaryRebuyPeriod) {
       actions.push({
         label: 'Rebuy',
         icon: <DollarSign className="h-4 w-4" />,
