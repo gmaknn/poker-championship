@@ -177,6 +177,9 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
   const eliminatedPlayers = players.filter((p) => p.finalRank !== null);
   const seatsPerTable = tournament.seatsPerTable ?? 9;
 
+  // Recave period includes voluntary rebuy pause (pause after rebuy end)
+  const canBust = !!(timer?.recavesOpen || timer?.isVoluntaryRebuyPeriod);
+
   // Pending busts (not recaved, not eliminated)
   const truePendingBusts = busts.filter((b) => {
     if (b.recaveApplied) return false;
@@ -672,7 +675,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
     if (player.finalRank !== null) return actions;
 
     // Bust (during rebuy period)
-    if (timer?.recavesOpen) {
+    if (canBust) {
       actions.push({
         label: 'Bust',
         icon: <Skull className="h-4 w-4" />,
@@ -689,7 +692,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
     }
 
     // Eliminate (after rebuy period)
-    if (!timer?.recavesOpen && activePlayers.length > 1) {
+    if (!canBust && activePlayers.length > 1) {
       actions.push({
         label: 'Éliminer',
         icon: <Target className="h-4 w-4" />,
@@ -796,8 +799,11 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
                 {timer?.isPaused && (
                   <Badge variant="secondary" className="text-xs">Pause</Badge>
                 )}
-                {timer?.recavesOpen && (
+                {timer?.recavesOpen && !timer?.isVoluntaryRebuyPeriod && (
                   <Badge className="text-xs bg-green-600 hover:bg-green-700">Recaves ouvertes</Badge>
+                )}
+                {timer?.isVoluntaryRebuyPeriod && (
+                  <Badge className="text-xs bg-amber-600 hover:bg-amber-700">Pause fin recave</Badge>
                 )}
               </div>
               {timer?.currentLevelData && (
@@ -919,24 +925,41 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
             </div>
           </div>
 
-          {/* Mobile action row */}
-          <div className="sm:hidden flex items-center justify-end gap-1 mt-1">
+          {/* Mobile action bar — touch-friendly 44px min buttons with labels */}
+          <div className="sm:hidden flex items-center justify-around mt-2 pt-2 border-t border-ink-foreground/20 gap-1">
             {lastAction && (
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={handleUndo} disabled={isSubmitting}>
-                <Undo2 className="h-3.5 w-3.5" />
-              </Button>
+              <button
+                className="flex flex-col items-center gap-0.5 min-w-[44px] min-h-[44px] justify-center rounded-md hover:bg-ink-foreground/10 px-2 py-1"
+                onClick={handleUndo}
+                disabled={isSubmitting}
+              >
+                <Undo2 className="h-5 w-5 text-ink-foreground/70" />
+                <span className="text-[10px] text-ink-foreground/60">Annuler</span>
+              </button>
             )}
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setLateRegOpen(true)}>
-              <UserPlus className="h-3.5 w-3.5" />
-            </Button>
+            <button
+              className="flex flex-col items-center gap-0.5 min-w-[44px] min-h-[44px] justify-center rounded-md hover:bg-ink-foreground/10 px-2 py-1"
+              onClick={() => setLateRegOpen(true)}
+            >
+              <UserPlus className="h-5 w-5 text-ink-foreground/70" />
+              <span className="text-[10px] text-ink-foreground/60">Inscrire</span>
+            </button>
             {tables.length >= 2 && (
-              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setMergeDialogOpen(true); setMergeTableToClose(''); }}>
-                <Merge className="h-3.5 w-3.5" />
-              </Button>
+              <button
+                className="flex flex-col items-center gap-0.5 min-w-[44px] min-h-[44px] justify-center rounded-md hover:bg-ink-foreground/10 px-2 py-1"
+                onClick={() => { setMergeDialogOpen(true); setMergeTableToClose(''); }}
+              >
+                <Merge className="h-5 w-5 text-ink-foreground/70" />
+                <span className="text-[10px] text-ink-foreground/60">Fusionner</span>
+              </button>
             )}
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setRebalanceConfirm(true)}>
-              <Shuffle className="h-3.5 w-3.5" />
-            </Button>
+            <button
+              className="flex flex-col items-center gap-0.5 min-w-[44px] min-h-[44px] justify-center rounded-md hover:bg-ink-foreground/10 px-2 py-1"
+              onClick={() => setRebalanceConfirm(true)}
+            >
+              <Shuffle className="h-5 w-5 text-ink-foreground/70" />
+              <span className="text-[10px] text-ink-foreground/60">Équilibrer</span>
+            </button>
           </div>
         </SectionCard>
       </div>
@@ -1059,7 +1082,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         <Button
           size="lg"
           className={`rounded-full h-14 min-w-14 shadow-lg ${
-            timer?.recavesOpen
+            canBust
               ? 'bg-red-600 hover:bg-red-700'
               : 'bg-orange-600 hover:bg-orange-700'
           } flex items-center gap-2 px-4`}
@@ -1071,7 +1094,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         >
           <Skull className="h-6 w-6" />
           <span className="text-sm font-semibold">
-            {timer?.recavesOpen ? 'Bust' : 'Élim'}
+            {canBust ? 'Bust' : 'Élim'}
           </span>
         </Button>
       </div>
@@ -1129,7 +1152,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {timer?.recavesOpen ? 'Enregistrer un bust' : 'Enregistrer une élimination'}
+              {canBust ? 'Enregistrer un bust' : 'Enregistrer une élimination'}
             </DialogTitle>
             <DialogDescription>
               Sélectionnez le joueur éliminé et le killer
@@ -1160,7 +1183,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">
-                {timer?.recavesOpen ? 'Tué par *' : 'Éliminé par *'}
+                {canBust ? 'Tué par *' : 'Éliminé par *'}
               </label>
               <select
                 className="w-full border rounded-md p-2 bg-background min-h-[44px]"
@@ -1176,7 +1199,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
             <Button variant="outline" onClick={() => setFabDialogOpen(false)}>
               Annuler
             </Button>
-            {timer?.recavesOpen ? (
+            {canBust ? (
               <Button
                 variant="destructive"
                 disabled={!fabEliminated || !fabKiller || isSubmitting}
