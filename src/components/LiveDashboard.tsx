@@ -95,6 +95,13 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
   const [fabEliminated, setFabEliminated] = useState('');
   const [fabKiller, setFabKiller] = useState('');
 
+  // Bust dialog (killer selector for inline bust action)
+  const [bustDialog, setBustDialog] = useState<{
+    eliminatedId: string;
+    playerName: string;
+  } | null>(null);
+  const [bustKiller, setBustKiller] = useState('');
+
   // Elimination dialog (killer selector)
   const [eliminationDialog, setEliminationDialog] = useState<{
     eliminatedId: string;
@@ -328,7 +335,13 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         label: 'Bust',
         icon: <Skull className="h-4 w-4" />,
         variant: 'destructive',
-        action: () => handleBust(player.playerId),
+        action: () => {
+          setBustDialog({
+            eliminatedId: player.playerId,
+            playerName: getPlayerName(player.player),
+          });
+          setBustKiller('');
+        },
         condition: true,
       });
     }
@@ -678,14 +691,14 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
             </div>
             <div>
               <label className="text-sm font-medium mb-1 block">
-                {timer?.recavesOpen ? 'Tué par' : 'Éliminé par *'}
+                {timer?.recavesOpen ? 'Tué par *' : 'Éliminé par *'}
               </label>
               <select
                 className="w-full border rounded-md p-2 bg-background min-h-[44px]"
                 value={fabKiller}
                 onChange={(e) => setFabKiller(e.target.value)}
               >
-                <option value="">{timer?.recavesOpen ? 'Inconnu' : 'Sélectionner...'}</option>
+                <option value="">Sélectionner...</option>
                 {activePlayers
                   .filter((p) => p.playerId !== fabEliminated)
                   .map((p) => (
@@ -703,8 +716,8 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
             {timer?.recavesOpen ? (
               <Button
                 variant="destructive"
-                disabled={!fabEliminated || isSubmitting}
-                onClick={() => handleBust(fabEliminated, fabKiller || undefined)}
+                disabled={!fabEliminated || !fabKiller || isSubmitting}
+                onClick={() => handleBust(fabEliminated, fabKiller)}
               >
                 {isSubmitting ? '...' : 'Bust'}
               </Button>
@@ -717,6 +730,53 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
                 {isSubmitting ? '...' : 'Éliminer'}
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bust killer selector dialog (inline bust action) */}
+      <Dialog
+        open={!!bustDialog}
+        onOpenChange={(open) => !open && setBustDialog(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Bust — {bustDialog?.playerName}</DialogTitle>
+            <DialogDescription>Sélectionnez le joueur qui a pris le pot</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <label className="text-sm font-medium mb-1 block">Tué par *</label>
+            <select
+              className="w-full border rounded-md p-2 bg-background min-h-[44px]"
+              value={bustKiller}
+              onChange={(e) => setBustKiller(e.target.value)}
+            >
+              <option value="">Sélectionner...</option>
+              {activePlayers
+                .filter((p) => p.playerId !== bustDialog?.eliminatedId)
+                .map((p) => (
+                  <option key={p.playerId} value={p.playerId}>
+                    {getPlayerName(p.player)}
+                  </option>
+                ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBustDialog(null)}>
+              Annuler
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!bustKiller || isSubmitting}
+              onClick={() => {
+                if (bustDialog) {
+                  handleBust(bustDialog.eliminatedId, bustKiller);
+                  setBustDialog(null);
+                }
+              }}
+            >
+              {isSubmitting ? '...' : 'Bust'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
