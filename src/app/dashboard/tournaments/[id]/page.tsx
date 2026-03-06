@@ -25,6 +25,7 @@ import TableDistribution from '@/components/TableDistribution';
 import TournamentResults from '@/components/TournamentResults';
 import PrizePoolManager from '@/components/PrizePoolManager';
 import TournamentDirectorsManager from '@/components/TournamentDirectorsManager';
+import LiveDashboard from '@/components/LiveDashboard';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -100,6 +101,7 @@ export default function TournamentDetailPage({
   const [isSaving, setIsSaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [currentTab, setCurrentTab] = useState('structure');
+  const [initialTabSet, setInitialTabSet] = useState(false);
   const [pendingTab, setPendingTab] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
@@ -257,6 +259,16 @@ export default function TournamentDetailPage({
     loadCurrentUser();
     fetchTables();
   }, [id, session]);
+
+  // Auto-select "live" tab when tournament is IN_PROGRESS
+  useEffect(() => {
+    if (tournament && !initialTabSet) {
+      if (tournament.status === 'IN_PROGRESS') {
+        setCurrentTab('live');
+      }
+      setInitialTabSet(true);
+    }
+  }, [tournament, initialTabSet]);
 
   if (isLoading) {
     return (
@@ -443,6 +455,9 @@ export default function TournamentDetailPage({
       <Tabs value={currentTab} onValueChange={handleTabChange} className="w-full">
         <div className="relative bg-ink rounded-lg p-1 border border-border shadow-md">
           <TabsList className="bg-transparent flex w-full overflow-x-auto md:overflow-visible justify-start scrollbar-hide">
+            {tournament.status === 'IN_PROGRESS' && (
+              <TabsTrigger value="live" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">En Direct</TabsTrigger>
+            )}
             <TabsTrigger value="structure" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Structure</TabsTrigger>
             <TabsTrigger value="config" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Jetons</TabsTrigger>
             <TabsTrigger value="players" data-admin-tab="players" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Joueurs</TabsTrigger>
@@ -456,6 +471,16 @@ export default function TournamentDetailPage({
           {/* Fade indicator for more tabs on mobile */}
           <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-ink to-transparent rounded-r-lg pointer-events-none md:hidden" />
         </div>
+
+        {tournament.status === 'IN_PROGRESS' && (
+          <TabsContent value="live" className="mt-6">
+            <LiveDashboard
+              tournamentId={tournament.id}
+              tournament={tournament}
+              onUpdate={fetchTournament}
+            />
+          </TabsContent>
+        )}
 
         <TabsContent value="structure" className="mt-6">
           <BlindStructureEditor

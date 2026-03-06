@@ -149,6 +149,11 @@ describe('API /api/tournaments/[id]/eliminations RBAC', () => {
       aggregate: jest.fn().mockResolvedValue({ _sum: {} }),
     };
 
+    // Setup tableAssignment mock (used post-transaction to deactivate eliminated player seat)
+    mockPrismaClient.tableAssignment = {
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    };
+
     // Setup transaction mock - updated for atomic transaction
     mockPrismaClient.$transaction = jest.fn().mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
