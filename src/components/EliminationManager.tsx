@@ -1398,9 +1398,9 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               {postBustRecaveDialog?.playerName} a perdu son tapis. Que souhaitez-vous faire ?
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+          <div className="flex flex-col gap-2 pt-2">
             <Button
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+              className="w-full bg-green-600 hover:bg-green-700 text-white min-h-[44px]"
               onClick={() => {
                 if (postBustRecaveDialog?.bustId) {
                   handleBustRecave(postBustRecaveDialog.bustId);
@@ -1413,14 +1413,14 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             </Button>
             <Button
               variant="outline"
-              className="flex-1"
+              className="w-full min-h-[44px]"
               onClick={() => setPostBustRecaveDialog(null)}
             >
               Pas maintenant
             </Button>
             <Button
               variant="destructive"
-              className="flex-1"
+              className="w-full min-h-[44px]"
               onClick={async () => {
                 if (!postBustRecaveDialog) return;
                 const { eliminatedId, killerId, playerName } = postBustRecaveDialog;
@@ -1432,6 +1432,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                     body: JSON.stringify({
                       eliminatedId,
                       eliminatorId: killerId || eliminatedId,
+                      forceDuringRecave: true,
                     }),
                   });
                   if (response.ok) {
@@ -1449,7 +1450,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
               }}
             >
               <Skull className="mr-2 h-4 w-4" />
-              Élimination définitive
+              Élimination
             </Button>
           </div>
         </DialogContent>
