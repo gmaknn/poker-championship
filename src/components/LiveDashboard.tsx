@@ -279,6 +279,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         body: JSON.stringify({
           eliminatedId: bust.eliminated.playerId,
           eliminatorId: bust.killer?.player?.id || undefined,
+          forceDuringRecave: true,
         }),
       });
       if (response.ok) {
@@ -383,6 +384,70 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
 
   // Build player map for quick lookup
   const playerMap = new Map(players.map((p) => [p.playerId, p]));
+
+  // Build player-to-table/seat map for killer selector grouping
+  const playerTableMap = new Map<string, { tableNumber: number; seatNumber: number | null }>();
+  tables.forEach((table) => {
+    table.seats.forEach((seat) => {
+      if (!seat.isEliminated) {
+        playerTableMap.set(seat.playerId, {
+          tableNumber: table.tableNumber,
+          seatNumber: seat.seatNumber,
+        });
+      }
+    });
+  });
+
+  // Build killer options grouped by same-table / other tables
+  const getKillerOptions = (eliminatedId: string) => {
+    const eliminatedTable = playerTableMap.get(eliminatedId);
+    const candidates = activePlayers.filter((p) => p.playerId !== eliminatedId);
+
+    const formatPlayer = (p: TournamentPlayer) => {
+      const info = playerTableMap.get(p.playerId);
+      const suffix = info ? ` (T${info.tableNumber}${info.seatNumber != null ? ` S${info.seatNumber}` : ''})` : '';
+      return getPlayerName(p.player) + suffix;
+    };
+
+    if (!eliminatedTable) {
+      // No table info — flat list
+      return candidates.map((p) => (
+        <option key={p.playerId} value={p.playerId}>
+          {formatPlayer(p)}
+        </option>
+      ));
+    }
+
+    const sameTable = candidates.filter(
+      (p) => playerTableMap.get(p.playerId)?.tableNumber === eliminatedTable.tableNumber
+    );
+    const otherTables = candidates.filter(
+      (p) => playerTableMap.get(p.playerId)?.tableNumber !== eliminatedTable.tableNumber
+    );
+
+    return (
+      <>
+        {sameTable.length > 0 && (
+          <optgroup label={`Table ${eliminatedTable.tableNumber}`}>
+            {sameTable.map((p) => (
+              <option key={p.playerId} value={p.playerId}>
+                {formatPlayer(p)}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {otherTables.length > 0 && (
+          <optgroup label="--- Autres tables ---">
+            {otherTables.map((p) => (
+              <option key={p.playerId} value={p.playerId}>
+                {formatPlayer(p)}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -679,14 +744,21 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
               <select
                 className="w-full border rounded-md p-2 bg-background min-h-[44px]"
                 value={fabEliminated}
-                onChange={(e) => setFabEliminated(e.target.value)}
+                onChange={(e) => {
+                  setFabEliminated(e.target.value);
+                  setFabKiller('');
+                }}
               >
                 <option value="">Sélectionner...</option>
-                {activePlayers.map((p) => (
-                  <option key={p.playerId} value={p.playerId}>
-                    {getPlayerName(p.player)}
-                  </option>
-                ))}
+                {activePlayers.map((p) => {
+                  const info = playerTableMap.get(p.playerId);
+                  const suffix = info ? ` (T${info.tableNumber}${info.seatNumber != null ? ` S${info.seatNumber}` : ''})` : '';
+                  return (
+                    <option key={p.playerId} value={p.playerId}>
+                      {getPlayerName(p.player)}{suffix}
+                    </option>
+                  );
+                })}
               </select>
             </div>
             <div>
@@ -699,13 +771,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
                 onChange={(e) => setFabKiller(e.target.value)}
               >
                 <option value="">Sélectionner...</option>
-                {activePlayers
-                  .filter((p) => p.playerId !== fabEliminated)
-                  .map((p) => (
-                    <option key={p.playerId} value={p.playerId}>
-                      {getPlayerName(p.player)}
-                    </option>
-                  ))}
+                {fabEliminated && getKillerOptions(fabEliminated)}
               </select>
             </div>
           </div>
@@ -752,13 +818,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
               onChange={(e) => setBustKiller(e.target.value)}
             >
               <option value="">Sélectionner...</option>
-              {activePlayers
-                .filter((p) => p.playerId !== bustDialog?.eliminatedId)
-                .map((p) => (
-                  <option key={p.playerId} value={p.playerId}>
-                    {getPlayerName(p.player)}
-                  </option>
-                ))}
+              {bustDialog && getKillerOptions(bustDialog.eliminatedId)}
             </select>
           </div>
           <DialogFooter>
@@ -794,18 +854,12 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
           <div className="py-2">
             <label className="text-sm font-medium mb-1 block">Éliminé par *</label>
             <select
-              className="w-full border rounded-md p-2 bg-background"
+              className="w-full border rounded-md p-2 bg-background min-h-[44px]"
               value={eliminationKiller}
               onChange={(e) => setEliminationKiller(e.target.value)}
             >
               <option value="">Sélectionner...</option>
-              {activePlayers
-                .filter((p) => p.playerId !== eliminationDialog?.eliminatedId)
-                .map((p) => (
-                  <option key={p.playerId} value={p.playerId}>
-                    {getPlayerName(p.player)}
-                  </option>
-                ))}
+              {eliminationDialog && getKillerOptions(eliminationDialog.eliminatedId)}
             </select>
           </div>
           <DialogFooter>
