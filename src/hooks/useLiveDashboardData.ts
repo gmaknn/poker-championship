@@ -16,6 +16,7 @@ type BlindLevel = {
   bigBlind: number;
   ante: number;
   duration: number;
+  isBreak?: boolean;
 };
 
 export type TimerState = {
@@ -91,12 +92,15 @@ export type TablePlan = {
   totalCount: number;
 };
 
+export type { BlindLevel };
+
 export interface LiveDashboardData {
   timer: TimerState | null;
   tables: TablePlan[];
   players: TournamentPlayer[];
   busts: BustEvent[];
   eliminations: Elimination[];
+  blindLevels: BlindLevel[];
   isLoading: boolean;
   localTime: number;
   refetch: () => void;
@@ -108,6 +112,7 @@ export function useLiveDashboardData(tournamentId: string): LiveDashboardData {
   const [players, setPlayers] = useState<TournamentPlayer[]>([]);
   const [busts, setBusts] = useState<BustEvent[]>([]);
   const [eliminations, setEliminations] = useState<Elimination[]>([]);
+  const [blindLevels, setBlindLevels] = useState<BlindLevel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [localTime, setLocalTime] = useState(0);
   const mountedRef = useRef(true);
@@ -175,6 +180,18 @@ export function useLiveDashboardData(tournamentId: string): LiveDashboardData {
     }
   }, [tournamentId]);
 
+  const fetchBlinds = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/tournaments/${tournamentId}/blinds`);
+      if (res.ok) {
+        const data = await res.json();
+        if (mountedRef.current) setBlindLevels(data);
+      }
+    } catch (e) {
+      console.error('Error fetching blinds:', e);
+    }
+  }, [tournamentId]);
+
   const fetchAll = useCallback(async () => {
     await Promise.all([
       fetchTimer(),
@@ -182,9 +199,10 @@ export function useLiveDashboardData(tournamentId: string): LiveDashboardData {
       fetchPlayers(),
       fetchBusts(),
       fetchEliminations(),
+      fetchBlinds(),
     ]);
     if (mountedRef.current) setIsLoading(false);
-  }, [fetchTimer, fetchTables, fetchPlayers, fetchBusts, fetchEliminations]);
+  }, [fetchTimer, fetchTables, fetchPlayers, fetchBusts, fetchEliminations, fetchBlinds]);
 
   // Initial fetch + polling every 5s
   useEffect(() => {
@@ -268,6 +286,7 @@ export function useLiveDashboardData(tournamentId: string): LiveDashboardData {
     players,
     busts,
     eliminations,
+    blindLevels,
     isLoading,
     localTime,
     refetch: fetchAll,
