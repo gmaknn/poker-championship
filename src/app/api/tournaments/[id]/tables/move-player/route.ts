@@ -49,14 +49,10 @@ export async function POST(
       );
     }
 
-    // Vérifier que le joueur a une assignation active
+    // Vérifier que le joueur a une assignation active (optionnel pour late registration)
     const currentAssignment = await prisma.tableAssignment.findFirst({
       where: { tournamentId, playerId, isActive: true },
     });
-
-    if (!currentAssignment) {
-      return NextResponse.json({ error: 'Player has no active table assignment' }, { status: 400 });
-    }
 
     // Vérifier que le siège cible est libre
     const seatOccupied = await prisma.tableAssignment.findFirst({
@@ -77,12 +73,14 @@ export async function POST(
     });
     const playerName = player?.nickname || `${player?.firstName} ${player?.lastName}`;
 
-    // Transaction : désactiver l'ancienne assignation, créer la nouvelle
+    // Transaction : désactiver l'ancienne assignation (si existante), créer la nouvelle
     await prisma.$transaction(async (tx) => {
-      await tx.tableAssignment.update({
-        where: { id: currentAssignment.id },
-        data: { isActive: false },
-      });
+      if (currentAssignment) {
+        await tx.tableAssignment.update({
+          where: { id: currentAssignment.id },
+          data: { isActive: false },
+        });
+      }
 
       await tx.tableAssignment.create({
         data: {
@@ -100,19 +98,21 @@ export async function POST(
       tournamentId,
       playerId,
       playerName,
-      fromTable: currentAssignment.tableNumber,
+      fromTable: currentAssignment?.tableNumber ?? 0,
       toTable,
       seatNumber: toSeat,
     });
 
     console.log(
-      `🔀 [move-player] ${playerName}: Table ${currentAssignment.tableNumber} Seat ${currentAssignment.seatNumber} → Table ${toTable} Seat ${toSeat}`
+      currentAssignment
+        ? `🔀 [move-player] ${playerName}: Table ${currentAssignment.tableNumber} Seat ${currentAssignment.seatNumber} → Table ${toTable} Seat ${toSeat}`
+        : `🔀 [move-player] ${playerName}: (nouveau) → Table ${toTable} Seat ${toSeat}`
     );
 
     return NextResponse.json({
       success: true,
-      fromTable: currentAssignment.tableNumber,
-      fromSeat: currentAssignment.seatNumber,
+      fromTable: currentAssignment?.tableNumber ?? 0,
+      fromSeat: currentAssignment?.seatNumber ?? 0,
       toTable,
       toSeat,
     });
