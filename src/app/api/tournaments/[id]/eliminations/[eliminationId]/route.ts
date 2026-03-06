@@ -79,19 +79,21 @@ export async function DELETE(
         },
       });
 
-      // Décrémenter le nombre d'éliminations de l'éliminateur
-      await tx.tournamentPlayer.update({
-        where: {
-          tournamentId_playerId: {
-            tournamentId,
-            playerId: elimination.eliminatorId,
+      // Décrémenter le nombre d'éliminations de l'éliminateur (sauf abandon)
+      if (elimination.eliminatorId) {
+        await tx.tournamentPlayer.update({
+          where: {
+            tournamentId_playerId: {
+              tournamentId,
+              playerId: elimination.eliminatorId,
+            },
           },
-        },
-        data: {
-          eliminationsCount: { decrement: 1 },
-          leaderKills: elimination.isLeaderKill ? { decrement: 1 } : undefined,
-        },
-      });
+          data: {
+            eliminationsCount: { decrement: 1 },
+            leaderKills: elimination.isLeaderKill ? { decrement: 1 } : undefined,
+          },
+        });
+      }
     });
 
     return NextResponse.json({ success: true });

@@ -98,6 +98,9 @@ export async function GET() {
     // Récupérer les Top Sharks (plus d'éliminations)
     const topSharks = await prisma.elimination.groupBy({
       by: ['eliminatorId'],
+      where: {
+        eliminatorId: { not: null },
+      },
       _count: {
         id: true,
       },
@@ -112,6 +115,7 @@ export async function GET() {
     // Enrichir avec les infos des joueurs
     const sharksWithInfo = await Promise.all(
       topSharks.map(async (shark) => {
+        if (!shark.eliminatorId) return null;
         const player = await prisma.player.findUnique({
           where: { id: shark.eliminatorId },
           select: {
@@ -182,7 +186,7 @@ export async function GET() {
 
       leaderboard,
 
-      topSharks: sharksWithInfo.filter((s) => s.player !== null),
+      topSharks: sharksWithInfo.filter((s) => s !== null && s.player !== null),
 
       nextTournament: nextTournament
         ? {

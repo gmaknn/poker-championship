@@ -89,6 +89,7 @@ export interface TournamentEvents {
     level: number;
     isLeaderKill: boolean;
     isAutoElimination?: boolean;
+    isAbandonment?: boolean;
   };
   'elimination:tournament_complete': {
     tournamentId: string;

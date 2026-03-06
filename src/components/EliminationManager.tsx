@@ -24,7 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp, LayoutGrid } from 'lucide-react';
+import { Skull, Undo2, Trophy, Target, RefreshCw, AlertTriangle, Coins, Check, Hand, Plus, ChevronDown, ChevronUp, LayoutGrid, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
@@ -55,9 +55,10 @@ type Elimination = {
   level: number;
   isLeaderKill: boolean;
   isAutoElimination?: boolean;
+  isAbandonment?: boolean;
   createdAt: string;
   eliminated: Player;
-  eliminator: Player;
+  eliminator: Player | null;
 };
 
 type BustEvent = {
@@ -135,6 +136,13 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
   const [eliminationFormOpen, setEliminationFormOpen] = useState(true);
   const [bustHistoryOpen, setBustHistoryOpen] = useState(false);
   const [eliminationHistoryOpen, setEliminationHistoryOpen] = useState(false);
+  // Abandon state
+  const [selectedAbandon, setSelectedAbandon] = useState('');
+  const [isAbandonSubmitting, setIsAbandonSubmitting] = useState(false);
+  const [confirmAbandonDialog, setConfirmAbandonDialog] = useState<{
+    playerId: string;
+    playerName: string;
+  } | null>(null);
   // Confirm dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     type: 'elimination' | 'bust' | 'recave';
@@ -438,6 +446,42 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
     } catch (error) {
       console.error('Error canceling elimination:', error);
       toast.error('Erreur lors de l\'annulation');
+    }
+  };
+
+  // Gérer un abandon volontaire
+  const handleAbandon = async () => {
+    if (!confirmAbandonDialog) return;
+    setIsAbandonSubmitting(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/eliminations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eliminatedId: confirmAbandonDialog.playerId,
+          isAbandonment: true,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedAbandon('');
+        setConfirmAbandonDialog(null);
+        await fetchData();
+        onUpdate?.();
+        toast.success(`${confirmAbandonDialog.playerName} a abandonné le tournoi (rang #${data.elimination.rank})`);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de l\'enregistrement de l\'abandon');
+      }
+    } catch (error) {
+      console.error('Error submitting abandonment:', error);
+      setError('Erreur lors de l\'enregistrement de l\'abandon');
+    } finally {
+      setIsAbandonSubmitting(false);
+      setConfirmAbandonDialog(null);
     }
   };
 
@@ -1137,6 +1181,59 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </Card>
       )}
 
+      {/* 4b. Abandon volontaire - visible EN PERMANENCE (recave ET élimination) */}
+      {tournament?.status === 'IN_PROGRESS' && activePlayers.length > 1 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold">
+              <LogOut className="h-5 w-5 text-orange-500" />
+              Enregistrer un abandon
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Le joueur quitte volontairement le tournoi
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">Qui abandonne ?</label>
+                <select
+                  value={selectedAbandon}
+                  onChange={(e) => setSelectedAbandon(e.target.value)}
+                  className="w-full rounded-lg border-2 border-input bg-background px-4 py-4 min-h-[52px] text-base font-medium focus:border-orange-500 focus:ring-orange-500"
+                  disabled={isAbandonSubmitting}
+                >
+                  <option value="">Sélectionner le joueur...</option>
+                  {activePlayers.map((p) => (
+                    <option key={p.playerId} value={p.playerId}>
+                      {p.player.nickname} ({p.player.firstName})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <Button
+                type="button"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white min-h-[52px] text-lg"
+                disabled={!selectedAbandon || isAbandonSubmitting}
+                onClick={() => {
+                  const player = activePlayers.find((p) => p.playerId === selectedAbandon);
+                  if (player) {
+                    setConfirmAbandonDialog({
+                      playerId: player.playerId,
+                      playerName: `${player.player.firstName} ${player.player.lastName} (${player.player.nickname})`,
+                    });
+                  }
+                }}
+              >
+                <LogOut className="mr-2 h-6 w-6" />
+                Enregistrer l&apos;abandon
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* 5. Historique des éliminations - Accordéon */}
       <Card>
         <CardHeader
@@ -1192,7 +1289,14 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground mt-1">
-                      {elim.isAutoElimination ? (
+                      {elim.isAbandonment ? (
+                        <>
+                          <Badge variant="outline" className="border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-500/10 text-xs mr-1">
+                            Abandon
+                          </Badge>
+                          au niveau {elim.level}
+                        </>
+                      ) : elim.isAutoElimination ? (
                         <>
                           <span className="font-medium">Auto — fin de recave</span>
                           {' '}au niveau {elim.level}
@@ -1201,7 +1305,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                         <>
                           Éliminé par{' '}
                           <span className="font-medium">
-                            {elim.eliminator.nickname}
+                            {elim.eliminator?.nickname}
                           </span>{' '}
                           au niveau {elim.level}
                         </>
@@ -1223,6 +1327,31 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
         </CardContent>
         )}
       </Card>
+
+      {/* Confirm abandon dialog */}
+      <AlertDialog open={!!confirmAbandonDialog} onOpenChange={() => setConfirmAbandonDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer l&apos;abandon</AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirmer l&apos;abandon de {confirmAbandonDialog?.playerName} ? Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isAbandonSubmitting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-orange-500 hover:bg-orange-600"
+              disabled={isAbandonSubmitting}
+              onClick={(e) => {
+                e.preventDefault();
+                handleAbandon();
+              }}
+            >
+              {isAbandonSubmitting ? 'En cours...' : 'Confirmer l\'abandon'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirm cancel dialog */}
       <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
