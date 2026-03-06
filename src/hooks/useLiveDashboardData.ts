@@ -256,6 +256,10 @@ export function useLiveDashboardData(tournamentId: string): LiveDashboardData {
     refetchBustsAndPlayers();
   }, [refetchBustsAndPlayers]));
 
+  useTournamentEvent(tournamentId, 'rebuy:recorded', useCallback(() => {
+    fetchPlayers();
+  }, [fetchPlayers]));
+
   useTournamentEvent(tournamentId, 'timer:level_change', useCallback(() => {
     fetchTimer();
   }, [fetchTimer]));

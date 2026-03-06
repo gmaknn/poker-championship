@@ -42,6 +42,7 @@ import {
   Coffee,
   Play,
   Pause,
+  DollarSign,
 } from 'lucide-react';
 import { CircularTimer } from '@/components/CircularTimer';
 import {
@@ -86,7 +87,8 @@ type Props = {
 type LastAction =
   | { type: 'bust'; bustId: string; playerName: string }
   | { type: 'recave'; bustId: string; playerName: string }
-  | { type: 'elimination'; eliminationId: string; playerName: string };
+  | { type: 'elimination'; eliminationId: string; playerName: string }
+  | { type: 'rebuy'; playerName: string };
 
 export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Props) {
   const {
@@ -132,6 +134,12 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
 
   // Abandon confirm
   const [abandonDialog, setAbandonDialog] = useState<{
+    playerId: string;
+    playerName: string;
+  } | null>(null);
+
+  // Rebuy dialog
+  const [rebuyDialog, setRebuyDialog] = useState<{
     playerId: string;
     playerName: string;
   } | null>(null);
@@ -187,8 +195,12 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
     return player && player.finalRank === null;
   });
 
-  // Pot total
-  const potTotal = (totalPlayers * tournament.buyInAmount) + (totalRebuys * tournament.buyInAmount);
+  // Pot total: buy-ins + rebuys (distinguer light vs full)
+  const totalLightRebuys = players.filter((p) => p.lightRebuyUsed).length;
+  const totalFullRebuys = totalRebuys; // rebuysCount includes all standard rebuys
+  const potTotal = (totalPlayers * tournament.buyInAmount)
+    + (totalFullRebuys * tournament.buyInAmount)
+    + (totalLightRebuys * tournament.lightRebuyAmount);
 
   // Timer computed
   const timeRemaining = timer?.currentLevelData
@@ -391,6 +403,34 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
     }
   };
 
+  const handleRebuy = async (playerId: string, type: 'STANDARD' | 'LIGHT') => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/rebuys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId, type }),
+      });
+      if (response.ok) {
+        const pName = players.find((p) => p.playerId === playerId);
+        const label = type === 'LIGHT' ? `Light (${tournament.lightRebuyAmount}€)` : `Full (${tournament.buyInAmount}€)`;
+        toast.success(`Rebuy ${label} enregistré`);
+        if (pName) setLastAction({ type: 'rebuy', playerName: getPlayerName(pName.player) });
+        refetch();
+        onUpdate?.();
+        setRebuyDialog(null);
+        setSelectedPlayerAction(null);
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur rebuy');
+      }
+    } catch {
+      toast.error('Erreur rebuy');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleBustRecave = async (bustId: string) => {
     setBustRecaveSubmitting(bustId);
     try {
@@ -454,6 +494,8 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         response = await fetch(`/api/tournaments/${tournamentId}/busts/last`, { method: 'DELETE' });
       } else if (lastAction.type === 'recave') {
         response = await fetch(`/api/tournaments/${tournamentId}/busts/${lastAction.bustId}/recave`, { method: 'DELETE' });
+      } else if (lastAction.type === 'rebuy') {
+        response = await fetch(`/api/tournaments/${tournamentId}/recaves/last`, { method: 'DELETE' });
       } else {
         response = await fetch(`/api/tournaments/${tournamentId}/eliminations/${lastAction.eliminationId}`, { method: 'DELETE' });
       }
@@ -691,6 +733,22 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
       });
     }
 
+    // Rebuy (during rebuy period — player still has chips)
+    if (canBust) {
+      actions.push({
+        label: 'Rebuy',
+        icon: <DollarSign className="h-4 w-4" />,
+        variant: 'default',
+        action: () => {
+          setRebuyDialog({
+            playerId: player.playerId,
+            playerName: getPlayerName(player.player),
+          });
+        },
+        condition: true,
+      });
+    }
+
     // Eliminate (after rebuy period)
     if (!canBust && activePlayers.length > 1) {
       actions.push({
@@ -859,7 +917,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
                   className="h-8 px-2 text-xs"
                   onClick={handleUndo}
                   disabled={isSubmitting}
-                  title={`Annuler : ${lastAction.type === 'bust' ? 'Bust' : lastAction.type === 'recave' ? 'Recave' : 'Élim'} de ${lastAction.playerName}`}
+                  title={`Annuler : ${lastAction.type === 'bust' ? 'Bust' : lastAction.type === 'recave' ? 'Recave' : lastAction.type === 'rebuy' ? 'Rebuy' : 'Élim'} de ${lastAction.playerName}`}
                 >
                   <Undo2 className="h-4 w-4" />
                 </Button>
@@ -1324,6 +1382,46 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Rebuy dialog (Light / Full choice) */}
+      <Dialog
+        open={!!rebuyDialog}
+        onOpenChange={(open) => !open && setRebuyDialog(null)}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rebuy — {rebuyDialog?.playerName}</DialogTitle>
+            <DialogDescription>
+              Choisir le type de rebuy
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 py-2">
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-14 text-base justify-between"
+              disabled={isSubmitting}
+              onClick={() => rebuyDialog && handleRebuy(rebuyDialog.playerId, 'LIGHT')}
+            >
+              <span>Rebuy Light</span>
+              <Badge variant="secondary">{tournament.lightRebuyAmount}€</Badge>
+            </Button>
+            <Button
+              size="lg"
+              variant="default"
+              className="h-14 text-base justify-between"
+              disabled={isSubmitting}
+              onClick={() => rebuyDialog && handleRebuy(rebuyDialog.playerId, 'STANDARD')}
+            >
+              <span>Rebuy Full</span>
+              <Badge variant="secondary">{tournament.buyInAmount}€</Badge>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setRebuyDialog(null)}>Annuler</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Move player dialog (Part B) */}
       <Dialog
         open={!!moveDialog}
@@ -1581,9 +1679,10 @@ function TableCard({
               >
                 {getPlayerName(seat)}
               </span>
-              {tournamentPlayer.rebuysCount > 0 && (
+              {(tournamentPlayer.rebuysCount > 0 || tournamentPlayer.lightRebuyUsed) && (
                 <Badge variant="secondary" className="text-xs shrink-0">
-                  {tournamentPlayer.rebuysCount}R
+                  {tournamentPlayer.rebuysCount > 0 && `${tournamentPlayer.rebuysCount}R`}
+                  {tournamentPlayer.lightRebuyUsed && (tournamentPlayer.rebuysCount > 0 ? '+L' : 'L')}
                 </Badge>
               )}
               {tournamentPlayer.eliminationsCount > 0 && (
