@@ -77,6 +77,7 @@ export async function GET(
     }>();
 
     eliminations.forEach((elim) => {
+      if (!elim.eliminatorId || !elim.eliminator) return; // Skip abandonments
       if (!eliminatorStats.has(elim.eliminatorId)) {
         eliminatorStats.set(elim.eliminatorId, {
           eliminatorId: elim.eliminatorId,
@@ -105,12 +106,13 @@ export async function GET(
       id: elim.id,
       tournamentId: elim.tournamentId,
       eliminatorId: elim.eliminatorId,
-      eliminatorNickname: elim.eliminator.nickname,
+      eliminatorNickname: elim.eliminator?.nickname ?? null,
       eliminatedId: elim.eliminatedId,
       eliminatedNickname: elim.eliminated.nickname,
       rank: elim.rank,
       level: elim.level,
       isLeaderKill: elim.isLeaderKill,
+      isAbandonment: elim.isAbandonment,
     }));
 
     // Construire les statistiques par éliminateur

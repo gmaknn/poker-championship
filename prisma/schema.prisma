@@ -280,13 +280,14 @@ model Elimination {
   eliminatedId    String
   eliminated      Player      @relation("Eliminated", fields: [eliminatedId], references: [id])
 
-  eliminatorId    String
-  eliminator      Player      @relation("Eliminator", fields: [eliminatorId], references: [id])
+  eliminatorId    String?
+  eliminator      Player?     @relation("Eliminator", fields: [eliminatorId], references: [id])
 
   rank            Int         // Position de sortie du joueur éliminé
   level           Int         // Niveau auquel l'élimination a eu lieu
   isLeaderKill    Boolean     @default(false)
   isAutoElimination Boolean   @default(false) // Éliminé automatiquement (fin de recave)
+  isAbandonment   Boolean     @default(false) // Abandon volontaire
 
   createdAt       DateTime    @default(now())
 

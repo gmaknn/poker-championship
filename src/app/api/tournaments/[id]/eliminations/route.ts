@@ -124,7 +124,8 @@ async function calculateAndSavePoints(tournamentId: string): Promise<void> {
 
 const eliminationSchema = z.object({
   eliminatedId: z.string().cuid(),
-  eliminatorId: z.string().cuid(),
+  eliminatorId: z.string().cuid().optional(),
+  isAbandonment: z.boolean().optional(),
 });
 
 
@@ -227,9 +228,11 @@ export async function POST(
     // Calculer le niveau effectif basé sur le timer (pas la valeur DB qui n'est pas synchronisée)
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
 
+    const isAbandonment = validatedData.isAbandonment === true;
+
     // Les éliminations définitives ne sont autorisées que lorsque les recaves sont fermées
-    // (inclut la pause suivant "Fin recaves" pour permettre les recaves light)
-    if (areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
+    // SAUF pour les abandons qui sont possibles à tout moment
+    if (!isAbandonment && areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
       // Diagnostic optionnel (activé via RECIPE_DIAGNOSTICS=1)
       const isDiag = process.env.RECIPE_DIAGNOSTICS === '1';
       if (isDiag) {
@@ -254,19 +257,35 @@ export async function POST(
       );
     }
 
-    // Vérifier que les deux joueurs sont inscrits au tournoi (pre-check rapide)
+    // Vérifier que le joueur éliminé est inscrit au tournoi (pre-check rapide)
     const eliminatedPlayer = tournament.tournamentPlayers.find(
       (tp) => tp.playerId === validatedData.eliminatedId
     );
-    const eliminatorPlayer = tournament.tournamentPlayers.find(
-      (tp) => tp.playerId === validatedData.eliminatorId
-    );
 
-    if (!eliminatedPlayer || !eliminatorPlayer) {
+    if (!eliminatedPlayer) {
       return NextResponse.json(
-        { error: 'One or both players are not enrolled in this tournament' },
+        { error: 'Player is not enrolled in this tournament' },
         { status: 400 }
       );
+    }
+
+    // Vérifier l'éliminateur si ce n'est pas un abandon
+    if (!isAbandonment) {
+      if (!validatedData.eliminatorId) {
+        return NextResponse.json(
+          { error: 'eliminatorId is required for non-abandonment eliminations' },
+          { status: 400 }
+        );
+      }
+      const eliminatorPlayer = tournament.tournamentPlayers.find(
+        (tp) => tp.playerId === validatedData.eliminatorId
+      );
+      if (!eliminatorPlayer) {
+        return NextResponse.json(
+          { error: 'Eliminator is not enrolled in this tournament' },
+          { status: 400 }
+        );
+      }
     }
 
     // Vérifier que le joueur éliminé n'a pas déjà une position finale (pre-check rapide)
@@ -315,15 +334,15 @@ export async function POST(
         throw new Error('RANK_ALREADY_TAKEN');
       }
 
-      // Vérifier si c'est un Leader Kill
-      // Un Leader Kill se produit quand la victime est le leader du classement
-      // de la saison au début du tournoi (seasonLeaderAtStartId)
-      // Note: On récupère le tournoi frais dans la transaction pour avoir seasonLeaderAtStartId
-      const tournamentData = await tx.tournament.findUnique({
-        where: { id: tournamentId },
-        select: { seasonLeaderAtStartId: true },
-      });
-      const isLeaderKill = tournamentData?.seasonLeaderAtStartId === validatedData.eliminatedId;
+      // Vérifier si c'est un Leader Kill (pas applicable pour les abandons)
+      let isLeaderKill = false;
+      if (!isAbandonment && validatedData.eliminatorId) {
+        const tournamentData = await tx.tournament.findUnique({
+          where: { id: tournamentId },
+          select: { seasonLeaderAtStartId: true },
+        });
+        isLeaderKill = tournamentData?.seasonLeaderAtStartId === validatedData.eliminatedId;
+      }
 
       // === ÉCRITURE ATOMIQUE avec updateMany conditionnel ===
       // Utiliser updateMany avec condition finalRank: null pour garantir l'atomicité
@@ -348,10 +367,11 @@ export async function POST(
         data: {
           tournamentId,
           eliminatedId: validatedData.eliminatedId,
-          eliminatorId: validatedData.eliminatorId,
+          eliminatorId: validatedData.eliminatorId ?? null,
           rank,
           level: effectiveLevel,
           isLeaderKill,
+          isAbandonment,
         },
         include: {
           eliminated: {
@@ -373,19 +393,21 @@ export async function POST(
         },
       });
 
-      // Mettre à jour l'éliminateur
-      await tx.tournamentPlayer.update({
-        where: {
-          tournamentId_playerId: {
-            tournamentId,
-            playerId: validatedData.eliminatorId,
+      // Mettre à jour l'éliminateur (seulement si ce n'est pas un abandon)
+      if (validatedData.eliminatorId) {
+        await tx.tournamentPlayer.update({
+          where: {
+            tournamentId_playerId: {
+              tournamentId,
+              playerId: validatedData.eliminatorId,
+            },
           },
-        },
-        data: {
-          eliminationsCount: { increment: 1 },
-          leaderKills: isLeaderKill ? { increment: 1 } : undefined,
-        },
-      });
+          data: {
+            eliminationsCount: { increment: 1 },
+            leaderKills: isLeaderKill ? { increment: 1 } : undefined,
+          },
+        });
+      }
 
       return { elimination, rank, isLeaderKill };
     });
@@ -397,11 +419,12 @@ export async function POST(
       tournamentId,
       eliminatedId: validatedData.eliminatedId,
       eliminatedName: elimination.eliminated.nickname,
-      eliminatorId: validatedData.eliminatorId,
-      eliminatorName: elimination.eliminator.nickname,
+      eliminatorId: validatedData.eliminatorId ?? '',
+      eliminatorName: elimination.eliminator?.nickname ?? '',
       rank,
       level: effectiveLevel,
       isLeaderKill,
+      isAbandonment,
     });
 
     // Mettre à jour le leaderboard

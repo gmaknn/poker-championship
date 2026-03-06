@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
-import { Trophy, Users, DollarSign, Clock, LayoutGrid, Coins, Play, Pause, Timer, Skull, RefreshCw } from 'lucide-react';
+import { Trophy, Users, DollarSign, Clock, LayoutGrid, Coins, Play, Pause, Timer, Skull, RefreshCw, LogOut } from 'lucide-react';
 import { playCountdown, announceLevelChange, announceBreak, playAlertSound, announcePlayersRemaining, announceRebalanceTables, getTTSVolume, getTTSSpeed, setTTSVolume, setTTSSpeed, getBlindCommentaryEnabled, setBlindCommentaryEnabled, playSlotMachineSound } from '@/lib/audioManager';
 import { useTournamentEvent } from '@/contexts/SocketContext';
 import { useSearchParams } from 'next/navigation';
@@ -256,7 +256,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
   // Elimination notification state
   const [eliminationNotification, setEliminationNotification] = useState<{
-    type: 'elimination' | 'bust';
+    type: 'elimination' | 'bust' | 'abandonment';
     eliminatedName: string;
     eliminatorName: string;
     rank?: number;
@@ -375,6 +375,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     rank: number;
     level: number;
     isLeaderKill: boolean;
+    isAbandonment?: boolean;
   }) => {
     console.log('[Elimination] Player eliminated:', data);
 
@@ -385,7 +386,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
     // Show notification
     setEliminationNotification({
-      type: 'elimination',
+      type: data.isAbandonment ? 'abandonment' : 'elimination',
       eliminatedName: data.eliminatedName,
       eliminatorName: data.eliminatorName,
       rank: data.rank,
@@ -2550,13 +2551,15 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             `}
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.92)',
-              borderColor: eliminationNotification.type === 'elimination' ? '#ef4444' : '#f59e0b',
+              borderColor: eliminationNotification.type === 'elimination' ? '#ef4444' : eliminationNotification.type === 'abandonment' ? '#f97316' : '#f59e0b',
             }}
           >
             {/* Header Icon */}
             <div className="mb-4 md:mb-6">
               {eliminationNotification.type === 'elimination' ? (
                 <Skull className="h-16 w-16 md:h-24 md:w-24 text-red-500 animate-pulse" />
+              ) : eliminationNotification.type === 'abandonment' ? (
+                <LogOut className="h-16 w-16 md:h-24 md:w-24 text-orange-500" />
               ) : (
                 <RefreshCw className="h-16 w-16 md:h-24 md:w-24 text-amber-500" />
               )}
@@ -2564,15 +2567,15 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
             {/* Title */}
             <div className={`text-2xl md:text-4xl font-black uppercase tracking-wider mb-4 md:mb-6 ${
-              eliminationNotification.type === 'elimination' ? 'text-red-500' : 'text-amber-500'
+              eliminationNotification.type === 'elimination' ? 'text-red-500' : eliminationNotification.type === 'abandonment' ? 'text-orange-500' : 'text-amber-500'
             }`}>
-              {eliminationNotification.type === 'elimination' ? 'ÉLIMINATION' : 'PERTE DE TAPIS'}
+              {eliminationNotification.type === 'elimination' ? 'ÉLIMINATION' : eliminationNotification.type === 'abandonment' ? 'ABANDON' : 'PERTE DE TAPIS'}
             </div>
 
             {/* Eliminated Player */}
             <div className="text-center mb-4 md:mb-6">
               <div className="text-white/60 text-lg md:text-xl mb-2">
-                {eliminationNotification.type === 'elimination' ? 'Éliminé' : 'Bust'}
+                {eliminationNotification.type === 'elimination' ? 'Éliminé' : eliminationNotification.type === 'abandonment' ? 'A quitté le tournoi' : 'Bust'}
               </div>
               <div className="text-4xl md:text-6xl font-black text-white drop-shadow-lg">
                 {eliminationNotification.eliminatedName}
@@ -2589,15 +2592,17 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
               )}
             </div>
 
-            {/* Eliminator */}
-            <div className="text-center">
-              <div className="text-white/60 text-lg md:text-xl mb-2">par</div>
-              <div className="text-3xl md:text-5xl font-black text-red-400 drop-shadow-lg flex items-center justify-center gap-3">
-                <span>🦈</span>
-                {eliminationNotification.eliminatorName}
-                <span>🦈</span>
+            {/* Eliminator (hidden for abandonments) */}
+            {eliminationNotification.type !== 'abandonment' && eliminationNotification.eliminatorName && (
+              <div className="text-center">
+                <div className="text-white/60 text-lg md:text-xl mb-2">par</div>
+                <div className="text-3xl md:text-5xl font-black text-red-400 drop-shadow-lg flex items-center justify-center gap-3">
+                  <span>🦈</span>
+                  {eliminationNotification.eliminatorName}
+                  <span>🦈</span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Leader Kill Badge */}
             {eliminationNotification.isLeaderKill && (

@@ -133,6 +133,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       by: ['eliminatorId'],
       where: {
         eliminatedId: id,
+        eliminatorId: { not: null },
         tournament: { type: 'CHAMPIONSHIP' },
       },
       _count: { eliminatorId: true },
@@ -143,7 +144,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
 
     let nemesis = null;
-    if (eliminatedBy.length > 0) {
+    if (eliminatedBy.length > 0 && eliminatedBy[0].eliminatorId) {
       const nemesisPlayer = await prisma.player.findUnique({
         where: { id: eliminatedBy[0].eliminatorId },
       });
