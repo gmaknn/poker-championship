@@ -236,7 +236,7 @@ export async function POST(
         rebuyEndLevel: true,
         blindLevels: {
           orderBy: { level: 'asc' },
-          select: { level: true, isBreak: true },
+          select: { level: true, isBreak: true, isRebuyEnd: true },
         },
       },
     });

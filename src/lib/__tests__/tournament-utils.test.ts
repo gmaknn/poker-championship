@@ -70,14 +70,14 @@ describe('areRecavesOpen', () => {
 
   describe('Break-after-rebuyEndLevel rule', () => {
     const blindLevels = [
-      { level: 1, isBreak: false },
-      { level: 2, isBreak: false },
-      { level: 3, isBreak: false },
-      { level: 4, isBreak: false },
-      { level: 5, isBreak: false }, // rebuyEndLevel
-      { level: 6, isBreak: true },  // Break after rebuyEndLevel - recaves should stay open
-      { level: 7, isBreak: false },
-      { level: 8, isBreak: false },
+      { level: 1, isBreak: false, isRebuyEnd: false },
+      { level: 2, isBreak: false, isRebuyEnd: false },
+      { level: 3, isBreak: false, isRebuyEnd: false },
+      { level: 4, isBreak: false, isRebuyEnd: false },
+      { level: 5, isBreak: false, isRebuyEnd: false }, // rebuyEndLevel
+      { level: 6, isBreak: true, isRebuyEnd: true },  // Break after rebuyEndLevel - recaves should stay open
+      { level: 7, isBreak: false, isRebuyEnd: false },
+      { level: 8, isBreak: false, isRebuyEnd: false },
     ];
 
     it('should return true when on break immediately after rebuyEndLevel', () => {
@@ -104,13 +104,13 @@ describe('areRecavesOpen', () => {
 
     it('should return false on level 6 if it is NOT a break', () => {
       const blindLevelsNoBreak = [
-        { level: 1, isBreak: false },
-        { level: 2, isBreak: false },
-        { level: 3, isBreak: false },
-        { level: 4, isBreak: false },
-        { level: 5, isBreak: false },
-        { level: 6, isBreak: false }, // No break after rebuyEndLevel
-        { level: 7, isBreak: false },
+        { level: 1, isBreak: false, isRebuyEnd: false },
+        { level: 2, isBreak: false, isRebuyEnd: false },
+        { level: 3, isBreak: false, isRebuyEnd: false },
+        { level: 4, isBreak: false, isRebuyEnd: false },
+        { level: 5, isBreak: false, isRebuyEnd: false },
+        { level: 6, isBreak: false, isRebuyEnd: false }, // No break after rebuyEndLevel
+        { level: 7, isBreak: false, isRebuyEnd: false },
       ];
 
       const tournament = {
@@ -169,11 +169,11 @@ describe('areRecavesOpen', () => {
 
     it('should handle blindLevels without level 6', () => {
       const blindLevels = [
-        { level: 1, isBreak: false },
-        { level: 2, isBreak: false },
-        { level: 3, isBreak: false },
-        { level: 4, isBreak: false },
-        { level: 5, isBreak: false },
+        { level: 1, isBreak: false, isRebuyEnd: false },
+        { level: 2, isBreak: false, isRebuyEnd: false },
+        { level: 3, isBreak: false, isRebuyEnd: false },
+        { level: 4, isBreak: false, isRebuyEnd: false },
+        { level: 5, isBreak: false, isRebuyEnd: false },
         // Missing level 6
       ];
 
@@ -278,10 +278,10 @@ describe('calculateEffectiveLevel', () => {
 
 describe('isBreakAfterRebuyEnd', () => {
   const blindLevels = [
-    { level: 1, isBreak: false },
-    { level: 2, isBreak: true },  // Break after level 1
-    { level: 3, isBreak: false },
-    { level: 4, isBreak: false },
+    { level: 1, isBreak: false, isRebuyEnd: false },
+    { level: 2, isBreak: true, isRebuyEnd: true },  // Break after level 1
+    { level: 3, isBreak: false, isRebuyEnd: false },
+    { level: 4, isBreak: false, isRebuyEnd: false },
   ];
 
   it('should return true when on break immediately after rebuyEndLevel', () => {
@@ -310,7 +310,7 @@ describe('isBreakAfterRebuyEnd', () => {
 
   it('should return false when blind level not found', () => {
     const limitedBlindLevels = [
-      { level: 1, isBreak: false },
+      { level: 1, isBreak: false, isRebuyEnd: false },
     ];
     // Level 2 doesn't exist
     expect(isBreakAfterRebuyEnd(1, 2, limitedBlindLevels)).toBe(false);

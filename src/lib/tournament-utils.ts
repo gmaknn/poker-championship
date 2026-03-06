@@ -53,7 +53,8 @@ export function calculateEffectiveLevel(
  * Les recaves sont ouvertes si:
  * - Le tournoi est en cours (IN_PROGRESS)
  * - Le niveau courant est <= rebuyEndLevel (si rebuyEndLevel est défini)
- * - OU le niveau courant est la pause immédiatement après rebuyEndLevel
+ * - OU le niveau courant est marqué isRebuyEnd (pause fin de recave)
+ * - OU le niveau courant est la pause immédiatement après rebuyEndLevel (fallback isBreak)
  *
  * @param tournament - Le tournoi à vérifier
  * @param effectiveLevel - Optionnel: niveau effectif calculé (sinon utilise currentLevel de la DB - ATTENTION: peut être désynchronisé)
@@ -63,7 +64,7 @@ export function calculateEffectiveLevel(
 export function areRecavesOpen(
   tournament: Pick<Tournament, 'status' | 'currentLevel' | 'rebuyEndLevel'>,
   effectiveLevel?: number,
-  blindLevels?: Pick<BlindLevel, 'level' | 'isBreak'>[]
+  blindLevels?: Pick<BlindLevel, 'level' | 'isBreak' | 'isRebuyEnd'>[]
 ): boolean {
   // Les recaves ne sont possibles que si le tournoi est en cours
   if (tournament.status !== 'IN_PROGRESS') {
@@ -83,10 +84,14 @@ export function areRecavesOpen(
     return true;
   }
 
-  // Vérifier si le niveau courant est la pause immédiatement après rebuyEndLevel
-  if (blindLevels && currentLevel === tournament.rebuyEndLevel + 1) {
+  // Vérifier si le niveau courant est marqué comme pause fin de recave (isRebuyEnd)
+  if (blindLevels) {
     const currentBlindLevel = blindLevels.find(bl => bl.level === currentLevel);
-    if (currentBlindLevel?.isBreak) {
+    if (currentBlindLevel?.isRebuyEnd) {
+      return true;
+    }
+    // Fallback: vérifier si c'est la pause immédiatement après rebuyEndLevel
+    if (currentLevel === tournament.rebuyEndLevel + 1 && currentBlindLevel?.isBreak) {
       return true;
     }
   }
@@ -95,30 +100,35 @@ export function areRecavesOpen(
 }
 
 /**
- * Détermine si le niveau actuel est la pause immédiatement après rebuyEndLevel.
- * Utilisé pour autoriser les recaves LIGHT pendant cette pause spécifique.
+ * Détermine si le niveau actuel est la pause fin de recave.
+ * Vérifie d'abord le flag isRebuyEnd, puis le fallback position+isBreak.
  *
  * @param rebuyEndLevel - Le niveau de fin des recaves (peut être null)
  * @param effectiveLevel - Le niveau effectif calculé depuis le timer
- * @param blindLevels - Liste des niveaux avec isBreak
- * @returns true si on est dans la pause juste après rebuyEndLevel
+ * @param blindLevels - Liste des niveaux avec isBreak et isRebuyEnd
+ * @returns true si on est dans la pause fin de recave
  */
 export function isBreakAfterRebuyEnd(
   rebuyEndLevel: number | null,
   effectiveLevel: number,
-  blindLevels: Pick<BlindLevel, 'level' | 'isBreak'>[]
+  blindLevels: Pick<BlindLevel, 'level' | 'isBreak' | 'isRebuyEnd'>[]
 ): boolean {
   // Si pas de rebuyEndLevel défini, pas de "break après"
   if (rebuyEndLevel === null || rebuyEndLevel === undefined) {
     return false;
   }
 
-  // Vérifier si on est exactement au niveau rebuyEndLevel + 1
+  const currentBlindLevel = blindLevels.find(bl => bl.level === effectiveLevel);
+
+  // Vérifier si le niveau courant est marqué isRebuyEnd
+  if (currentBlindLevel?.isRebuyEnd) {
+    return true;
+  }
+
+  // Fallback: vérifier position rebuyEndLevel + 1 et isBreak
   if (effectiveLevel !== rebuyEndLevel + 1) {
     return false;
   }
 
-  // Vérifier si ce niveau est une pause
-  const currentBlindLevel = blindLevels.find(bl => bl.level === effectiveLevel);
   return currentBlindLevel?.isBreak === true;
 }
