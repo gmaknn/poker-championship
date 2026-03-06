@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,12 +29,19 @@ import {
   Users,
   Trophy,
   Target,
-  Clock,
   Undo2,
   ChevronDown,
   ChevronUp,
   LogOut,
   RefreshCw,
+  ArrowRightLeft,
+  Merge,
+  Shuffle,
+  UserPlus,
+  Coins,
+  Coffee,
+  Play,
+  Pause,
 } from 'lucide-react';
 import { CircularTimer } from '@/components/CircularTimer';
 import {
@@ -42,9 +49,8 @@ import {
   type TournamentPlayer,
   type BustEvent,
   type TablePlan,
+  type BlindLevel,
 } from '@/hooks/useLiveDashboardData';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale/fr';
 
 type TournamentStatus = 'PLANNED' | 'REGISTRATION' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
 
@@ -56,10 +62,18 @@ type Tournament = {
   lightRebuyAmount: number;
   startingChips: number;
   totalPlayers?: number | null;
+  seatsPerTable?: number;
   _count: {
     tournamentPlayers: number;
     blindLevels: number;
   };
+};
+
+type AllPlayer = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  nickname: string;
 };
 
 type Props = {
@@ -68,6 +82,12 @@ type Props = {
   onUpdate?: () => void;
 };
 
+// Last action for undo
+type LastAction =
+  | { type: 'bust'; bustId: string; playerName: string }
+  | { type: 'recave'; bustId: string; playerName: string }
+  | { type: 'elimination'; eliminationId: string; playerName: string };
+
 export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Props) {
   const {
     timer,
@@ -75,6 +95,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
     players,
     busts,
     eliminations,
+    blindLevels,
     isLoading,
     localTime,
     refetch,
@@ -121,14 +142,50 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
   // Mobile accordion — track which table is open
   const [openTable, setOpenTable] = useState<number | null>(null);
 
+  // Move player dialog
+  const [moveDialog, setMoveDialog] = useState<{
+    playerId: string;
+    playerName: string;
+    fromTable: number;
+  } | null>(null);
+  const [moveToTable, setMoveToTable] = useState('');
+  const [moveToSeat, setMoveToSeat] = useState('');
+
+  // Merge table dialog
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+  const [mergeTableToClose, setMergeTableToClose] = useState('');
+
+  // Rebalance confirm
+  const [rebalanceConfirm, setRebalanceConfirm] = useState(false);
+
+  // Late registration dialog
+  const [lateRegOpen, setLateRegOpen] = useState(false);
+  const [lateRegPlayerId, setLateRegPlayerId] = useState('');
+  const [allPlayers, setAllPlayers] = useState<AllPlayer[]>([]);
+  const [allPlayersLoading, setAllPlayersLoading] = useState(false);
+
+  // Undo state
+  const [lastAction, setLastAction] = useState<LastAction | null>(null);
+
+  // Timer toggle animation
+  const [timerPressed, setTimerPressed] = useState(false);
+
   // Computed values
   const activePlayers = players.filter((p) => p.finalRank === null);
   const totalPlayers = players.length;
   const totalRebuys = players.reduce((sum, p) => sum + p.rebuysCount, 0);
-  const totalEliminations = eliminations.length;
-  const pendingBusts = busts.filter((b) => !b.recaveApplied && !players.find(
-    (p) => p.playerId === b.eliminated.playerId && p.finalRank !== null
-  ));
+  const eliminatedPlayers = players.filter((p) => p.finalRank !== null);
+  const seatsPerTable = tournament.seatsPerTable ?? 9;
+
+  // Pending busts (not recaved, not eliminated)
+  const truePendingBusts = busts.filter((b) => {
+    if (b.recaveApplied) return false;
+    const player = players.find((p) => p.playerId === b.eliminated.playerId);
+    return player && player.finalRank === null;
+  });
+
+  // Pot total
+  const potTotal = (totalPlayers * tournament.buyInAmount) + (totalRebuys * tournament.buyInAmount);
 
   // Timer computed
   const timeRemaining = timer?.currentLevelData
@@ -137,6 +194,27 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
   const totalDuration = timer?.currentLevelData
     ? timer.currentLevelData.duration * 60
     : 0;
+
+  // Next break computation
+  const nextBreakInfo = (() => {
+    if (!timer || !blindLevels.length) return null;
+    if (timer.isPaused && timer.currentLevelData?.isBreak) return { label: 'En pause' };
+
+    const currentLevel = timer.currentLevel;
+    const nextBreak = blindLevels.find(
+      (bl) => bl.level > currentLevel && bl.isBreak
+    );
+    if (!nextBreak) return null;
+
+    // Sum durations of levels between current and break
+    let secondsUntilBreak = timeRemaining; // remaining in current level
+    for (const bl of blindLevels) {
+      if (bl.level > currentLevel && bl.level < nextBreak.level) {
+        secondsUntilBreak += bl.duration * 60;
+      }
+    }
+    return { label: `Pause dans ${formatTimeFn(secondsUntilBreak)}` };
+  })();
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -148,12 +226,63 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
     return p.nickname || `${p.firstName} ${p.lastName}`;
   };
 
-  // Find which busts are truly pending (not recaved, not eliminated)
-  const truePendingBusts = busts.filter((b) => {
-    if (b.recaveApplied) return false;
-    const player = players.find((p) => p.playerId === b.eliminated.playerId);
-    return player && player.finalRank === null;
+  // Build player map for quick lookup
+  const playerMap = new Map(players.map((p) => [p.playerId, p]));
+
+  // Build player-to-table/seat map
+  const playerTableMap = new Map<string, { tableNumber: number; seatNumber: number | null }>();
+  tables.forEach((table) => {
+    table.seats.forEach((seat) => {
+      if (!seat.isEliminated) {
+        playerTableMap.set(seat.playerId, {
+          tableNumber: table.tableNumber,
+          seatNumber: seat.seatNumber,
+        });
+      }
+    });
   });
+
+  // Build killer options — same table only (Part A)
+  const getKillerOptions = (eliminatedId: string) => {
+    const eliminatedTable = playerTableMap.get(eliminatedId);
+    const candidates = activePlayers.filter((p) => p.playerId !== eliminatedId);
+
+    const formatPlayer = (p: TournamentPlayer) => {
+      const info = playerTableMap.get(p.playerId);
+      const suffix = info?.seatNumber != null ? ` (S${info.seatNumber})` : '';
+      return getPlayerName(p.player) + suffix;
+    };
+
+    if (!eliminatedTable) {
+      return candidates.map((p) => (
+        <option key={p.playerId} value={p.playerId}>
+          {formatPlayer(p)}
+        </option>
+      ));
+    }
+
+    const sameTable = candidates.filter(
+      (p) => playerTableMap.get(p.playerId)?.tableNumber === eliminatedTable.tableNumber
+    );
+
+    return sameTable.map((p) => (
+      <option key={p.playerId} value={p.playerId}>
+        {formatPlayer(p)}
+      </option>
+    ));
+  };
+
+  // Get free seats for a given table
+  const getFreeSeatNumbers = (tableNumber: number): number[] => {
+    const table = tables.find((t) => t.tableNumber === tableNumber);
+    if (!table) return [];
+    const occupied = new Set(table.seats.filter((s) => !s.isEliminated).map((s) => s.seatNumber));
+    const free: number[] = [];
+    for (let i = 1; i <= seatsPerTable; i++) {
+      if (!occupied.has(i)) free.push(i);
+    }
+    return free;
+  };
 
   // --- Actions ---
 
@@ -169,12 +298,16 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         }),
       });
       if (response.ok) {
+        const data = await response.json();
+        const pName = players.find((p) => p.playerId === eliminatedId);
         toast.success('Bust enregistré');
+        if (data.id) setLastAction({ type: 'bust', bustId: data.id, playerName: pName ? getPlayerName(pName.player) : '?' });
         refetch();
         onUpdate?.();
         setFabDialogOpen(false);
         setFabEliminated('');
         setFabKiller('');
+        setBustDialog(null);
         setSelectedPlayerAction(null);
       } else {
         const data = await response.json();
@@ -199,7 +332,10 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         }),
       });
       if (response.ok) {
+        const data = await response.json();
+        const pName = players.find((p) => p.playerId === eliminatedId);
         toast.success('Élimination enregistrée');
+        if (data.elimination?.id) setLastAction({ type: 'elimination', eliminationId: data.elimination.id, playerName: pName ? getPlayerName(pName.player) : '?' });
         refetch();
         onUpdate?.();
         setEliminationDialog(null);
@@ -233,6 +369,10 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
       if (response.ok) {
         const data = await response.json();
         toast.success(`Abandon enregistré (rang #${data.elimination.rank})`);
+        if (data.elimination?.id) {
+          const pName = players.find((p) => p.playerId === playerId);
+          setLastAction({ type: 'elimination', eliminationId: data.elimination.id, playerName: pName ? getPlayerName(pName.player) : '?' });
+        }
         refetch();
         onUpdate?.();
         setAbandonDialog(null);
@@ -256,7 +396,9 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         headers: { 'Content-Type': 'application/json' },
       });
       if (response.ok) {
+        const bust = busts.find((b) => b.id === bustId);
         toast.success('Recave appliquée');
+        if (bust) setLastAction({ type: 'recave', bustId, playerName: getPlayerName(bust.eliminated.player) });
         refetch();
         onUpdate?.();
       } else {
@@ -283,7 +425,9 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         }),
       });
       if (response.ok) {
+        const data = await response.json();
         toast.success('Joueur éliminé');
+        if (data.elimination?.id) setLastAction({ type: 'elimination', eliminationId: data.elimination.id, playerName: getPlayerName(bust.eliminated.player) });
         refetch();
         onUpdate?.();
       } else {
@@ -297,16 +441,22 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
     }
   };
 
-  const handleCancelLastElimination = async () => {
-    if (!eliminations.length) return;
+  // Part G — Undo
+  const handleUndo = async () => {
+    if (!lastAction) return;
+    setIsSubmitting(true);
     try {
-      const lastElim = eliminations[0];
-      const response = await fetch(
-        `/api/tournaments/${tournamentId}/eliminations/${lastElim.id}`,
-        { method: 'DELETE' }
-      );
+      let response: Response;
+      if (lastAction.type === 'bust') {
+        response = await fetch(`/api/tournaments/${tournamentId}/busts/last`, { method: 'DELETE' });
+      } else if (lastAction.type === 'recave') {
+        response = await fetch(`/api/tournaments/${tournamentId}/busts/${lastAction.bustId}/recave`, { method: 'DELETE' });
+      } else {
+        response = await fetch(`/api/tournaments/${tournamentId}/eliminations/${lastAction.eliminationId}`, { method: 'DELETE' });
+      }
       if (response.ok) {
-        toast.success('Élimination annulée');
+        toast.success('Action annulée');
+        setLastAction(null);
         refetch();
         onUpdate?.();
       } else {
@@ -315,11 +465,202 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
       }
     } catch {
       toast.error('Erreur annulation');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Part C — Timer toggle
+  const handleTimerToggle = async () => {
+    setTimerPressed(true);
+    setTimeout(() => setTimerPressed(false), 200);
+    try {
+      const endpoint = timer?.isPaused
+        ? `/api/tournaments/${tournamentId}/timer/resume`
+        : `/api/tournaments/${tournamentId}/timer/pause`;
+      const response = await fetch(endpoint, { method: 'POST' });
+      if (response.ok) {
+        refetch();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur timer');
+      }
+    } catch {
+      toast.error('Erreur timer');
+    }
+  };
+
+  // Part B — Move player
+  const handleMovePlayer = async () => {
+    if (!moveDialog || !moveToTable || !moveToSeat) return;
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/move-player`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId: moveDialog.playerId,
+          toTable: parseInt(moveToTable),
+          toSeat: parseInt(moveToSeat),
+        }),
+      });
+      if (response.ok) {
+        toast.success(`${moveDialog.playerName} déplacé à T${moveToTable} S${moveToSeat}`);
+        setMoveDialog(null);
+        setMoveToTable('');
+        setMoveToSeat('');
+        refetch();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur déplacement');
+      }
+    } catch {
+      toast.error('Erreur déplacement');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Part B — Merge tables
+  const handleMerge = async () => {
+    if (!mergeTableToClose) return;
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/merge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tableToClose: parseInt(mergeTableToClose) }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Table ${mergeTableToClose} fermée, ${data.movements?.length || 0} joueur(s) déplacé(s)`);
+        setMergeDialogOpen(false);
+        setMergeTableToClose('');
+        refetch();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur fusion');
+      }
+    } catch {
+      toast.error('Erreur fusion');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Part B — Rebalance
+  const handleRebalance = async () => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/tournaments/${tournamentId}/tables/auto-rebalance`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.skipped) {
+          toast.info(data.reason || 'Redistribution non nécessaire');
+        } else {
+          toast.success(`${data.totalMoves || 0} joueur(s) redistribué(s)`);
+        }
+        setRebalanceConfirm(false);
+        refetch();
+        onUpdate?.();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Erreur redistribution');
+      }
+    } catch {
+      toast.error('Erreur redistribution');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Part F — Fetch all players for late registration
+  const fetchAllPlayers = useCallback(async () => {
+    setAllPlayersLoading(true);
+    try {
+      const response = await fetch('/api/players');
+      if (response.ok) {
+        const data = await response.json();
+        setAllPlayers(data);
+      }
+    } catch {
+      console.error('Error fetching all players');
+    } finally {
+      setAllPlayersLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (lateRegOpen) fetchAllPlayers();
+  }, [lateRegOpen, fetchAllPlayers]);
+
+  const enrolledPlayerIds = new Set(players.map((p) => p.playerId));
+  const availablePlayers = allPlayers.filter((p) => !enrolledPlayerIds.has(p.id));
+
+  // Part F — Late registration
+  const handleLateRegister = async () => {
+    if (!lateRegPlayerId) return;
+    setIsSubmitting(true);
+    try {
+      // 1. Enroll player
+      const enrollRes = await fetch(`/api/tournaments/${tournamentId}/players`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId: lateRegPlayerId }),
+      });
+      if (!enrollRes.ok) {
+        const data = await enrollRes.json();
+        toast.error(data.error || 'Erreur inscription');
+        return;
+      }
+
+      // 2. Find least full table and first free seat
+      let bestTable: TablePlan | null = null;
+      let bestFreeCount = 0;
+      for (const t of tables) {
+        const freeCount = seatsPerTable - t.seats.filter((s) => !s.isEliminated).length;
+        if (freeCount > bestFreeCount) {
+          bestFreeCount = freeCount;
+          bestTable = t;
+        }
+      }
+
+      if (bestTable && bestFreeCount > 0) {
+        const freeSeats = getFreeSeatNumbers(bestTable.tableNumber);
+        if (freeSeats.length > 0) {
+          await fetch(`/api/tournaments/${tournamentId}/tables/move-player`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              playerId: lateRegPlayerId,
+              toTable: bestTable.tableNumber,
+              toSeat: freeSeats[0],
+            }),
+          });
+          const p = allPlayers.find((ap) => ap.id === lateRegPlayerId);
+          toast.success(`${p ? getPlayerName(p) : 'Joueur'} inscrit et placé à Table ${bestTable.tableNumber}, Siège ${freeSeats[0]}`);
+        }
+      } else {
+        toast.success('Joueur inscrit (aucune place libre, assignez manuellement)');
+      }
+
+      setLateRegOpen(false);
+      setLateRegPlayerId('');
+      refetch();
+      onUpdate?.();
+    } catch {
+      toast.error('Erreur inscription');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   // Get player actions available for a given player
-  const getPlayerActions = (player: TournamentPlayer) => {
+  const getPlayerActions = (player: TournamentPlayer, tableNumber: number) => {
     const actions: Array<{
       label: string;
       icon: React.ReactNode;
@@ -358,10 +699,29 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
             eliminatedId: player.playerId,
             playerName: getPlayerName(player.player),
           });
+          setEliminationKiller('');
         },
         condition: true,
       });
     }
+
+    // Move (Part B)
+    actions.push({
+      label: 'Déplacer',
+      icon: <ArrowRightLeft className="h-4 w-4" />,
+      variant: 'outline',
+      action: () => {
+        setMoveDialog({
+          playerId: player.playerId,
+          playerName: getPlayerName(player.player),
+          fromTable: tableNumber,
+        });
+        setMoveToTable('');
+        setMoveToSeat('');
+        setSelectedPlayerAction(null);
+      },
+      condition: true,
+    });
 
     // Abandon (always available if active and more than 1 player)
     if (activePlayers.length > 1) {
@@ -382,73 +742,6 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
     return actions.filter((a) => a.condition);
   };
 
-  // Build player map for quick lookup
-  const playerMap = new Map(players.map((p) => [p.playerId, p]));
-
-  // Build player-to-table/seat map for killer selector grouping
-  const playerTableMap = new Map<string, { tableNumber: number; seatNumber: number | null }>();
-  tables.forEach((table) => {
-    table.seats.forEach((seat) => {
-      if (!seat.isEliminated) {
-        playerTableMap.set(seat.playerId, {
-          tableNumber: table.tableNumber,
-          seatNumber: seat.seatNumber,
-        });
-      }
-    });
-  });
-
-  // Build killer options grouped by same-table / other tables
-  const getKillerOptions = (eliminatedId: string) => {
-    const eliminatedTable = playerTableMap.get(eliminatedId);
-    const candidates = activePlayers.filter((p) => p.playerId !== eliminatedId);
-
-    const formatPlayer = (p: TournamentPlayer) => {
-      const info = playerTableMap.get(p.playerId);
-      const suffix = info ? ` (T${info.tableNumber}${info.seatNumber != null ? ` S${info.seatNumber}` : ''})` : '';
-      return getPlayerName(p.player) + suffix;
-    };
-
-    if (!eliminatedTable) {
-      // No table info — flat list
-      return candidates.map((p) => (
-        <option key={p.playerId} value={p.playerId}>
-          {formatPlayer(p)}
-        </option>
-      ));
-    }
-
-    const sameTable = candidates.filter(
-      (p) => playerTableMap.get(p.playerId)?.tableNumber === eliminatedTable.tableNumber
-    );
-    const otherTables = candidates.filter(
-      (p) => playerTableMap.get(p.playerId)?.tableNumber !== eliminatedTable.tableNumber
-    );
-
-    return (
-      <>
-        {sameTable.length > 0 && (
-          <optgroup label={`Table ${eliminatedTable.tableNumber}`}>
-            {sameTable.map((p) => (
-              <option key={p.playerId} value={p.playerId}>
-                {formatPlayer(p)}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {otherTables.length > 0 && (
-          <optgroup label="--- Autres tables ---">
-            {otherTables.map((p) => (
-              <option key={p.playerId} value={p.playerId}>
-                {formatPlayer(p)}
-              </option>
-            ))}
-          </optgroup>
-        )}
-      </>
-    );
-  };
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -463,20 +756,36 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
       <div className="sticky top-0 z-10 backdrop-blur-md bg-background/80 border-b pb-3 -mx-1 px-1 pt-1">
         <SectionCard variant="ink" noPadding className="p-3">
           <div className="flex items-center gap-3">
-            {/* Circular timer */}
-            <div className="shrink-0">
-              <CircularTimer
-                timeRemaining={timer?.isRunning || timer?.isPaused ? timeRemaining : null}
-                totalDuration={totalDuration}
-                size={56}
-                strokeWidth={5}
-              />
-            </div>
+            {/* Circular timer — clickable for pause/play (Part C) */}
+            <button
+              onClick={handleTimerToggle}
+              className={`shrink-0 transition-transform ${timerPressed ? 'scale-90' : 'scale-100'} cursor-pointer`}
+              title={timer?.isPaused ? 'Reprendre' : 'Pause'}
+            >
+              <div className="relative">
+                <CircularTimer
+                  timeRemaining={timer?.isRunning || timer?.isPaused ? timeRemaining : null}
+                  totalDuration={totalDuration}
+                  size={56}
+                  strokeWidth={5}
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  {timer?.isPaused ? (
+                    <Play className="h-4 w-4 text-ink-foreground/60" />
+                  ) : (
+                    <Pause className="h-4 w-4 text-ink-foreground/40 opacity-0 hover:opacity-100 transition-opacity" />
+                  )}
+                </div>
+              </div>
+            </button>
 
             {/* Timer info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-mono text-2xl font-bold">
+                <span
+                  className="font-mono text-2xl font-bold cursor-pointer"
+                  onClick={handleTimerToggle}
+                >
                   {formatTime(timeRemaining)}
                 </span>
                 {timer?.currentLevelData && (
@@ -497,39 +806,137 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
                   {timer.currentLevelData.ante > 0 && ` / Ante ${timer.currentLevelData.ante.toLocaleString()}`}
                 </div>
               )}
+              {/* Part E — Next break */}
+              {nextBreakInfo && (
+                <div className="text-xs text-ink-foreground/50 flex items-center gap-1 mt-0.5">
+                  <Coffee className="h-3 w-3" />
+                  {nextBreakInfo.label}
+                </div>
+              )}
             </div>
 
-            {/* Quick stats */}
-            <div className="hidden sm:flex items-center gap-4 text-sm shrink-0">
+            {/* Quick stats — Desktop (Part D + H) */}
+            <div className="hidden sm:flex items-center gap-3 text-sm shrink-0">
+              {/* Part H — Player status counter */}
               <div className="text-center">
-                <div className="font-bold text-lg">{activePlayers.length}</div>
-                <div className="text-ink-foreground/70 text-xs">/ {totalPlayers}</div>
+                <div className="font-bold text-lg text-green-600">{activePlayers.length}</div>
+                <div className="text-ink-foreground/70 text-xs">actifs</div>
+              </div>
+              {truePendingBusts.length > 0 && (
+                <div className="text-center">
+                  <div className="font-bold text-lg text-orange-500">{truePendingBusts.length}</div>
+                  <div className="text-ink-foreground/70 text-xs">en attente</div>
+                </div>
+              )}
+              <div className="text-center">
+                <div className="font-bold text-lg text-muted-foreground">{eliminatedPlayers.length}</div>
+                <div className="text-ink-foreground/70 text-xs">éliminés</div>
               </div>
               <div className="text-center">
                 <div className="font-bold text-lg">{totalRebuys}</div>
                 <div className="text-ink-foreground/70 text-xs">rebuys</div>
               </div>
+              {/* Part D — Pot total */}
               <div className="text-center">
-                <div className="font-bold text-lg">{totalEliminations}</div>
-                <div className="text-ink-foreground/70 text-xs">élims</div>
+                <div className="font-bold text-lg">{potTotal}€</div>
+                <div className="text-ink-foreground/70 text-xs">pot</div>
               </div>
+            </div>
+
+            {/* Header action buttons */}
+            <div className="hidden sm:flex items-center gap-1 shrink-0">
+              {/* Part G — Undo */}
+              {lastAction && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-2 text-xs"
+                  onClick={handleUndo}
+                  disabled={isSubmitting}
+                  title={`Annuler : ${lastAction.type === 'bust' ? 'Bust' : lastAction.type === 'recave' ? 'Recave' : 'Élim'} de ${lastAction.playerName}`}
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              )}
+              {/* Part F — Late registration */}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 px-2 text-xs"
+                onClick={() => setLateRegOpen(true)}
+                title="Inscrire un joueur"
+              >
+                <UserPlus className="h-4 w-4" />
+              </Button>
+              {/* Part B — Merge */}
+              {tables.length >= 2 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 px-2 text-xs"
+                  onClick={() => { setMergeDialogOpen(true); setMergeTableToClose(''); }}
+                  title="Fusionner tables"
+                >
+                  <Merge className="h-4 w-4" />
+                </Button>
+              )}
+              {/* Part B — Rebalance */}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-8 px-2 text-xs"
+                onClick={() => setRebalanceConfirm(true)}
+                title="Redistribuer"
+              >
+                <Shuffle className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
-          {/* Mobile-only stats row */}
+          {/* Mobile-only stats row (Part H + D) */}
           <div className="sm:hidden flex items-center justify-around mt-2 pt-2 border-t border-ink-foreground/20 text-xs">
             <div className="text-center">
-              <Users className="h-3 w-3 mx-auto mb-0.5 text-ink-foreground/70" />
-              <span className="font-bold">{activePlayers.length}/{totalPlayers}</span>
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-0.5" />
+              <span className="font-bold">{activePlayers.length}</span>
+            </div>
+            {truePendingBusts.length > 0 && (
+              <div className="text-center">
+                <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-0.5" />
+                <span className="font-bold">{truePendingBusts.length}</span>
+              </div>
+            )}
+            <div className="text-center">
+              <span className="inline-block w-2 h-2 rounded-full bg-gray-400 mr-0.5" />
+              <span className="font-bold">{eliminatedPlayers.length}</span>
             </div>
             <div className="text-center">
               <RefreshCw className="h-3 w-3 mx-auto mb-0.5 text-ink-foreground/70" />
               <span className="font-bold">{totalRebuys}</span>
             </div>
             <div className="text-center">
-              <Target className="h-3 w-3 mx-auto mb-0.5 text-ink-foreground/70" />
-              <span className="font-bold">{totalEliminations}</span>
+              <Coins className="h-3 w-3 mx-auto mb-0.5 text-ink-foreground/70" />
+              <span className="font-bold">{potTotal}€</span>
             </div>
+          </div>
+
+          {/* Mobile action row */}
+          <div className="sm:hidden flex items-center justify-end gap-1 mt-1">
+            {lastAction && (
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={handleUndo} disabled={isSubmitting}>
+                <Undo2 className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setLateRegOpen(true)}>
+              <UserPlus className="h-3.5 w-3.5" />
+            </Button>
+            {tables.length >= 2 && (
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { setMergeDialogOpen(true); setMergeTableToClose(''); }}>
+                <Merge className="h-3.5 w-3.5" />
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setRebalanceConfirm(true)}>
+              <Shuffle className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </SectionCard>
       </div>
@@ -684,7 +1091,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
           </button>
           {historyOpen && (
             <CardContent className="pt-0 space-y-2">
-              {eliminations.slice(0, 5).map((elim, idx) => (
+              {eliminations.slice(0, 5).map((elim) => (
                 <div
                   key={elim.id}
                   className="flex items-center justify-between gap-2 p-2 rounded-lg border text-sm"
@@ -708,16 +1115,6 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
                       Rang #{elim.rank} — Niv. {elim.level}
                     </div>
                   </div>
-                  {idx === 0 && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="shrink-0"
-                      onClick={handleCancelLastElimination}
-                    >
-                      <Undo2 className="h-4 w-4" />
-                    </Button>
-                  )}
                 </div>
               ))}
             </CardContent>
@@ -904,6 +1301,159 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Move player dialog (Part B) */}
+      <Dialog
+        open={!!moveDialog}
+        onOpenChange={(open) => !open && setMoveDialog(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Déplacer {moveDialog?.playerName}</DialogTitle>
+            <DialogDescription>Depuis Table {moveDialog?.fromTable}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Table cible *</label>
+              <select
+                className="w-full border rounded-md p-2 bg-background min-h-[44px]"
+                value={moveToTable}
+                onChange={(e) => {
+                  setMoveToTable(e.target.value);
+                  setMoveToSeat('');
+                }}
+              >
+                <option value="">Sélectionner...</option>
+                {tables
+                  .filter((t) => t.tableNumber !== moveDialog?.fromTable)
+                  .map((t) => (
+                    <option key={t.tableNumber} value={t.tableNumber}>
+                      Table {t.tableNumber} ({t.activeCount} joueurs)
+                    </option>
+                  ))}
+              </select>
+            </div>
+            {moveToTable && (
+              <div>
+                <label className="text-sm font-medium mb-1 block">Siège cible *</label>
+                <select
+                  className="w-full border rounded-md p-2 bg-background min-h-[44px]"
+                  value={moveToSeat}
+                  onChange={(e) => setMoveToSeat(e.target.value)}
+                >
+                  <option value="">Sélectionner...</option>
+                  {getFreeSeatNumbers(parseInt(moveToTable)).map((s) => (
+                    <option key={s} value={s}>Siège {s}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveDialog(null)}>Annuler</Button>
+            <Button
+              disabled={!moveToTable || !moveToSeat || isSubmitting}
+              onClick={handleMovePlayer}
+            >
+              {isSubmitting ? '...' : 'Déplacer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge tables dialog (Part B) */}
+      <Dialog open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Fusionner des tables</DialogTitle>
+            <DialogDescription>Quelle table fermer ? Les joueurs seront redistribués.</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <label className="text-sm font-medium mb-1 block">Table à fermer *</label>
+            <select
+              className="w-full border rounded-md p-2 bg-background min-h-[44px]"
+              value={mergeTableToClose}
+              onChange={(e) => setMergeTableToClose(e.target.value)}
+            >
+              <option value="">Sélectionner...</option>
+              {tables.map((t) => (
+                <option key={t.tableNumber} value={t.tableNumber}>
+                  Table {t.tableNumber} ({t.activeCount} joueurs)
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMergeDialogOpen(false)}>Annuler</Button>
+            <Button
+              variant="destructive"
+              disabled={!mergeTableToClose || isSubmitting}
+              onClick={handleMerge}
+            >
+              {isSubmitting ? '...' : 'Fusionner'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rebalance confirm (Part B) */}
+      <AlertDialog open={rebalanceConfirm} onOpenChange={setRebalanceConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Redistribuer les joueurs</AlertDialogTitle>
+            <AlertDialogDescription>
+              Les joueurs seront redistribués équitablement entre les tables. Continuer ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRebalance} disabled={isSubmitting}>
+              {isSubmitting ? '...' : 'Redistribuer'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Late registration dialog (Part F) */}
+      <Dialog open={lateRegOpen} onOpenChange={setLateRegOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Inscrire un joueur</DialogTitle>
+            <DialogDescription>Late registration — le joueur sera placé automatiquement</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <label className="text-sm font-medium mb-1 block">Joueur *</label>
+            {allPlayersLoading ? (
+              <p className="text-sm text-muted-foreground">Chargement...</p>
+            ) : (
+              <select
+                className="w-full border rounded-md p-2 bg-background min-h-[44px]"
+                value={lateRegPlayerId}
+                onChange={(e) => setLateRegPlayerId(e.target.value)}
+              >
+                <option value="">Sélectionner...</option>
+                {availablePlayers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {getPlayerName(p)}
+                  </option>
+                ))}
+              </select>
+            )}
+            {availablePlayers.length === 0 && !allPlayersLoading && (
+              <p className="text-sm text-muted-foreground mt-1">Tous les joueurs sont déjà inscrits</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLateRegOpen(false)}>Annuler</Button>
+            <Button
+              disabled={!lateRegPlayerId || isSubmitting}
+              onClick={handleLateRegister}
+            >
+              {isSubmitting ? '...' : 'Inscrire'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Mobile player action dialog */}
       <Dialog
         open={!!selectedPlayerAction}
@@ -920,7 +1470,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
           </DialogHeader>
           <div className="space-y-2 py-2">
             {selectedPlayerAction &&
-              getPlayerActions(selectedPlayerAction.player).map((action) => (
+              getPlayerActions(selectedPlayerAction.player, selectedPlayerAction.tableNumber).map((action) => (
                 <Button
                   key={action.label}
                   variant={action.variant}
@@ -933,7 +1483,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
                 </Button>
               ))}
             {selectedPlayerAction &&
-              getPlayerActions(selectedPlayerAction.player).length === 0 && (
+              getPlayerActions(selectedPlayerAction.player, selectedPlayerAction.tableNumber).length === 0 && (
                 <p className="text-muted-foreground text-sm text-center py-2">
                   Aucune action disponible
                 </p>
@@ -943,6 +1493,13 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
       </Dialog>
     </div>
   );
+}
+
+// Standalone formatTime for use before component (in computed values)
+function formatTimeFn(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
 // --- Sub-component: TableCard ---
@@ -958,7 +1515,7 @@ function TableCard({
 }: {
   table: TablePlan;
   playerMap: Map<string, TournamentPlayer>;
-  getPlayerActions: (player: TournamentPlayer) => Array<{
+  getPlayerActions: (player: TournamentPlayer, tableNumber: number) => Array<{
     label: string;
     icon: React.ReactNode;
     variant: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost';
@@ -978,7 +1535,7 @@ function TableCard({
         const tournamentPlayer = playerMap.get(seat.playerId);
         if (!tournamentPlayer) return null;
 
-        const actions = getPlayerActions(tournamentPlayer);
+        const actions = getPlayerActions(tournamentPlayer, table.tableNumber);
 
         return (
           <div
