@@ -304,7 +304,7 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         const data = await response.json();
         const pName = players.find((p) => p.playerId === eliminatedId);
         toast.success('Bust enregistré');
-        if (data.id) setLastAction({ type: 'bust', bustId: data.id, playerName: pName ? getPlayerName(pName.player) : '?' });
+        if (data.bustEvent?.id) setLastAction({ type: 'bust', bustId: data.bustEvent.id, playerName: pName ? getPlayerName(pName.player) : '?' });
         refetch();
         onUpdate?.();
         setFabDialogOpen(false);

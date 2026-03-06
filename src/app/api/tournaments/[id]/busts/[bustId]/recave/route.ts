@@ -4,7 +4,7 @@ import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { emitToTournament } from '@/lib/socket';
 import { scheduleAutoResume } from '@/lib/timer-actions';
 import { computeRecavePenalty, parseRecavePenaltyRules } from '@/lib/scoring';
-import { calculateEffectiveLevel, areRecavesOpen } from '@/lib/tournament-utils';
+import { calculateEffectiveLevel, areRecavesOpen, isBreakAfterRebuyEnd } from '@/lib/tournament-utils';
 
 /**
  * POST - Appliquer une recave depuis un bust
@@ -62,9 +62,15 @@ export async function POST(
     }
 
     // Vérifier que les recaves sont ouvertes
-    // (inclut la pause suivant "Fin recaves" pour permettre les recaves light)
+    // Accepter aussi pendant la pause "fin de recave" (voluntary rebuy period)
     const effectiveLevel = calculateEffectiveLevel(tournament, tournament.blindLevels);
-    if (!areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels)) {
+    const recavesOpen = areRecavesOpen(tournament, effectiveLevel, tournament.blindLevels);
+    const voluntaryRebuyPeriod = isBreakAfterRebuyEnd(
+      tournament.rebuyEndLevel,
+      effectiveLevel,
+      tournament.blindLevels
+    );
+    if (!recavesOpen && !voluntaryRebuyPeriod) {
       return NextResponse.json(
         { error: 'La période de recaves est terminée' },
         { status: 400 }
