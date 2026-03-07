@@ -130,7 +130,7 @@ export default function DirectorTablePage({
         const additionalRoles = data.additionalRoles || [];
         const allRoles = [role, ...additionalRoles];
         const isPrivileged = allRoles.some((r: string) =>
-          ['ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'].includes(r)
+          ['SUPERADMIN', 'ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'].includes(r)
         );
 
         if (isPrivileged) {

@@ -37,7 +37,7 @@ export async function PUT(request: NextRequest, segmentData: { params: Params })
     if (!permResult.success) {
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
-    if (permResult.player.role !== 'ADMIN') {
+    if (permResult.player.role !== 'ADMIN' && permResult.player.role !== 'SUPERADMIN') {
       return NextResponse.json({ error: 'Permission refusée' }, { status: 403 });
     }
 
@@ -84,7 +84,7 @@ export async function DELETE(request: NextRequest, segmentData: { params: Params
     if (!permResult.success) {
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
-    if (permResult.player.role !== 'ADMIN') {
+    if (permResult.player.role !== 'ADMIN' && permResult.player.role !== 'SUPERADMIN') {
       return NextResponse.json({ error: 'Permission refusée' }, { status: 403 });
     }
 
