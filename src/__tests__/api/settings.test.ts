@@ -6,10 +6,12 @@
 import { GET, PUT } from '@/app/api/settings/route';
 import {
   createUnauthenticatedRequest,
+  createAuthenticatedRequest,
   createRequestWithRole,
   parseJsonResponse,
 } from '@/test-utils/test-utils';
 import { mockPrismaResults, mockPlayerFindUnique } from '@/test-utils/mock-prisma';
+import { TEST_IDS, MOCK_PLAYERS } from '@/test-utils/mocks';
 
 // Mock Prisma
 jest.mock('@/lib/prisma', () => ({
@@ -48,6 +50,10 @@ describe('/api/settings', () => {
     (mockPrisma.player.findUnique as jest.Mock).mockImplementation(
       ({ where }: { where: { id?: string } }) => {
         if (where.id) {
+          // Handle SUPERADMIN player from MOCK_PLAYERS (not in TEST_PLAYERS)
+          if (where.id === TEST_IDS.SUPERADMIN_PLAYER) {
+            return Promise.resolve(MOCK_PLAYERS.superadmin);
+          }
           return Promise.resolve(mockPlayerFindUnique(where.id));
         }
         return Promise.resolve(null);
@@ -155,11 +161,10 @@ describe('/api/settings', () => {
     });
 
     describe('Protection RBAC', () => {
-      it('ADMIN - peut modifier les paramètres (200)', async () => {
-        const request = createRequestWithRole(
+      it('SUPERADMIN - peut modifier les paramètres (200)', async () => {
+        const request = createAuthenticatedRequest(
           'http://localhost:3003/api/settings',
-          'admin',
-          { method: 'PUT', body: validSettingsData }
+          { method: 'PUT', body: validSettingsData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
         );
 
         const response = await PUT(request);
@@ -169,6 +174,22 @@ describe('/api/settings', () => {
 
         expect(status).toBe(200);
         expect(data.championshipName).toBe('NOUVEAU CHAMPIONNAT');
+      });
+
+      it('ADMIN - ne peut pas modifier les paramètres (403)', async () => {
+        const request = createRequestWithRole(
+          'http://localhost:3003/api/settings',
+          'admin',
+          { method: 'PUT', body: validSettingsData }
+        );
+
+        const response = await PUT(request);
+        const { status, data } = await parseJsonResponse<{ error: string }>(
+          response
+        );
+
+        expect(status).toBe(403);
+        expect(data.error).toBeDefined();
       });
 
       it('PLAYER - ne peut pas modifier les paramètres (403)', async () => {
@@ -227,10 +248,9 @@ describe('/api/settings', () => {
           championshipName: '', // Invalide - vide
         };
 
-        const request = createRequestWithRole(
+        const request = createAuthenticatedRequest(
           'http://localhost:3003/api/settings',
-          'admin',
-          { method: 'PUT', body: invalidData }
+          { method: 'PUT', body: invalidData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
         );
 
         const response = await PUT(request);
@@ -248,10 +268,9 @@ describe('/api/settings', () => {
           defaultBuyIn: -5, // Invalide - négatif
         };
 
-        const request = createRequestWithRole(
+        const request = createAuthenticatedRequest(
           'http://localhost:3003/api/settings',
-          'admin',
-          { method: 'PUT', body: invalidData }
+          { method: 'PUT', body: invalidData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
         );
 
         const response = await PUT(request);
@@ -269,10 +288,9 @@ describe('/api/settings', () => {
           theme: 'invalid-theme', // Invalide
         };
 
-        const request = createRequestWithRole(
+        const request = createAuthenticatedRequest(
           'http://localhost:3003/api/settings',
-          'admin',
-          { method: 'PUT', body: invalidData }
+          { method: 'PUT', body: invalidData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
         );
 
         const response = await PUT(request);
@@ -290,10 +308,9 @@ describe('/api/settings', () => {
           language: 'es', // Invalide - seul fr/en accepté
         };
 
-        const request = createRequestWithRole(
+        const request = createAuthenticatedRequest(
           'http://localhost:3003/api/settings',
-          'admin',
-          { method: 'PUT', body: invalidData }
+          { method: 'PUT', body: invalidData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
         );
 
         const response = await PUT(request);
@@ -316,10 +333,9 @@ describe('/api/settings', () => {
           ...validSettingsData,
         });
 
-        const request = createRequestWithRole(
+        const request = createAuthenticatedRequest(
           'http://localhost:3003/api/settings',
-          'admin',
-          { method: 'PUT', body: validSettingsData }
+          { method: 'PUT', body: validSettingsData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
         );
 
         const response = await PUT(request);

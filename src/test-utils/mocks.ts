@@ -6,6 +6,7 @@ import { PlayerRole } from '@prisma/client';
 
 // Fixed IDs for deterministic tests
 export const TEST_IDS = {
+  SUPERADMIN_PLAYER: 'test-superadmin-player-000',
   ADMIN_PLAYER: 'test-admin-player-001',
   TD_PLAYER: 'test-td-player-002',
   REGULAR_PLAYER: 'test-player-003',
@@ -15,6 +16,18 @@ export const TEST_IDS = {
 
 // Mock player data
 export const MOCK_PLAYERS = {
+  superadmin: {
+    id: TEST_IDS.SUPERADMIN_PLAYER,
+    firstName: 'Super',
+    lastName: 'Admin',
+    nickname: 'superadmin',
+    email: 'superadmin@test.com',
+    avatar: null,
+    role: 'SUPERADMIN' as PlayerRole,
+    status: 'ACTIVE',
+    additionalRoles: [] as PlayerRole[],
+    roles: [] as { role: PlayerRole }[],
+  },
   admin: {
     id: TEST_IDS.ADMIN_PLAYER,
     firstName: 'Admin',

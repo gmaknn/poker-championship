@@ -14,6 +14,7 @@ export const ROLES = {
   TOURNAMENT_DIRECTOR: 'TOURNAMENT_DIRECTOR' as const,
   ANIMATOR: 'ANIMATOR' as const,
   ADMIN: 'ADMIN' as const,
+  SUPERADMIN: 'SUPERADMIN' as const,
 };
 
 export const ROLE_LABELS = {
@@ -21,13 +22,15 @@ export const ROLE_LABELS = {
   [ROLES.TOURNAMENT_DIRECTOR]: 'Directeur de Tournoi',
   [ROLES.ANIMATOR]: 'Animateur',
   [ROLES.ADMIN]: 'Administrateur',
+  [ROLES.SUPERADMIN]: 'Super Administrateur',
 };
 
 export const ROLE_DESCRIPTIONS = {
   [ROLES.PLAYER]: 'Peut participer aux tournois et voir son profil',
   [ROLES.TOURNAMENT_DIRECTOR]: 'Peut créer et gérer des tournois',
   [ROLES.ANIMATOR]: 'Peut publier des messages et statistiques sur WhatsApp',
-  [ROLES.ADMIN]: 'Accès complet à toutes les fonctionnalités',
+  [ROLES.ADMIN]: 'Gestion des tournois, joueurs et classements (pas de settings/saisons)',
+  [ROLES.SUPERADMIN]: 'Accès total — gestion globale du système',
 };
 
 // Type pour représenter un ensemble de rôles (multi-rôle)
@@ -126,7 +129,32 @@ const ROLE_PERMISSIONS: Record<PlayerRole, string[]> = {
     PERMISSIONS.USE_AI_ASSISTANT,
   ],
 
-  [ROLES.ADMIN]: Object.values(PERMISSIONS), // Toutes les permissions
+  [ROLES.ADMIN]: [
+    // Tournois : accès et gestion complète
+    PERMISSIONS.VIEW_ALL_TOURNAMENTS,
+    PERMISSIONS.VIEW_OWN_TOURNAMENTS,
+    PERMISSIONS.CREATE_TOURNAMENT,
+    PERMISSIONS.EDIT_OWN_TOURNAMENT,
+    PERMISSIONS.EDIT_ALL_TOURNAMENTS,
+    PERMISSIONS.DELETE_OWN_TOURNAMENT,
+    PERMISSIONS.DELETE_ALL_TOURNAMENTS,
+    PERMISSIONS.MANAGE_TOURNAMENT_REGISTRATIONS,
+    PERMISSIONS.MANAGE_TOURNAMENT_TIMER,
+    PERMISSIONS.MANAGE_ELIMINATIONS,
+    PERMISSIONS.MANAGE_REBUYS,
+    PERMISSIONS.FINALIZE_TOURNAMENT,
+    PERMISSIONS.EXPORT_TOURNAMENT_PDF,
+    // Joueurs : consultation et création (pas edit/delete)
+    PERMISSIONS.VIEW_PLAYERS,
+    PERMISSIONS.CREATE_PLAYER,
+    // Classements et stats
+    PERMISSIONS.VIEW_LEADERBOARD,
+    PERMISSIONS.VIEW_PLAYER_STATS,
+    // Chipsets : lecture seule
+    PERMISSIONS.VIEW_CHIPSETS,
+  ],
+
+  [ROLES.SUPERADMIN]: Object.values(PERMISSIONS), // Bypass total
 };
 
 // ============================================
@@ -135,11 +163,11 @@ const ROLE_PERMISSIONS: Record<PlayerRole, string[]> = {
 
 /**
  * Vérifie si un rôle a une permission spécifique
- * ADMIN a toujours accès (bypass explicite pour éviter les régressions)
+ * Seul SUPERADMIN a le bypass total
  */
 export function hasPermission(role: PlayerRole, permission: string): boolean {
-  // ADMIN bypass - accès total garanti
-  if (role === ROLES.ADMIN) {
+  // SUPERADMIN bypass - accès total garanti
+  if (role === ROLES.SUPERADMIN) {
     return true;
   }
   const permissions = ROLE_PERMISSIONS[role];
@@ -231,17 +259,24 @@ export function canManageSettings(role: PlayerRole): boolean {
 }
 
 /**
- * Vérifie si un rôle est admin
+ * Vérifie si un rôle est admin (ADMIN ou SUPERADMIN)
  */
 export function isAdmin(role: PlayerRole): boolean {
-  return role === ROLES.ADMIN;
+  return role === ROLES.ADMIN || role === ROLES.SUPERADMIN;
+}
+
+/**
+ * Vérifie si un rôle est SUPERADMIN
+ */
+export function isSuperAdmin(role: PlayerRole): boolean {
+  return role === ROLES.SUPERADMIN;
 }
 
 /**
  * Vérifie si un rôle est Tournament Director ou supérieur
  */
 export function isTournamentDirectorOrAbove(role: PlayerRole): boolean {
-  return role === ROLES.TOURNAMENT_DIRECTOR || role === ROLES.ADMIN;
+  return role === ROLES.TOURNAMENT_DIRECTOR || role === ROLES.ADMIN || role === ROLES.SUPERADMIN;
 }
 
 /**
@@ -313,8 +348,8 @@ export function hasPermissionMultiRole(
   additionalRoles: PlayerRole[] | undefined,
   permission: string
 ): boolean {
-  // ADMIN bypass
-  if (hasRoleInSet(primaryRole, additionalRoles, ROLES.ADMIN as PlayerRole)) {
+  // SUPERADMIN bypass total
+  if (hasRoleInSet(primaryRole, additionalRoles, ROLES.SUPERADMIN as PlayerRole)) {
     return true;
   }
 
@@ -343,13 +378,26 @@ export function getAllRoles(
 }
 
 /**
- * Vérifie si un joueur est ADMIN (multi-rôle aware)
+ * Vérifie si un joueur est ADMIN ou SUPERADMIN (multi-rôle aware)
+ * Utilisé pour les vérifications UI (afficher menus admin, etc.)
+ * Pour le bypass de permissions, utiliser isSuperAdminMultiRole()
  */
 export function isAdminMultiRole(
   primaryRole: PlayerRole,
   additionalRoles: PlayerRole[] | undefined
 ): boolean {
-  return hasRoleInSet(primaryRole, additionalRoles, ROLES.ADMIN as PlayerRole);
+  return hasRoleInSet(primaryRole, additionalRoles, ROLES.SUPERADMIN as PlayerRole)
+    || hasRoleInSet(primaryRole, additionalRoles, ROLES.ADMIN as PlayerRole);
+}
+
+/**
+ * Vérifie si un joueur est SUPERADMIN (multi-rôle aware)
+ */
+export function isSuperAdminMultiRole(
+  primaryRole: PlayerRole,
+  additionalRoles: PlayerRole[] | undefined
+): boolean {
+  return hasRoleInSet(primaryRole, additionalRoles, ROLES.SUPERADMIN as PlayerRole);
 }
 
 /**
@@ -372,5 +420,6 @@ export function isTournamentDirectorOrAdminMultiRole(
   return hasAnyRoleInSet(primaryRole, additionalRoles, [
     ROLES.TOURNAMENT_DIRECTOR as PlayerRole,
     ROLES.ADMIN as PlayerRole,
+    ROLES.SUPERADMIN as PlayerRole,
   ]);
 }

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Trophy, BarChart3, Image, Archive } from 'lucide-react';
 import { useCurrentPlayer } from '@/components/layout/player-nav';
 import { Season } from '@prisma/client';
+import { isAnimatorOrAdminRole } from '@/lib/role-utils';
 
 type SeasonWithCount = Season & {
   _count?: {
@@ -24,7 +25,7 @@ export default function PlayerSeasonsPage() {
   useEffect(() => {
     // Redirect non-ANIMATOR/ADMIN users
     if (!isLoadingPlayer && currentPlayer) {
-      if (currentPlayer.role !== 'ANIMATOR' && currentPlayer.role !== 'ADMIN') {
+      if (!isAnimatorOrAdminRole(currentPlayer.role)) {
         router.push('/player');
       }
     } else if (!isLoadingPlayer && !currentPlayer) {
@@ -33,7 +34,7 @@ export default function PlayerSeasonsPage() {
   }, [currentPlayer, isLoadingPlayer, router]);
 
   useEffect(() => {
-    if (currentPlayer && (currentPlayer.role === 'ANIMATOR' || currentPlayer.role === 'ADMIN')) {
+    if (currentPlayer && (isAnimatorOrAdminRole(currentPlayer.role))) {
       fetchSeasons();
     }
   }, [currentPlayer]);
@@ -65,7 +66,7 @@ export default function PlayerSeasonsPage() {
   }
 
   // Check permissions
-  if (!currentPlayer || (currentPlayer.role !== 'ANIMATOR' && currentPlayer.role !== 'ADMIN')) {
+  if (!currentPlayer || (!isAnimatorOrAdminRole(currentPlayer.role))) {
     return null; // Will redirect
   }
 

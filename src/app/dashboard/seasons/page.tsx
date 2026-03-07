@@ -33,7 +33,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
+import { isSuperAdminRole } from '@/lib/role-utils';
+
+type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN' | 'SUPERADMIN';
 
 // Type for detailed points configuration
 interface DetailedPointsConfig {
@@ -107,7 +109,7 @@ export default function SeasonsPage() {
   const [error, setError] = useState('');
 
   // Vérifier si l'utilisateur peut modifier (Admin uniquement)
-  const canEdit = currentUserRole === 'ADMIN';
+  const canEdit = isSuperAdminRole(currentUserRole);
 
   useEffect(() => {
     fetchSeasons();

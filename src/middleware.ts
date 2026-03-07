@@ -52,23 +52,25 @@ function isPublicApiRoute(pathname: string): boolean {
 }
 
 // Rôles autorisés pour /dashboard/*
-const DASHBOARD_ALLOWED_ROLES = ['ADMIN', 'TOURNAMENT_DIRECTOR'];
+const DASHBOARD_ALLOWED_ROLES = ['SUPERADMIN', 'ADMIN', 'TOURNAMENT_DIRECTOR'];
 
 // Rôles autorisés pour les pages d'export (ANIMATOR peut accéder en lecture)
-const DASHBOARD_EXPORT_ALLOWED_ROLES = ['ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'];
+const DASHBOARD_EXPORT_ALLOWED_ROLES = ['SUPERADMIN', 'ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'];
 
 // Helper to verify player JWT token
 async function verifyPlayerToken(token: string): Promise<{
   playerId: string;
   role: string;
   type: string;
+  tournamentId?: string;
 } | null> {
   try {
     const { payload } = await jwtVerify(token, getJwtSecret());
     return {
-      playerId: payload.playerId as string,
+      playerId: (payload.playerId as string) || '',
       role: payload.role as string,
       type: payload.type as string,
+      tournamentId: payload.tournamentId as string | undefined,
     };
   } catch {
     return null;
@@ -88,7 +90,7 @@ export default auth(async (req) => {
   }
 
   // Rôles autorisés pour /director/*
-  const DIRECTOR_ALLOWED_ROLES = ['ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'];
+  const DIRECTOR_ALLOWED_ROLES = ['SUPERADMIN', 'ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'];
 
   // Routes dashboard et director - protection obligatoire avec vérification de rôle
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/director')) {
@@ -100,6 +102,25 @@ export default auth(async (req) => {
       const playerSession = await verifyPlayerToken(playerSessionCookie);
 
       if (playerSession) {
+        // Tournament-admin scopé : accès limité au tournoi assigné
+        if (playerSession.type === 'tournament-admin' && playerSession.tournamentId) {
+          const tid = playerSession.tournamentId;
+          const isAllowedPath =
+            pathname === `/dashboard/tournaments/${tid}` ||
+            pathname.startsWith(`/dashboard/tournaments/${tid}/`) ||
+            pathname === `/director/${tid}` ||
+            pathname.startsWith(`/director/${tid}/`);
+
+          if (isAllowedPath) {
+            console.log(`[MIDDLEWARE] Tournament-admin access granted to ${pathname}`);
+            return NextResponse.next();
+          }
+
+          // Rediriger vers le tournoi scopé
+          console.log(`[MIDDLEWARE] Tournament-admin redirected from ${pathname} to /director/${tid}`);
+          return NextResponse.redirect(new URL(`/director/${tid}`, req.url));
+        }
+
         // Un joueur est connecté via le système Player
         // Vérifier si son rôle permet l'accès au dashboard
 

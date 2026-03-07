@@ -25,27 +25,29 @@ import {
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { isAdminRole } from '@/lib/role-utils';
 
 const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
-  { icon: TrendingUp, label: 'En Direct', href: '/dashboard/live', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
-  { icon: Award, label: 'Saisons', href: '/dashboard/seasons', roles: ['ANIMATOR', 'ADMIN'] },
-  { icon: Calendar, label: 'Tournois', href: '/dashboard/tournaments', roles: ['TOURNAMENT_DIRECTOR', 'ADMIN'] },
-  { icon: Users, label: 'Joueurs', href: '/dashboard/players', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
-  { icon: Trophy, label: 'Classement', href: '/dashboard/leaderboard', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
-  { icon: BarChart3, label: 'Statistiques', href: '/dashboard/statistics', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN'] },
-  { icon: LogIn, label: 'Connexions', href: '/dashboard/statistics/connections', roles: ['ADMIN'] },
+  { icon: LayoutDashboard, label: 'Dashboard', href: '/dashboard', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN', 'SUPERADMIN'] },
+  { icon: TrendingUp, label: 'En Direct', href: '/dashboard/live', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN', 'SUPERADMIN'] },
+  { icon: Award, label: 'Saisons', href: '/dashboard/seasons', roles: ['ANIMATOR', 'SUPERADMIN'] },
+  { icon: Calendar, label: 'Tournois', href: '/dashboard/tournaments', roles: ['TOURNAMENT_DIRECTOR', 'ADMIN', 'SUPERADMIN'] },
+  { icon: Users, label: 'Joueurs', href: '/dashboard/players', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN', 'SUPERADMIN'] },
+  { icon: Trophy, label: 'Classement', href: '/dashboard/leaderboard', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN', 'SUPERADMIN'] },
+  { icon: BarChart3, label: 'Statistiques', href: '/dashboard/statistics', roles: ['PLAYER', 'TOURNAMENT_DIRECTOR', 'ANIMATOR', 'ADMIN', 'SUPERADMIN'] },
+  { icon: LogIn, label: 'Connexions', href: '/dashboard/statistics/connections', roles: ['SUPERADMIN'] },
   // Communication masqué pour tous les profils (fonctionnalité désactivée temporairement)
-  // { icon: MessageSquare, label: 'Communication', href: '/dashboard/communication', roles: ['ANIMATOR', 'ADMIN'] },
-  { icon: Calculator, label: 'Assistant Jetons', href: '/dashboard/chip-assistant', roles: ['TOURNAMENT_DIRECTOR', 'ADMIN'] },
-  { icon: Settings, label: 'Paramètres', href: '/dashboard/settings', roles: ['ADMIN'] },
+  // { icon: MessageSquare, label: 'Communication', href: '/dashboard/communication', roles: ['ANIMATOR', 'SUPERADMIN'] },
+  { icon: Calculator, label: 'Assistant Jetons', href: '/dashboard/chip-assistant', roles: ['TOURNAMENT_DIRECTOR', 'ADMIN', 'SUPERADMIN'] },
+  { icon: Settings, label: 'Paramètres', href: '/dashboard/settings', roles: ['SUPERADMIN'] },
 ];
 
-const ROLE_CONFIG = {
+const ROLE_CONFIG: Record<string, { label: string; icon: typeof Users; color: string }> = {
   PLAYER: { label: 'Joueur', icon: Users, color: 'bg-blue-500' },
   TOURNAMENT_DIRECTOR: { label: 'TD', icon: Shield, color: 'bg-purple-500' },
   ANIMATOR: { label: 'Animateur', icon: MessageSquare, color: 'bg-green-500' },
   ADMIN: { label: 'Admin', icon: Crown, color: 'bg-amber-500' },
+  SUPERADMIN: { label: 'Super Admin', icon: Crown, color: 'bg-red-500' },
 };
 
 const getAvatarUrl = (avatar: string | null) => {
@@ -58,7 +60,7 @@ interface CurrentPlayer {
   id: string;
   nickname: string;
   avatar: string | null;
-  role: 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
+  role: string;
 }
 
 interface SidebarProps {

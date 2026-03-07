@@ -39,6 +39,7 @@ let mockTournaments: Map<string, MockPrismaTournament> = new Map();
  */
 export function resetMockPrisma() {
   mockPlayers = new Map<string, MockPrismaPlayer>([
+    [TEST_IDS.SUPERADMIN_PLAYER, { ...MOCK_PLAYERS.superadmin }],
     [TEST_IDS.ADMIN_PLAYER, { ...MOCK_PLAYERS.admin }],
     [TEST_IDS.TD_PLAYER, { ...MOCK_PLAYERS.tournamentDirector }],
     [TEST_IDS.REGULAR_PLAYER, { ...MOCK_PLAYERS.player }],

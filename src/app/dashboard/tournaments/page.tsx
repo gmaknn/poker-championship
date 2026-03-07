@@ -31,7 +31,9 @@ import { PageHeader } from '@/components/PageHeader';
 import { normalizeAvatarSrc } from '@/lib/utils';
 
 type TournamentStatus = 'PLANNED' | 'REGISTRATION' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED';
-type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ADMIN';
+import { isAdminRole, isTDOrAdminRole } from '@/lib/role-utils';
+
+type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ADMIN' | 'SUPERADMIN';
 
 interface Tournament {
   id: string;
@@ -153,7 +155,7 @@ export default function TournamentsPage() {
   };
 
   const canCreateTournament = () => {
-    const canCreate = currentUserRole === 'TOURNAMENT_DIRECTOR' || currentUserRole === 'ADMIN';
+    const canCreate = isTDOrAdminRole(currentUserRole);
     console.log('🔐 canCreateTournament:', { currentUserRole, canCreate });
     return canCreate;
   };
@@ -168,7 +170,7 @@ export default function TournamentsPage() {
       match: tournament.createdById === userId,
     });
 
-    if (currentUserRole === 'ADMIN') return true;
+    if (isAdminRole(currentUserRole)) return true;
     if (currentUserRole === 'TOURNAMENT_DIRECTOR') {
       // TD can only edit their own tournaments
       return tournament.createdById === userId;
@@ -177,7 +179,7 @@ export default function TournamentsPage() {
   };
 
   const canDeleteTournament = (tournament: Tournament) => {
-    if (currentUserRole === 'ADMIN') return true;
+    if (isAdminRole(currentUserRole)) return true;
     if (currentUserRole === 'TOURNAMENT_DIRECTOR') {
       // TD can only delete their own tournaments
       return tournament.createdById === getCurrentUserId();
@@ -604,7 +606,7 @@ export default function TournamentsPage() {
                 <span className="hidden sm:inline">{generating ? 'Génération...' : 'Générer test'}</span>
               </Button>
             )}
-            {currentUserRole === 'ADMIN' && testTournamentsCount > 0 && (
+            {isAdminRole(currentUserRole) && testTournamentsCount > 0 && (
               <Button
                 variant="destructive"
                 onClick={() => setPurgeTestConfirm(true)}

@@ -28,6 +28,7 @@ import {
 import { toPng, toJpeg } from 'html-to-image';
 import { preloadImagesAsBase64 } from '@/lib/preload-images';
 import { useCurrentPlayer } from '@/components/layout/player-nav';
+import { isAnimatorOrAdminRole } from '@/lib/role-utils';
 import { toast } from 'sonner';
 import SeasonLeaderboardChart from '@/components/exports/SeasonLeaderboardChart';
 import SeasonDetailedTable from '@/components/exports/SeasonDetailedTable';
@@ -168,7 +169,7 @@ export default function PlayerSeasonExportsPage() {
   // Check permissions
   useEffect(() => {
     if (!isLoadingPlayer && currentPlayer) {
-      if (currentPlayer.role !== 'ANIMATOR' && currentPlayer.role !== 'ADMIN') {
+      if (!isAnimatorOrAdminRole(currentPlayer.role)) {
         router.push('/player');
       }
     } else if (!isLoadingPlayer && !currentPlayer) {
@@ -177,7 +178,7 @@ export default function PlayerSeasonExportsPage() {
   }, [currentPlayer, isLoadingPlayer, router]);
 
   useEffect(() => {
-    if (currentPlayer && (currentPlayer.role === 'ANIMATOR' || currentPlayer.role === 'ADMIN')) {
+    if (currentPlayer && (isAnimatorOrAdminRole(currentPlayer.role))) {
       fetchSeasonData();
     }
   }, [seasonId, currentPlayer]);
@@ -354,7 +355,7 @@ export default function PlayerSeasonExportsPage() {
   }
 
   // Check permissions
-  if (!currentPlayer || (currentPlayer.role !== 'ANIMATOR' && currentPlayer.role !== 'ADMIN')) {
+  if (!currentPlayer || (!isAnimatorOrAdminRole(currentPlayer.role))) {
     return null;
   }
 

@@ -6,10 +6,12 @@
 import { GET, POST } from '@/app/api/seasons/route';
 import {
   createUnauthenticatedRequest,
+  createAuthenticatedRequest,
   createRequestWithRole,
   parseJsonResponse,
 } from '@/test-utils/test-utils';
 import { mockPrismaResults, mockPlayerFindUnique } from '@/test-utils/mock-prisma';
+import { MOCK_PLAYERS, TEST_IDS } from '@/test-utils/mocks';
 
 // Mock Prisma
 jest.mock('@/lib/prisma', () => ({
@@ -47,6 +49,10 @@ describe('/api/seasons', () => {
     (mockPrisma.player.findUnique as jest.Mock).mockImplementation(
       ({ where }: { where: { id?: string } }) => {
         if (where.id) {
+          // Handle SUPERADMIN player from mocks.ts (not in TEST_PLAYERS)
+          if (where.id === TEST_IDS.SUPERADMIN_PLAYER) {
+            return Promise.resolve({ ...MOCK_PLAYERS.superadmin });
+          }
           return Promise.resolve(mockPlayerFindUnique(where.id));
         }
         return Promise.resolve(null);
@@ -153,7 +159,19 @@ describe('/api/seasons', () => {
     });
 
     describe('Protection RBAC', () => {
-      it('ADMIN - peut créer une saison (201)', async () => {
+      it('SUPERADMIN - peut créer une saison (201)', async () => {
+        const request = createAuthenticatedRequest(
+          'http://localhost:3003/api/seasons',
+          { method: 'POST', body: validSeasonData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
+        );
+
+        const response = await POST(request);
+        const { status } = await parseJsonResponse(response);
+
+        expect(status).toBe(201);
+      });
+
+      it('ADMIN - ne peut pas créer une saison (403)', async () => {
         const request = createRequestWithRole(
           'http://localhost:3003/api/seasons',
           'admin',
@@ -161,9 +179,10 @@ describe('/api/seasons', () => {
         );
 
         const response = await POST(request);
-        const { status } = await parseJsonResponse(response);
+        const { status, data } = await parseJsonResponse<{ error: string }>(response);
 
-        expect(status).toBe(201);
+        expect(status).toBe(403);
+        expect(data.error).toBeDefined();
       });
 
       it('PLAYER - ne peut pas créer une saison (403)', async () => {
@@ -223,10 +242,9 @@ describe('/api/seasons', () => {
           // name manquant
         };
 
-        const request = createRequestWithRole(
+        const request = createAuthenticatedRequest(
           'http://localhost:3003/api/seasons',
-          'admin',
-          { method: 'POST', body: invalidData }
+          { method: 'POST', body: invalidData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
         );
 
         const response = await POST(request);
@@ -244,10 +262,9 @@ describe('/api/seasons', () => {
           year: 2019, // Avant 2020, invalide selon le schema
         };
 
-        const request = createRequestWithRole(
+        const request = createAuthenticatedRequest(
           'http://localhost:3003/api/seasons',
-          'admin',
-          { method: 'POST', body: invalidData }
+          { method: 'POST', body: invalidData, playerId: TEST_IDS.SUPERADMIN_PLAYER }
         );
 
         const response = await POST(request);

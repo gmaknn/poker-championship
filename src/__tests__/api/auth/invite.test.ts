@@ -75,6 +75,9 @@ describe('POST /api/auth/invite', () => {
     // Default player mock for auth
     (mockPrisma.player.findUnique as jest.Mock).mockImplementation(
       ({ where }: { where: { id?: string } }) => {
+        if (where.id === TEST_IDS.SUPERADMIN_PLAYER) {
+          return Promise.resolve({ ...MOCK_PLAYERS.superadmin, roles: [] });
+        }
         if (where.id === TEST_IDS.ADMIN_PLAYER) {
           return Promise.resolve({ ...MOCK_PLAYERS.admin, roles: [] });
         }
@@ -125,7 +128,7 @@ describe('POST /api/auth/invite', () => {
       const request = new NextRequest('http://localhost/api/auth/invite', {
         method: 'POST',
         headers: {
-          cookie: `player-id=${TEST_IDS.ADMIN_PLAYER}`,
+          cookie: `player-id=${TEST_IDS.SUPERADMIN_PLAYER}`,
         },
         body: JSON.stringify({ playerId: 'nonexistent-player-id' }),
       });
@@ -138,7 +141,7 @@ describe('POST /api/auth/invite', () => {
       const request = new NextRequest('http://localhost/api/auth/invite', {
         method: 'POST',
         headers: {
-          cookie: `player-id=${TEST_IDS.ADMIN_PLAYER}`,
+          cookie: `player-id=${TEST_IDS.SUPERADMIN_PLAYER}`,
         },
         body: JSON.stringify({ playerId: playerWithoutEmail.id }),
       });
@@ -153,7 +156,7 @@ describe('POST /api/auth/invite', () => {
       const request = new NextRequest('http://localhost/api/auth/invite', {
         method: 'POST',
         headers: {
-          cookie: `player-id=${TEST_IDS.ADMIN_PLAYER}`,
+          cookie: `player-id=${TEST_IDS.SUPERADMIN_PLAYER}`,
         },
         body: JSON.stringify({ playerId: activePlayer.id }),
       });
@@ -166,11 +169,11 @@ describe('POST /api/auth/invite', () => {
   });
 
   describe('Success', () => {
-    it('should return 200 and send email when admin invites inactive player', async () => {
+    it('should return 200 and send email when superadmin invites inactive player', async () => {
       const request = new NextRequest('http://localhost/api/auth/invite', {
         method: 'POST',
         headers: {
-          cookie: `player-id=${TEST_IDS.ADMIN_PLAYER}`,
+          cookie: `player-id=${TEST_IDS.SUPERADMIN_PLAYER}`,
         },
         body: JSON.stringify({ playerId: inactivePlayer.id }),
       });
@@ -204,7 +207,7 @@ describe('POST /api/auth/invite', () => {
       const request = new NextRequest('http://localhost/api/auth/invite', {
         method: 'POST',
         headers: {
-          cookie: `player-id=${TEST_IDS.ADMIN_PLAYER}`,
+          cookie: `player-id=${TEST_IDS.SUPERADMIN_PLAYER}`,
         },
         body: JSON.stringify({ playerId: inactivePlayer.id }),
       });

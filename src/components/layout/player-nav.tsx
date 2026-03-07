@@ -35,7 +35,9 @@ const statsItem = { icon: BarChart3, label: 'Statistiques', href: '/player/stats
 // Seasons item (only for ANIMATOR and ADMIN roles)
 const seasonsItem = { icon: Award, label: 'Saisons', href: '/player/seasons' };
 
-type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
+import { isAnimatorOrAdminRole } from '@/lib/role-utils';
+
+type PlayerRole = 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN' | 'SUPERADMIN';
 
 const getAvatarUrl = (avatar: string | null) => {
   if (!avatar) return null;
@@ -175,7 +177,7 @@ export function PlayerSidebar() {
         )}
 
         {/* Saisons - only for ANIMATOR and ADMIN */}
-        {currentPlayer && (currentPlayer.role === 'ANIMATOR' || currentPlayer.role === 'ADMIN') && (
+        {currentPlayer && isAnimatorOrAdminRole(currentPlayer.role) && (
           <Link
             href={seasonsItem.href}
             className={cn(
@@ -423,7 +425,7 @@ export function PlayerMobileDrawer({ isOpen, onClose }: { isOpen: boolean; onClo
           )}
 
           {/* Saisons - only for ANIMATOR and ADMIN */}
-          {currentPlayer && (currentPlayer.role === 'ANIMATOR' || currentPlayer.role === 'ADMIN') && (
+          {currentPlayer && isAnimatorOrAdminRole(currentPlayer.role) && (
             <Link
               href={seasonsItem.href}
               onClick={onClose}

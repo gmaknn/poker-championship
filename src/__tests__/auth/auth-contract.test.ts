@@ -129,7 +129,7 @@ describe('Auth Contract Tests', () => {
     it('should return false for inactive player', async () => {
       // Create a mock inactive player
       const inactivePlayerId = 'inactive-player-test';
-      mockPrismaClient.player.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+      mockPrismaClient.player.findUnique.mockImplementationOnce(({ where }: { where: { id: string } }) => {
         if (where.id === inactivePlayerId) {
           return Promise.resolve({
             ...MOCK_PLAYERS.player,
@@ -137,10 +137,6 @@ describe('Auth Contract Tests', () => {
             status: 'INACTIVE',
           });
         }
-        // Default behavior for other IDs
-        if (where.id === TEST_IDS.ADMIN_PLAYER) return Promise.resolve(MOCK_PLAYERS.admin);
-        if (where.id === TEST_IDS.TD_PLAYER) return Promise.resolve(MOCK_PLAYERS.tournamentDirector);
-        if (where.id === TEST_IDS.REGULAR_PLAYER) return Promise.resolve(MOCK_PLAYERS.player);
         return Promise.resolve(null);
       });
 
@@ -256,8 +252,25 @@ describe('Auth Contract Tests', () => {
         }
       });
 
-      it('should return success for ADMIN (bypass)', async () => {
+      it('should return success for ADMIN with granted permission', async () => {
         const request = createAuthenticatedRequest('/api/test', TEST_IDS.ADMIN_PLAYER);
+        const result = await requirePermission(request, 'create_tournament');
+
+        expect(result.success).toBe(true);
+      });
+
+      it('should return 403 for ADMIN without permission (no bypass)', async () => {
+        const request = createAuthenticatedRequest('/api/test', TEST_IDS.ADMIN_PLAYER);
+        const result = await requirePermission(request, 'edit_player');
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.status).toBe(403);
+        }
+      });
+
+      it('should return success for SUPERADMIN (bypass)', async () => {
+        const request = createAuthenticatedRequest('/api/test', TEST_IDS.SUPERADMIN_PLAYER);
         const result = await requirePermission(request, 'edit_player');
 
         expect(result.success).toBe(true);
@@ -265,7 +278,7 @@ describe('Auth Contract Tests', () => {
 
       it('should return 403 for inactive account', async () => {
         const inactivePlayerId = 'inactive-player-perm-test';
-        mockPrismaClient.player.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+        mockPrismaClient.player.findUnique.mockImplementationOnce(({ where }: { where: { id: string } }) => {
           if (where.id === inactivePlayerId) {
             return Promise.resolve({
               ...MOCK_PLAYERS.admin,
@@ -273,9 +286,6 @@ describe('Auth Contract Tests', () => {
               status: 'INACTIVE',
             });
           }
-          if (where.id === TEST_IDS.ADMIN_PLAYER) return Promise.resolve(MOCK_PLAYERS.admin);
-          if (where.id === TEST_IDS.TD_PLAYER) return Promise.resolve(MOCK_PLAYERS.tournamentDirector);
-          if (where.id === TEST_IDS.REGULAR_PLAYER) return Promise.resolve(MOCK_PLAYERS.player);
           return Promise.resolve(null);
         });
 
@@ -325,16 +335,13 @@ describe('Auth Contract Tests', () => {
       it('should return 403 for different TD (not creator)', async () => {
         // Create another TD
         const otherTdId = 'other-td-player-test';
-        mockPrismaClient.player.findUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+        mockPrismaClient.player.findUnique.mockImplementationOnce(({ where }: { where: { id: string } }) => {
           if (where.id === otherTdId) {
             return Promise.resolve({
               ...MOCK_PLAYERS.tournamentDirector,
               id: otherTdId,
             });
           }
-          if (where.id === TEST_IDS.ADMIN_PLAYER) return Promise.resolve(MOCK_PLAYERS.admin);
-          if (where.id === TEST_IDS.TD_PLAYER) return Promise.resolve(MOCK_PLAYERS.tournamentDirector);
-          if (where.id === TEST_IDS.REGULAR_PLAYER) return Promise.resolve(MOCK_PLAYERS.player);
           return Promise.resolve(null);
         });
 
@@ -435,11 +442,21 @@ describe('Auth Contract Sentinel: Core Behaviors', () => {
     }
   });
 
-  it('SENTINEL: ADMIN → Access granted (bypass)', async () => {
-    const request = createAuthenticatedRequest('/api/admin', TEST_IDS.ADMIN_PLAYER);
+  it('SENTINEL: SUPERADMIN → Access granted (bypass)', async () => {
+    const request = createAuthenticatedRequest('/api/admin', TEST_IDS.SUPERADMIN_PLAYER);
     const result = await requirePermission(request, 'any_permission');
 
     expect(result.success).toBe(true);
+  });
+
+  it('SENTINEL: ADMIN → 403 for arbitrary permission (no bypass)', async () => {
+    const request = createAuthenticatedRequest('/api/admin', TEST_IDS.ADMIN_PLAYER);
+    const result = await requirePermission(request, 'any_permission');
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.status).toBe(403);
+    }
   });
 
   it('SENTINEL: TD on own tournament → Access granted', async () => {
