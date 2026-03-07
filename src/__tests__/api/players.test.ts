@@ -6,11 +6,13 @@
 import { GET, POST } from '@/app/api/players/route';
 import {
   createUnauthenticatedRequest,
+  createAuthenticatedRequest,
   createRequestWithRole,
   parseJsonResponse,
   TEST_PLAYERS,
 } from '@/test-utils/test-utils';
 import { mockPrismaResults, mockPlayerFindUnique } from '@/test-utils/mock-prisma';
+import { TEST_IDS, MOCK_PLAYERS } from '@/test-utils/mocks';
 
 // Mock Prisma
 jest.mock('@/lib/prisma', () => ({
@@ -46,6 +48,10 @@ describe('/api/players', () => {
     (mockPrisma.player.findUnique as jest.Mock).mockImplementation(
       ({ where }: { where: { id?: string; nickname?: string } }) => {
         if (where.id) {
+          // Check SUPERADMIN from mocks.ts first (not in TEST_PLAYERS)
+          if (where.id === TEST_IDS.SUPERADMIN_PLAYER) {
+            return Promise.resolve(MOCK_PLAYERS.superadmin);
+          }
           return Promise.resolve(mockPlayerFindUnique(where.id));
         }
         return Promise.resolve(null);
@@ -238,7 +244,49 @@ describe('/api/players', () => {
     });
 
     describe('Protection élévation de privilèges', () => {
-      it('ADMIN - peut créer un joueur avec rôle ADMIN', async () => {
+      it('SUPERADMIN - peut créer un joueur avec rôle ADMIN', async () => {
+        const request = createAuthenticatedRequest(
+          'http://localhost:3003/api/players',
+          {
+            method: 'POST',
+            playerId: TEST_IDS.SUPERADMIN_PLAYER,
+            body: { ...validPlayerData, role: 'ADMIN' },
+          }
+        );
+
+        const response = await POST(request);
+        const { status, data } = await parseJsonResponse<{ role: string }>(
+          response
+        );
+
+        expect(status).toBe(201);
+        expect(data.role).toBe('ADMIN');
+      });
+
+      it('SUPERADMIN - peut créer un joueur avec rôle TOURNAMENT_DIRECTOR', async () => {
+        const request = createAuthenticatedRequest(
+          'http://localhost:3003/api/players',
+          {
+            method: 'POST',
+            playerId: TEST_IDS.SUPERADMIN_PLAYER,
+            body: {
+              ...validPlayerData,
+              nickname: 'autre-joueur',
+              role: 'TOURNAMENT_DIRECTOR',
+            },
+          }
+        );
+
+        const response = await POST(request);
+        const { status, data } = await parseJsonResponse<{ role: string }>(
+          response
+        );
+
+        expect(status).toBe(201);
+        expect(data.role).toBe('TOURNAMENT_DIRECTOR');
+      });
+
+      it('ADMIN - créer un joueur avec rôle ADMIN est rétrogradé en PLAYER', async () => {
         const request = createRequestWithRole(
           'http://localhost:3003/api/players',
           'admin',
@@ -254,10 +302,10 @@ describe('/api/players', () => {
         );
 
         expect(status).toBe(201);
-        expect(data.role).toBe('ADMIN');
+        expect(data.role).toBe('PLAYER');
       });
 
-      it('ADMIN - peut créer un joueur avec rôle TOURNAMENT_DIRECTOR', async () => {
+      it('ADMIN - créer un joueur avec rôle TOURNAMENT_DIRECTOR est rétrogradé en PLAYER', async () => {
         const request = createRequestWithRole(
           'http://localhost:3003/api/players',
           'admin',
@@ -277,7 +325,7 @@ describe('/api/players', () => {
         );
 
         expect(status).toBe(201);
-        expect(data.role).toBe('TOURNAMENT_DIRECTOR');
+        expect(data.role).toBe('PLAYER');
       });
     });
 

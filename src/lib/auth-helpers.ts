@@ -8,33 +8,54 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { PlayerRole } from '@prisma/client';
 import { auth } from '@/lib/auth';
-import { hasPermission, isAdminMultiRole } from '@/lib/permissions';
+import { hasPermission, isAdminMultiRole, isSuperAdminMultiRole } from '@/lib/permissions';
 import { jwtVerify } from 'jose';
 import { getJwtSecret } from '@/lib/jwt-secret';
 
 /**
- * Extract player ID from cookies (player-session JWT or player-id)
+ * Type pour le payload JWT décodé
  */
-async function extractPlayerIdFromCookies(request: NextRequest): Promise<string | null> {
+interface JwtSessionPayload {
+  type?: string;
+  playerId?: string;
+  tournamentId?: string;
+  role?: string;
+  displayName?: string;
+}
+
+/**
+ * Extract JWT payload from player-session cookie
+ */
+async function extractJwtPayload(request: NextRequest): Promise<JwtSessionPayload | null> {
   const cookies = request.headers.get('cookie');
   if (!cookies) return null;
 
-  // 1. Try player-session JWT first (more secure)
   const sessionMatch = cookies.match(/player-session=([^;]+)/);
   if (sessionMatch) {
     try {
       const token = sessionMatch[1];
       const { payload } = await jwtVerify(token, getJwtSecret());
-      if (payload.playerId && typeof payload.playerId === 'string') {
-        return payload.playerId;
-      }
+      return payload as unknown as JwtSessionPayload;
     } catch (e) {
-      // JWT invalid or expired, fall through to player-id
       console.warn('[Auth] Invalid player-session JWT:', e instanceof Error ? e.message : 'Unknown error');
     }
   }
 
-  // 2. Fallback to player-id cookie
+  return null;
+}
+
+/**
+ * Extract player ID from cookies (player-session JWT or player-id)
+ */
+async function extractPlayerIdFromCookies(request: NextRequest): Promise<string | null> {
+  const payload = await extractJwtPayload(request);
+  if (payload?.playerId && typeof payload.playerId === 'string') {
+    return payload.playerId;
+  }
+
+  // Fallback to player-id cookie
+  const cookies = request.headers.get('cookie');
+  if (!cookies) return null;
   const playerIdMatch = cookies.match(/player-id=([^;]+)/);
   if (playerIdMatch) {
     return playerIdMatch[1];
@@ -54,6 +75,24 @@ async function extractPlayerIdFromCookies(request: NextRequest): Promise<string 
  * pour éviter qu'un admin connecté via NextAuth "pollue" l'espace joueur.
  */
 export async function getCurrentPlayer(request: NextRequest) {
+  // 0. Vérifier si c'est un JWT tournament-admin (admin temporaire)
+  const jwtPayload = await extractJwtPayload(request);
+  if (jwtPayload?.type === 'tournament-admin' && jwtPayload.tournamentId) {
+    // Retourner un acteur synthétique scopé au tournoi
+    return {
+      id: `tournament-admin-${jwtPayload.tournamentId}`,
+      firstName: 'Admin',
+      lastName: 'Tournoi',
+      nickname: jwtPayload.displayName || 'Admin Tournoi',
+      email: null,
+      avatar: null,
+      role: PlayerRole.ADMIN,
+      status: 'ACTIVE' as const,
+      additionalRoles: [] as PlayerRole[],
+      _tournamentScope: jwtPayload.tournamentId,
+    };
+  }
+
   // 1. PRIORITÉ : cookie player-session/player-id
   let playerId = request.headers.get('x-player-id');
 
@@ -305,7 +344,8 @@ export async function hasRole(request: NextRequest, role: PlayerRole): Promise<b
  * Vérifie si le joueur actuel est admin
  */
 export async function isAdmin(request: NextRequest): Promise<boolean> {
-  return hasRole(request, PlayerRole.ADMIN);
+  const playerRole = await getCurrentPlayerRole(request);
+  return playerRole === PlayerRole.ADMIN || playerRole === PlayerRole.SUPERADMIN;
 }
 
 /**
@@ -313,7 +353,7 @@ export async function isAdmin(request: NextRequest): Promise<boolean> {
  */
 export async function isTournamentDirectorOrAdmin(request: NextRequest): Promise<boolean> {
   const playerRole = await getCurrentPlayerRole(request);
-  return playerRole === PlayerRole.TOURNAMENT_DIRECTOR || playerRole === PlayerRole.ADMIN;
+  return playerRole === PlayerRole.TOURNAMENT_DIRECTOR || playerRole === PlayerRole.ADMIN || playerRole === PlayerRole.SUPERADMIN;
 }
 
 /**
@@ -353,6 +393,25 @@ export async function requirePermission(
     };
   }
 
+  // Tournament-admin scopé : restreindre aux permissions liées aux tournois
+  const tournamentScope = '_tournamentScope' in player ? (player as { _tournamentScope?: string })._tournamentScope : undefined;
+  if (tournamentScope) {
+    // Les admins de tournoi ne peuvent pas accéder aux opérations globales
+    const tournamentAllowedPermissions = [
+      'view_players', 'create_player',
+      'view_all_tournaments', 'view_own_tournaments',
+      'edit_all_tournaments', 'edit_own_tournament',
+      'manage_tournament_registrations', 'manage_tournament_timer',
+      'manage_eliminations', 'manage_rebuys',
+      'finalize_tournament', 'export_tournament_pdf',
+      'view_chipsets', 'view_leaderboard', 'view_player_stats',
+    ];
+    if (permission && !tournamentAllowedPermissions.includes(permission)) {
+      return { success: false, error: 'Permission refusée — accès limité au tournoi', status: 403 };
+    }
+    return { success: true, player };
+  }
+
   // Si une permission est requise, la vérifier
   // Note: hasPermission() inclut le bypass ADMIN
   if (permission && !hasPermission(player.role, permission)) {
@@ -386,7 +445,22 @@ export async function requireTournamentPermission(
     return { success: false, error: 'Compte inactif', status: 403 };
   }
 
-  // ADMIN bypass (multi-role aware)
+  // Tournament-admin scopé : vérifier que le tournoi correspond
+  const tournamentScope = '_tournamentScope' in player ? (player as { _tournamentScope?: string })._tournamentScope : undefined;
+  if (tournamentScope) {
+    if (tournamentId && tournamentScope !== tournamentId) {
+      return { success: false, error: 'Accès limité à votre tournoi', status: 403 };
+    }
+    // Admin de tournoi scopé, accès autorisé pour son tournoi
+    return { success: true, player };
+  }
+
+  // SUPERADMIN bypass total (multi-role aware)
+  if (isSuperAdminMultiRole(player.role, player.additionalRoles)) {
+    return { success: true, player };
+  }
+
+  // ADMIN : a toutes les permissions tournoi, bypass pour manage/edit/delete
   if (isAdminMultiRole(player.role, player.additionalRoles)) {
     return { success: true, player };
   }

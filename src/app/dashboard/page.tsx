@@ -10,8 +10,8 @@ import { PageHeader } from '@/components/PageHeader';
 
 interface CurrentPlayer {
   id: string;
-  role: 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
-  additionalRoles?: ('PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN')[];
+  role: string;
+  additionalRoles?: string[];
 }
 
 interface DashboardStats {
@@ -162,8 +162,8 @@ export default function DashboardPage() {
   // Visibilité des actions admin basée sur le rôle principal OU les rôles additionnels
   const role = currentPlayer?.role;
   const additional = currentPlayer?.additionalRoles ?? [];
-  const isAdminOrTD = role === 'ADMIN' || role === 'TOURNAMENT_DIRECTOR'
-                   || additional.includes('ADMIN') || additional.includes('TOURNAMENT_DIRECTOR');
+  const isAdminOrTD = role === 'ADMIN' || role === 'SUPERADMIN' || role === 'TOURNAMENT_DIRECTOR'
+                   || additional.includes('ADMIN') || additional.includes('SUPERADMIN') || additional.includes('TOURNAMENT_DIRECTOR');
   const canCreateTournament = isAdminOrTD;
   const canSeeQuickActions = isAdminOrTD;
 

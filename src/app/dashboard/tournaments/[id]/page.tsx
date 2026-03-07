@@ -4,8 +4,9 @@ import { useEffect, useState, use } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check, Smartphone, Clock } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check, Smartphone, Clock, KeyRound, RefreshCw } from 'lucide-react';
 import type { PlayerRole } from '@prisma/client';
+import { isAdminRole, isSuperAdminRole } from '@/lib/role-utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -106,8 +107,12 @@ export default function TournamentDetailPage({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isUnsavedChangesDialogOpen, setIsUnsavedChangesDialogOpen] = useState(false);
   const [tables, setTables] = useState<{ tableNumber: number; activePlayers: number }[]>([]);
+  const [accessCode, setAccessCode] = useState<string | null>(null);
+  const [isAccessCodeCopied, setIsAccessCodeCopied] = useState(false);
+  const [isRegeneratingCode, setIsRegeneratingCode] = useState(false);
 
-  const isAdmin = currentUserRole === 'ADMIN';
+  const isAdmin = isAdminRole(currentUserRole);
+  const isSuperAdmin = isSuperAdminRole(currentUserRole);
 
   const loadCurrentUser = async () => {
     try {
@@ -354,6 +359,71 @@ export default function TournamentDetailPage({
           </div>
         </div>
       </SectionCard>
+
+      {/* Code d'accès admin tournoi - SUPERADMIN only, tournoi IN_PROGRESS */}
+      {isSuperAdmin && tournament.status === 'IN_PROGRESS' && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="py-3 px-4">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                <KeyRound className="h-4 w-4" />
+                <span className="font-medium">Code Admin Tournoi :</span>
+                {accessCode ? (
+                  <code className="text-lg font-mono font-bold tracking-[0.3em] bg-amber-500/10 px-3 py-0.5 rounded">
+                    {accessCode}
+                  </code>
+                ) : (
+                  <span className="text-muted-foreground italic">Cliquer pour générer</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {accessCode && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      navigator.clipboard.writeText(accessCode);
+                      setIsAccessCodeCopied(true);
+                      setTimeout(() => setIsAccessCodeCopied(false), 2000);
+                    }}
+                  >
+                    {isAccessCodeCopied ? <Check className="mr-1 h-3 w-3 text-green-500" /> : <Copy className="mr-1 h-3 w-3" />}
+                    {isAccessCodeCopied ? 'Copié' : 'Copier'}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isRegeneratingCode}
+                  onClick={async () => {
+                    setIsRegeneratingCode(true);
+                    try {
+                      const res = await fetch(`/api/tournaments/${tournament.id}/access-code`, { method: 'POST' });
+                      const data = await res.json();
+                      if (res.ok && data.accessCode) {
+                        setAccessCode(data.accessCode);
+                        toast.success('Nouveau code généré');
+                      } else {
+                        toast.error(data.error || 'Erreur');
+                      }
+                    } catch {
+                      toast.error('Erreur réseau');
+                    } finally {
+                      setIsRegeneratingCode(false);
+                    }
+                  }}
+                >
+                  <RefreshCw className={`mr-1 h-3 w-3 ${isRegeneratingCode ? 'animate-spin' : ''}`} />
+                  {accessCode ? 'Régénérer' : 'Générer code'}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Ce code permet à un admin temporaire de gérer ce tournoi via <code>/tournament-admin</code>
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Info cards - KPIs avec variant ink */}
       <div className="grid gap-3 grid-cols-2 md:gap-4 md:grid-cols-4">

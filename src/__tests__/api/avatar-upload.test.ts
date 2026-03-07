@@ -147,10 +147,10 @@ describe('API /api/players/[id]/avatar RBAC', () => {
       expect(data.error).toBeDefined();
     });
 
-    it('should return 200 for ADMIN role', async () => {
+    it('should return 200 for SUPERADMIN role', async () => {
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         validFile
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -163,7 +163,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
     it('should return 400 when no file is provided', async () => {
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         null
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -181,7 +181,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
       };
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         invalidFile
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -199,7 +199,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
       };
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         largeFile
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -217,7 +217,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
       };
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         pngFile
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -233,7 +233,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
       };
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         webpFile
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -244,7 +244,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
     it('should call sharp with correct resize parameters', async () => {
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         validFile
       );
       await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -263,7 +263,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
 
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         validFile
       );
       await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -274,7 +274,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
     it('should save processed image to disk', async () => {
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         validFile
       );
       await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -290,7 +290,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
 
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         validFile
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -305,7 +305,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
 
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         validFile
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -316,7 +316,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
     it('should generate unique filename with player ID and timestamp', async () => {
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         validFile
       );
       const response = await POST(request, { params: createParams(TEST_IDS.REGULAR_PLAYER) });
@@ -332,7 +332,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
     it('should never return 200 with empty body', async () => {
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         {
           name: 'avatar.jpg',
           type: 'image/jpeg',
@@ -352,7 +352,7 @@ describe('API /api/players/[id]/avatar RBAC', () => {
     it('should produce a processed buffer with size > 0', async () => {
       const request = createFormDataRequest(
         TEST_IDS.REGULAR_PLAYER,
-        TEST_IDS.ADMIN_PLAYER,
+        TEST_IDS.SUPERADMIN_PLAYER,
         {
           name: 'avatar.jpg',
           type: 'image/jpeg',

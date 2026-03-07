@@ -140,8 +140,14 @@ export default function PlayersPage() {
     }
   };
 
+  // ADMIN et SUPERADMIN peuvent créer des joueurs
+  const canCreatePlayer = () => {
+    return currentUserRole === 'ADMIN' || currentUserRole === 'SUPERADMIN';
+  };
+
+  // Seul SUPERADMIN peut éditer/supprimer les joueurs
   const isAdmin = () => {
-    return currentUserRole === 'ADMIN';
+    return currentUserRole === 'SUPERADMIN';
   };
 
   const fetchPlayers = async () => {
@@ -513,7 +519,7 @@ export default function PlayersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Joueurs"
-        description={isAdmin() ? 'Gérez les joueurs du championnat' : 'Consultez la liste des joueurs'}
+        description={canCreatePlayer() ? 'Gérez les joueurs du championnat' : 'Consultez la liste des joueurs'}
         icon={<Users className="h-10 w-10 text-primary" />}
         actions={
           <div className="flex items-center gap-3 w-full sm:w-auto justify-end flex-wrap">
@@ -525,7 +531,7 @@ export default function PlayersPage() {
                 <List className="h-4 w-4" />
               </ToggleGroupItem>
             </ToggleGroup>
-            {isAdmin() && (
+            {canCreatePlayer() && (
               <Button onClick={() => handleOpenDialog()} size="default" className="sm:size-lg">
                 <Plus className="h-5 w-5 sm:mr-2" />
                 <span className="hidden sm:inline">Ajouter un joueur</span>
@@ -565,9 +571,9 @@ export default function PlayersPage() {
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Aucun joueur</h3>
             <p className="text-muted-foreground mb-4">
-              {isAdmin() ? 'Commencez par ajouter votre premier joueur' : 'Aucun joueur n\'est enregistré pour le moment'}
+              {canCreatePlayer() ? 'Commencez par ajouter votre premier joueur' : 'Aucun joueur n\'est enregistré pour le moment'}
             </p>
-            {isAdmin() && (
+            {canCreatePlayer() && (
               <Button onClick={() => handleOpenDialog()}>
                 <Plus className="mr-2 h-4 w-4" />
                 Ajouter un joueur

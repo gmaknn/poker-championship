@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
 import { getSeasonLeaderId } from '@/lib/leaderboard';
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 
 // POST - Démarrer le timer du tournoi
 export async function POST(
@@ -58,6 +60,11 @@ export async function POST(
       seasonLeaderAtStartId = await getSeasonLeaderId(tournament.seasonId, id);
     }
 
+    // Générer un code d'accès admin temporaire (6 chars hex uppercase)
+    // Ce code permet à un admin de tournoi de se connecter sans compte
+    const accessCode = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const adminAccessCodeHash = await bcrypt.hash(accessCode, 10);
+
     // Démarrer le timer
     const now = new Date();
     const updatedTournament = await prisma.tournament.update({
@@ -68,6 +75,7 @@ export async function POST(
         timerPausedAt: null,
         currentLevel: 1,
         seasonLeaderAtStartId, // Figer le leader pour le bonus Leader Killer
+        adminAccessCodeHash,
       },
     });
 
@@ -87,6 +95,7 @@ export async function POST(
     return NextResponse.json({
       success: true,
       tournament: updatedTournament,
+      accessCode, // Code en clair retourné une seule fois au démarrage
     });
   } catch (error) {
     console.error('Error starting timer:', error);

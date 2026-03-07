@@ -37,7 +37,7 @@ export default function PlayerLoginPage() {
       const role = data.player?.role;
       let redirectUrl = '/player'; // Par défaut pour PLAYER et ANIMATOR
 
-      if (role === 'ADMIN') {
+      if (role === 'ADMIN' || role === 'SUPERADMIN') {
         redirectUrl = '/dashboard';
       } else if (role === 'TOURNAMENT_DIRECTOR') {
         redirectUrl = '/director';

@@ -58,8 +58,8 @@ export async function GET(
     const availableDirectors = await prisma.player.findMany({
       where: {
         OR: [
-          { role: { in: ['TOURNAMENT_DIRECTOR', 'ADMIN'] } },
-          { roles: { some: { role: { in: ['TOURNAMENT_DIRECTOR', 'ADMIN'] } } } }
+          { role: { in: ['TOURNAMENT_DIRECTOR', 'ADMIN', 'SUPERADMIN'] } },
+          { roles: { some: { role: { in: ['TOURNAMENT_DIRECTOR', 'ADMIN', 'SUPERADMIN'] } } } }
         ],
         // Exclure les joueurs déjà assignés à ce tournoi
         NOT: assignedPlayerIds.length > 0 ? {
@@ -138,8 +138,8 @@ export async function POST(
     // Vérifier que le joueur a le rôle TD ou est déjà Admin
     const isTD = player.role === 'TOURNAMENT_DIRECTOR' ||
       player.roles.some(r => r.role === 'TOURNAMENT_DIRECTOR');
-    const isAdmin = player.role === 'ADMIN' ||
-      player.roles.some(r => r.role === 'ADMIN');
+    const isAdmin = player.role === 'ADMIN' || player.role === 'SUPERADMIN' ||
+      player.roles.some(r => r.role === 'ADMIN' || r.role === 'SUPERADMIN');
 
     if (!isTD && !isAdmin) {
       return NextResponse.json(

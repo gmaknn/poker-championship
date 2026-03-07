@@ -216,14 +216,19 @@ export async function PATCH(
 
     // Extract seasonId and prepare data for Prisma
     const { seasonId, ...updateData } = validatedData;
-    const prismaData = seasonId
-      ? {
-          ...updateData,
-          season: {
-            connect: { id: seasonId }
+    // Nettoyer le code d'accès admin quand le tournoi se termine ou est annulé
+    const cleanupAccessCode = validatedData.status === 'FINISHED' || validatedData.status === 'CANCELLED';
+    const prismaData = {
+      ...(seasonId
+        ? {
+            ...updateData,
+            season: {
+              connect: { id: seasonId }
+            }
           }
-        }
-      : updateData;
+        : updateData),
+      ...(cleanupAccessCode ? { adminAccessCodeHash: null } : {}),
+    };
 
     // Diagnostic gated: trace rebuyEndLevel persistence
     const isDiag = isDiagnosticsEnabled();
