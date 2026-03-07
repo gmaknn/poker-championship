@@ -315,4 +315,13 @@ describe('isBreakAfterRebuyEnd', () => {
     // Level 2 doesn't exist
     expect(isBreakAfterRebuyEnd(1, 2, limitedBlindLevels)).toBe(false);
   });
+
+  it('should return false when isRebuyEnd is true but isBreak is false', () => {
+    const blindLevelsWithBadFlag = [
+      { level: 1, isBreak: false, isRebuyEnd: true },  // isRebuyEnd on a non-break level
+      { level: 2, isBreak: false, isRebuyEnd: false },
+    ];
+    // Level 1 has isRebuyEnd but is NOT a break — should NOT activate voluntary rebuy
+    expect(isBreakAfterRebuyEnd(0, 1, blindLevelsWithBadFlag)).toBe(false);
+  });
 });

@@ -84,10 +84,10 @@ export function areRecavesOpen(
     return true;
   }
 
-  // Vérifier si le niveau courant est marqué comme pause fin de recave (isRebuyEnd)
+  // Vérifier si le niveau courant est marqué comme pause fin de recave (isRebuyEnd ET isBreak)
   if (blindLevels) {
     const currentBlindLevel = blindLevels.find(bl => bl.level === currentLevel);
-    if (currentBlindLevel?.isRebuyEnd) {
+    if (currentBlindLevel?.isRebuyEnd && currentBlindLevel?.isBreak) {
       return true;
     }
     // Fallback: vérifier si c'est la pause immédiatement après rebuyEndLevel
@@ -120,8 +120,8 @@ export function isBreakAfterRebuyEnd(
 
   const currentBlindLevel = blindLevels.find(bl => bl.level === effectiveLevel);
 
-  // Vérifier si le niveau courant est marqué isRebuyEnd
-  if (currentBlindLevel?.isRebuyEnd) {
+  // Vérifier si le niveau courant est marqué isRebuyEnd ET isBreak (doit être une pause)
+  if (currentBlindLevel?.isRebuyEnd && currentBlindLevel?.isBreak) {
     return true;
   }
 
