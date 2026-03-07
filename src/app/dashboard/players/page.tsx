@@ -59,6 +59,8 @@ const getAvatarUrl = (avatar: string | null) => {
 // Configuration des badges de rôle
 const getRoleBadgeConfig = (role: PlayerRole | undefined) => {
   switch (role) {
+    case 'SUPERADMIN':
+      return { label: 'Super Admin', className: 'bg-red-600 text-white' };
     case 'ADMIN':
       return { label: 'Admin', className: 'bg-red-500 text-white' };
     case 'TOURNAMENT_DIRECTOR':

@@ -15,15 +15,16 @@ interface Player {
   firstName: string;
   lastName: string;
   nickname: string;
-  role: 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN';
+  role: 'PLAYER' | 'TOURNAMENT_DIRECTOR' | 'ANIMATOR' | 'ADMIN' | 'SUPERADMIN';
   avatar: string | null;
 }
 
-const ROLE_CONFIG = {
+const ROLE_CONFIG: Record<string, { label: string; icon: typeof Users; color: string }> = {
   PLAYER: { label: 'Joueur', icon: Users, color: 'bg-blue-500' },
   TOURNAMENT_DIRECTOR: { label: 'Directeur de Tournoi', icon: Shield, color: 'bg-purple-500' },
   ANIMATOR: { label: 'Animateur', icon: MessageSquare, color: 'bg-green-500' },
   ADMIN: { label: 'Administrateur', icon: Crown, color: 'bg-amber-500' },
+  SUPERADMIN: { label: 'Super Admin', icon: Crown, color: 'bg-red-500' },
 };
 
 const getAvatarUrl = (avatar: string | null) => {

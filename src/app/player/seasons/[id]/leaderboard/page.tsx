@@ -19,7 +19,7 @@ export default function PlayerSeasonLeaderboardPage() {
     if (!isLoading) {
       if (!currentPlayer) {
         router.push('/player/login');
-      } else if (currentPlayer.role !== 'ANIMATOR' && currentPlayer.role !== 'ADMIN') {
+      } else if (currentPlayer.role !== 'ANIMATOR' && currentPlayer.role !== 'ADMIN' && currentPlayer.role !== 'SUPERADMIN') {
         router.push('/player');
       } else {
         // Redirect to the player leaderboard with season context

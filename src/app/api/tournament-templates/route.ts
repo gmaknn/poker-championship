@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: permResult.error }, { status: permResult.status });
     }
     // Templates réservés aux admins (pas de permission spécifique, on vérifie le role)
-    if (permResult.player.role !== 'ADMIN') {
+    if (permResult.player.role !== 'ADMIN' && permResult.player.role !== 'SUPERADMIN') {
       return NextResponse.json({ error: 'Permission refusée' }, { status: 403 });
     }
 

@@ -56,7 +56,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 // Rôles autorisés pour la page directeur
-const ALLOWED_ROLES: PlayerRole[] = ['TOURNAMENT_DIRECTOR', 'ADMIN'];
+const ALLOWED_ROLES: PlayerRole[] = ['TOURNAMENT_DIRECTOR', 'ADMIN', 'SUPERADMIN'];
 
 export default function DirectorDashboard() {
   const router = useRouter();
