@@ -1072,6 +1072,27 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
         </Card>
       )}
 
+      {/* Bandeau réassignation auto en attente */}
+      {timer?.pendingAutoRebalance && (
+        <Card className="border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+          <CardContent className="py-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Shuffle className="h-5 w-5 text-blue-600" />
+              <span className="font-medium text-sm">
+                Réassignation de tables en attente (niveau {timer.pendingRebalanceForLevel})
+              </span>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setRebalanceConfirm(true)}
+              disabled={isSubmitting}
+            >
+              Redistribuer
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* C. Tables — joueurs groupés par table */}
       {tables.length > 0 ? (
         <>
