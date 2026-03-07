@@ -16,7 +16,7 @@ async function main() {
       email: 'admin@poker.com',
       password: hashedPassword,
       name: 'Administrateur',
-      role: 'ADMIN',
+      role: 'SUPERADMIN',
     },
   });
 
