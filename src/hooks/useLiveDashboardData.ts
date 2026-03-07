@@ -32,6 +32,8 @@ export type TimerState = {
   timerPausedAt: string | null;
   recavesOpen: boolean;
   isVoluntaryRebuyPeriod?: boolean;
+  pendingAutoRebalance?: boolean;
+  pendingRebalanceForLevel?: number | null;
 };
 
 export type TournamentPlayer = {
