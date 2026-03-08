@@ -4,7 +4,8 @@ import { useEffect, useState, use } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check, Smartphone, Clock, KeyRound, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Calendar, Users, Trophy, Edit2, Tv, Copy, Check, Smartphone, Clock, KeyRound, RefreshCw, QrCode } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import type { PlayerRole } from '@prisma/client';
 import { isAdminRole, isSuperAdminRole } from '@/lib/role-utils';
 import { Button } from '@/components/ui/button';
@@ -407,9 +408,27 @@ export default function TournamentDetailPage({
                 </Button>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Ce code permet à un admin temporaire de gérer ce tournoi via <code>/tournament-admin</code>
-            </p>
+            {/* QR Codes */}
+            <div className="flex gap-6 mt-3 pt-3 border-t border-amber-500/20">
+              <div className="flex flex-col items-center gap-1">
+                <QRCodeSVG
+                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/tournament-admin`}
+                  size={100}
+                  level="M"
+                  includeMargin
+                />
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Admin Tournoi</span>
+              </div>
+              <div className="flex flex-col items-center gap-1">
+                <QRCodeSVG
+                  value={`${typeof window !== 'undefined' ? window.location.origin : ''}/tv/${tournament.id}`}
+                  size={100}
+                  level="M"
+                  includeMargin
+                />
+                <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Vue TV Joueurs</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
