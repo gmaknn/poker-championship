@@ -2197,28 +2197,35 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       )}
 
       {/* Tables Plan Overlay - Large modal for TV readability */}
-      {showTablesPlan && (
-        <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-4">
+      {showTablesPlan && (() => {
+        const tpTableCount = tablesPlanData?.tables.length ?? 0;
+        const tpMaxPlayers = tablesPlanData ? Math.max(...tablesPlanData.tables.map(t => t.seats.length)) : 0;
+        const tpCompact = tpTableCount > 3 || tpMaxPlayers > 7;
+        const tpTiny = tpTableCount > 4 || tpMaxPlayers > 9;
+        const tpGridCols = tpTableCount <= 2 ? 'grid-cols-2' : tpTableCount <= 3 ? 'grid-cols-3' : tpTableCount <= 4 ? 'grid-cols-4' : 'grid-cols-5';
+
+        return (
+        <div className="fixed inset-0 z-[9998] bg-black/85 flex items-center justify-center p-2">
           <div
-            className="w-[92vw] h-[88vh] overflow-hidden rounded-3xl p-8 flex flex-col"
+            className="w-[96vw] h-[96vh] overflow-hidden rounded-2xl p-4 flex flex-col"
             style={{ backgroundColor: currentTheme.colors.backgroundDark }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between mb-8 flex-shrink-0">
-              <h2 className="text-4xl font-bold text-white flex items-center gap-4">
-                <LayoutGrid className="h-10 w-10" style={{ color: currentTheme.colors.primary }} />
+            <div className="flex items-center justify-between mb-3 flex-shrink-0">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <LayoutGrid className="h-7 w-7" style={{ color: currentTheme.colors.primary }} />
                 Plan des Tables
               </h2>
               <button
                 onClick={() => setShowTablesPlan(false)}
-                className="text-white/60 hover:text-white text-4xl font-bold w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
+                className="text-white/60 hover:text-white text-3xl font-bold w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
               >
                 ×
               </button>
             </div>
 
-            {/* Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto">
+            {/* Content - No scroll, auto-fit */}
+            <div className="flex-1 min-h-0">
               {tablesPlanError ? (
                 <div className="text-center py-16">
                   <div className="text-red-400 text-2xl font-bold mb-3">{tablesPlanError}</div>
@@ -2236,115 +2243,143 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                   <div className="text-white/60 text-2xl">Aucune table configurée</div>
                 </div>
               ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                    {tablesPlanData.tables.map((table) => (
-                      <div
-                        key={table.tableNumber}
-                        className="rounded-2xl p-6 border-3"
-                        style={{
-                          backgroundColor: currentTheme.colors.backgroundLight,
-                          borderColor: currentTheme.colors.border,
-                        }}
-                      >
-                        <div className="flex items-center justify-between mb-6">
-                          <h3 className="text-4xl font-black" style={{ color: currentTheme.colors.primary }}>
-                            Table {table.tableNumber}
-                          </h3>
-                          <span className="text-2xl text-white/60 font-bold">
-                            {table.activeCount}/{table.totalCount}
-                          </span>
-                        </div>
-                        <div className="space-y-4">
-                          {table.seats.map((seat, idx) => (
-                            <div
-                              key={seat.playerId}
-                              className={`flex items-center justify-between gap-6 py-4 px-6 rounded-xl ${
-                                seat.isEliminated ? 'opacity-40' : ''
-                              }`}
-                              style={{
-                                backgroundColor: seat.isEliminated
-                                  ? 'rgba(255,255,255,0.3)'
-                                  : 'rgba(255,255,255,0.9)',
-                              }}
-                            >
-                              <span className="text-slate-500 text-2xl font-bold whitespace-nowrap">
-                                S{seat.seatNumber ?? idx + 1}
-                              </span>
-                              <span className={`text-slate-900 font-black text-4xl uppercase truncate ${
-                                seat.isEliminated ? 'line-through' : ''
-                              }`}>
-                                {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
+                <div className={`grid ${tpGridCols} gap-3 h-full`}>
+                  {tablesPlanData.tables.map((table) => (
+                    <div
+                      key={table.tableNumber}
+                      className="rounded-xl p-3 border-2 flex flex-col min-h-0"
+                      style={{
+                        backgroundColor: currentTheme.colors.backgroundLight,
+                        borderColor: currentTheme.colors.border,
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                        <h3 className={`${tpTiny ? 'text-xl' : tpCompact ? 'text-2xl' : 'text-3xl'} font-black`} style={{ color: currentTheme.colors.primary }}>
+                          Table {table.tableNumber}
+                        </h3>
+                        <span className={`${tpTiny ? 'text-sm' : 'text-lg'} text-white/60 font-bold`}>
+                          {table.activeCount}/{table.totalCount}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </>
+                      <div className={`flex-1 min-h-0 flex flex-col ${tpTiny ? 'gap-0.5' : tpCompact ? 'gap-1' : 'gap-1.5'}`}>
+                        {table.seats.map((seat, idx) => (
+                          <div
+                            key={seat.playerId}
+                            className={`flex items-center justify-between gap-2 ${tpTiny ? 'py-1 px-2' : tpCompact ? 'py-1.5 px-3' : 'py-2 px-4'} rounded-lg ${
+                              seat.isEliminated ? 'opacity-40' : ''
+                            }`}
+                            style={{
+                              backgroundColor: seat.isEliminated
+                                ? 'rgba(255,255,255,0.3)'
+                                : 'rgba(255,255,255,0.9)',
+                            }}
+                          >
+                            <span className={`text-slate-500 ${tpTiny ? 'text-xs' : tpCompact ? 'text-sm' : 'text-lg'} font-bold whitespace-nowrap`}>
+                              S{seat.seatNumber ?? idx + 1}
+                            </span>
+                            <span className={`text-slate-900 font-black ${tpTiny ? 'text-lg' : tpCompact ? 'text-xl' : 'text-2xl'} uppercase truncate ${
+                              seat.isEliminated ? 'line-through' : ''
+                            }`}>
+                              {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
 
             {/* Footer - Stats */}
             {tablesPlanData && tablesPlanData.tables.length > 0 && (
-              <div className="mt-6 pt-4 border-t border-white/10 text-center text-white/60 text-lg flex-shrink-0">
+              <div className="mt-2 pt-2 border-t border-white/10 text-center text-white/60 text-sm flex-shrink-0">
                 {tablesPlanData.totalTables} tables • {tablesPlanData.totalActivePlayers} joueurs actifs / {tablesPlanData.totalPlayers} total
               </div>
             )}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Reassign Overlay - Auto-shown during pause after level-end rebalance */}
-      {tableOverlay?.type === 'reassign' && tableOverlay.tablesPlan && (
-        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4" style={{ animation: 'slideDown 0.5s ease-out' }}>
+      {tableOverlay?.type === 'reassign' && tableOverlay.tablesPlan && (() => {
+        // Compute dynamic sizing based on table count and max players per table
+        const tableCount = tableOverlay.tablesPlan.tables.length;
+        const maxPlayersPerTable = Math.max(...tableOverlay.tablesPlan.tables.map(t => t.seats.filter(s => !s.isEliminated).length));
+        // For many tables or many players, use smaller sizing
+        const isCompact = tableCount > 3 || maxPlayersPerTable > 7;
+        const isTiny = tableCount > 4 || maxPlayersPerTable > 9;
+        const gridCols = tableCount <= 2 ? 'grid-cols-2' : tableCount <= 3 ? 'grid-cols-3' : tableCount <= 4 ? 'grid-cols-4' : 'grid-cols-5';
+
+        return (
+        <div className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-2" style={{ animation: 'slideDown 0.5s ease-out' }}>
           <div
-            className="w-[94vw] h-[92vh] overflow-hidden rounded-3xl p-8 flex flex-col"
+            className="w-[96vw] h-[96vh] overflow-hidden rounded-2xl p-4 flex flex-col"
             style={{ backgroundColor: currentTheme.colors.backgroundDark }}
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6 flex-shrink-0">
-              <h2 className="text-4xl font-bold text-white flex items-center gap-4">
-                <RefreshCw className="h-10 w-10 animate-spin" style={{ color: currentTheme.colors.primary, animationDuration: '3s' }} />
+            {/* Header with timer */}
+            <div className="flex items-center justify-between mb-3 flex-shrink-0">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <RefreshCw className="h-7 w-7 animate-spin" style={{ color: currentTheme.colors.primary, animationDuration: '3s' }} />
                 Nouveau Plan des Tables
               </h2>
-              <button
-                onClick={() => setTableOverlay(null)}
-                className="text-white/60 hover:text-white text-4xl font-bold w-12 h-12 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
-              >
-                x
-              </button>
+              <div className="flex items-center gap-4">
+                {/* Timer display */}
+                <div className="flex items-center gap-3">
+                  {serverTimerData?.timerPausedAt ? (
+                    <div className="bg-yellow-500 text-black px-4 py-1.5 rounded-lg font-bold text-lg animate-pulse flex items-center gap-2">
+                      <Pause className="h-5 w-5" />
+                      PAUSE
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-white">
+                      <Timer className="h-5 w-5" style={{ color: currentTheme.colors.primary }} />
+                      <span className={`text-2xl font-black ${
+                        timeRemaining !== null && timeRemaining < 60 ? 'text-red-500' : ''
+                      }`}>
+                        {timeRemaining !== null ? formatTime(timeRemaining) : '--:--'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setTableOverlay(null)}
+                  className="text-white/60 hover:text-white text-3xl font-bold w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors"
+                >
+                  x
+                </button>
+              </div>
             </div>
 
-            {/* Content - Scrollable */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+            {/* Content - No scroll, auto-fit */}
+            <div className="flex-1 min-h-0">
+              <div className={`grid ${gridCols} gap-3 h-full`}>
                 {tableOverlay.tablesPlan.tables.map((table) => (
                   <div
                     key={table.tableNumber}
-                    className="rounded-2xl p-6 border-3"
+                    className="rounded-xl p-3 border-2 flex flex-col min-h-0"
                     style={{
                       backgroundColor: currentTheme.colors.backgroundLight,
                       borderColor: currentTheme.colors.border,
                     }}
                   >
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-4xl font-black" style={{ color: currentTheme.colors.primary }}>
+                    <div className="flex items-center justify-between mb-2 flex-shrink-0">
+                      <h3 className={`${isTiny ? 'text-xl' : isCompact ? 'text-2xl' : 'text-3xl'} font-black`} style={{ color: currentTheme.colors.primary }}>
                         Table {table.tableNumber}
                       </h3>
-                      <span className="text-2xl text-white/60 font-bold">
+                      <span className={`${isTiny ? 'text-sm' : 'text-lg'} text-white/60 font-bold`}>
                         {table.activeCount} joueurs
                       </span>
                     </div>
-                    <div className="space-y-4">
+                    <div className={`flex-1 min-h-0 flex flex-col ${isTiny ? 'gap-0.5' : isCompact ? 'gap-1' : 'gap-1.5'}`}>
                       {table.seats.filter(seat => !seat.isEliminated).map((seat, idx) => {
                         const isMoved = tableOverlay.movedPlayerIds.includes(seat.playerId);
                         return (
                           <div
                             key={seat.playerId}
-                            className={`flex items-center justify-between gap-6 py-4 px-6 rounded-xl transition-all ${
-                              isMoved ? 'ring-4 ring-yellow-400 scale-105' : ''
+                            className={`flex items-center justify-between gap-2 ${isTiny ? 'py-1 px-2' : isCompact ? 'py-1.5 px-3' : 'py-2 px-4'} rounded-lg transition-all ${
+                              isMoved ? 'ring-2 ring-yellow-400' : ''
                             }`}
                             style={{
                               backgroundColor: isMoved
@@ -2352,14 +2387,14 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                                 : 'rgba(255,255,255,0.9)',
                             }}
                           >
-                            <span className={`text-2xl font-bold whitespace-nowrap ${isMoved ? 'text-yellow-300' : 'text-slate-500'}`}>
+                            <span className={`${isTiny ? 'text-xs' : isCompact ? 'text-sm' : 'text-lg'} font-bold whitespace-nowrap ${isMoved ? 'text-yellow-300' : 'text-slate-500'}`}>
                               S{seat.seatNumber ?? idx + 1}
                             </span>
-                            <span className={`font-black text-4xl uppercase truncate ${isMoved ? 'text-yellow-300' : 'text-slate-900'}`}>
+                            <span className={`font-black ${isTiny ? 'text-lg' : isCompact ? 'text-xl' : 'text-2xl'} uppercase truncate ${isMoved ? 'text-yellow-300' : 'text-slate-900'}`}>
                               {seat.nickname || `${seat.firstName} ${seat.lastName.charAt(0)}.`}
                             </span>
                             {isMoved && (
-                              <span className="text-yellow-300 text-2xl flex-shrink-0">NEW</span>
+                              <span className={`text-yellow-300 ${isTiny ? 'text-xs' : 'text-sm'} font-bold flex-shrink-0`}>NEW</span>
                             )}
                           </div>
                         );
@@ -2371,19 +2406,19 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             </div>
 
             {/* Footer */}
-            <div className="mt-6 pt-4 border-t border-white/10 text-center flex-shrink-0">
-              <div className="text-white/60 text-lg">
+            <div className="mt-2 pt-2 border-t border-white/10 text-center flex-shrink-0">
+              <div className="text-white/60 text-sm">
                 {tableOverlay.tablesPlan.totalTables} tables
                 {' \u2022 '}
                 {tableOverlay.tablesPlan.totalActivePlayers} joueurs actifs
-              </div>
-              <div className="text-yellow-400 text-sm mt-2 font-medium">
-                Les joueurs en surbrillance ont changé de table - Cet affichage disparaîtra à la reprise du timer
+                {' \u2022 '}
+                <span className="text-yellow-400">Joueurs en surbrillance = changement de table</span>
               </div>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Chips Modal */}
       {showChipsModal && chips.length > 0 && (
