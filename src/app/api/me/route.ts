@@ -24,6 +24,18 @@ export async function GET(request: NextRequest) {
     if (playerSessionCookie) {
       try {
         const { payload } = await jwtVerify(playerSessionCookie, getJwtSecret());
+
+        // JWT tournament-admin : retourner un acteur synthétique
+        if (payload.type === 'tournament-admin' && payload.tournamentId) {
+          return NextResponse.json({
+            id: `tournament-admin-${payload.tournamentId}`,
+            role: 'ADMIN',
+            additionalRoles: [],
+            displayName: (payload.displayName as string) || 'Admin Tournoi',
+            _tournamentScope: payload.tournamentId,
+          });
+        }
+
         const playerId = payload.playerId as string;
 
         if (playerId) {

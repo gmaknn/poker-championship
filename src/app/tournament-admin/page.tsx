@@ -32,8 +32,8 @@ export default function TournamentAdminLoginPage() {
         return;
       }
 
-      // Redirection vers la page directeur du tournoi
-      router.push(`/director/${data.tournamentId}`);
+      // Redirection vers la page de gestion du tournoi
+      router.push(`/dashboard/tournaments/${data.tournamentId}`);
       router.refresh();
     } catch (err) {
       console.error('Login error:', err);
