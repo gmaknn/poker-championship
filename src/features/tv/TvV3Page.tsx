@@ -1833,20 +1833,6 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
               </div>
             </div>
 
-            {/* QR Code - TV view for players */}
-            <div className="text-center pt-4 border-t border-[hsl(220,13%,30%)]">
-              <div className="text-white/80 text-sm font-semibold mb-2">Suivre sur mobile</div>
-              <div className="flex justify-center">
-                <div className="bg-white rounded-lg p-1">
-                  <QRCodeSVG
-                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/tv/${tournament.id}`}
-                    size={100}
-                    level="M"
-                  />
-                </div>
-              </div>
-              <div className="text-white/50 text-xs mt-1">Scanner pour la vue live</div>
-            </div>
           </div>
 
           {/* Championship Leaderboard (Top 3) - At bottom of left panel */}
@@ -2098,24 +2084,57 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             )}
           </div>
 
-          {/* Chip Denominations Button - At bottom */}
-          {chips.length > 0 && (
+          {/* Bottom buttons & QR code */}
+          <div className="mt-auto pt-4 space-y-3">
+            {/* Chip Denominations Button */}
+            {chips.length > 0 && (
+              <button
+                onClick={() => {
+                  setShowTablesPlan(false);
+                  setShowLeaderboardModal(false);
+                  setShowChipsModal(true);
+                }}
+                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border-2 transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: currentTheme.colors.backgroundDark,
+                  borderColor: currentTheme.colors.border,
+                }}
+              >
+                <Coins className="h-6 w-6" style={{ color: currentTheme.colors.primary }} />
+                <span className="text-lg font-bold text-white">Voir les jetons</span>
+              </button>
+            )}
+
+            {/* Tables Plan Toggle */}
             <button
-              onClick={() => {
-                setShowTablesPlan(false);
-                setShowLeaderboardModal(false);
-                setShowChipsModal(true);
-              }}
-              className="mt-auto pt-4 w-full flex items-center justify-center gap-3 py-4 px-6 rounded-xl border-2 transition-all hover:opacity-90"
+              onClick={handleToggleTablesPlan}
+              className={`w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border-2 transition-all hover:opacity-90 ${
+                showTablesPlan ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''
+              }`}
               style={{
-                backgroundColor: currentTheme.colors.backgroundDark,
-                borderColor: currentTheme.colors.border,
+                backgroundColor: showTablesPlan ? currentTheme.colors.primary : currentTheme.colors.backgroundDark,
+                borderColor: currentTheme.colors.primary,
               }}
             >
-              <Coins className="h-8 w-8" style={{ color: currentTheme.colors.primary }} />
-              <span className="text-2xl font-bold text-white">Voir les jetons</span>
+              <LayoutGrid className="h-6 w-6 text-white" />
+              <span className="text-lg font-bold text-white">{showTablesPlan ? 'Masquer Tables' : 'Plan des Tables'}</span>
             </button>
-          )}
+
+            {/* QR Code - TV view for players */}
+            <div className="text-center pt-2 border-t border-[hsl(220,13%,30%)]">
+              <div className="text-white/80 text-sm font-semibold mb-2">Suivre sur mobile</div>
+              <div className="flex justify-center">
+                <div className="bg-white rounded-lg p-1">
+                  <QRCodeSVG
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/tv/${tournament.id}`}
+                    size={100}
+                    level="M"
+                  />
+                </div>
+              </div>
+              <div className="text-white/50 text-xs mt-1">Scanner pour la vue live</div>
+            </div>
+          </div>
         </div>
         )}
       </div>
@@ -2659,12 +2678,12 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         </div>
       )}
 
-      {/* Bottom Right - Tables Plan Toggle - Responsive position */}
-      <div className="fixed bottom-2 right-2 md:bottom-4 md:right-4 z-[9999] space-y-3">
-        {/* Tables Plan Toggle */}
+      {/* Bottom Right - Tables Plan Toggle - Mobile only (desktop uses right panel button) */}
+      {(isMobilePortrait || isMobileLandscape) && (
+      <div className="fixed bottom-2 right-2 z-[9999]">
         <button
           onClick={handleToggleTablesPlan}
-          className={`flex items-center gap-1 md:gap-2 text-white font-bold text-sm md:text-lg px-3 py-2 md:px-5 md:py-4 rounded-lg md:rounded-xl shadow-2xl transition-all ${
+          className={`flex items-center gap-1 text-white font-bold text-sm px-3 py-2 rounded-lg shadow-2xl transition-all ${
             showTablesPlan ? 'ring-2 ring-offset-2 ring-offset-transparent' : ''
           }`}
           style={{
@@ -2674,11 +2693,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             borderStyle: 'solid',
           }}
         >
-          <LayoutGrid className="h-4 w-4 md:h-6 md:w-6" />
-          <span className="hidden sm:inline">{showTablesPlan ? 'Masquer Tables' : 'Plan des Tables'}</span>
-          <span className="sm:hidden">{showTablesPlan ? 'Masquer' : 'Tables'}</span>
+          <LayoutGrid className="h-4 w-4" />
+          <span>{showTablesPlan ? 'Masquer' : 'Tables'}</span>
         </button>
       </div>
+      )}
 
     </div>
   );
