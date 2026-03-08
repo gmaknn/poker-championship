@@ -13,6 +13,7 @@ import { Volume2, Gauge, Camera, Share2, Download, Palette, MessageSquare } from
 import { capturePodiumPhoto, sharePodiumPhoto } from '@/lib/podiumPhotoGenerator';
 import { TV_THEMES, getSavedTheme, saveTheme, applyThemeToElement, type TVTheme } from '@/lib/tvThemes';
 import { normalizeAvatarSrc } from '@/lib/utils';
+import { QRCodeSVG } from 'qrcode.react';
 
 type Player = {
   id: string;
@@ -1812,6 +1813,21 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
               <div className="text-3xl font-bold text-white drop-shadow-lg">
                 {formatTimeWithHours(timeElapsed)}
               </div>
+            </div>
+
+            {/* QR Code - TV view for players */}
+            <div className="text-center pt-4 border-t border-[hsl(220,13%,30%)]">
+              <div className="text-white/80 text-sm font-semibold mb-2">Suivre sur mobile</div>
+              <div className="flex justify-center">
+                <div className="bg-white rounded-lg p-1">
+                  <QRCodeSVG
+                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/tv/${tournament.id}`}
+                    size={100}
+                    level="M"
+                  />
+                </div>
+              </div>
+              <div className="text-white/50 text-xs mt-1">Scanner pour la vue live</div>
             </div>
           </div>
 
