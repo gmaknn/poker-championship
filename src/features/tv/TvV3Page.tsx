@@ -265,6 +265,9 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   } | null>(null);
   const eliminationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Timer control permission (only admins/TDs can pause/resume)
+  const [canControlTimer, setCanControlTimer] = useState(false);
+
   // Mobile detection
   const [isMobilePortrait, setIsMobilePortrait] = useState(false);
   const [isMobileLandscape, setIsMobileLandscape] = useState(false);
@@ -288,6 +291,19 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
   const [isTogglingTimer, setIsTogglingTimer] = useState(false);
   const [timerToast, setTimerToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
+
+  // Check if current user can control the timer (admin/TD only)
+  useEffect(() => {
+    fetch('/api/me', { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.role) {
+          const controlRoles = ['SUPERADMIN', 'ADMIN', 'TOURNAMENT_DIRECTOR', 'ANIMATOR'];
+          setCanControlTimer(controlRoles.includes(data.role));
+        }
+      })
+      .catch(() => setCanControlTimer(false));
+  }, []);
 
   // Initialize TTS controls and theme from localStorage
   useEffect(() => {
@@ -1096,8 +1112,10 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     previousPlayerCountRef.current = currentPlayerCount;
   }, [resultsData?.results]);
 
-  // Keyboard shortcut: Space bar for pause/resume
+  // Keyboard shortcut: Space bar for pause/resume (privileged users only)
   useEffect(() => {
+    if (!canControlTimer) return;
+
     const handleKeyPress = (e: KeyboardEvent) => {
       // Ignore if in input/textarea
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -1118,7 +1136,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [serverTimerData]);
+  }, [serverTimerData, canControlTimer]);
 
   const handlePause = async () => {
     try {
@@ -1590,8 +1608,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             </div>
           )}
 
-          {/* Bouton Play/Pause - toujours visible, l'API vérifie les permissions */}
-          {tournament.status === 'IN_PROGRESS' && (
+          {/* Bouton Play/Pause - visible uniquement pour les admins/TD */}
+          {canControlTimer && tournament.status === 'IN_PROGRESS' && (
             <button
               onPointerDown={(e) => {
                 // Use pointerdown for unified touch/mouse handling
@@ -1738,8 +1756,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             </div>
           )}
 
-          {/* Bouton Play/Pause - toujours visible, l'API vérifie les permissions */}
-          {tournament.status === 'IN_PROGRESS' && (
+          {/* Bouton Play/Pause - visible uniquement pour les admins/TD */}
+          {canControlTimer && tournament.status === 'IN_PROGRESS' && (
             <button
               onPointerDown={(e) => {
                 // Use pointerdown for unified touch/mouse handling
