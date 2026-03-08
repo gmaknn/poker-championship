@@ -116,23 +116,12 @@ export default function TournamentDetailPage({
 
   const loadCurrentUser = async () => {
     try {
-      // 1. Vérifier la session NextAuth (production)
-      if (session?.user?.role) {
-        setCurrentUserRole(session.user.role as PlayerRole);
-        return;
-      }
-
-      // 2. Fallback: cookie player-id (dev mode)
-      const cookies = document.cookie;
-      const playerIdMatch = cookies.match(/player-id=([^;]+)/);
-
-      if (playerIdMatch) {
-        const playerId = playerIdMatch[1];
-        const response = await fetch(`/api/players/${playerId}`);
-        if (response.ok) {
-          const player = await response.json();
-          setCurrentUserRole(player.role);
-        }
+      // Toujours utiliser /api/me qui lit le rôle depuis la DB
+      // (la session NextAuth peut contenir un rôle obsolète dans le JWT)
+      const res = await fetch('/api/me', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentUserRole(data.role);
       }
     } catch (error) {
       console.error('Error loading current user:', error);

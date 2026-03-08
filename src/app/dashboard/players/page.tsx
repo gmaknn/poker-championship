@@ -125,13 +125,8 @@ export default function PlayersPage() {
 
   const loadCurrentUser = async () => {
     try {
-      // 1. Vérifier la session NextAuth (production)
-      if (session?.user?.role) {
-        setCurrentUserRole(session.user.role as PlayerRole);
-        return;
-      }
-
-      // 2. Fallback: use /api/me which reads httpOnly cookies server-side
+      // Toujours utiliser /api/me qui lit le rôle depuis la DB
+      // (la session NextAuth peut contenir un rôle obsolète dans le JWT)
       const res = await fetch('/api/me', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
