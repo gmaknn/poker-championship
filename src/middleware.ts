@@ -117,8 +117,8 @@ export default auth(async (req) => {
           }
 
           // Rediriger vers le tournoi scopé
-          console.log(`[MIDDLEWARE] Tournament-admin redirected from ${pathname} to /director/${tid}`);
-          return NextResponse.redirect(new URL(`/director/${tid}`, req.url));
+          console.log(`[MIDDLEWARE] Tournament-admin redirected from ${pathname} to /dashboard/tournaments/${tid}`);
+          return NextResponse.redirect(new URL(`/dashboard/tournaments/${tid}`, req.url));
         }
 
         // Un joueur est connecté via le système Player
