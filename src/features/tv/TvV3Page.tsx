@@ -403,9 +403,10 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       clearTimeout(eliminationTimeoutRef.current);
     }
 
-    // Find avatars from results
-    const eliminatedPlayer = results.find(r => r.playerId === data.eliminatedId);
-    const eliminatorPlayer = results.find(r => r.playerId === data.eliminatorId);
+    // Find avatars from resultsData
+    const players = resultsData?.results || [];
+    const eliminatedPlayer = players.find(r => r.playerId === data.eliminatedId);
+    const eliminatorPlayer = players.find(r => r.playerId === data.eliminatorId);
 
     // Show notification
     setEliminationNotification({
@@ -425,7 +426,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     eliminationTimeoutRef.current = setTimeout(() => {
       setEliminationNotification(null);
     }, 7000);
-  }, [results]);
+  }, [resultsData]);
 
   const handleBustEvent = useCallback((data: {
     tournamentId: string;
@@ -444,8 +445,9 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
     // Show notification (only if killer is known)
     if (data.killerName) {
-      const eliminatedPlayer = results.find(r => r.playerId === data.eliminatedId);
-      const killerPlayer = data.killerId ? results.find(r => r.playerId === data.killerId) : null;
+      const players = resultsData?.results || [];
+      const eliminatedPlayer = players.find(r => r.playerId === data.eliminatedId);
+      const killerPlayer = data.killerId ? players.find(r => r.playerId === data.killerId) : null;
 
       setEliminationNotification({
         type: 'bust',
@@ -463,7 +465,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         setEliminationNotification(null);
       }, 6000);
     }
-  }, [results]);
+  }, [resultsData]);
 
   // Listen for elimination events via Socket.IO
   useTournamentEvent(tournamentId, 'elimination:player_out', handleEliminationEvent);
