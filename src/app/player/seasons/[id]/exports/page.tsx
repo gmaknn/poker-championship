@@ -133,6 +133,7 @@ type TournamentData = {
     bustEliminations: number;
     leaderKills: number;
     rebuysCount: number;
+    lightRebuyUsed: boolean;
   }>;
 };
 
