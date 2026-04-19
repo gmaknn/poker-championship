@@ -3,7 +3,7 @@
 import React from 'react';
 import { normalizeAvatarSrc, isValidAvatarUrl } from '@/lib/utils';
 
-interface EliminationVictim {
+interface EliminationEntry {
   nickname: string;
   count: number;
 }
@@ -16,7 +16,7 @@ interface PlayerRanking {
   avatar: string | null;
   totalPoints: number;
   pointsChange: number; // Points gagnes lors du dernier tournoi
-  victims: EliminationVictim[]; // Joueurs que ce joueur a elimines
+  eliminatedBy: EliminationEntry[]; // Joueurs qui ont éliminé ce joueur
 }
 
 interface SeasonLeaderboardWithEliminationsProps {
@@ -111,7 +111,7 @@ export default function SeasonLeaderboardWithEliminations({
                 Dernier tournoi
               </th>
               <th style={{ padding: '14px 20px', textAlign: 'left', borderBottom: '2px solid #cbd5e1', color: '#1e293b', fontSize: '15px', fontWeight: '600' }}>
-                Victimes
+                Eliminé par
               </th>
             </tr>
           </thead>
@@ -204,16 +204,16 @@ export default function SeasonLeaderboardWithEliminations({
                       {player.pointsChange}
                     </td>
 
-                    {/* Victimes */}
+                    {/* Eliminé par */}
                     <td style={{ padding: '12px 20px', borderBottom: '1px solid #cbd5e1' }}>
-                      {player.victims.length > 0 ? (
+                      {player.eliminatedBy.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-                          {player.victims.map((victim, vIndex) => (
+                          {player.eliminatedBy.map((eliminator, eIndex) => (
                             <div
-                              key={vIndex}
+                              key={eIndex}
                               style={{
                                 padding: '4px 10px',
-                                backgroundColor: '#dc2626',
+                                backgroundColor: '#7c3aed',
                                 color: '#ffffff',
                                 borderRadius: '4px',
                                 fontSize: '13px',
@@ -221,15 +221,15 @@ export default function SeasonLeaderboardWithEliminations({
                                 whiteSpace: 'nowrap',
                               }}
                             >
-                              {victim.nickname}
-                              {victim.count > 1 && (
-                                <span style={{ marginLeft: '4px', color: '#fde047' }}>x{victim.count}</span>
+                              {eliminator.nickname}
+                              {eliminator.count > 1 && (
+                                <span style={{ marginLeft: '4px', color: '#fde047' }}>x{eliminator.count}</span>
                               )}
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <span style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>Aucune</span>
+                        <span style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>-</span>
                       )}
                     </td>
                   </tr>
@@ -253,10 +253,10 @@ export default function SeasonLeaderboardWithEliminations({
               <span style={{ fontWeight: '600' }}>Dernier tournoi :</span> Points gagnés lors du dernier tournoi joué
             </li>
             <li style={{ marginBottom: '4px' }}>
-              <span style={{ fontWeight: '600' }}>Victimes :</span> Joueurs éliminés par ce joueur durant la saison
+              <span style={{ fontWeight: '600' }}>Eliminé par :</span> Joueurs ayant éliminé ce joueur durant la saison
             </li>
             <li>
-              <span style={{ color: '#ca8a04', fontWeight: '600' }}>xN :</span> Nombre d'eliminations du meme joueur
+              <span style={{ color: '#ca8a04', fontWeight: '600' }}>xN :</span> Nombre de fois éliminé par le même joueur
             </li>
           </ul>
         </div>

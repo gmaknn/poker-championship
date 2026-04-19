@@ -340,10 +340,10 @@ export default function LiveLeaderboardPage() {
                           <span>{entry.leaderKills} LK</span>
                         </div>
                       )}
-                      {entry.rebuysCount > 0 && (
+                      {(entry.rebuysCount > 0 || entry.lightRebuyUsed) && (
                         <div className="flex items-center gap-1">
                           <RefreshCw className="h-4 w-4 text-orange-500" />
-                          <span>{entry.rebuysCount} recaves</span>
+                          <span>{entry.rebuysCount + (entry.lightRebuyUsed ? 0.5 : 0)} recaves</span>
                         </div>
                       )}
                     </div>

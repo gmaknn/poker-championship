@@ -133,6 +133,7 @@ type TournamentData = {
     bustEliminations: number;
     leaderKills: number;
     rebuysCount: number;
+    lightRebuyUsed: boolean;
   }>;
 };
 
@@ -401,9 +402,28 @@ export default function PlayerSeasonExportsPage() {
       }));
 
   const sortedLeaderboard = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
-  const eliminationPlayers = sortedLeaderboard.map((entry, index) => {
-    const stats = eliminatorStats.find((s) => s.eliminatorId === entry.playerId);
 
+  // Build "eliminatedBy" map: for each player, who eliminated them and how many times
+  const eliminatedByMap = new Map<string, Map<string, { nickname: string; count: number }>>();
+  eliminatorStats.forEach((stat) => {
+    stat.victims.forEach((victim) => {
+      const victimEntry = leaderboard.find((e) => e.player.nickname === victim.nickname);
+      if (victimEntry) {
+        if (!eliminatedByMap.has(victimEntry.playerId)) {
+          eliminatedByMap.set(victimEntry.playerId, new Map());
+        }
+        const playerMap = eliminatedByMap.get(victimEntry.playerId)!;
+        const existing = playerMap.get(stat.eliminatorId);
+        if (existing) {
+          existing.count += victim.count;
+        } else {
+          playerMap.set(stat.eliminatorId, { nickname: stat.eliminatorNickname, count: victim.count });
+        }
+      }
+    });
+  });
+
+  const eliminationPlayers = sortedLeaderboard.map((entry, index) => {
     let pointsChange = 0;
     if (entry.performances && entry.performances.length > 0) {
       const sortedByDate = [...entry.performances].sort(
@@ -411,6 +431,11 @@ export default function PlayerSeasonExportsPage() {
       );
       pointsChange = sortedByDate[0].totalPoints;
     }
+
+    const eliminatedByEntries = eliminatedByMap.get(entry.playerId);
+    const eliminatedBy = eliminatedByEntries
+      ? Array.from(eliminatedByEntries.values()).sort((a, b) => b.count - a.count)
+      : [];
 
     return {
       rank: index + 1,
@@ -420,7 +445,7 @@ export default function PlayerSeasonExportsPage() {
       avatar: entry.player.avatar,
       totalPoints: entry.totalPoints,
       pointsChange,
-      victims: stats?.victims || [],
+      eliminatedBy,
     };
   });
 
@@ -637,6 +662,7 @@ export default function PlayerSeasonExportsPage() {
                           eliminationsCount: tp.eliminationsCount || tp.bustEliminations || 0,
                           leaderKills: tp.leaderKills,
                           rebuysCount: tp.rebuysCount,
+                          lightRebuyUsed: tp.lightRebuyUsed,
                         }))}
                     />
                   </div>

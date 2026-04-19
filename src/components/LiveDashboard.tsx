@@ -181,7 +181,8 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
   // Computed values
   const activePlayers = players.filter((p) => p.finalRank === null);
   const totalPlayers = players.length;
-  const totalRebuys = players.reduce((sum, p) => sum + p.rebuysCount, 0);
+  const totalStandardRebuys = players.reduce((sum, p) => sum + p.rebuysCount, 0);
+  const totalRebuys = players.reduce((sum, p) => sum + p.rebuysCount + (p.lightRebuyUsed ? 0.5 : 0), 0);
   const eliminatedPlayers = players.filter((p) => p.finalRank !== null);
   const seatsPerTable = tournament.seatsPerTable ?? 9;
 
@@ -197,9 +198,8 @@ export default function LiveDashboard({ tournamentId, tournament, onUpdate }: Pr
 
   // Pot total: buy-ins + rebuys (distinguer light vs full)
   const totalLightRebuys = players.filter((p) => p.lightRebuyUsed).length;
-  const totalFullRebuys = totalRebuys; // rebuysCount includes all standard rebuys
   const potTotal = (totalPlayers * tournament.buyInAmount)
-    + (totalFullRebuys * tournament.buyInAmount)
+    + (totalStandardRebuys * tournament.buyInAmount)
     + (totalLightRebuys * tournament.lightRebuyAmount);
 
   // Timer computed

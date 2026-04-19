@@ -154,7 +154,7 @@ export async function GET(
       remainingPlayers: tournament.tournamentPlayers.filter(tp => !tp.finalRank || tp.finalRank === 0).length,
       eliminatedPlayers: tournament.tournamentPlayers.filter(tp => tp.finalRank && tp.finalRank > 0).length,
       totalEliminations: tournament.tournamentPlayers.reduce((sum, tp) => sum + tp.eliminationsCount, 0),
-      totalRebuys: tournament.tournamentPlayers.reduce((sum, tp) => sum + tp.rebuysCount, 0),
+      totalRebuys: tournament.tournamentPlayers.reduce((sum, tp) => sum + tp.rebuysCount + (tp.lightRebuyUsed ? 0.5 : 0), 0),
       leaderKillsTotal: tournament.tournamentPlayers.reduce((sum, tp) => sum + tp.leaderKills, 0),
     };
 
