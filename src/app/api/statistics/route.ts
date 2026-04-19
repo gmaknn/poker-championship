@@ -12,25 +12,32 @@ export async function GET() {
       activePlayers,
       seasons,
     ] = await Promise.all([
-      // Total des tournois
-      prisma.tournament.count(),
-
-      // Tournois terminés
+      // Total des tournois (championnat uniquement)
       prisma.tournament.count({
-        where: { status: 'FINISHED' }
+        where: { type: 'CHAMPIONSHIP' }
+      }),
+
+      // Tournois terminés (championnat uniquement)
+      prisma.tournament.count({
+        where: { status: 'FINISHED', type: 'CHAMPIONSHIP' }
       }),
 
       // Total des joueurs
       prisma.player.count(),
 
-      // Total des inscriptions
-      prisma.tournamentPlayer.count(),
+      // Total des inscriptions (championnat uniquement)
+      prisma.tournamentPlayer.count({
+        where: {
+          tournament: { type: 'CHAMPIONSHIP' }
+        }
+      }),
 
-      // Joueurs actifs cette année
+      // Joueurs actifs cette année (championnat uniquement)
       prisma.player.count({
         where: {
           tournamentPlayers: {
             some: {
+              tournament: { type: 'CHAMPIONSHIP' },
               createdAt: {
                 gte: new Date(new Date().getFullYear(), 0, 1)
               }
@@ -39,10 +46,11 @@ export async function GET() {
         }
       }),
 
-      // Saisons
+      // Saisons (championnat uniquement)
       prisma.season.findMany({
         include: {
           tournaments: {
+            where: { type: 'CHAMPIONSHIP' },
             include: {
               tournamentPlayers: true,
               eliminations: true
@@ -61,6 +69,7 @@ export async function GET() {
     const tournamentsWithDuration = await prisma.tournament.findMany({
       where: {
         status: 'FINISHED',
+        type: 'CHAMPIONSHIP',
         timerElapsedSeconds: { gt: 0 }
       },
       select: {
@@ -95,10 +104,13 @@ export async function GET() {
       };
     });
 
-    // Top 5 joueurs les plus actifs
+    // Top 5 joueurs les plus actifs (championnat uniquement)
     const topActivePlayers = await prisma.player.findMany({
       include: {
         tournamentPlayers: {
+          where: {
+            tournament: { type: 'CHAMPIONSHIP' }
+          },
           include: {
             tournament: {
               select: {
@@ -132,6 +144,7 @@ export async function GET() {
 
     const tournamentsLastYear = await prisma.tournament.findMany({
       where: {
+        type: 'CHAMPIONSHIP',
         date: {
           gte: twelveMonthsAgo
         }

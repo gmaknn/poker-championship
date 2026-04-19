@@ -19,6 +19,7 @@ export type TournamentExportPlayer = {
   eliminationsCount: number;
   leaderKills: number;
   rebuysCount: number;
+  lightRebuyUsed?: boolean;
 };
 
 export type TournamentExportProps = {
@@ -50,7 +51,7 @@ export default function TournamentExportPng({
   });
 
   const top3 = players.slice(0, 3);
-  const totalRebuys = players.reduce((sum, p) => sum + p.rebuysCount, 0);
+  const totalRebuys = players.reduce((sum, p) => sum + p.rebuysCount + (p.lightRebuyUsed ? 0.5 : 0), 0);
 
   return (
     <div

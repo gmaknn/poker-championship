@@ -372,7 +372,8 @@ export async function GET(request: NextRequest, { params }: Params) {
     }
 
     // 🔥 Phoenix - 10+ total rebuys
-    const totalRebuys = totalRebuysSum._sum.rebuysCount || 0;
+    const totalLightRebuysCount = allTournamentParticipations.filter(tp => tp.lightRebuyUsed).length;
+    const totalRebuys = (totalRebuysSum._sum.rebuysCount || 0) + totalLightRebuysCount * 0.5;
     if (totalRebuys >= 10) {
       badges.push({
         id: 'phoenix',
@@ -456,7 +457,7 @@ export async function GET(request: NextRequest, { params }: Params) {
           tournamentId: bestComeback.tournamentId,
           tournamentName: bestComeback.tournament.name,
           tournamentDate: bestComeback.tournament.date,
-          rebuysCount: bestComeback.rebuysCount,
+          rebuysCount: bestComeback.rebuysCount + (bestComeback.lightRebuyUsed ? 0.5 : 0),
         } : null,
         bubbleBoyCount,
         ironManTournaments,

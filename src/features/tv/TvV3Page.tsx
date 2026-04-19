@@ -260,6 +260,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     type: 'elimination' | 'bust' | 'abandonment';
     eliminatedName: string;
     eliminatorName: string;
+    eliminatedAvatar?: string | null;
+    eliminatorAvatar?: string | null;
     rank?: number;
     isLeaderKill?: boolean;
   } | null>(null);
@@ -401,11 +403,17 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       clearTimeout(eliminationTimeoutRef.current);
     }
 
+    // Find avatars from results
+    const eliminatedPlayer = results.find(r => r.playerId === data.eliminatedId);
+    const eliminatorPlayer = results.find(r => r.playerId === data.eliminatorId);
+
     // Show notification
     setEliminationNotification({
       type: data.isAbandonment ? 'abandonment' : 'elimination',
       eliminatedName: data.eliminatedName,
       eliminatorName: data.eliminatorName,
+      eliminatedAvatar: eliminatedPlayer?.player?.avatar,
+      eliminatorAvatar: eliminatorPlayer?.player?.avatar,
       rank: data.rank,
       isLeaderKill: data.isLeaderKill,
     });
@@ -417,7 +425,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     eliminationTimeoutRef.current = setTimeout(() => {
       setEliminationNotification(null);
     }, 7000);
-  }, []);
+  }, [results]);
 
   const handleBustEvent = useCallback((data: {
     tournamentId: string;
@@ -436,10 +444,15 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
 
     // Show notification (only if killer is known)
     if (data.killerName) {
+      const eliminatedPlayer = results.find(r => r.playerId === data.eliminatedId);
+      const killerPlayer = data.killerId ? results.find(r => r.playerId === data.killerId) : null;
+
       setEliminationNotification({
         type: 'bust',
         eliminatedName: data.eliminatedName,
         eliminatorName: data.killerName,
+        eliminatedAvatar: eliminatedPlayer?.player?.avatar,
+        eliminatorAvatar: killerPlayer?.player?.avatar,
       });
 
       // Play alert sound (lighter for bust)
@@ -450,7 +463,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
         setEliminationNotification(null);
       }, 6000);
     }
-  }, []);
+  }, [results]);
 
   // Listen for elimination events via Socket.IO
   useTournamentEvent(tournamentId, 'elimination:player_out', handleEliminationEvent);
@@ -1284,10 +1297,11 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     .sort((a, b) => b.eliminationsCount - a.eliminationsCount)
     .slice(0, 3);
 
-  // Top 3 Rebuyers (most rebuys)
+  // Top 3 Rebuyers (most rebuys, counting light as 0.5)
   const topRebuyers = [...results]
-    .filter((p) => p.rebuysCount > 0)
-    .sort((a, b) => b.rebuysCount - a.rebuysCount)
+    .filter((p) => p.rebuysCount > 0 || p.lightRebuyUsed)
+    .map((p) => ({ ...p, totalRecaves: p.rebuysCount + (p.lightRebuyUsed ? 0.5 : 0) }))
+    .sort((a, b) => b.totalRecaves - a.totalRecaves)
     .slice(0, 3);
 
   return (
@@ -2033,7 +2047,7 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                         {player.player.nickname || `${player.player.firstName} ${player.player.lastName.charAt(0)}.`}
                       </span>
                       <span className="text-yellow-400 font-black text-2xl">
-                        {player.rebuysCount} 🔄
+                        {player.totalRecaves} 🔄
                       </span>
                     </div>
                   ))}
@@ -2665,7 +2679,14 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
               <div className="text-white/60 text-lg md:text-xl mb-2">
                 {eliminationNotification.type === 'elimination' ? 'Éliminé' : eliminationNotification.type === 'abandonment' ? 'A quitté le tournoi' : 'Bust'}
               </div>
-              <div className="text-4xl md:text-6xl font-black text-white drop-shadow-lg">
+              <div className="text-4xl md:text-6xl font-black text-white drop-shadow-lg flex items-center justify-center gap-4">
+                {eliminationNotification.eliminatedAvatar && (
+                  <img
+                    src={normalizeAvatarSrc(eliminationNotification.eliminatedAvatar)!}
+                    alt=""
+                    className="w-16 h-16 md:w-20 md:h-20 rounded-full border-4 border-white/30 object-cover"
+                  />
+                )}
                 {eliminationNotification.eliminatedName}
               </div>
               {eliminationNotification.rank && (
@@ -2686,6 +2707,13 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
                 <div className="text-white/60 text-lg md:text-xl mb-2">par</div>
                 <div className="text-3xl md:text-5xl font-black text-red-400 drop-shadow-lg flex items-center justify-center gap-3">
                   <span>🦈</span>
+                  {eliminationNotification.eliminatorAvatar && (
+                    <img
+                      src={normalizeAvatarSrc(eliminationNotification.eliminatorAvatar)!}
+                      alt=""
+                      className="w-14 h-14 md:w-16 md:h-16 rounded-full border-4 border-red-400/50 object-cover"
+                    />
+                  )}
                   {eliminationNotification.eliminatorName}
                   <span>🦈</span>
                 </div>

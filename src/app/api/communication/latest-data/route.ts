@@ -54,6 +54,7 @@ export async function GET() {
           tournament: {
             seasonId: activeSeason.id,
             status: 'FINISHED',
+            type: 'CHAMPIONSHIP',
           },
         },
         include: {
@@ -100,6 +101,9 @@ export async function GET() {
       by: ['eliminatorId'],
       where: {
         eliminatorId: { not: null },
+        tournament: {
+          type: 'CHAMPIONSHIP',
+        },
       },
       _count: {
         id: true,

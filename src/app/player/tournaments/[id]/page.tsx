@@ -47,6 +47,16 @@ type TournamentPlayer = {
   };
 };
 
+type Elimination = {
+  id: string;
+  eliminatedId: string;
+  eliminatorId: string | null;
+  rank: number;
+  isLeaderKill: boolean;
+  eliminated: { id: string; nickname: string; avatar: string | null };
+  eliminator: { id: string; nickname: string; avatar: string | null } | null;
+};
+
 type Tournament = {
   id: string;
   name: string;
@@ -60,8 +70,13 @@ type Tournament = {
   prizePoolAdjustmentReason: string | null;
   season: {
     name: string;
+    eliminationPoints?: number;
+    bustEliminationBonus?: number;
+    leaderKillerBonus?: number;
+    freeRebuysCount?: number;
   };
   tournamentPlayers: TournamentPlayer[];
+  eliminations?: Elimination[];
 };
 
 const statusConfig = {
@@ -294,7 +309,7 @@ export default function PlayerTournamentDetailPage({
           ) : (
             <div className="divide-y">
               {sortedPlayers.map((tp) => (
-                <PlayerResultRow key={tp.playerId} tp={tp} isFinished={tournament.status === 'FINISHED'} />
+                <PlayerResultRow key={tp.playerId} tp={tp} isFinished={tournament.status === 'FINISHED'} eliminations={tournament.eliminations} season={tournament.season} />
               ))}
             </div>
           )}
@@ -305,11 +320,20 @@ export default function PlayerTournamentDetailPage({
 }
 
 // Composant pour une ligne de résultat avec détails expansibles
-function PlayerResultRow({ tp, isFinished }: { tp: TournamentPlayer; isFinished: boolean }) {
+function PlayerResultRow({ tp, isFinished, eliminations, season }: {
+  tp: TournamentPlayer;
+  isFinished: boolean;
+  eliminations?: Elimination[];
+  season?: Tournament['season'];
+}) {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Calcul des recaves totales
-  const totalRebuys = tp.rebuysCount + (tp.lightRebuyUsed ? 1 : 0) + (tp.voluntaryFullRebuyUsed ? 1 : 0);
+  // Calcul des recaves totales (light = 0.5)
+  const totalRebuys = tp.rebuysCount + (tp.lightRebuyUsed ? 0.5 : 0) + (tp.voluntaryFullRebuyUsed ? 1 : 0);
+
+  // Find who eliminated this player
+  const eliminatedByElim = eliminations?.find(e => e.eliminatedId === tp.player.id);
+  const eliminatedByName = eliminatedByElim?.eliminator?.nickname;
   const totalEliminations = tp.eliminationsCount + tp.bustEliminations;
 
   return (
@@ -415,49 +439,86 @@ function PlayerResultRow({ tp, isFinished }: { tp: TournamentPlayer; isFinished:
               )}
             </div>
 
+            {/* Eliminated by */}
+            {eliminatedByName && tp.finalRank !== 1 && (
+              <div className="flex items-center gap-2 pb-2 border-b border-border/50">
+                <Skull className="h-3.5 w-3.5 text-red-500" />
+                <span className="text-muted-foreground">Éliminé par</span>
+                <span className="font-semibold text-red-600">{eliminatedByName}</span>
+              </div>
+            )}
+
             {/* Points breakdown */}
             <div className="space-y-1">
               {/* Classement */}
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Points classement</span>
+                <span className="text-muted-foreground">Points classement (#{tp.finalRank})</span>
                 <span className="font-medium">{tp.rankPoints}</span>
               </div>
 
-              {/* Éliminations */}
+              {/* Éliminations - détail */}
               {tp.eliminationPoints > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Points éliminations</span>
-                  <span className="font-medium text-green-600">+{tp.eliminationPoints}</span>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Points éliminations</span>
+                    <span className="font-medium text-green-600">+{tp.eliminationPoints}</span>
+                  </div>
+                  <div className="ml-4 text-xs text-muted-foreground space-y-0.5">
+                    {tp.eliminationsCount > 0 && (
+                      <div className="flex justify-between">
+                        <span>{tp.eliminationsCount} élim. finale{tp.eliminationsCount > 1 ? 's' : ''} x {season?.eliminationPoints ?? 50} pts</span>
+                        <span>+{tp.eliminationsCount * (season?.eliminationPoints ?? 50)}</span>
+                      </div>
+                    )}
+                    {tp.bustEliminations > 0 && (
+                      <div className="flex justify-between">
+                        <span>{tp.bustEliminations} élim. bust{tp.bustEliminations > 1 ? 's' : ''} x {season?.bustEliminationBonus ?? 25} pts</span>
+                        <span>+{tp.bustEliminations * (season?.bustEliminationBonus ?? 25)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
-              {/* Bonus (leader kills, etc.) */}
+              {/* Bonus (leader kills) - détail */}
               {tp.bonusPoints > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Points bonus</span>
-                  <span className="font-medium text-green-600">+{tp.bonusPoints}</span>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Points bonus</span>
+                    <span className="font-medium text-green-600">+{tp.bonusPoints}</span>
+                  </div>
+                  {tp.leaderKills > 0 && (
+                    <div className="ml-4 text-xs text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>{tp.leaderKills} Leader Kill{tp.leaderKills > 1 ? 's' : ''} x {season?.leaderKillerBonus ?? 50} pts</span>
+                        <span>+{tp.leaderKills * (season?.leaderKillerBonus ?? 50)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Pénalités (recaves) - calculer le malus implicite depuis le total */}
+              {/* Pénalités (recaves) - détail */}
               {(() => {
-                const rankPts = tp.rankPoints || 0;
-                const elimPts = tp.eliminationPoints || 0;
-                const bonusPts = tp.bonusPoints || 0;
-                const totalPts = tp.totalPoints || 0;
                 const storedPenalty = tp.penaltyPoints || 0;
-
-                // Malus implicite = total - (rank + elim + bonus)
-                const implicitPenalty = totalPts - rankPts - elimPts - bonusPts;
-
-                // Afficher le malus stocké s'il existe, sinon le malus implicite
-                const displayPenalty = storedPenalty !== 0 ? storedPenalty : implicitPenalty;
+                const displayPenalty = storedPenalty !== 0 ? storedPenalty : (tp.totalPoints - tp.rankPoints - tp.eliminationPoints - tp.bonusPoints);
 
                 if (displayPenalty < 0) {
+                  const freeRebuys = season?.freeRebuysCount ?? 1;
+                  const paidRebuys = Math.max(0, tp.rebuysCount + (tp.lightRebuyUsed ? 0.5 : 0) - freeRebuys);
                   return (
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Malus recaves</span>
-                      <span className="font-medium text-red-500">{displayPenalty}</span>
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Malus recaves</span>
+                        <span className="font-medium text-red-500">{displayPenalty}</span>
+                      </div>
+                      <div className="ml-4 text-xs text-muted-foreground">
+                        <div className="flex justify-between">
+                          <span>{paidRebuys} recave{paidRebuys > 1 ? 's' : ''} payante{paidRebuys > 1 ? 's' : ''} x -50 pts</span>
+                          <span>{displayPenalty}</span>
+                        </div>
+                        <div className="text-xs italic">({freeRebuys} recave{freeRebuys > 1 ? 's' : ''} gratuite{freeRebuys > 1 ? 's' : ''})</div>
+                      </div>
                     </div>
                   );
                 }

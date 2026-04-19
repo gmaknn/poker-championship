@@ -820,7 +820,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                   {activePlayers.map((p) => (
                     <option key={p.playerId} value={p.playerId}>
                       {p.player.nickname} ({p.player.firstName})
-                      {p.rebuysCount > 0 && ` [${p.rebuysCount}R]`}
+                      {(p.rebuysCount > 0 || p.lightRebuyUsed) && ` [${p.rebuysCount + (p.lightRebuyUsed ? 0.5 : 0)}R]`}
                     </option>
                   ))}
                 </select>
@@ -1024,7 +1024,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium">{p.player.nickname}</span>
                       <Badge variant="outline" className="text-sm">
-                        {p.rebuysCount} rebuy{p.rebuysCount !== 1 ? 's' : ''}
+                        {p.rebuysCount + (p.lightRebuyUsed ? 0.5 : 0)} recave{p.rebuysCount + (p.lightRebuyUsed ? 0.5 : 0) !== 1 ? 's' : ''}
                       </Badge>
                       {p.lightRebuyUsed && (
                         <Badge variant="secondary" className="bg-green-500/10 text-green-600 text-sm">
