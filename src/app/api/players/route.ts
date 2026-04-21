@@ -44,11 +44,14 @@ export async function GET(request: NextRequest) {
         updatedAt: true,
         _count: {
           select: {
+            // Uniquement les tournois championnat réellement joués (FINISHED).
+            // Les tournois PLANNED/REGISTRATION/IN_PROGRESS ne doivent pas
+            // être comptés dans "nombre de tournois joués".
             tournamentPlayers: {
-              where: { tournament: { type: 'CHAMPIONSHIP' } },
+              where: { tournament: { type: 'CHAMPIONSHIP', status: 'FINISHED' } },
             },
             eliminations: {
-              where: { tournament: { type: 'CHAMPIONSHIP' } },
+              where: { tournament: { type: 'CHAMPIONSHIP', status: 'FINISHED' } },
             },
           },
         },
