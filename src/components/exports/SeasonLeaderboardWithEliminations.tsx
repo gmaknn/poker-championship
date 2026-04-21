@@ -204,11 +204,17 @@ export default function SeasonLeaderboardWithEliminations({
                       {player.pointsChange}
                     </td>
 
-                    {/* Eliminé par */}
+                    {/* Eliminé par - on ne garde que les éliminateurs avec la valeur max.
+                        Si tous les counts valent 1 (éliminations unitaires), on garde tout. */}
                     <td style={{ padding: '12px 20px', borderBottom: '1px solid #cbd5e1' }}>
-                      {player.eliminatedBy.length > 0 ? (
+                      {(() => {
+                        const maxCount = player.eliminatedBy.reduce((m, e) => Math.max(m, e.count), 0);
+                        const displayed = maxCount <= 1
+                          ? player.eliminatedBy
+                          : player.eliminatedBy.filter((e) => e.count === maxCount);
+                        return displayed.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-                          {player.eliminatedBy.map((eliminator, eIndex) => (
+                          {displayed.map((eliminator, eIndex) => (
                             <div
                               key={eIndex}
                               style={{
@@ -230,7 +236,8 @@ export default function SeasonLeaderboardWithEliminations({
                         </div>
                       ) : (
                         <span style={{ color: '#64748b', fontSize: '14px', fontStyle: 'italic' }}>-</span>
-                      )}
+                      );
+                      })()}
                     </td>
                   </tr>
                 </React.Fragment>
