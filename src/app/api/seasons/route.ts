@@ -59,7 +59,9 @@ export async function GET() {
       include: {
         _count: {
           select: {
-            tournaments: true,
+            tournaments: {
+              where: { type: 'CHAMPIONSHIP' },
+            },
           },
         },
       },

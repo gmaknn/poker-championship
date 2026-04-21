@@ -11,6 +11,7 @@ export async function GET() {
     const latestTournament = await prisma.tournament.findFirst({
       where: {
         status: 'FINISHED',
+        type: 'CHAMPIONSHIP',
       },
       orderBy: {
         date: 'desc',

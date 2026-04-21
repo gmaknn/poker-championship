@@ -44,8 +44,12 @@ export async function GET(request: NextRequest) {
         updatedAt: true,
         _count: {
           select: {
-            tournamentPlayers: true,
-            eliminations: true,
+            tournamentPlayers: {
+              where: { tournament: { type: 'CHAMPIONSHIP' } },
+            },
+            eliminations: {
+              where: { tournament: { type: 'CHAMPIONSHIP' } },
+            },
           },
         },
       },
