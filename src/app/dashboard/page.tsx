@@ -90,8 +90,10 @@ export default function DashboardPage() {
         console.log('🔍 Active season:', activeSeason);
         console.log('🔍 All seasons:', safeSeasons.map((s: any) => ({ name: s.name, status: s.status })));
 
+        // Stats saison = CHAMPIONSHIP uniquement (les tournois OFF/CASUAL n'impactent rien)
+        const championshipTournaments = safeTournaments.filter((t: any) => t.type === 'CHAMPIONSHIP');
         const currentSeasonTournaments = activeSeason
-          ? safeTournaments.filter((t: any) => t.seasonId === activeSeason.id).length
+          ? championshipTournaments.filter((t: any) => t.seasonId === activeSeason.id).length
           : 0;
 
         console.log('🔍 Tournaments in active season:', currentSeasonTournaments);
@@ -115,7 +117,7 @@ export default function DashboardPage() {
         // Mettre à jour les stats de base immédiatement
         const baseStats = {
           activePlayers,
-          totalTournaments: safeTournaments.length,
+          totalTournaments: championshipTournaments.length,
           currentSeasonTournaments,
           leader: null,
           nextTournament: nextTournament ? {
