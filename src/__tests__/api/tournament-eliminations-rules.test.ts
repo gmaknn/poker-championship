@@ -80,6 +80,8 @@ describe('POST /api/tournaments/[id]/eliminations - Business Rules', () => {
       id: TEST_IDS.SEASON,
       eliminationPoints: 50,
       leaderKillerBonus: 25,
+      topSharkLeaderBonus: 25,
+      randomKillerBonus: 25,
     },
     tournamentPlayers: [
       {

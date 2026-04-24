@@ -97,8 +97,10 @@ async function calculateAndSavePoints(tournamentId: string): Promise<void> {
       const finalElimPoints = tp.eliminationsCount * tournament.season!.eliminationPoints;
       const bustElimPoints = tp.bustEliminations * tournament.season!.bustEliminationBonus;
       eliminationPoints = finalElimPoints + bustElimPoints;
-      // Bonus leader kill (uniquement après recaves)
-      bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus;
+      // Bonus kills (uniquement après recaves)
+      bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus
+        + tp.topSharkLeaderKills * tournament.season!.topSharkLeaderBonus
+        + tp.randomTargetKills * tournament.season!.randomKillerBonus;
     }
 
     const totalPoints = rankPoints + eliminationPoints + bonusPoints + tp.penaltyPoints;
@@ -336,14 +338,18 @@ export async function POST(
         throw new Error('RANK_ALREADY_TAKEN');
       }
 
-      // Vérifier si c'est un Leader Kill (pas applicable pour les abandons)
+      // Vérifier les kills spéciaux (pas applicable pour les abandons)
       let isLeaderKill = false;
+      let isTopSharkLeaderKill = false;
+      let isRandomTargetKill = false;
       if (!isAbandonment && validatedData.eliminatorId) {
         const tournamentData = await tx.tournament.findUnique({
           where: { id: tournamentId },
-          select: { seasonLeaderAtStartId: true },
+          select: { seasonLeaderAtStartId: true, seasonTopSharkAtStartId: true, randomTargetPlayerId: true },
         });
         isLeaderKill = tournamentData?.seasonLeaderAtStartId === validatedData.eliminatedId;
+        isTopSharkLeaderKill = tournamentData?.seasonTopSharkAtStartId === validatedData.eliminatedId;
+        isRandomTargetKill = tournamentData?.randomTargetPlayerId === validatedData.eliminatedId;
       }
 
       // === ÉCRITURE ATOMIQUE avec updateMany conditionnel ===
@@ -373,6 +379,8 @@ export async function POST(
           rank,
           level: effectiveLevel,
           isLeaderKill,
+          isTopSharkLeaderKill,
+          isRandomTargetKill,
           isAbandonment,
         },
         include: {
@@ -407,14 +415,16 @@ export async function POST(
           data: {
             eliminationsCount: { increment: 1 },
             leaderKills: isLeaderKill ? { increment: 1 } : undefined,
+            topSharkLeaderKills: isTopSharkLeaderKill ? { increment: 1 } : undefined,
+            randomTargetKills: isRandomTargetKill ? { increment: 1 } : undefined,
           },
         });
       }
 
-      return { elimination, rank, isLeaderKill };
+      return { elimination, rank, isLeaderKill, isTopSharkLeaderKill, isRandomTargetKill };
     });
 
-    const { elimination, rank, isLeaderKill } = result;
+    const { elimination, rank, isLeaderKill, isTopSharkLeaderKill, isRandomTargetKill } = result;
 
     // Émettre l'événement d'élimination via WebSocket
     emitToTournament(tournamentId, 'elimination:player_out', {
@@ -426,6 +436,8 @@ export async function POST(
       rank,
       level: effectiveLevel,
       isLeaderKill,
+      isTopSharkLeaderKill,
+      isRandomTargetKill,
       isAbandonment,
     });
 

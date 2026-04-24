@@ -77,6 +77,8 @@ const DEFAULT_SEASON_PARAMS = {
   eliminationPoints: 50,
   bustEliminationBonus: 25,
   leaderKillerBonus: 25,
+  topSharkLeaderBonus: 25,
+  randomKillerBonus: 25,
   freeRebuysCount: 2,
   rebuyPenaltyTier1: -50,
   rebuyPenaltyTier2: -100,
@@ -168,6 +170,8 @@ export default function SeasonsPage() {
         eliminationPoints: season.eliminationPoints,
         bustEliminationBonus: (season as { bustEliminationBonus?: number }).bustEliminationBonus ?? 25,
         leaderKillerBonus: season.leaderKillerBonus,
+        topSharkLeaderBonus: (season as { topSharkLeaderBonus?: number }).topSharkLeaderBonus ?? 25,
+        randomKillerBonus: (season as { randomKillerBonus?: number }).randomKillerBonus ?? 25,
         freeRebuysCount: season.freeRebuysCount,
         rebuyPenaltyTier1: season.rebuyPenaltyTier1,
         rebuyPenaltyTier2: season.rebuyPenaltyTier2,
@@ -225,6 +229,8 @@ export default function SeasonsPage() {
         eliminationPoints: formData.eliminationPoints,
         bustEliminationBonus: formData.bustEliminationBonus,
         leaderKillerBonus: formData.leaderKillerBonus,
+        topSharkLeaderBonus: formData.topSharkLeaderBonus,
+        randomKillerBonus: formData.randomKillerBonus,
         freeRebuysCount: formData.freeRebuysCount,
         rebuyPenaltyTier1: formData.rebuyPenaltyTier1,
         rebuyPenaltyTier2: formData.rebuyPenaltyTier2,
@@ -719,6 +725,34 @@ export default function SeasonsPage() {
                       />
                       <p className="text-xs text-muted-foreground">
                         Pour élim du leader (après recaves)
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="topSharkLeaderBonus">Bonus Top Shark Leader</Label>
+                      <Input
+                        id="topSharkLeaderBonus"
+                        type="number"
+                        value={formData.topSharkLeaderBonus}
+                        onChange={(e) =>
+                          setFormData({ ...formData, topSharkLeaderBonus: parseInt(e.target.value) })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Pour élim du leader du top shark (après recaves)
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="randomKillerBonus">Bonus Random Killer</Label>
+                      <Input
+                        id="randomKillerBonus"
+                        type="number"
+                        value={formData.randomKillerBonus}
+                        onChange={(e) =>
+                          setFormData({ ...formData, randomKillerBonus: parseInt(e.target.value) })
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Pour élim du joueur cible tiré au sort (après recaves)
                       </p>
                     </div>
                   </div>

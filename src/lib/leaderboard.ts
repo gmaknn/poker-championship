@@ -70,8 +70,8 @@ function getRankPointsForPosition(
  * Calculate points for a single tournament player (used in backfill)
  */
 function calculatePlayerPoints(
-  tp: { finalRank: number | null; eliminationsCount: number; bustEliminations: number; leaderKills: number; penaltyPoints: number },
-  season: Parameters<typeof getRankPointsForPosition>[1] & { eliminationPoints: number; bustEliminationBonus: number; leaderKillerBonus: number }
+  tp: { finalRank: number | null; eliminationsCount: number; bustEliminations: number; leaderKills: number; topSharkLeaderKills: number; randomTargetKills: number; penaltyPoints: number },
+  season: Parameters<typeof getRankPointsForPosition>[1] & { eliminationPoints: number; bustEliminationBonus: number; leaderKillerBonus: number; topSharkLeaderBonus: number; randomKillerBonus: number }
 ): { rankPoints: number; eliminationPoints: number; bonusPoints: number; totalPoints: number } {
   let rankPoints = 0;
   let eliminationPoints = 0;
@@ -79,14 +79,13 @@ function calculatePlayerPoints(
 
   if (tp.finalRank !== null) {
     rankPoints = getRankPointsForPosition(tp.finalRank, season);
-    // Points d'élimination:
-    // - éliminations finales (après recaves) = eliminationPoints (50 pts par défaut)
-    // - éliminations bust (pendant recaves) = bustEliminationBonus (25 pts par défaut)
     const finalElimPoints = tp.eliminationsCount * season.eliminationPoints;
     const bustElimPoints = tp.bustEliminations * season.bustEliminationBonus;
     eliminationPoints = finalElimPoints + bustElimPoints;
-    // Bonus leader kill (uniquement après recaves)
-    bonusPoints = tp.leaderKills * season.leaderKillerBonus;
+    // Bonus kills (uniquement après recaves)
+    bonusPoints = tp.leaderKills * season.leaderKillerBonus
+      + tp.topSharkLeaderKills * season.topSharkLeaderBonus
+      + tp.randomTargetKills * season.randomKillerBonus;
   }
 
   const totalPoints = rankPoints + eliminationPoints + bonusPoints + tp.penaltyPoints;
@@ -106,6 +105,8 @@ export type TournamentPerformance = {
   penaltyPoints: number;
   eliminationsCount: number;
   leaderKills: number;
+  topSharkLeaderKills: number;
+  randomTargetKills: number;
   rebuysCount: number;
 };
 
@@ -213,6 +214,66 @@ export async function getSeasonLeaderId(
   return leaderId;
 }
 
+/**
+ * Get the current top shark leader of a season (player with most final eliminations)
+ * Excludes the current tournament from calculation
+ * Returns null if no tournaments completed yet or no eliminations
+ */
+export async function getSeasonTopSharkLeaderId(
+  seasonId: string,
+  excludeTournamentId?: string
+): Promise<string | null> {
+  const season = await prisma.season.findUnique({
+    where: { id: seasonId },
+    include: {
+      tournaments: {
+        where: {
+          status: 'FINISHED',
+          type: 'CHAMPIONSHIP',
+          ...(excludeTournamentId ? { id: { not: excludeTournamentId } } : {}),
+        },
+        include: {
+          tournamentPlayers: {
+            select: {
+              playerId: true,
+              eliminationsCount: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!season || season.tournaments.length === 0) {
+    return null;
+  }
+
+  const playerEliminations = new Map<string, number>();
+
+  for (const tournament of season.tournaments) {
+    for (const tp of tournament.tournamentPlayers) {
+      const current = playerEliminations.get(tp.playerId) || 0;
+      playerEliminations.set(tp.playerId, current + tp.eliminationsCount);
+    }
+  }
+
+  if (playerEliminations.size === 0) {
+    return null;
+  }
+
+  let leaderId: string | null = null;
+  let maxEliminations = 0;
+
+  for (const [playerId, eliminations] of playerEliminations.entries()) {
+    if (eliminations > maxEliminations) {
+      maxEliminations = eliminations;
+      leaderId = playerId;
+    }
+  }
+
+  return leaderId;
+}
+
 export async function calculateLeaderboard(seasonId: string): Promise<LeaderboardResult | null> {
   // Get season with its configuration
   const season = await prisma.season.findUnique({
@@ -313,6 +374,8 @@ export async function calculateLeaderboard(seasonId: string): Promise<Leaderboar
         penaltyPoints: tp.penaltyPoints,
         eliminationsCount: tp.eliminationsCount,
         leaderKills: tp.leaderKills,
+        topSharkLeaderKills: tp.topSharkLeaderKills,
+        randomTargetKills: tp.randomTargetKills,
         rebuysCount: tp.rebuysCount,
       });
 

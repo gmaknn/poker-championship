@@ -27,6 +27,8 @@ const seasonSchema = z.object({
   eliminationPoints: z.number().int().default(50),
   bustEliminationBonus: z.number().int().default(25),
   leaderKillerBonus: z.number().int().default(25),
+  topSharkLeaderBonus: z.number().int().default(25),
+  randomKillerBonus: z.number().int().default(25),
 
   // Malus de recave
   freeRebuysCount: z.number().int().default(2),
@@ -115,6 +117,8 @@ export async function POST(request: NextRequest) {
         eliminationPoints: validatedData.eliminationPoints,
         bustEliminationBonus: validatedData.bustEliminationBonus,
         leaderKillerBonus: validatedData.leaderKillerBonus,
+        topSharkLeaderBonus: validatedData.topSharkLeaderBonus,
+        randomKillerBonus: validatedData.randomKillerBonus,
 
         freeRebuysCount: validatedData.freeRebuysCount,
         rebuyPenaltyTier1: validatedData.rebuyPenaltyTier1,

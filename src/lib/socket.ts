@@ -88,6 +88,8 @@ export interface TournamentEvents {
     rank: number;
     level: number;
     isLeaderKill: boolean;
+    isTopSharkLeaderKill?: boolean;
+    isRandomTargetKill?: boolean;
     isAutoElimination?: boolean;
     isAbandonment?: boolean;
   };
