@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { emitToTournament } from '@/lib/socket';
 import { requireTournamentPermission } from '@/lib/auth-helpers';
-import { getSeasonLeaderId } from '@/lib/leaderboard';
+import { getSeasonLeaderId, getSeasonTopSharkLeaderId } from '@/lib/leaderboard';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 
@@ -56,8 +56,21 @@ export async function POST(
     // Récupérer le leader actuel de la saison (avant ce tournoi)
     // pour le bonus Leader Killer
     let seasonLeaderAtStartId: string | null = null;
+    let seasonTopSharkAtStartId: string | null = null;
     if (tournament.seasonId) {
       seasonLeaderAtStartId = await getSeasonLeaderId(tournament.seasonId, id);
+      seasonTopSharkAtStartId = await getSeasonTopSharkLeaderId(tournament.seasonId, id);
+    }
+
+    // Tirer au sort un joueur inscrit comme cible Random Killer
+    const enrolledPlayers = await prisma.tournamentPlayer.findMany({
+      where: { tournamentId: id },
+      select: { playerId: true },
+    });
+    let randomTargetPlayerId: string | null = null;
+    if (enrolledPlayers.length > 0) {
+      const randomIndex = Math.floor(Math.random() * enrolledPlayers.length);
+      randomTargetPlayerId = enrolledPlayers[randomIndex].playerId;
     }
 
     // Générer un code d'accès admin temporaire (6 chars hex uppercase)
@@ -75,6 +88,8 @@ export async function POST(
         timerPausedAt: null,
         currentLevel: 1,
         seasonLeaderAtStartId, // Figer le leader pour le bonus Leader Killer
+        seasonTopSharkAtStartId, // Figer le leader du top shark
+        randomTargetPlayerId, // Joueur cible tiré au sort
         adminAccessCodeHash,
       },
     });

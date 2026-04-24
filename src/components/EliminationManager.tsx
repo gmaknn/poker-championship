@@ -42,6 +42,8 @@ type TournamentPlayer = {
   finalRank: number | null;
   eliminationsCount: number;
   leaderKills: number;
+  topSharkLeaderKills: number;
+  randomTargetKills: number;
   rebuysCount: number;
   lightRebuyUsed: boolean;
   voluntaryFullRebuyUsed: boolean;
@@ -54,6 +56,8 @@ type Elimination = {
   rank: number;
   level: number;
   isLeaderKill: boolean;
+  isTopSharkLeaderKill: boolean;
+  isRandomTargetKill: boolean;
   isAutoElimination?: boolean;
   isAbandonment?: boolean;
   createdAt: string;
@@ -88,6 +92,8 @@ type Tournament = {
   startingChips: number;
   maxRebuysPerPlayer: number | null;
   seasonLeaderAtStartId: string | null;
+  seasonTopSharkAtStartId: string | null;
+  randomTargetPlayerId: string | null;
 };
 
 type TableInfo = {
@@ -654,6 +660,8 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
 
   // Le leader de la saison au début du tournoi (pour afficher la couronne)
   const seasonLeaderId = tournament?.seasonLeaderAtStartId;
+  const topSharkLeaderId = tournament?.seasonTopSharkAtStartId;
+  const randomTargetId = tournament?.randomTargetPlayerId;
 
   if (isLoading) {
     return (
@@ -780,6 +788,58 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
             <div className="text-sm text-ink-foreground/60">1er tournoi</div>
           )}
         </SectionCard>
+
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Top Shark Leader 🦈</span>
+            <Skull className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          {topSharkLeaderId ? (
+            <div className="text-sm">
+              {(() => {
+                const sharkLeader = players.find((p) => p.playerId === topSharkLeaderId);
+                return sharkLeader ? (
+                  <div className="font-medium">
+                    {sharkLeader.player.nickname}
+                    {sharkLeader.finalRank !== null && (
+                      <span className="text-red-400 ml-2">(éliminé)</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-ink-foreground/60">Non inscrit</div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="text-sm text-ink-foreground/60">1er tournoi</div>
+          )}
+        </SectionCard>
+
+        <SectionCard variant="ink" noPadding className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-ink-foreground/70">Random Killer 🎯</span>
+            <Target className="h-4 w-4 text-ink-foreground/50" />
+          </div>
+          {randomTargetId ? (
+            <div className="text-sm">
+              {(() => {
+                const target = players.find((p) => p.playerId === randomTargetId);
+                return target ? (
+                  <div className="font-medium">
+                    {target.player.nickname}
+                    {target.finalRank !== null && (
+                      <span className="text-red-400 ml-2">(éliminé)</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-ink-foreground/60">Non inscrit</div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="text-sm text-ink-foreground/60">Aucun</div>
+          )}
+        </SectionCard>
       </div>
 
       {/* Tournoi terminé - message informatif */}
@@ -840,7 +900,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                     .map((p) => (
                       <option key={p.playerId} value={p.playerId}>
                         {p.player.nickname}
-                        {p.playerId === seasonLeaderId && ' 👑'}
+                        {p.playerId === seasonLeaderId && ' 👑'}{p.playerId === topSharkLeaderId && ' 🦈'}{p.playerId === randomTargetId && ' 🎯'}
                       </option>
                     ))}
                 </select>
@@ -1161,7 +1221,7 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                     .map((p) => (
                       <option key={p.playerId} value={p.playerId}>
                         {p.player.nickname}
-                        {p.playerId === seasonLeaderId && ' 👑'}
+                        {p.playerId === seasonLeaderId && ' 👑'}{p.playerId === topSharkLeaderId && ' 🦈'}{p.playerId === randomTargetId && ' 🎯'}
                       </option>
                     ))}
                 </select>
@@ -1313,6 +1373,16 @@ export default function EliminationManager({ tournamentId, onUpdate }: Props) {
                       {elim.isLeaderKill && (
                         <Badge variant="default" className="ml-2">
                           Leader Kill
+                        </Badge>
+                      )}
+                      {elim.isTopSharkLeaderKill && (
+                        <Badge variant="default" className="ml-2 bg-red-600">
+                          Top Shark Kill
+                        </Badge>
+                      )}
+                      {elim.isRandomTargetKill && (
+                        <Badge variant="default" className="ml-2 bg-purple-600">
+                          Random Kill
                         </Badge>
                       )}
                     </div>

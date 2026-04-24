@@ -20,6 +20,8 @@ describe('TournamentPerformance type', () => {
       penaltyPoints: 0,
       eliminationsCount: 3,
       leaderKills: 2,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 1,
     };
 
@@ -44,6 +46,8 @@ describe('TournamentPerformance type', () => {
       penaltyPoints: -100,
       eliminationsCount: 4,
       leaderKills: 2,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 5,
     };
 
@@ -71,6 +75,8 @@ describe('KO points calculation scenarios', () => {
       penaltyPoints: 0,
       eliminationsCount: 0,
       leaderKills: 0,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 0,
     };
 
@@ -95,6 +101,8 @@ describe('KO points calculation scenarios', () => {
       penaltyPoints: 0,
       eliminationsCount: elimCount,
       leaderKills: 0,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 0,
     };
 
@@ -118,6 +126,8 @@ describe('KO points calculation scenarios', () => {
       penaltyPoints: 0,
       eliminationsCount: elimCount,
       leaderKills: 0,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 0,
     };
 
@@ -143,6 +153,8 @@ describe('KO points calculation scenarios', () => {
       penaltyPoints: 0,
       eliminationsCount: elimCount,
       leaderKills: leaderKillCount,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 0,
     };
 
@@ -164,6 +176,8 @@ describe('KO points calculation scenarios', () => {
       penaltyPoints: -100,
       eliminationsCount: 4,
       leaderKills: 1,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 4,
     };
 
@@ -193,6 +207,8 @@ describe('Season aggregation of KO points', () => {
         penaltyPoints: 0,
         eliminationsCount: 2,
         leaderKills: 0,
+        topSharkLeaderKills: 0,
+        randomTargetKills: 0,
         rebuysCount: 0,
       },
       {
@@ -207,6 +223,8 @@ describe('Season aggregation of KO points', () => {
         penaltyPoints: 0,
         eliminationsCount: 3,
         leaderKills: 1,
+        topSharkLeaderKills: 0,
+        randomTargetKills: 0,
         rebuysCount: 0,
       },
       {
@@ -221,6 +239,8 @@ describe('Season aggregation of KO points', () => {
         penaltyPoints: 0,
         eliminationsCount: 1,
         leaderKills: 2,
+        topSharkLeaderKills: 0,
+        randomTargetKills: 0,
         rebuysCount: 0,
       },
     ];
@@ -255,6 +275,8 @@ describe('Season aggregation of KO points', () => {
         penaltyPoints: 0,
         eliminationsCount: 4,
         leaderKills: 0,
+        topSharkLeaderKills: 0,
+        randomTargetKills: 0,
         rebuysCount: 0,
       },
       {
@@ -269,6 +291,8 @@ describe('Season aggregation of KO points', () => {
         penaltyPoints: 0,
         eliminationsCount: 2,
         leaderKills: 0,
+        topSharkLeaderKills: 0,
+        randomTargetKills: 0,
         rebuysCount: 0,
       },
       {
@@ -283,6 +307,8 @@ describe('Season aggregation of KO points', () => {
         penaltyPoints: 0,
         eliminationsCount: 1,
         leaderKills: 0,
+        topSharkLeaderKills: 0,
+        randomTargetKills: 0,
         rebuysCount: 0,
       },
     ];
@@ -322,6 +348,8 @@ describe('Edge cases', () => {
         penaltyPoints: 0,
         eliminationsCount: 0,
         leaderKills: 0,
+        topSharkLeaderKills: 0,
+        randomTargetKills: 0,
         rebuysCount: 0,
       },
       {
@@ -336,6 +364,8 @@ describe('Edge cases', () => {
         penaltyPoints: 0,
         eliminationsCount: 0,
         leaderKills: 0,
+        topSharkLeaderKills: 0,
+        randomTargetKills: 0,
         rebuysCount: 0,
       },
     ];
@@ -362,6 +392,8 @@ describe('Edge cases', () => {
       penaltyPoints: 0,
       eliminationsCount: 10,
       leaderKills: 3,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 0,
     };
 
@@ -382,6 +414,8 @@ describe('Edge cases', () => {
       penaltyPoints: -150,
       eliminationsCount: 2,
       leaderKills: 0,
+      topSharkLeaderKills: 0,
+      randomTargetKills: 0,
       rebuysCount: 5,
     };
 

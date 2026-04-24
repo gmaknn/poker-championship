@@ -73,8 +73,10 @@ export async function GET(
         const bustElimPoints = tp.bustEliminations * tournament.season!.bustEliminationBonus;
         const eliminationPoints = finalElimPoints + bustElimPoints;
 
-        // Bonus Leader Killer (compte les leader kills actuels)
-        const bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus;
+        // Bonus kills (compte les kills actuels)
+        const bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus
+          + tp.topSharkLeaderKills * tournament.season!.topSharkLeaderBonus
+          + tp.randomTargetKills * tournament.season!.randomKillerBonus;
 
         // Malus de recaves (déjà stocké dans penaltyPoints)
         const penaltyPoints = tp.penaltyPoints;
@@ -86,6 +88,8 @@ export async function GET(
           player: tp.player,
           eliminationsCount: tp.eliminationsCount,
           leaderKills: tp.leaderKills,
+          topSharkLeaderKills: tp.topSharkLeaderKills,
+          randomTargetKills: tp.randomTargetKills,
           rebuysCount: tp.rebuysCount,
           lightRebuyUsed: tp.lightRebuyUsed,
           eliminationPoints,
@@ -172,6 +176,8 @@ export async function GET(
         name: tournament.season.name,
         eliminationPoints: tournament.season.eliminationPoints,
         leaderKillerBonus: tournament.season.leaderKillerBonus,
+        topSharkLeaderBonus: tournament.season.topSharkLeaderBonus,
+        randomKillerBonus: tournament.season.randomKillerBonus,
       },
       leaderboard: leaderboardWithRank,
       stats,

@@ -134,6 +134,8 @@ describe('/api/seasons', () => {
       pointsSixteenth: 50,
       eliminationPoints: 50,
       leaderKillerBonus: 25,
+      topSharkLeaderBonus: 25,
+      randomKillerBonus: 25,
       freeRebuysCount: 2,
       rebuyPenaltyTier1: -50,
       rebuyPenaltyTier2: -100,

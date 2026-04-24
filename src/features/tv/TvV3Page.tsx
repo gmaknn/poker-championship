@@ -31,6 +31,8 @@ type TournamentPlayer = {
   lightRebuyUsed: boolean;
   eliminationsCount: number;
   leaderKills: number;
+  topSharkLeaderKills: number;
+  randomTargetKills: number;
   rankPoints: number;
   eliminationPoints: number;
   bonusPoints: number;
@@ -67,6 +69,8 @@ type Tournament = {
   timerPausedAt: string | null;
   timerElapsedSeconds: number;
   levelDuration: number;
+  seasonTopSharkAtStartId?: string | null;
+  randomTargetPlayerId?: string | null;
 };
 
 type Season = {
@@ -264,6 +268,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     eliminatorAvatar?: string | null;
     rank?: number;
     isLeaderKill?: boolean;
+    isTopSharkLeaderKill?: boolean;
+    isRandomTargetKill?: boolean;
   } | null>(null);
   const eliminationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -394,6 +400,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
     rank: number;
     level: number;
     isLeaderKill: boolean;
+    isTopSharkLeaderKill?: boolean;
+    isRandomTargetKill?: boolean;
     isAbandonment?: boolean;
   }) => {
     console.log('[Elimination] Player eliminated:', data);
@@ -417,6 +425,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
       eliminatorAvatar: eliminatorPlayer?.player?.avatar,
       rank: data.rank,
       isLeaderKill: data.isLeaderKill,
+      isTopSharkLeaderKill: data.isTopSharkLeaderKill,
+      isRandomTargetKill: data.isRandomTargetKill,
     });
 
     // Play alert sound
@@ -980,6 +990,8 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
             timerPausedAt: data.timerPausedAt,
             timerElapsedSeconds: timerData?.secondsIntoCurrentLevel || data.timerElapsedSeconds || 0,
             levelDuration: data.levelDuration,
+            seasonTopSharkAtStartId: data.seasonTopSharkAtStartId || null,
+            randomTargetPlayerId: data.randomTargetPlayerId || null,
           },
           season: data.season,
           results: data.tournamentPlayers || [],
@@ -2057,6 +2069,50 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
               </div>
             )}
 
+            {/* Cibles du soir */}
+            {resultsData && (resultsData.tournament.seasonTopSharkAtStartId || resultsData.tournament.randomTargetPlayerId) && (
+              <div className="border-2 border-amber-500 rounded-2xl p-4">
+                <div className="flex items-center gap-3 mb-4 justify-center">
+                  <span className="text-3xl">🎯</span>
+                  <h3 className="text-xl font-bold text-amber-400 uppercase tracking-wide">Cibles du soir</h3>
+                </div>
+                <div className="space-y-3">
+                  {(() => {
+                    const topSharkId = resultsData.tournament.seasonTopSharkAtStartId;
+                    const randomTargetId = resultsData.tournament.randomTargetPlayerId;
+                    const topSharkPlayer = topSharkId ? results.find(r => r.playerId === topSharkId) : null;
+                    const randomTargetPlayer = randomTargetId ? results.find(r => r.playerId === randomTargetId) : null;
+                    return (
+                      <>
+                        {topSharkPlayer && (
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">🦈</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-white/60 text-xs uppercase tracking-wide">Top Shark Leader</div>
+                              <div className={`text-white font-bold text-lg truncate ${topSharkPlayer.finalRank !== null ? 'line-through opacity-50' : ''}`}>
+                                {topSharkPlayer.player.nickname}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {randomTargetPlayer && (
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl">🎲</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-white/60 text-xs uppercase tracking-wide">Random Killer</div>
+                              <div className={`text-white font-bold text-lg truncate ${randomTargetPlayer.finalRank !== null ? 'line-through opacity-50' : ''}`}>
+                                {randomTargetPlayer.player.nickname}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
             {/* Dernières Recaves */}
             {recentRebuys.length > 0 && (
               <div className="border-2 border-cyan-500 rounded-2xl p-4">
@@ -2722,13 +2778,31 @@ export function TvV3Page({ tournamentId }: TvV3PageProps) {
               </div>
             )}
 
-            {/* Leader Kill Badge */}
+            {/* Kill Badges */}
             {eliminationNotification.isLeaderKill && (
               <div className="mt-4 md:mt-6 px-6 py-2 bg-yellow-500/20 border-2 border-yellow-500 rounded-xl">
                 <div className="text-yellow-400 text-xl md:text-2xl font-bold flex items-center gap-2">
                   <Trophy className="h-6 w-6 md:h-8 md:w-8" />
                   LEADER KILL
                   <Trophy className="h-6 w-6 md:h-8 md:w-8" />
+                </div>
+              </div>
+            )}
+            {eliminationNotification.isTopSharkLeaderKill && (
+              <div className="mt-4 md:mt-6 px-6 py-2 bg-red-500/20 border-2 border-red-500 rounded-xl">
+                <div className="text-red-400 text-xl md:text-2xl font-bold flex items-center gap-2">
+                  <Skull className="h-6 w-6 md:h-8 md:w-8" />
+                  TOP SHARK KILL
+                  <Skull className="h-6 w-6 md:h-8 md:w-8" />
+                </div>
+              </div>
+            )}
+            {eliminationNotification.isRandomTargetKill && (
+              <div className="mt-4 md:mt-6 px-6 py-2 bg-purple-500/20 border-2 border-purple-500 rounded-xl">
+                <div className="text-purple-400 text-xl md:text-2xl font-bold flex items-center gap-2">
+                  <span className="text-2xl md:text-3xl">🎯</span>
+                  RANDOM KILL
+                  <span className="text-2xl md:text-3xl">🎯</span>
                 </div>
               </div>
             )}

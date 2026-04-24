@@ -88,6 +88,8 @@ model Season {
   eliminationPoints     Int         @default(50)    // Bonus élim finale (après recaves)
   bustEliminationBonus  Int         @default(25)    // Bonus élim bust (pendant recaves)
   leaderKillerBonus     Int         @default(25)    // Bonus élim leader (après recaves)
+  topSharkLeaderBonus   Int         @default(25)    // Bonus élim leader du top shark (après recaves)
+  randomKillerBonus     Int         @default(25)    // Bonus élim du joueur random désigné (après recaves)
 
   // Malus de recave
   freeRebuysCount       Int         @default(2)
@@ -177,6 +179,10 @@ model Tournament {
   // Leader du classement saison au démarrage du tournoi (pour bonus Leader Killer)
   // Figé au moment du démarrage, null si premier tournoi de la saison
   seasonLeaderAtStartId String?
+  // Leader du top shark (plus d'éliminations) au démarrage du tournoi
+  seasonTopSharkAtStartId String?
+  // Joueur désigné aléatoirement comme cible pour le bonus Random Killer
+  randomTargetPlayerId  String?
 
   // Relations
   tournamentPlayers     TournamentPlayer[]
@@ -213,6 +219,8 @@ model TournamentPlayer {
   eliminationsCount Int         @default(0)   // Éliminations finales (après recaves)
   bustEliminations  Int         @default(0)   // Éliminations bust (pendant recaves)
   leaderKills       Int         @default(0)
+  topSharkLeaderKills Int        @default(0)
+  randomTargetKills Int          @default(0)
 
   // Points calculés
   rankPoints        Int         @default(0)
@@ -289,6 +297,8 @@ model Elimination {
   rank            Int         // Position de sortie du joueur éliminé
   level           Int         // Niveau auquel l'élimination a eu lieu
   isLeaderKill    Boolean     @default(false)
+  isTopSharkLeaderKill Boolean @default(false)
+  isRandomTargetKill Boolean  @default(false)
   isAutoElimination Boolean   @default(false) // Éliminé automatiquement (fin de recave)
   isAbandonment   Boolean     @default(false) // Abandon volontaire
 

@@ -112,6 +112,8 @@ export async function GET(
       rank: elim.rank,
       level: elim.level,
       isLeaderKill: elim.isLeaderKill,
+      isTopSharkLeaderKill: elim.isTopSharkLeaderKill,
+      isRandomTargetKill: elim.isRandomTargetKill,
       isAbandonment: elim.isAbandonment,
     }));
 

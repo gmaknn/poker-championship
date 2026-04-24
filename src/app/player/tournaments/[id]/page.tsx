@@ -53,6 +53,8 @@ type Elimination = {
   eliminatorId: string | null;
   rank: number;
   isLeaderKill: boolean;
+  isTopSharkLeaderKill: boolean;
+  isRandomTargetKill: boolean;
   eliminated: { id: string; nickname: string; avatar: string | null };
   eliminator: { id: string; nickname: string; avatar: string | null } | null;
 };

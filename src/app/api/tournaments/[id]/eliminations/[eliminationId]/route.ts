@@ -91,6 +91,8 @@ export async function DELETE(
           data: {
             eliminationsCount: { decrement: 1 },
             leaderKills: elimination.isLeaderKill ? { decrement: 1 } : undefined,
+            topSharkLeaderKills: elimination.isTopSharkLeaderKill ? { decrement: 1 } : undefined,
+            randomTargetKills: elimination.isRandomTargetKill ? { decrement: 1 } : undefined,
           },
         });
       }
