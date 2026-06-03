@@ -128,8 +128,10 @@ export async function GET(
         const bustElimPoints = tp.bustEliminations * tournament.season.bustEliminationBonus;
         eliminationPoints = finalElimPoints + bustElimPoints;
 
-        // Bonus Leader Killer
-        bonusPoints = tp.leaderKills * tournament.season.leaderKillerBonus;
+        // Bonus kills (Leader Killer + Top Shark Leader + Random Killer)
+        bonusPoints = tp.leaderKills * tournament.season.leaderKillerBonus
+          + tp.topSharkLeaderKills * tournament.season.topSharkLeaderBonus
+          + tp.randomTargetKills * tournament.season.randomKillerBonus;
       }
 
       // Calculer le total (0 pour les tournois CASUAL)
@@ -236,8 +238,10 @@ export async function POST(
         const bustElimPoints = tp.bustEliminations * tournament.season!.bustEliminationBonus;
         eliminationPoints = finalElimPoints + bustElimPoints;
 
-        // Bonus Leader Killer
-        bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus;
+        // Bonus kills (Leader Killer + Top Shark Leader + Random Killer)
+        bonusPoints = tp.leaderKills * tournament.season!.leaderKillerBonus
+          + tp.topSharkLeaderKills * tournament.season!.topSharkLeaderBonus
+          + tp.randomTargetKills * tournament.season!.randomKillerBonus;
       }
 
       // Calculer le total (penaltyPoints déjà stocké)

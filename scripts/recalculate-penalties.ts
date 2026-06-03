@@ -179,7 +179,9 @@ async function main() {
       const finalElimPoints = tp.eliminationsCount * season.eliminationPoints;
       const bustElimPoints = tp.bustEliminations * season.bustEliminationBonus;
       eliminationPoints = finalElimPoints + bustElimPoints;
-      bonusPoints = tp.leaderKills * season.leaderKillerBonus;
+      bonusPoints = tp.leaderKills * season.leaderKillerBonus
+        + tp.topSharkLeaderKills * season.topSharkLeaderBonus
+        + tp.randomTargetKills * season.randomKillerBonus;
     }
 
     const totalPoints = rankPoints + eliminationPoints + bonusPoints + tp.penaltyPoints;

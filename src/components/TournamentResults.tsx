@@ -25,6 +25,8 @@ type TournamentPlayer = {
   rebuysCount: number;
   eliminationsCount: number;
   leaderKills: number;
+  topSharkLeaderKills: number;
+  randomTargetKills: number;
   rankPoints: number;
   eliminationPoints: number;
   bonusPoints: number;
@@ -474,7 +476,11 @@ export default function TournamentResults({ tournamentId, onUpdate }: Props) {
                                 +{player.bonusPoints} pts
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                {player.leaderKills} LK
+                                {[
+                                  player.leaderKills > 0 ? `${player.leaderKills} LK` : null,
+                                  player.topSharkLeaderKills > 0 ? `${player.topSharkLeaderKills} TS` : null,
+                                  player.randomTargetKills > 0 ? `${player.randomTargetKills} RK` : null,
+                                ].filter(Boolean).join(' · ')}
                               </div>
                             </div>
                           )}
