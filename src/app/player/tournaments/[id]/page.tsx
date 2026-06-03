@@ -38,6 +38,8 @@ type TournamentPlayer = {
   eliminationsCount: number;
   bustEliminations: number;
   leaderKills: number;
+  topSharkLeaderKills: number;
+  randomTargetKills: number;
   player: {
     id: string;
     firstName: string;
@@ -75,6 +77,8 @@ type Tournament = {
     eliminationPoints?: number;
     bustEliminationBonus?: number;
     leaderKillerBonus?: number;
+    topSharkLeaderBonus?: number;
+    randomKillerBonus?: number;
     freeRebuysCount?: number;
   };
   tournamentPlayers: TournamentPlayer[];
@@ -494,6 +498,22 @@ function PlayerResultRow({ tp, isFinished, eliminations, season }: {
                       <div className="flex justify-between">
                         <span>{tp.leaderKills} Leader Kill{tp.leaderKills > 1 ? 's' : ''} x {season?.leaderKillerBonus ?? 50} pts</span>
                         <span>+{tp.leaderKills * (season?.leaderKillerBonus ?? 50)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {tp.topSharkLeaderKills > 0 && (
+                    <div className="ml-4 text-xs text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>{tp.topSharkLeaderKills} Top Shark Kill{tp.topSharkLeaderKills > 1 ? 's' : ''} x {season?.topSharkLeaderBonus ?? 50} pts</span>
+                        <span>+{tp.topSharkLeaderKills * (season?.topSharkLeaderBonus ?? 50)}</span>
+                      </div>
+                    </div>
+                  )}
+                  {tp.randomTargetKills > 0 && (
+                    <div className="ml-4 text-xs text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>{tp.randomTargetKills} Random Kill{tp.randomTargetKills > 1 ? 's' : ''} x {season?.randomKillerBonus ?? 50} pts</span>
+                        <span>+{tp.randomTargetKills * (season?.randomKillerBonus ?? 50)}</span>
                       </div>
                     </div>
                   )}

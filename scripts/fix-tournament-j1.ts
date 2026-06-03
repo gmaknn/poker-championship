@@ -109,6 +109,8 @@ interface TournamentPlayer {
   eliminationsCount: number;
   bustEliminations: number;
   leaderKills: number;
+  topSharkLeaderKills: number;
+  randomTargetKills: number;
   finalRank: number | null;
   player: {
     id: string;
@@ -340,8 +342,10 @@ function calculateAllPlayers(
     const bustElimPoints = tp.bustEliminations * season.bustEliminationBonus;
     const newEliminationPoints = finalElimPoints + bustElimPoints;
 
-    // Bonus leader kill
-    const newBonusPoints = tp.leaderKills * season.leaderKillerBonus;
+    // Bonus kills (Leader Killer + Top Shark Leader + Random Killer)
+    const newBonusPoints = tp.leaderKills * season.leaderKillerBonus
+      + tp.topSharkLeaderKills * season.topSharkLeaderBonus
+      + tp.randomTargetKills * season.randomKillerBonus;
 
     // Malus recaves
     const newPenaltyPoints = computeRecavePenalty(newRebuysCount, rules, newLightRebuyUsed);
