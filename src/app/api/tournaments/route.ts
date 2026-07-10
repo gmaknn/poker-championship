@@ -9,6 +9,7 @@ const tournamentSchema = z.object({
   name: z.string().min(1, 'Le nom est requis'),
   seasonId: z.string().min(1, 'La saison est requise'),
   date: z.string().datetime(),
+  type: z.enum(['CHAMPIONSHIP', 'CASUAL']).default('CHAMPIONSHIP'),
   buyInAmount: z.coerce.number().min(0).default(10),
   startingChips: z.coerce.number().int().min(1000).default(5000),
   targetDuration: z.coerce.number().int().min(30).default(180),
