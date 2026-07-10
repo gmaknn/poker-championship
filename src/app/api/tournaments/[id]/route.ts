@@ -9,6 +9,7 @@ const updateTournamentSchema = z.object({
   name: z.string().min(1).optional(),
   seasonId: z.string().optional(),
   date: z.string().datetime().optional(),
+  type: z.enum(['CHAMPIONSHIP', 'CASUAL']).optional(),
   buyIn: z.coerce.number().int().min(0).optional(),
   startingChips: z.coerce.number().int().min(1000).optional(),
   estimatedDuration: z.coerce.number().int().min(30).optional(),
@@ -138,17 +139,19 @@ export async function PATCH(
     const body = await request.json();
     const validatedData = updateTournamentSchema.parse(body);
 
-    // Prevent editing completed tournaments (except prize pool and distribution)
+    // Prevent editing completed tournaments (except prize pool, distribution, and type).
+    // `type` reste modifiable pour pouvoir requalifier après coup un tournoi terminé
+    // en libre (CASUAL) ou en étape de championnat (ex. correction d'une erreur de saisie).
     if (existingTournament.status === 'FINISHED') {
-      // Allow updating only prizePool and prizeDistribution for finished tournaments
-      const allowedFields = ['prizePool', 'prizeDistribution'];
+      // Allow updating only prizePool, prizeDistribution and type for finished tournaments
+      const allowedFields = ['prizePool', 'prizeDistribution', 'type'];
       const hasDisallowedChanges = Object.keys(validatedData).some(
         key => !allowedFields.includes(key)
       );
 
       if (hasDisallowedChanges) {
         return NextResponse.json(
-          { error: 'Impossible de modifier un tournoi terminé (seule la distribution du prize pool peut être modifiée)' },
+          { error: 'Impossible de modifier un tournoi terminé (seuls la distribution du prize pool et le type peuvent être modifiés)' },
           { status: 400 }
         );
       }
