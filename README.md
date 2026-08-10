@@ -93,6 +93,24 @@ Après le seed de la base de données :
 
 ⚠️ **Important**: Changez ces identifiants en production !
 
+## Dev Login (Local Only)
+
+Pour les tests E2E en local sans connaître les identifiants :
+
+1. **Activer le dev login** dans `.env.local` :
+   ```bash
+   NEXT_PUBLIC_DEV_LOGIN=1
+   ```
+
+2. **Aller sur `/login`** - un bouton "Connexion Admin (local)" apparaît
+
+3. **Cliquer** - crée automatiquement un compte `admin@local.test` et connecte
+
+**Sécurité** : Ce mécanisme est désactivé automatiquement si :
+- `NODE_ENV` n'est pas `development`
+- `NEXT_PUBLIC_DEV_LOGIN` n'est pas `1`
+- La requête ne vient pas de `localhost`
+
 ## Scripts disponibles
 
 ```bash
