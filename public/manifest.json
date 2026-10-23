@@ -2,7 +2,7 @@
   "name": "WPT Villelaure - Championnat de Poker",
   "short_name": "WPT Villelaure",
   "description": "Système de gestion de championnat de poker - WPT Villelaure",
-  "start_url": "/",
+  "start_url": "/player",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#10b981",
@@ -73,10 +73,10 @@
   "categories": ["sports", "entertainment", "utilities"],
   "shortcuts": [
     {
-      "name": "Dashboard",
-      "short_name": "Dashboard",
+      "name": "Mon espace",
+      "short_name": "Mon espace",
       "description": "Vue d'ensemble du championnat",
-      "url": "/dashboard",
+      "url": "/player",
       "icons": [
         {
           "src": "/icons/icon-192x192.png",
@@ -88,7 +88,7 @@
       "name": "Classement",
       "short_name": "Classement",
       "description": "Voir le classement général",
-      "url": "/dashboard/leaderboard",
+      "url": "/player/leaderboard",
       "icons": [
         {
           "src": "/icons/icon-192x192.png",
@@ -99,8 +99,8 @@
     {
       "name": "Tournois",
       "short_name": "Tournois",
-      "description": "Gérer les tournois",
-      "url": "/dashboard/tournaments",
+      "description": "Voir les tournois",
+      "url": "/player/tournaments",
       "icons": [
         {
           "src": "/icons/icon-192x192.png",

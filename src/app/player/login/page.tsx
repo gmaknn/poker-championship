@@ -43,6 +43,12 @@ export default function PlayerLoginPage() {
         redirectUrl = '/director';
       }
 
+      // Retour à la page demandée avant la redirection du middleware (chemin interne uniquement)
+      const callbackUrl = new URLSearchParams(window.location.search).get('callbackUrl');
+      if (callbackUrl && /^\/(?![/\\])/.test(callbackUrl)) {
+        redirectUrl = callbackUrl;
+      }
+
       router.push(redirectUrl);
       router.refresh();
     } catch (err) {
