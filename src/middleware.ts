@@ -178,8 +178,9 @@ export default auth(async (req) => {
       return NextResponse.next();
     }
 
-    // 3. Pas d'authentification du tout - rediriger vers login
-    const loginUrl = new URL('/login', req.url);
+    // 3. Pas d'authentification du tout - rediriger vers la connexion joueur
+    // (gère tous les rôles : PLAYER, TD, ADMIN... /login reste dispo pour NextAuth)
+    const loginUrl = new URL('/player/login', req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
