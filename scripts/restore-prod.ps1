@@ -2,6 +2,7 @@
 #
 #   npm run restore:prod -- -Backup backups\20261023-180000
 #   npm run restore:prod -- -Backup backups\20261023-180000 -WithAvatars
+#   ... -App wpt-villelaure-restore-test -Yes   (autre app / sans confirmation clavier, pour les tests)
 #
 # Étapes : confirmation -> sauvegarde de sécurité de l'état actuel -> upload -> vérification
 # d'intégrité sur la machine -> remplacement (ancienne base conservée sur /data) -> redémarrage
@@ -13,7 +14,8 @@
 param(
   [Parameter(Mandatory = $true)][string]$Backup,
   [switch]$WithAvatars,
-  [string]$App = "wpt-villelaure"
+  [string]$App = "wpt-villelaure",
+  [switch]$Yes  # saute la confirmation clavier (exécution non interactive)
 )
 
 # "Continue" : en PS 5.1, "Stop" transforme le stderr de fly en erreur fatale ; les échecs sont testés via $LASTEXITCODE
@@ -33,8 +35,10 @@ if (Test-Path $manifestPath) {
 }
 Write-Host "  Avatars : $(if ($WithAvatars) { 'restaurés' } else { 'inchangés' })"
 Write-Host "  Tout ce qui a été saisi en prod depuis cette sauvegarde sera remplacé." -ForegroundColor Yellow
-$confirm = Read-Host "Tapez RESTAURER pour continuer"
-if ($confirm -ne "RESTAURER") { Write-Host "Annulé."; exit 1 }
+if (-not $Yes) {
+  $confirm = Read-Host "Tapez RESTAURER pour continuer"
+  if ($confirm -ne "RESTAURER") { Write-Host "Annulé."; exit 1 }
+}
 
 # 1. Sauvegarde de sécurité de l'état actuel
 Write-Host "`n== 1/4 Sauvegarde de sécurité de l'état actuel" -ForegroundColor Cyan
