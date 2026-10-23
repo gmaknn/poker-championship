@@ -15,8 +15,11 @@
  * - Sortie "ABANDON" : pas d'éliminateur.  -> cf. POST /eliminations
  * - Bust : +1 bustEliminations pour le killer, qu'il y ait eu recave ou non.
  * - Malus de recave : computeRecavePenalty(rebuysCount, règles saison, light).
- * - Points : uniquement pour un tournoi CHAMPIONSHIP rattaché à une saison
- *   (même règle que GET /results), sinon rank/elim/bonus = 0.
+ * - Points : recalculés uniquement pour un tournoi CHAMPIONSHIP rattaché à une
+ *   saison (même règle que GET /results). Pour les autres (CASUAL...), exclus du
+ *   classement et de l'affichage, les points stockés sont conservés tels quels.
+ * - Gains : le gain stocké suit la place (aucun gain n'est créé à partir de la
+ *   grille du tournoi : les stats de gains ne doivent pas bouger sur une correction).
  *
  * Ce module est pur (aucun accès base) pour être testable exhaustivement.
  */
@@ -96,10 +99,10 @@ export interface CorrectionContext {
   seasonLeaderAtStartId: string | null;
   seasonTopSharkAtStartId: string | null;
   randomTargetPlayerId: string | null;
-  /** Gains par place configurés (prizePayoutPercents, en €). Vide = pas de config. */
-  prizeAmounts: number[];
-  /** Gains actuellement stockés par place : utilisés si aucune config (tournois injectés). */
+  /** Gains actuellement stockés, par place : ils suivent la place après correction. */
   storedPrizeByRank: Record<number, number | null>;
+  /** Points stockés par joueur : conservés pour les tournois qui n'attribuent pas de points. */
+  storedPoints: Record<string, { rankPoints: number; eliminationPoints: number; bonusPoints: number; totalPoints: number }>;
   /** Player.id de tous les inscrits. */
   playerIds: string[];
 }
@@ -352,9 +355,8 @@ export function computeCorrectedResults(state: CorrectionState, ctx: CorrectionC
       : 0;
 
     const finalRank = rankOf.get(playerId)!;
-    let rankPoints = 0;
-    let eliminationPoints = 0;
-    let bonusPoints = 0;
+    const stored = ctx.storedPoints[playerId] ?? { rankPoints: 0, eliminationPoints: 0, bonusPoints: 0, totalPoints: 0 };
+    let { rankPoints, eliminationPoints, bonusPoints, totalPoints } = stored;
     if (awardsPoints) {
       rankPoints = getRankPointsForPosition(finalRank, season);
       eliminationPoints = eliminationsCount * season.eliminationPoints + bustEliminations * season.bustEliminationBonus;
@@ -362,12 +364,10 @@ export function computeCorrectedResults(state: CorrectionState, ctx: CorrectionC
         leaderKills * season.leaderKillerBonus +
         topSharkLeaderKills * season.topSharkLeaderBonus +
         randomTargetKills * season.randomKillerBonus;
+      totalPoints = rankPoints + eliminationPoints + bonusPoints + penaltyPoints;
     }
 
-    const prizeAmount =
-      ctx.prizeAmounts.length > 0
-        ? (ctx.prizeAmounts[finalRank - 1] ?? null)
-        : (ctx.storedPrizeByRank[finalRank] ?? null);
+    const prizeAmount = ctx.storedPrizeByRank[finalRank] ?? null;
 
     return {
       playerId,
@@ -383,7 +383,7 @@ export function computeCorrectedResults(state: CorrectionState, ctx: CorrectionC
       eliminationPoints,
       bonusPoints,
       penaltyPoints,
-      totalPoints: rankPoints + eliminationPoints + bonusPoints + penaltyPoints,
+      totalPoints,
       prizeAmount,
     };
   });

@@ -81,8 +81,15 @@ type LoadedTournament = NonNullable<Awaited<ReturnType<typeof loadTournament>>>;
 
 function buildContext(t: LoadedTournament): CorrectionContext {
   const storedPrizeByRank: Record<number, number | null> = {};
+  const storedPoints: CorrectionContext['storedPoints'] = {};
   for (const tp of t.tournamentPlayers) {
     if (tp.finalRank !== null) storedPrizeByRank[tp.finalRank] = tp.prizeAmount;
+    storedPoints[tp.playerId] = {
+      rankPoints: tp.rankPoints,
+      eliminationPoints: tp.eliminationPoints,
+      bonusPoints: tp.bonusPoints,
+      totalPoints: tp.totalPoints,
+    };
   }
   return {
     type: t.type,
@@ -90,8 +97,8 @@ function buildContext(t: LoadedTournament): CorrectionContext {
     seasonLeaderAtStartId: t.seasonLeaderAtStartId,
     seasonTopSharkAtStartId: t.seasonTopSharkAtStartId,
     randomTargetPlayerId: t.randomTargetPlayerId,
-    prizeAmounts: (t.prizePayoutPercents as number[] | null) ?? [],
     storedPrizeByRank,
+    storedPoints,
     playerIds: t.tournamentPlayers.map((tp) => tp.playerId),
   };
 }

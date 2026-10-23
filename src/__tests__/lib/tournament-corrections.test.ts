@@ -36,8 +36,8 @@ function ctx(over: Partial<CorrectionContext> = {}): CorrectionContext {
     seasonLeaderAtStartId: null,
     seasonTopSharkAtStartId: null,
     randomTargetPlayerId: null,
-    prizeAmounts: [],
     storedPrizeByRank: {},
+    storedPoints: {},
     playerIds,
     ...over,
   };
@@ -178,24 +178,24 @@ describe('computeCorrectedResults', () => {
     expect(byId(r, 'C').totalPoints).toBe(700 - 100);
   });
 
-  it("ne donne pas de points à un tournoi hors championnat (malus conservé)", () => {
+  it("conserve les points stockés d'un tournoi hors championnat (exclu du classement)", () => {
     const s = baseState();
     s.rebuys.find((r) => r.playerId === 'A')!.rebuysCount = 2;
-    const r = computeCorrectedResults(s, ctx({ type: 'CASUAL' }));
-    expect(byId(r, 'A')).toMatchObject({ rankPoints: 0, eliminationPoints: 0, bonusPoints: 0, penaltyPoints: -50, totalPoints: -50 });
+    const storedPoints = { A: { rankPoints: 50, eliminationPoints: 25, bonusPoints: 0, totalPoints: 75 } };
+    const r = computeCorrectedResults(s, ctx({ type: 'CASUAL', storedPoints }));
+    expect(byId(r, 'A')).toMatchObject({ rankPoints: 50, eliminationPoints: 25, totalPoints: 75, penaltyPoints: -50, eliminationsCount: 3 });
+    expect(byId(r, 'B')).toMatchObject({ rankPoints: 0, totalPoints: 0 });
   });
 
-  it('les gains suivent la place : config du tournoi, sinon gains stockés par place', () => {
+  it('les gains stockés suivent la place, sans en créer', () => {
     const s = baseState();
     [s.exits[3], s.exits[2]] = [s.exits[2], s.exits[3]]; // B 3e, C 2e
-    const withConfig = computeCorrectedResults(s, ctx({ prizeAmounts: [100, 60, 30] }));
-    expect(byId(withConfig, 'C').prizeAmount).toBe(60);
-    expect(byId(withConfig, 'B').prizeAmount).toBe(30);
-    expect(byId(withConfig, 'D').prizeAmount).toBeNull();
-
-    const injected = computeCorrectedResults(s, ctx({ storedPrizeByRank: { 1: 130, 2: 80, 3: 30 } }));
-    expect(byId(injected, 'C').prizeAmount).toBe(80);
-    expect(byId(injected, 'B').prizeAmount).toBe(30);
+    const r = computeCorrectedResults(s, ctx({ storedPrizeByRank: { 1: 130, 2: 80, 3: 30, 4: null } }));
+    expect(byId(r, 'A').prizeAmount).toBe(130);
+    expect(byId(r, 'C').prizeAmount).toBe(80);
+    expect(byId(r, 'B').prizeAmount).toBe(30);
+    expect(byId(r, 'D').prizeAmount).toBeNull();
+    expect(computeCorrectedResults(s, ctx()).players.every((p) => p.prizeAmount === null)).toBe(true);
   });
 
   it('utilise la config de points détaillée si présente', () => {
