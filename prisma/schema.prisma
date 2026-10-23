@@ -195,6 +195,7 @@ model Tournament {
 
   // Directeurs de tournoi assignés (1..n)
   directors             TournamentDirector[]
+  corrections           TournamentCorrection[]
 
   @@index([seasonId])
   @@index([status])
@@ -542,4 +543,21 @@ enum TournamentStatus {
   IN_PROGRESS
   FINISHED
   CANCELLED
+}
+
+// Historique des corrections a posteriori d'un tournoi terminé (sorties, busts, recaves)
+model TournamentCorrection {
+  id           String     @id @default(cuid())
+  tournamentId String
+  tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  authorId     String?    // Player.id de l'admin (null si acteur synthétique)
+  authorName   String
+  summary      String     // Résumé lisible des changements
+  before       Json       // CorrectionState avant
+  after        Json       // CorrectionState après
+
+  createdAt    DateTime   @default(now())
+
+  @@index([tournamentId])
 }

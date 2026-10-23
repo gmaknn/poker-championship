@@ -23,6 +23,8 @@
     "db:reset:local": "tsx scripts/db/reset-local.ts",
     "reset:prod": "powershell -ExecutionPolicy Bypass -File scripts/reset-prod-remote.ps1",
     "reset:prod:local": "node reset-prod.js",
+    "backup:prod": "powershell -ExecutionPolicy Bypass -File scripts/backup-prod.ps1",
+    "restore:prod": "powershell -ExecutionPolicy Bypass -File scripts/restore-prod.ps1",
     "db:studio": "prisma studio",
     "check:auth-version": "node scripts/check-auth-version.js",
     "recipe:tech": "npx playwright test scripts/recipe/finish-flow.spec.ts",

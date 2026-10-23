@@ -56,3 +56,6 @@ test-results/
 /public/avatars/*.webp
 !/public/avatars/.gitkeep
 nul
+
+# Sauvegardes locales de la prod (scripts/backup-prod.ps1)
+backups/
