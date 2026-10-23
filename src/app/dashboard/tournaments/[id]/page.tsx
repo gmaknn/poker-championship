@@ -28,6 +28,7 @@ import TournamentResults from '@/components/TournamentResults';
 import PrizePoolManager from '@/components/PrizePoolManager';
 import TournamentDirectorsManager from '@/components/TournamentDirectorsManager';
 import LiveDashboard from '@/components/LiveDashboard';
+import TournamentCorrections from '@/components/TournamentCorrections';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 
@@ -545,6 +546,9 @@ export default function TournamentDetailPage({
             <TabsTrigger value="prizepool" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Prizes</TabsTrigger>
             <TabsTrigger value="results" data-admin-tab="results" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Résultats</TabsTrigger>
             {isAdmin && <TabsTrigger value="directors" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">TD</TabsTrigger>}
+            {isAdmin && tournament.status === 'FINISHED' && (
+              <TabsTrigger value="corrections" className="shrink-0 min-w-fit text-sm px-3 md:flex-1 md:px-4">Corriger</TabsTrigger>
+            )}
           </TabsList>
           {/* Fade indicator for more tabs on mobile */}
           <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-ink to-transparent rounded-r-lg pointer-events-none md:hidden" />
@@ -629,6 +633,15 @@ export default function TournamentDetailPage({
             onUpdate={() => fetchTournament()}
           />
         </TabsContent>
+
+        {isAdmin && tournament.status === 'FINISHED' && (
+          <TabsContent value="corrections" className="mt-6">
+            <TournamentCorrections
+              tournamentId={tournament.id}
+              onUpdate={() => fetchTournament()}
+            />
+          </TabsContent>
+        )}
 
         {isAdmin && (
           <TabsContent value="directors" className="mt-6">
